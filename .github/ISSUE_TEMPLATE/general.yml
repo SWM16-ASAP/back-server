@@ -1,0 +1,36 @@
+name: 📝 일반 이슈
+description: 기타 이슈나 질문
+title: "[일반] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        연락해주셔서 감사합니다!
+  - type: textarea
+    id: description
+    attributes:
+      label: 설명
+      description: 이슈나 질문은 무엇인가요?
+      placeholder: 여기에 이슈나 질문을 설명해주세요...
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 컨텍스트
+      description: 무엇을 하려고 하셨나요?
+      placeholder: 작업하려던 내용에 대한 컨텍스트를 제공해주세요...
+  - type: textarea
+    id: tried
+    attributes:
+      label: 시도한 것
+      description: 이미 취한 단계가 있나요?
+      placeholder: 이미 시도한 문제 해결 단계를 설명해주세요...
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: 추가 정보
+      description: 기타 관련 세부사항
+      placeholder: 도움이 될 수 있는 기타 정보... 

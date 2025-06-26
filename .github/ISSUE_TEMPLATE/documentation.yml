@@ -1,0 +1,46 @@
+name: 📚 문서화
+description: 문서 개선을 요청합니다
+title: "[문서] "
+labels: ["documentation"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        문서 개선에 도움을 주셔서 감사합니다!
+  - type: checkboxes
+    id: doc-type
+    attributes:
+      label: 어떤 문서가 필요한가요?
+      description: 개선이 필요한 문서 유형을 선택해주세요
+      options:
+        - label: API 문서
+        - label: README
+        - label: 코드 주석
+        - label: 아키텍처 문서
+        - label: 배포 가이드
+        - label: 기타
+    validations:
+      required: true
+  - type: textarea
+    id: specific-area
+    attributes:
+      label: 구체적인 영역
+      description: 어떤 부분에 주의가 필요한가요?
+      placeholder: 문서가 필요한 구체적인 영역을 설명해주세요...
+    validations:
+      required: true
+  - type: textarea
+    id: suggested-improvements
+    attributes:
+      label: 제안하는 개선사항
+      description: 무엇을 추가하거나 변경해야 할까요?
+      placeholder: 보고 싶은 개선사항을 설명해주세요...
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: 예시
+      description: 예시나 참고자료가 있나요?
+      placeholder: 도움이 될 예시, 스크린샷, 참고자료를 제공해주세요... 

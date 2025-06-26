@@ -1,0 +1,54 @@
+name: 🐛 버그 리포트
+description: 버그나 문제점을 보고합니다
+title: "[버그] "
+labels: ["bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        버그를 보고해주셔서 감사합니다!
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: 버그 설명
+      description: 버그에 대한 간단한 설명
+      placeholder: 여기에 버그를 설명해주세요...
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: 재현 단계
+      description: 이 문제를 어떻게 재현할 수 있나요?
+      placeholder: |
+        1. '...'로 이동
+        2. '....' 클릭
+        3. 오류 발생
+    validations:
+      required: true
+  - type: textarea
+    id: expected-vs-actual
+    attributes:
+      label: 예상 vs 실제 동작
+      description: 예상했던 것과 실제로 일어난 것은 무엇인가요?
+      placeholder: |
+        예상: 
+        실제: 
+    validations:
+      required: true
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: 추가 정보
+      description: 기타 컨텍스트, 오류 로그, 스크린샷
+      placeholder: |
+        - 오류 로그/스택 트레이스:
+        - 스크린샷 (해당하는 경우):
+        - 관련 이슈:
+  - type: textarea
+    id: possible-solution
+    attributes:
+      label: 가능한 해결책
+      description: 수정에 대한 아이디어가 있으신가요?
+      placeholder: 수정 방법에 대한 제안이 있으시면 여기에 설명해주세요... 
