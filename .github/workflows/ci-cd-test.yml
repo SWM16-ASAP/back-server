@@ -30,20 +30,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # cache Gradle packages
-      - name: Cache Gradle packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-gradle-
-
-	  # Gradle grant
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-
       # build project
       - name: Build with Gradle
         run: |
