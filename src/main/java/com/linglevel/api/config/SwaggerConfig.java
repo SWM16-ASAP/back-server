@@ -3,6 +3,10 @@ package com.linglevel.api.config;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,8 +19,19 @@ public class SwaggerConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("LLV API")
-                        .description("Linglevel API 명세서")
-                        .version("1.0.0"));
+                        .title("Ling Level API")
+                        .version("1.0.0"))
+                .servers(List.of(
+                        new Server()
+                                .url("http://localhost:8080")
+                                .description("로컬 서버")))
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth", new SecurityScheme()
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")
+                                .description("JWT 토큰을 사용한 인증. `/auth/google/login`을 제외한 모든 API는 인증이 필요합니다.")))
+                .security(List.of(
+                        new SecurityRequirement().addList("bearerAuth")));
     }
 } 
