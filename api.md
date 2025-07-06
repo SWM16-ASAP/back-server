@@ -156,19 +156,7 @@ Authorization: Bearer {AccessToken}
 #### **Success Response (200 OK)**
 ```json
 {
-  "pageInfo": {
-    "currentPage": 1, // 현재 페이지
-    "totalPages": 10, // 전체 페이지
-    "totalCount": 100 // 전체 책 개수
-  },
-  "searchInfo": { // 현재 검색 정보
-    "sort_by": "created_at",
-    "appliedFilters": {
-      "tags": ["philosophy", "children"],
-      "keyword": null
-    }
-  },
-  "books": [
+  "data": [
     {
       "_id": "60d0fe4f5311236168a109ca", // 식별자
       "title": "The Little Prince", // 책 제목
@@ -186,7 +174,19 @@ Authorization: Bearer {AccessToken}
       "createdAt": "2024-01-15T00:00:00.000Z" // 생성 날짜
     }
     ...
-  ]
+  ],
+  "currentPage": 1, // 현재 페이지
+  "totalPages": 10, // 전체 페이지
+  "totalCount": 100, // 전체 책 개수
+  "hasNext": true, // 다음 페이지 존재 여부
+  "hasPrevious": false, // 이전 페이지 존재 여부
+  "searchInfo": { // 현재 검색 정보
+    "sort_by": "created_at",
+    "appliedFilters": {
+      "tags": ["philosophy", "children"],
+      "keyword": null
+    }
+  }
 }
 ```
 
@@ -242,7 +242,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 
 ### `GET /books/{book_id}/chapters`
 
-특정 책에 포함된 챕터 목록 전체를 조회합니다.
+특정 책에 포함된 챕터 목록을 페이지네이션으로 조회합니다.
 
 #### **Path Parameters**
 
@@ -250,12 +250,17 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 | :-------- | :------- | :--------------- |
 | `book_id` | ObjectId | 조회할 책의 고유 ID |
 
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                      |
+| :------- | :------ | :--- | :------------------------ |
+| `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수                |
+
 #### **Success Response (200 OK)**
 ```json
 {
-  "totalChapters": 27, // 전체 챕터 수
-  "currentReadChapterNumber": 1, // 현재 읽고 있는 챕터 번호
-  "chapters": [
+  "data": [
     {
       "_id": "60d0fe4f5311236168a109cb",
       "chapterNumber": 1,
@@ -278,8 +283,32 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
       "progressPercentage": 0.0, // 진행률
       "readingTime": 20
     }
-  ]
+  ],
+  "currentPage": 1, // 현재 페이지
+  "totalPages": 3, // 전체 페이지
+  "totalCount": 27, // 전체 챕터 항목 수 (페이지네이션 기준)
+  "hasNext": true, // 다음 페이지 존재 여부
+  "hasPrevious": false, // 이전 페이지 존재 여부
+  "totalChapters": 27, // 전체 챕터 수
+  "currentReadChapterNumber": 1 // 현재 읽고 있는 챕터 번호
 }
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회 (첫 번째 페이지)**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters
+```
+
+**2. 특정 페이지 조회**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=2
+```
+
+**3. 페이지 크기 조정**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 ```
 
 #### **Error Response (404 Not Found)**
@@ -314,15 +343,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 #### **Success Response (200 OK)**
 ```json
 {
-  "pageInfo": {
-    "currentPage": 1, // 현재 페이지
-    "totalPages": 5, // 전체 페이지
-    "totalCount": 100 // 전체 청크 개수
-  },
-  "totalChunks": 100, // 해당 난이도의 전체 청크 수
-  "currentReadChunkNumber": 15, // 현재 읽은 청크 번호
-  "progressPercentage": 15.0, // 진행률 (15/100 * 100)
-  "chunks": [
+  "data": [
     {
       "_id": "60d0fe4f5311236168a109cd",
       "chunkNumber": 1,
@@ -339,7 +360,15 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
       "chunkImageUrl": "https://path/to/boa-constrictor-image.jpg", // 이미지 URL
       "description": "A picture of a boa constrictor swallowing an animal" // 이미지 설명
     }
-  ]
+  ],
+  "currentPage": 1, // 현재 페이지
+  "totalPages": 5, // 전체 페이지
+  "totalCount": 100, // 전체 청크 개수
+  "hasNext": true, // 다음 페이지 존재 여부
+  "hasPrevious": false, // 이전 페이지 존재 여부
+  "totalChunks": 100, // 해당 난이도의 전체 청크 수
+  "currentReadChunkNumber": 15, // 현재 읽은 청크 번호
+  "progressPercentage": 15.0 // 진행률 (15/100 * 100)
 }
 ```
 
@@ -471,12 +500,7 @@ Authorization: Bearer {AccessToken}
 #### **Success Response (200 OK)**
 ```json
 {
-  "pageInfo": {
-    "currentPage": 1, // 현재 페이지
-    "totalPages": 3, // 전체 페이지
-    "totalCount": 25 // 진도가 있는 전체 책 개수
-  },
-  "progress": [
+  "data": [
     {
       "_id": "60d0fe4f5311236168a109d1",
       "book": {
@@ -492,6 +516,11 @@ Authorization: Bearer {AccessToken}
       "progressPercentage": 15.5,
       "updatedAt": "2024-01-15T10:30:00.000Z"
     }
-  ]
+  ],
+  "currentPage": 1, // 현재 페이지
+  "totalPages": 3, // 전체 페이지
+  "totalCount": 25, // 진도가 있는 전체 책 개수
+  "hasNext": true, // 다음 페이지 존재 여부
+  "hasPrevious": false // 이전 페이지 존재 여부
 }
 ```
