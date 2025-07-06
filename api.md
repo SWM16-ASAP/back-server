@@ -260,6 +260,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
       "_id": "60d0fe4f5311236168a109cb",
       "chapterNumber": 1,
       "title": "The Drawing",
+      "chapterImageUrl": "https://path/to/chapter-image.jpg", // 챕터 이미지
       "description": "A brief summary of the first chapter.",
       "chunkCount": 10, // 챕터 내부 전체 청크
       "currentReadChunkNumber": 8, // 현재 읽은 청크 번호
@@ -270,6 +271,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
       "_id": "60d0fe4f5311236168a109cc",
       "chapterNumber": 2,
       "title": "The Boa Constrictor",
+      "chapterImageUrl": "https://path/to/chapter2-image.jpg", // 챕터 이미지
       "description": "The pilot's encounter with the boa constrictor.",
       "chunkCount": 20,
       "currentReadChunkNumber": 0, // 아직 읽지 않음
@@ -324,12 +326,18 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
     {
       "_id": "60d0fe4f5311236168a109cd",
       "chunkNumber": 1,
-      "content": "Once when I was six years old I saw a magnificent picture in a book..."
+      "content": "Once when I was six years old I saw a magnificent picture in a book...",
+      "isImage": false, // 텍스트 청크인지 이미지 청크인지
+      "chunkImageUrl": null, // 이미지 청크일 경우 이미지 URL
+      "description": null // 이미지 설명
     },
     {
       "_id": "60d0fe4f5311236168a109ce",
       "chunkNumber": 2,
-      "content": "It was a picture of a boa constrictor in the act of swallowing an animal."
+      "content": null, // 이미지 청크일 경우 content는 null
+      "isImage": true, // 이미지 청크
+      "chunkImageUrl": "https://path/to/boa-constrictor-image.jpg", // 이미지 URL
+      "description": "A picture of a boa constrictor swallowing an animal" // 이미지 설명
     }
   ]
 }
