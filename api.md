@@ -180,13 +180,6 @@ Authorization: Bearer {AccessToken}
   "totalCount": 100, // 전체 책 개수
   "hasNext": true, // 다음 페이지 존재 여부
   "hasPrevious": false, // 이전 페이지 존재 여부
-  "searchInfo": { // 현재 검색 정보
-    "sort_by": "created_at",
-    "appliedFilters": {
-      "tags": ["philosophy", "children"],
-      "keyword": null
-    }
-  }
 }
 ```
 
