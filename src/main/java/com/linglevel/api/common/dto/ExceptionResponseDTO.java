@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "공통 예외처리 응답")
 public class ExceptionResponseDTO {
-    @Schema(description = "에러 메시지")
+    @Schema(description = "에러 메시지", example = "error message")
     private String message;
 
     public ExceptionResponseDTO(Exception exception) {
