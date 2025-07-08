@@ -116,21 +116,18 @@ Authorization: Bearer {AccessToken}
 #### **Success Response (200 OK)**
 ```json
 {
-  "valid": true,
-  "user": {
-    "id": "ObjectId",
-    "email": "user@example.com",
-    "name": "홍길동",
-    "role": "user",
-    "subscription": "premium"
-  }
+  "id": "60d0fe4f5311236168a109ca",
+  "email": "user@example.com",
+  "name": "홍길동",
+  "profileImageUrl": "https://path/to/image.jpg",
+  "role": "user",
+  "subscription": "premium"
 }
 ```
 
 #### **Error Response (401 Unauthorized)**
 ```json
 {
-  "valid": false,
   "error": "Invalid or expired token."
 }
 ```
@@ -171,7 +168,7 @@ Authorization: Bearer {AccessToken}
       "reviewCount": 1500, // 리뷰어 수
       "viewCount": 25000, // 조회수
       "tags": ["philosophy", "children"], // 태그 목록
-      "createdAt": "2024-01-15T00:00:00.000Z" // 생성 날짜
+      "createdAt": "2024-01-15T00:00:00" // 생성 날짜
     }
     ...
   ],
@@ -237,7 +234,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 
 | 파라미터  | 타입     | 설명             |
 | :-------- | :------- | :--------------- |
-| `book_id` | ObjectId | 조회할 책의 고유 ID |
+| `book_id` | String | 조회할 책의 고유 ID |
 
 #### **Success Response (200 OK)**
 ```json
@@ -255,7 +252,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
   "reviewCount": 1500,
   "viewCount": 25000,
   "tags": ["philosophy", "children"],
-  "createdAt": "2024-01-15T00:00:00.000Z"
+  "createdAt": "2024-01-15T00:00:00"
 }
 ```
 
@@ -278,7 +275,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 
 | 파라미터  | 타입     | 설명             |
 | :-------- | :------- | :--------------- |
-| `book_id` | ObjectId | 조회할 책의 고유 ID |
+| `book_id` | String | 조회할 책의 고유 ID |
 
 #### **Query Parameters**
 
@@ -356,8 +353,8 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 | 파라미터     | 타입     | 설명               |
 | :----------- | :------- | :----------------- |
-| `book_id`    | ObjectId | 조회할 책의 고유 ID   |
-| `chapter_id` | ObjectId | 조회할 챕터의 고유 ID |
+| `book_id`    | String | 조회할 책의 고유 ID   |
+| `chapter_id` | String | 조회할 챕터의 고유 ID |
 
 #### **Success Response (200 OK)**
 ```json
@@ -400,8 +397,8 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 | 파라미터     | 타입     | 설명               |
 | :----------- | :------- | :----------------- |
-| `book_id`    | ObjectId | 조회할 책의 고유 ID   |
-| `chapter_id` | ObjectId | 조회할 챕터의 고유 ID |
+| `book_id`    | String | 조회할 책의 고유 ID   |
+| `chapter_id` | String | 조회할 챕터의 고유 ID |
 
 #### **Query Parameters**
 
@@ -458,9 +455,9 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 | 파라미터     | 타입     | 설명               |
 | :----------- | :------- | :----------------- |
-| `book_id`    | ObjectId | 조회할 책의 고유 ID   |
-| `chapter_id` | ObjectId | 조회할 챕터의 고유 ID |
-| `chunk_id`   | ObjectId | 조회할 청크의 고유 ID |
+| `book_id`    | String | 조회할 책의 고유 ID   |
+| `chapter_id` | String | 조회할 챕터의 고유 ID |
+| `chunk_id`   | String | 조회할 청크의 고유 ID |
 
 #### **Success Response (200 OK) - 텍스트 청크**
 ```json
@@ -524,7 +521,7 @@ Authorization: Bearer {AccessToken}
 
 | 파라미터  | 타입     | 설명             |
 | :-------- | :------- | :--------------- |
-| `book_id` | ObjectId | 읽고 있는 책의 고유 ID |
+| `book_id` | String | 읽고 있는 책의 고유 ID |
 
 #### **Request Body**
 
@@ -538,14 +535,12 @@ Authorization: Bearer {AccessToken}
 #### **Success Response (200 OK)**
 ```json
 {
-  "progress": {
-    "id": "60d0fe4f5311236168a109d1",
-    "bookId": "60d0fe4f5311236168a109cb", 
-    "chapterId": "60d0fe4f5311236168a109cb",
-    "totalChunks" : 30,
-    "currentReadChunkNumber": 5,
-    "updatedAt": "2024-01-15T10:30:00.000Z"
-  }
+  "id": "60d0fe4f5311236168a109d1",
+  "bookId": "60d0fe4f5311236168a109cb", 
+  "chapterId": "60d0fe4f5311236168a109cb",
+  "totalChunks": 30,
+  "currentReadChunkNumber": 5,
+  "updatedAt": "2024-01-15T10:30:00"
 }
 ```
 
@@ -583,27 +578,17 @@ Authorization: Bearer {AccessToken}
 
 | 파라미터  | 타입     | 설명             |
 | :-------- | :------- | :--------------- |
-| `book_id` | ObjectId | 조회할 책의 고유 ID |
+| `book_id` | String | 조회할 책의 고유 ID |
 
 #### **Success Response (200 OK)**
 ```json
 {
-  "progress": {
-    "id": "60d0fe4f5311236168a109d1",
-          "bookId": "60d0fe4f5311236168a109cb",
-      "chapterId": "60d0fe4f5311236168a109cb",
-      "totalChunks": 30,
-      "currentReadChunkNumber": 5,
-      "updatedAt": "2024-01-15T10:30:00.000Z"
-  }
-}
-```
-
-#### **Success Response - No Progress (200 OK)**
-```json
-{
-  "progress": null,
-  "message": "No reading progress found for this book."
+  "id": "60d0fe4f5311236168a109d1",
+  "bookId": "60d0fe4f5311236168a109cb",
+  "chapterId": "60d0fe4f5311236168a109cb",
+  "totalChunks": 30,
+  "currentReadChunkNumber": 5,
+  "updatedAt": "2024-01-15T10:30:00"
 }
 ```
 
@@ -642,7 +627,7 @@ Authorization: Bearer {AccessToken}
       "currentReadChapterNumber": 1,
       "currentReadChunkNumber": 5,
       "progressPercentage": 15.5,
-      "updatedAt": "2024-01-15T10:30:00.000Z"
+      "updatedAt": "2024-01-15T10:30:00"
     }
   ],
   "currentPage": 1, // 현재 페이지
