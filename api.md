@@ -229,6 +229,43 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 }
 ```
 
+### `GET /books/{book_id}`
+
+특정 책의 상세 정보를 조회합니다.
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `book_id` | ObjectId | 조회할 책의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "_id": "60d0fe4f5311236168a109ca",
+  "title": "The Little Prince",
+  "author": "Antoine de Saint-Exupéry",
+  "coverImageUrl": "https://path/to/cover.jpg",
+  "difficultyLevel": "A1",
+  "chapterCount": 27,
+  "currentReadChapterNumber": 10,
+  "progressPercentage": 37.0,
+  "readingTime": 120,
+  "averageRating": 4.8,
+  "reviewCount": 1500,
+  "viewCount": 25000,
+  "tags": ["philosophy", "children"],
+  "createdAt": "2024-01-15T00:00:00.000Z"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "error": "Book not found."
+}
+```
+
 ---
 
 ## 📖 챕터 (Chapters)
@@ -310,6 +347,47 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
   "error": "Book not found."
 }
 ```
+
+### `GET /books/{book_id}/chapters/{chapter_id}`
+
+특정 챕터의 상세 정보를 조회합니다.
+
+#### **Path Parameters**
+
+| 파라미터     | 타입     | 설명               |
+| :----------- | :------- | :----------------- |
+| `book_id`    | ObjectId | 조회할 책의 고유 ID   |
+| `chapter_id` | ObjectId | 조회할 챕터의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "_id": "60d0fe4f5311236168a109cb",
+  "chapterNumber": 1,
+  "title": "The Drawing",
+  "chapterImageUrl": "https://path/to/chapter-image.jpg",
+  "description": "A brief summary of the first chapter.",
+  "chunkCount": 10,
+  "currentReadChunkNumber": 8,
+  "progressPercentage": 80.0,
+  "readingTime": 15
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "error": "Book not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "error": "Chapter not found."
+}
+```
+
 ---
 
 ## 📑 청크 (Chunks)
@@ -369,6 +447,63 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 ```json
 {
   "error": "Chapter not found."
+}
+```
+
+### `GET /books/{book_id}/chapters/{chapter_id}/chunks/{chunk_id}`
+
+특정 청크의 상세 정보를 조회합니다.
+
+#### **Path Parameters**
+
+| 파라미터     | 타입     | 설명               |
+| :----------- | :------- | :----------------- |
+| `book_id`    | ObjectId | 조회할 책의 고유 ID   |
+| `chapter_id` | ObjectId | 조회할 챕터의 고유 ID |
+| `chunk_id`   | ObjectId | 조회할 청크의 고유 ID |
+
+#### **Success Response (200 OK) - 텍스트 청크**
+```json
+{
+  "_id": "60d0fe4f5311236168a109cd",
+  "chunkNumber": 1,
+  "content": "Once when I was six years old I saw a magnificent picture in a book...",
+  "isImage": false,
+  "chunkImageUrl": null,
+  "description": null
+}
+```
+
+#### **Success Response (200 OK) - 이미지 청크**
+```json
+{
+  "_id": "60d0fe4f5311236168a109ce",
+  "chunkNumber": 2,
+  "content": null,
+  "isImage": true,
+  "chunkImageUrl": "https://path/to/boa-constrictor-image.jpg",
+  "description": "A picture of a boa constrictor swallowing an animal"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "error": "Book not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "error": "Chapter not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "error": "Chunk not found."
 }
 ```
 
