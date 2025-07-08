@@ -11,9 +11,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springdoc.core.annotations.ParameterObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,8 +34,7 @@ public class BooksController {
     })
     @GetMapping
     public ResponseEntity<PageResponseDTO<BookResponse>> getBooks(
-            @ParameterObject @ModelAttribute GetBooksRequest request,
-            @RequestHeader("Authorization") String authorization) {
+            @ParameterObject @ModelAttribute GetBooksRequest request) {
         // TODO: 책 목록 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -49,10 +48,9 @@ public class BooksController {
     @GetMapping("/{book_id}")
     public ResponseEntity<BookResponse> getBook(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id,
-            @RequestHeader("Authorization") String authorization) {
+            @PathVariable String book_id) {
         // TODO: 단일 책 조회 로직 구현
-        throw new UnsupportedOperationException("Not implemented yet");
+         throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Operation(summary = "챕터 목록 조회", description = "특정 책의 챕터 목록을 조회합니다.")
@@ -65,8 +63,7 @@ public class BooksController {
     public ResponseEntity<PageResponseDTO<ChapterResponse>> getChapters(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String book_id,
-            @ParameterObject @ModelAttribute GetChaptersRequest request,
-            @RequestHeader("Authorization") String authorization) {
+            @ParameterObject @ModelAttribute GetChaptersRequest request) {
         // TODO: 챕터 목록 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -82,8 +79,7 @@ public class BooksController {
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String book_id,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapter_id,
-            @RequestHeader("Authorization") String authorization) {
+            @PathVariable String chapter_id) {
         // TODO: 단일 챕터 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -102,8 +98,7 @@ public class BooksController {
             @PathVariable String book_id,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
             @PathVariable String chapter_id,
-            @ParameterObject @ModelAttribute GetChunksRequest request,
-            @RequestHeader("Authorization") String authorization) {
+            @ParameterObject @ModelAttribute GetChunksRequest request) {
         // TODO: 청크 목록 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -121,8 +116,7 @@ public class BooksController {
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
             @PathVariable String chapter_id,
             @Parameter(description = "청크 ID", example = "60d0fe4f5311236168a109cd")
-            @PathVariable String chunk_id,
-            @RequestHeader("Authorization") String authorization) {
+            @PathVariable String chunk_id) {
         // TODO: 단일 청크 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -139,8 +133,7 @@ public class BooksController {
     public ResponseEntity<ProgressResponse> updateProgress(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String book_id,
-            @RequestBody ProgressUpdateRequest request,
-            @RequestHeader("Authorization") String authorization) {
+            @RequestBody ProgressUpdateRequest request) {
         // TODO: 읽기 진도 업데이트 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -154,8 +147,7 @@ public class BooksController {
     @GetMapping("/{book_id}/progress")
     public ResponseEntity<ProgressResponse> getProgress(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id,
-            @RequestHeader("Authorization") String authorization) {
+            @PathVariable String book_id) {
         // TODO: 읽기 진도 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
