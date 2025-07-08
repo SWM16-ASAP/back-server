@@ -614,7 +614,7 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
-### `GET /users/me/progress`
+### `GET /users/me/progress/books`
 
 현재 사용자의 모든 책에 대한 읽기 진도를 조회합니다.
 
