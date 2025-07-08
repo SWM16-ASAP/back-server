@@ -16,7 +16,7 @@ import java.util.List;
 @Schema(description = "책 정보 응답")
 public class BookResponse {
     @Schema(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-    private String _id;
+    private String id;
     
     @Schema(description = "책 제목", example = "The Little Prince")
     private String title;

@@ -35,7 +35,7 @@
   "accessToken": "string",
   "refreshToken": "string",
   "user": {
-    "_id": "ObjectId",
+    "id": "ObjectId",
     "email": "user@example.com",
     "name": "홍길동",
     "profileImageUrl": "https://path/to/image.jpg"
@@ -118,7 +118,7 @@ Authorization: Bearer {AccessToken}
 {
   "valid": true,
   "user": {
-    "_id": "ObjectId",
+    "id": "ObjectId",
     "email": "user@example.com",
     "name": "홍길동",
     "role": "user",
@@ -158,7 +158,7 @@ Authorization: Bearer {AccessToken}
 {
   "data": [
     {
-      "_id": "60d0fe4f5311236168a109ca", // 식별자
+      "id": "60d0fe4f5311236168a109ca", // 식별자
       "title": "The Little Prince", // 책 제목
       "author": "Antoine de Saint-Exupéry", // 책 작가
       "coverImageUrl": "https://path/to/cover.jpg", // 표지 이미지 주소
@@ -242,7 +242,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 #### **Success Response (200 OK)**
 ```json
 {
-  "_id": "60d0fe4f5311236168a109ca",
+  "id": "60d0fe4f5311236168a109ca",
   "title": "The Little Prince",
   "author": "Antoine de Saint-Exupéry",
   "coverImageUrl": "https://path/to/cover.jpg",
@@ -292,7 +292,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 {
   "data": [
     {
-      "_id": "60d0fe4f5311236168a109cb",
+      "id": "60d0fe4f5311236168a109cb",
       "chapterNumber": 1,
       "title": "The Drawing",
       "chapterImageUrl": "https://path/to/chapter-image.jpg", // 챕터 이미지
@@ -303,7 +303,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
       "readingTime": 15
     },
     {
-      "_id": "60d0fe4f5311236168a109cc",
+      "id": "60d0fe4f5311236168a109cc",
       "chapterNumber": 2,
       "title": "The Boa Constrictor",
       "chapterImageUrl": "https://path/to/chapter2-image.jpg", // 챕터 이미지
@@ -362,7 +362,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 #### **Success Response (200 OK)**
 ```json
 {
-  "_id": "60d0fe4f5311236168a109cb",
+  "id": "60d0fe4f5311236168a109cb",
   "chapterNumber": 1,
   "title": "The Drawing",
   "chapterImageUrl": "https://path/to/chapter-image.jpg",
@@ -416,7 +416,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 {
   "data": [
     {
-      "_id": "60d0fe4f5311236168a109cd",
+      "id": "60d0fe4f5311236168a109cd",
       "chunkNumber": 1,
       "content": "Once when I was six years old I saw a magnificent picture in a book...",
       "isImage": false, // 텍스트 청크인지 이미지 청크인지
@@ -424,7 +424,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
       "description": null // 이미지 설명
     },
     {
-      "_id": "60d0fe4f5311236168a109ce",
+      "id": "60d0fe4f5311236168a109ce",
       "chunkNumber": 2,
       "content": null, // 이미지 청크일 경우 content는 null
       "isImage": true, // 이미지 청크
@@ -465,7 +465,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 #### **Success Response (200 OK) - 텍스트 청크**
 ```json
 {
-  "_id": "60d0fe4f5311236168a109cd",
+  "id": "60d0fe4f5311236168a109cd",
   "chunkNumber": 1,
   "content": "Once when I was six years old I saw a magnificent picture in a book...",
   "isImage": false,
@@ -477,7 +477,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 #### **Success Response (200 OK) - 이미지 청크**
 ```json
 {
-  "_id": "60d0fe4f5311236168a109ce",
+  "id": "60d0fe4f5311236168a109ce",
   "chunkNumber": 2,
   "content": null,
   "isImage": true,
@@ -539,7 +539,7 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "progress": {
-    "_id": "60d0fe4f5311236168a109d1",
+    "id": "60d0fe4f5311236168a109d1",
     "bookId": "60d0fe4f5311236168a109cb", 
     "chapterId": "60d0fe4f5311236168a109cb",
     "totalChunks" : 30,
@@ -589,7 +589,7 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "progress": {
-    "_id": "60d0fe4f5311236168a109d1",
+    "id": "60d0fe4f5311236168a109d1",
           "bookId": "60d0fe4f5311236168a109cb",
       "chapterId": "60d0fe4f5311236168a109cb",
       "totalChunks": 30,
@@ -630,9 +630,9 @@ Authorization: Bearer {AccessToken}
 {
   "data": [
     {
-      "_id": "60d0fe4f5311236168a109d1",
+      "id": "60d0fe4f5311236168a109d1",
       "book": {
-        "_id": "60d0fe4f5311236168a109cb",
+        "id": "60d0fe4f5311236168a109cb",
         "title": "The Little Prince",
         "author": "Antoine de Saint-Exupéry",
         "coverImageUrl": "https://path/to/cover.jpg",

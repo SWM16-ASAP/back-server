@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "챕터 정보 응답")
 public class ChapterResponse {
     @Schema(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-    private String _id;
+    private String id;
     
     @Schema(description = "챕터 번호", example = "1")
     private Integer chapterNumber;

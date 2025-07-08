@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Schema(description = "읽기 진도 정보 응답")
 public class ProgressResponse {
     @Schema(description = "진도 ID", example = "60d0fe4f5311236168a109d1")
-    private String _id;
+    private String id;
     
     @Schema(description = "책 ID", example = "60d0fe4f5311236168a109cb")
     private String bookId;

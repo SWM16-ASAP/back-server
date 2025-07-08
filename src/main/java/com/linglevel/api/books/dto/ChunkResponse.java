@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "청크 정보 응답")
 public class ChunkResponse {
     @Schema(description = "청크 ID", example = "60d0fe4f5311236168a109cd")
-    private String _id;
+    private String id;
     
     @Schema(description = "청크 번호", example = "1")
     private Integer chunkNumber;
