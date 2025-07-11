@@ -525,7 +525,7 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "chapterId": "60d0fe4f5311236168a109cb",
-  "chunkNumber": 5
+  "chunkId": "60d0fe4f5311236168c172db"
 }
 ```
 
@@ -535,7 +535,8 @@ Authorization: Bearer {AccessToken}
   "id": "60d0fe4f5311236168a109d1",
   "bookId": "60d0fe4f5311236168a109cb", 
   "chapterId": "60d0fe4f5311236168a109cb",
-  "totalChunks": 30,
+  "chunkId": "60d0fe4f5311236168c172db",
+  "currentReadChapterNumber": 1,
   "currentReadChunkNumber": 5,
   "updatedAt": "2024-01-15T10:30:00"
 }
@@ -583,7 +584,8 @@ Authorization: Bearer {AccessToken}
   "id": "60d0fe4f5311236168a109d1",
   "bookId": "60d0fe4f5311236168a109cb",
   "chapterId": "60d0fe4f5311236168a109cb",
-  "totalChunks": 30,
+  "chunkId": "60d0fe4f53112389248a182db",
+  "currentReadChapterNumber": 1,
   "currentReadChunkNumber": 5,
   "updatedAt": "2024-01-15T10:30:00"
 }
@@ -621,9 +623,9 @@ Authorization: Bearer {AccessToken}
         "totalChapters": 27
       },
       "chapterId": "60d0fe4f5311236168a109cb",
+      "chunkId": "60d0fe4f53112389248a182db",
       "currentReadChapterNumber": 1,
-      "currentReadChunkNumber": 5,
-      "progressPercentage": 15.5,
+      "progressChapterPercentage": 15.5,
       "updatedAt": "2024-01-15T10:30:00"
     }
   ],
