@@ -4,7 +4,6 @@ import com.linglevel.api.common.dto.ExceptionResponseDTO;
 import com.linglevel.api.common.dto.PageResponseDTO;
 import com.linglevel.api.users.dto.GetMyBooksProgressRequest;
 import com.linglevel.api.users.dto.UserBooksProgressResponse;
-import com.linglevel.api.users.exception.UsersErrorCode;
 import com.linglevel.api.users.exception.UsersException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

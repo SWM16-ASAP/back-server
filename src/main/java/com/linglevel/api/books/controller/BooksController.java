@@ -45,10 +45,10 @@ public class BooksController {
             @ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @GetMapping("/{book_id}")
+    @GetMapping("/{bookId}")
     public ResponseEntity<BookResponse> getBook(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id) {
+            @PathVariable String bookId) {
         // TODO: 단일 책 조회 로직 구현
          throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -59,10 +59,10 @@ public class BooksController {
             @ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @GetMapping("/{book_id}/chapters")
+    @GetMapping("/{bookId}/chapters")
     public ResponseEntity<PageResponseDTO<ChapterResponse>> getChapters(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id,
+            @PathVariable String bookId,
             @ParameterObject @ModelAttribute GetChaptersRequest request) {
         // TODO: 챕터 목록 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
@@ -74,12 +74,12 @@ public class BooksController {
             @ApiResponse(responseCode = "404", description = "책 또는 챕터를 찾을 수 없음",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @GetMapping("/{book_id}/chapters/{chapter_id}")
+    @GetMapping("/{bookId}/chapters/{chapterId}")
     public ResponseEntity<ChapterResponse> getChapter(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id,
+            @PathVariable String bookId,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapter_id) {
+            @PathVariable String chapterId) {
         // TODO: 단일 챕터 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -92,12 +92,12 @@ public class BooksController {
             @ApiResponse(responseCode = "400", description = "잘못된 난이도 레벨",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @GetMapping("/{book_id}/chapters/{chapter_id}/chunks")
+    @GetMapping("/{bookId}/chapters/{chapterId}/chunks")
     public ResponseEntity<PageResponseDTO<ChunkResponse>> getChunks(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id,
+            @PathVariable String bookId,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapter_id,
+            @PathVariable String chapterId,
             @ParameterObject @ModelAttribute GetChunksRequest request) {
         // TODO: 청크 목록 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
@@ -109,14 +109,14 @@ public class BooksController {
             @ApiResponse(responseCode = "404", description = "책, 챕터 또는 청크를 찾을 수 없음",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @GetMapping("/{book_id}/chapters/{chapter_id}/chunks/{chunk_id}")
+    @GetMapping("/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
     public ResponseEntity<ChunkResponse> getChunk(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id,
+            @PathVariable String bookId,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapter_id,
+            @PathVariable String chapterId,
             @Parameter(description = "청크 ID", example = "60d0fe4f5311236168a109cd")
-            @PathVariable String chunk_id) {
+            @PathVariable String chunkId) {
         // TODO: 단일 청크 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }
@@ -129,10 +129,10 @@ public class BooksController {
             @ApiResponse(responseCode = "400", description = "잘못된 청크 번호",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @PutMapping("/{book_id}/progress")
+    @PutMapping("/{bookId}/progress")
     public ResponseEntity<ProgressResponse> updateProgress(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id,
+            @PathVariable String bookId,
             @RequestBody ProgressUpdateRequest request) {
         // TODO: 읽기 진도 업데이트 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
@@ -144,10 +144,10 @@ public class BooksController {
             @ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @GetMapping("/{book_id}/progress")
+    @GetMapping("/{bookId}/progress")
     public ResponseEntity<ProgressResponse> getProgress(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String book_id) {
+            @PathVariable String bookId) {
         // TODO: 읽기 진도 조회 로직 구현
         throw new UnsupportedOperationException("Not implemented yet");
     }

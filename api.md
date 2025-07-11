@@ -48,7 +48,7 @@
 #### **Error Response (401 Unauthorized)**
 ```json
 {
-  "error": "Invalid Google authorization code."
+  "message": "Invalid Google authorization code."
 }
 ```
 
@@ -79,7 +79,7 @@ Refresh Token을 사용하여 새로운 Access Token을 발급받습니다.
 #### **Error Response (401 Unauthorized)**
 ```json
 {
-  "error": "Invalid or expired refresh token."
+  "message": "Invalid or expired refresh token."
 }
 ```
 
@@ -102,7 +102,7 @@ Authorization: Bearer {AccessToken}
 #### **Error Response (401 Unauthorized)**
 ```json
 {
-  "error": "Invalid or expired token."
+  "message": "Invalid or expired token."
 }
 ```
 
@@ -130,7 +130,7 @@ Authorization: Bearer {AccessToken}
 #### **Error Response (401 Unauthorized)**
 ```json
 {
-  "error": "Invalid or expired token."
+  "message": "Invalid or expired token."
 }
 ```
 
@@ -217,18 +217,18 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 #### **Error Response (400 Bad Request)**
 ```json
 {
-  "error": "Invalid sort_by parameter. Must be one of: view_count, average_rating, created_at."
+  "message": "Invalid sort_by parameter. Must be one of: view_count, average_rating, created_at."
 }
 ```
 
 #### **Error Response (400 Bad Request) - 잘못된 태그 형식**
 ```json
 {
-  "error": "Invalid tags format. Tags should be comma-separated strings."
+  "message": "Invalid tags format. Tags should be comma-separated strings."
 }
 ```
 
-### `GET /books/{book_id}`
+### `GET /books/{bookId}`
 
 특정 책의 상세 정보를 조회합니다.
 
@@ -236,7 +236,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 
 | 파라미터  | 타입     | 설명             |
 | :-------- | :------- | :--------------- |
-| `book_id` | String | 조회할 책의 고유 ID |
+| `bookId` | String | 조회할 책의 고유 ID |
 
 #### **Success Response (200 OK)**
 ```json
@@ -261,7 +261,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Book not found."
+  "message": "Book not found."
 }
 ```
 
@@ -269,7 +269,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 
 ## 📖 챕터 (Chapters)
 
-### `GET /books/{book_id}/chapters`
+### `GET /books/{bookId}/chapters`
 
 특정 책에 포함된 챕터 목록을 페이지네이션으로 조회합니다.
 
@@ -277,7 +277,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 
 | 파라미터  | 타입     | 설명             |
 | :-------- | :------- | :--------------- |
-| `book_id` | String | 조회할 책의 고유 ID |
+| `bookId` | String | 조회할 책의 고유 ID |
 
 #### **Query Parameters**
 
@@ -341,11 +341,11 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Book not found."
+  "message": "Book not found."
 }
 ```
 
-### `GET /books/{book_id}/chapters/{chapter_id}`
+### `GET /books/{bookId}/chapters/{chapterId}`
 
 특정 챕터의 상세 정보를 조회합니다.
 
@@ -353,8 +353,8 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 | 파라미터     | 타입     | 설명               |
 | :----------- | :------- | :----------------- |
-| `book_id`    | String | 조회할 책의 고유 ID   |
-| `chapter_id` | String | 조회할 챕터의 고유 ID |
+| `bookId`    | String | 조회할 책의 고유 ID   |
+| `chapterId` | String | 조회할 챕터의 고유 ID |
 
 #### **Success Response (200 OK)**
 ```json
@@ -374,14 +374,14 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Book not found."
+  "message": "Book not found."
 }
 ```
 
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Chapter not found."
+  "message": "Chapter not found."
 }
 ```
 
@@ -389,7 +389,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 ## 📑 청크 (Chunks)
 
-### `GET /books/{book_id}/chapters/{chapter_id}/chunks`
+### `GET /books/{bookId}/chapters/{chapterId}/chunks`
 
 특정 책의 특정 챕터에 속한 텍스트 청크(Chunk)들을 난이도별로 조회합니다.
 
@@ -397,14 +397,14 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 | 파라미터     | 타입     | 설명               |
 | :----------- | :------- | :----------------- |
-| `book_id`    | String | 조회할 책의 고유 ID   |
-| `chapter_id` | String | 조회할 챕터의 고유 ID |
+| `bookId`    | String | 조회할 책의 고유 ID   |
+| `chapterId` | String | 조회할 챕터의 고유 ID |
 
 #### **Query Parameters**
 
 | 파라미터     | 타입    | 필수 | 설명                                   |
 | :----------- | :------ | :--- | :------------------------------------- |
-| `difficulty` | String  | 예   | `A1`, `A2`, `B1` 등 청크의 난이도. |
+| `difficulty` | String  | 예   | `a0`, `a1`, `a2`, `b1`, `b2`, `c1`, `c2` 등 청크의 난이도. |
 | `page`       | Integer | 아니요 | 페이지 번호 (기본값: `1`).                 |
 | `limit`      | Integer | 아니요 | 페이지 당 항목 수 (기본값: `10`, 최댓값 `50`).          |
 
@@ -440,11 +440,11 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Chapter not found."
+  "message": "Chapter not found."
 }
 ```
 
-### `GET /books/{book_id}/chapters/{chapter_id}/chunks/{chunk_id}`
+### `GET /books/{bookId}/chapters/{chapterId}/chunks/{chunkId}`
 
 특정 청크의 상세 정보를 조회합니다.
 
@@ -452,9 +452,9 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 | 파라미터     | 타입     | 설명               |
 | :----------- | :------- | :----------------- |
-| `book_id`    | String | 조회할 책의 고유 ID   |
-| `chapter_id` | String | 조회할 챕터의 고유 ID |
-| `chunk_id`   | String | 조회할 청크의 고유 ID |
+| `bookId`    | String | 조회할 책의 고유 ID   |
+| `chapterId` | String | 조회할 챕터의 고유 ID |
+| `chunkId`   | String | 조회할 청크의 고유 ID |
 
 #### **Success Response (200 OK) - 텍스트 청크**
 ```json
@@ -483,21 +483,21 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Book not found."
+  "message": "Book not found."
 }
 ```
 
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Chapter not found."
+  "message": "Chapter not found."
 }
 ```
 
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Chunk not found."
+  "message": "Chunk not found."
 }
 ```
 
@@ -505,7 +505,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 ## 📈 읽기 진도 (Reading Progress)
 
-### `PUT /books/{book_id}/progress`
+### `PUT /books/{bookId}/progress`
 
 사용자의 읽기 진도를 업데이트합니다. 특정 챕터의 특정 청크까지 읽었음을 기록합니다.
 
@@ -518,7 +518,7 @@ Authorization: Bearer {AccessToken}
 
 | 파라미터  | 타입     | 설명             |
 | :-------- | :------- | :--------------- |
-| `book_id` | String | 읽고 있는 책의 고유 ID |
+| `bookId` | String | 읽고 있는 책의 고유 ID |
 
 #### **Request Body**
 
@@ -545,25 +545,25 @@ Authorization: Bearer {AccessToken}
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Book not found."
+  "message": "Book not found."
 }
 ```
 
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Chapter not found in this book."
+  "message": "Chapter not found in this book."
 }
 ```
 
 #### **Error Response (400 Bad Request)**
 ```json
 {
-  "error": "Invalid chunkNumber. Must be a positive integer."
+  "message": "Invalid chunkId. Must be a valid chunk identifier."
 }
 ```
 
-### `GET /books/{book_id}/progress`
+### `GET /books/{bookId}/progress`
 
 사용자의 특정 책에 대한 읽기 진도를 조회합니다.
 
@@ -576,7 +576,7 @@ Authorization: Bearer {AccessToken}
 
 | 파라미터  | 타입     | 설명             |
 | :-------- | :------- | :--------------- |
-| `book_id` | String | 조회할 책의 고유 ID |
+| `bookId` | String | 조회할 책의 고유 ID |
 
 #### **Success Response (200 OK)**
 ```json
@@ -594,7 +594,7 @@ Authorization: Bearer {AccessToken}
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "error": "Book not found."
+  "message": "Book not found."
 }
 ```
 
@@ -625,7 +625,7 @@ Authorization: Bearer {AccessToken}
       "chapterId": "60d0fe4f5311236168a109cb",
       "chunkId": "60d0fe4f53112389248a182db",
       "currentReadChapterNumber": 1,
-      "progressChapterPercentage": 15.5,
+      "progressPercentage": 15.5,
       "updatedAt": "2024-01-15T10:30:00"
     }
   ],

@@ -23,8 +23,11 @@ public class ProgressResponse {
     @Schema(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
     private String chapterId;
     
-    @Schema(description = "총 청크 수", example = "30")
-    private Integer totalChunks;
+    @Schema(description = "청크 ID", example = "60d0fe4f53112389248a182db")
+    private String chunkId;
+    
+    @Schema(description = "현재 읽은 챕터 번호", example = "1")
+    private Integer currentReadChapterNumber;
     
     @Schema(description = "현재 읽은 청크 번호", example = "5")
     private Integer currentReadChunkNumber;
