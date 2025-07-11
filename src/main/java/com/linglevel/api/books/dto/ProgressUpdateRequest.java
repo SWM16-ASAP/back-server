@@ -15,6 +15,6 @@ public class ProgressUpdateRequest {
     @Schema(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
     private String chapterId;
     
-    @Schema(description = "읽은 청크 번호", example = "5")
-    private Integer chunkNumber;
+    @Schema(description = "청크 ID", example = "60d0fe4f5311236168c172db")
+    private String chunkId;
 } 
