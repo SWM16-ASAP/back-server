@@ -161,7 +161,7 @@ Authorization: Bearer {AccessToken}
       "coverImageUrl": "https://path/to/cover.jpg", // 표지 이미지 주소
       "difficultyLevel": "A1", // 책 기본 난이도
       "chapterCount": 27, // 책 챕터 수
-      "currentReadChapterNumber": 10, // 현재 읽은 챕터 번호
+      "currentReadChapterNumber": 10, // 현재 읽은 챕터 번호 (완료된 챕터를 기준으로 하며, 기본값은 0)
       "progressPercentage": 37.0, // 진행률 (10/27 * 100)
       "readingTime": 120, // 읽기 시간 (분 단위)
       "averageRating": 4.8, // 리뷰 평점
