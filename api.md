@@ -35,10 +35,12 @@
   "accessToken": "string",
   "refreshToken": "string",
   "user": {
-    "id": "ObjectId",
+    "id": "60d0fe4f5311236168a109ca",
     "email": "user@example.com",
     "name": "홍길동",
-    "profileImageUrl": "https://path/to/image.jpg"
+    "profileImageUrl": "https://path/to/image.jpg",
+    "role": "user",
+    "subscription": "premium"
   }
 }
 ```
@@ -315,9 +317,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
   "totalPages": 3, // 전체 페이지
   "totalCount": 27, // 전체 챕터 항목 수 (페이지네이션 기준)
   "hasNext": true, // 다음 페이지 존재 여부
-  "hasPrevious": false, // 이전 페이지 존재 여부
-  "totalChapters": 27, // 전체 챕터 수
-  "currentReadChapterNumber": 1 // 현재 읽고 있는 챕터 번호
+  "hasPrevious": false // 이전 페이지 존재 여부
 }
 ```
 
@@ -434,9 +434,6 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
   "totalCount": 100, // 전체 청크 개수
   "hasNext": true, // 다음 페이지 존재 여부
   "hasPrevious": false, // 이전 페이지 존재 여부
-  "totalChunks": 100, // 해당 난이도의 전체 청크 수
-  "currentReadChunkNumber": 15, // 현재 읽은 청크 번호
-  "progressPercentage": 15.0 // 진행률 (15/100 * 100)
 }
 ```
 
@@ -630,10 +627,10 @@ Authorization: Bearer {AccessToken}
       "updatedAt": "2024-01-15T10:30:00"
     }
   ],
-  "currentPage": 1, // 현재 페이지
-  "totalPages": 3, // 전체 페이지
-  "totalCount": 25, // 진도가 있는 전체 책 개수
-  "hasNext": true, // 다음 페이지 존재 여부
-  "hasPrevious": false // 이전 페이지 존재 여부
+  "currentPage": 1,
+  "totalPages": 3,
+  "totalCount": 25,
+  "hasNext": true,
+  "hasPrevious": false 
 }
 ```
