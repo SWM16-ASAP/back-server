@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -31,15 +32,13 @@ public class PageResponseDTO<T> {
     
     @Schema(description = "이전 페이지 존재 여부", example = "false")
     private boolean hasPrevious;
-    
-    public static <T> PageResponseDTO<T> of(List<T> data, int currentPage, int totalPages, int totalCount) {
-        return PageResponseDTO.<T>builder()
-                .data(data)
-                .currentPage(currentPage)
-                .totalPages(totalPages)
-                .totalCount(totalCount)
-                .hasNext(currentPage < totalPages)
-                .hasPrevious(currentPage > 1)
-                .build();
+
+    public PageResponseDTO(List<T> data, Page<?> page) {
+        this.data = data;
+        this.currentPage = page.getNumber();
+        this.totalPages = page.getTotalPages();
+        this.totalCount = page.getTotalPages();
+        this.hasNext = page.hasNext();
+        this.hasPrevious = page.hasPrevious();
     }
 } 
