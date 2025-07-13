@@ -267,11 +267,11 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 
 ### `POST /books/import`
 
-S3에 저장된 JSON 파일을 읽어서 새로운 책과 관련 챕터, 청크 데이터를 생성합니다. 이 API는 관리자 권한이 필요합니다.
+S3에 저장된 JSON 파일을 읽어서 새로운 책과 관련 챕터, 청크 데이터를 생성합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
 
 #### **Request Headers**
 ```
-Authorization: Bearer {AccessToken}
+X-API-Key: {TempApiKey}
 ```
 
 #### **Request Body**
