@@ -265,6 +265,58 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 }
 ```
 
+### `POST /books/import`
+
+S3에 저장된 JSON 파일을 읽어서 새로운 책과 관련 챕터, 청크 데이터를 생성합니다. 이 API는 관리자 권한이 필요합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Request Body**
+
+```json
+{
+  "id": "string"
+}
+```
+- `id`: S3에 저장된 JSON 파일의 식별자 (예: "fdsljfi134" → "fdsljfi134.json" 파일을 조회)
+
+#### **Success Response (201 Created)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca" // 생성된 책의 식별자
+}
+```
+
+#### **예상 JSON 파일 구조**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "title": "The Little Prince",
+  "author": "Antoine de Saint-Exupéry",
+  "originalLevel": "A1",
+  "imgUrl": null,
+  "result": [
+    {
+      "textLevel": "A1",
+      "chapters": [
+        {
+          "chapterNum": 1,
+          "chunks": [
+            {
+              "chunkNum": 1,
+              "chunkText": "Once when I was six years old I saw a magnificent picture in a book..."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
 ---
 
 ## 📖 챕터 (Chapters)
