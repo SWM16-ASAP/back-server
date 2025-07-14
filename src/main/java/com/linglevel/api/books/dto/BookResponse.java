@@ -1,5 +1,6 @@
 package com.linglevel.api.books.dto;
 
+import com.linglevel.api.books.entity.DifficultyLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,7 +29,7 @@ public class BookResponse {
     private String coverImageUrl;
     
     @Schema(description = "기본 난이도", example = "A1")
-    private String difficultyLevel;
+    private DifficultyLevel difficultyLevel;
     
     @Schema(description = "총 챕터 수", example = "27")
     private Integer chapterCount;
