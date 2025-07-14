@@ -24,13 +24,6 @@ public class S3Config {
     public S3Client s3Client() {
         var builder = S3Client.builder()
                 .region(Region.of(region));
-
-        // 로컬을 위한 명시적 인증
-        if (!accessKey.isEmpty() && !secretKey.isEmpty()) {
-            AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
-            builder.credentialsProvider(StaticCredentialsProvider.create(credentials));
-        }
-
         return builder.build();
     }
 } 
