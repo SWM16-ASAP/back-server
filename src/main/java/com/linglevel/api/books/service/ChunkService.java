@@ -4,6 +4,7 @@ import com.linglevel.api.books.dto.ChunkResponse;
 import com.linglevel.api.books.dto.GetChunksRequest;
 import com.linglevel.api.books.entity.Chapter;
 import com.linglevel.api.books.entity.Chunk;
+import com.linglevel.api.books.entity.DifficultyLevel;
 import com.linglevel.api.books.exception.BooksException;
 import com.linglevel.api.books.exception.BooksErrorCode;
 import com.linglevel.api.books.repository.ChunkRepository;
@@ -38,13 +39,20 @@ public class ChunkService {
             throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
         }
 
+        DifficultyLevel difficulty;
+        try {
+            difficulty = DifficultyLevel.valueOf(request.getDifficulty().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BooksException(BooksErrorCode.INVALID_DIFFICULTY_LEVEL);
+        }
+
         Pageable pageable = PageRequest.of(
             request.getPage() - 1, 
             Math.min(request.getLimit(), 50),
             Sort.by("chunkNumber").ascending()
         );
 
-        Page<Chunk> chunkPage = chunkRepository.findByChapterId(chapterId, pageable);
+        Page<Chunk> chunkPage = chunkRepository.findByChapterIdAndDifficulty(chapterId, difficulty, pageable);
         
         List<ChunkResponse> chunkResponses = chunkPage.getContent().stream()
             .map(this::convertToChunkResponse)
@@ -89,6 +97,7 @@ public class ChunkService {
         return ChunkResponse.builder()
             .id(chunk.getId())
             .chunkNumber(chunk.getChunkNumber())
+            .difficulty(chunk.getDifficulty())
             .content(chunk.getContent())
             .isImage(chunk.getIsImage())
             .chunkImageUrl(chunk.getChunkImageUrl())
