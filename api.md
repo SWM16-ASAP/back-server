@@ -293,12 +293,23 @@ X-API-Key: {TempApiKey}
 #### **예상 JSON 파일 구조**
 ```json
 {
-  "id": "60d0fe4f5311236168a109ca",
-  "title": "The Little Prince",
-  "author": "Antoine de Saint-Exupéry",
-  "originalLevel": "A1",
-  "imgUrl": null,
-  "result": [
+  "novel_id": "uuid-here",
+  "title": "소설 제목",
+  "author": "작가명",
+  "original_text_level": "B2",
+  "chapter_metadata": [
+    {
+      "chapterNum": 1,
+      "title": "첫 번째 챕터 제목",
+      "summary": "첫 번째 챕터의 내용 요약..."
+    },
+    {
+      "chapterNum": 2,
+      "title": "두 번째 챕터 제목",
+      "summary": "두 번째 챕터의 내용 요약..."
+    }
+  ],
+  "leveled_results": [
     {
       "textLevel": "A1",
       "chapters": [
@@ -307,7 +318,7 @@ X-API-Key: {TempApiKey}
           "chunks": [
             {
               "chunkNum": 1,
-              "chunkText": "Once when I was six years old I saw a magnificent picture in a book..."
+              "chunkText": "A1 레벨로 변환된 텍스트..."
             }
           ]
         }
