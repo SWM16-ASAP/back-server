@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "books")
@@ -21,7 +22,7 @@ public class Book {
 
     private String coverImageUrl;
     
-    private String difficultyLevel;
+    private DifficultyLevel difficultyLevel;
     
     private Integer chapterCount;
     
@@ -34,6 +35,6 @@ public class Book {
     private Integer viewCount;
     
     private List<String> tags;
-    
+
     private LocalDateTime createdAt;
-} 
+}
