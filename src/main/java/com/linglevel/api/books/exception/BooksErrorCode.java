@@ -15,7 +15,8 @@ public enum BooksErrorCode {
     INVALID_SORT_BY(HttpStatus.BAD_REQUEST, "Invalid sort_by parameter. Must be one of: view_count, average_rating, created_at."),
     INVALID_TAGS_FORMAT(HttpStatus.BAD_REQUEST, "Invalid tags format. Tags should be comma-separated strings."),
     INVALID_CHUNK_NUMBER(HttpStatus.BAD_REQUEST, "Invalid chunkNumber. Must be a positive integer."),
-    INVALID_PAGINATION(HttpStatus.BAD_REQUEST, "Invalid pagination parameters.");
+    INVALID_PAGINATION(HttpStatus.BAD_REQUEST, "Invalid pagination parameters."),
+    BOOK_IMPORT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to import book from S3.");
     
     private final HttpStatus status;
     private final String message;

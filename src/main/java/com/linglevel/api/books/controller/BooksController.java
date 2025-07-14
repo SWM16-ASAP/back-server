@@ -8,6 +8,8 @@ import com.linglevel.api.books.service.ChunkService;
 import com.linglevel.api.books.service.ProgressService;
 import com.linglevel.api.common.dto.ExceptionResponseDTO;
 import com.linglevel.api.common.dto.PageResponseDTO;
+import com.linglevel.api.common.exception.CommonErrorCode;
+import com.linglevel.api.common.exception.CommonException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,6 +20,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,6 +38,10 @@ public class BooksController {
     private final ChapterService chapterService;
     private final ChunkService chunkService;
     private final ProgressService progressService;
+
+    // TODO : JWT으로 인증 변경 후 삭제
+    @Value("${import.api.key}")
+    private String importApiKey;
 
     @Operation(summary = "책 목록 조회", description = "책 목록을 조건에 따라 조회합니다.")
     @ApiResponses(value = {
@@ -159,6 +167,27 @@ public class BooksController {
             @PathVariable String bookId) {
         ProgressResponse response = progressService.getProgress(bookId);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "책 데이터 import", description = "S3에 저장된 JSON 파일을 읽어서 새로운 책과 관련 챕터, 청크 데이터를 생성합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
+            @ApiResponse(responseCode = "500", description = "import 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+    })
+    @PostMapping("/import")
+    public ResponseEntity<BookImportResponse> importBook(
+            @RequestHeader(value = "X-API-Key", required = true) String apiKey,
+            @RequestBody BookImportRequest request) {
+
+        // TODO : JWT 기반 어드민 인증으로 변경
+        if (!importApiKey.equals(apiKey)) {
+            log.warn("Invalid API key provided for book import");
+            throw new CommonException(CommonErrorCode.UNAUTHORIZED);
+        }
+
+        BookImportResponse response = bookService.importBook(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @ExceptionHandler(BooksException.class)
