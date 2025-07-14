@@ -1,5 +1,6 @@
 package com.linglevel.api.books.dto;
 
+import com.linglevel.api.books.entity.DifficultyLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +18,9 @@ public class ChunkResponse {
     
     @Schema(description = "청크 번호", example = "1")
     private Integer chunkNumber;
+    
+    @Schema(description = "난이도 레벨", example = "A1")
+    private DifficultyLevel difficulty;
     
     @Schema(description = "텍스트 내용", example = "Once when I was six years old...")
     private String content;

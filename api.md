@@ -265,6 +265,69 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 }
 ```
 
+### `POST /books/import`
+
+S3에 저장된 JSON 파일을 읽어서 새로운 책과 관련 챕터, 청크 데이터를 생성합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "id": "string"
+}
+```
+- `id`: S3에 저장된 JSON 파일의 식별자 (예: "fdsljfi134" → "fdsljfi134.json" 파일을 조회)
+
+#### **Success Response (201 Created)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca" // 생성된 책의 식별자
+}
+```
+
+#### **예상 JSON 파일 구조**
+```json
+{
+  "novel_id": "uuid-here",
+  "title": "소설 제목",
+  "author": "작가명",
+  "original_text_level": "B2",
+  "chapter_metadata": [
+    {
+      "chapterNum": 1,
+      "title": "첫 번째 챕터 제목",
+      "summary": "첫 번째 챕터의 내용 요약..."
+    },
+    {
+      "chapterNum": 2,
+      "title": "두 번째 챕터 제목",
+      "summary": "두 번째 챕터의 내용 요약..."
+    }
+  ],
+  "leveled_results": [
+    {
+      "textLevel": "A1",
+      "chapters": [
+        {
+          "chapterNum": 1,
+          "chunks": [
+            {
+              "chunkNum": 1,
+              "chunkText": "A1 레벨로 변환된 텍스트..."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
 ---
 
 ## 📖 챕터 (Chapters)
