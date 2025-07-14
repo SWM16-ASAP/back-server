@@ -1,5 +1,6 @@
 package com.linglevel.api.books.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
@@ -7,12 +8,23 @@ import java.util.List;
 @Data
 public class BookImportData {
     
-    private String id;
+    @JsonProperty("novel_id")
+    private String novelId;
     private String title;
     private String author;
-    private String originalLevel;
-    private String imgUrl;
-    private List<TextLevelData> result;
+    @JsonProperty("original_text_level")
+    private String originalTextLevel;
+    @JsonProperty("chapter_metadata")
+    private List<ChapterMetadata> chapterMetadata;
+    @JsonProperty("leveled_results")
+    private List<TextLevelData> leveledResults;
+    
+    @Data
+    public static class ChapterMetadata {
+        private int chapterNum;
+        private String title;
+        private String summary;
+    }
     
     @Data
     public static class TextLevelData {
