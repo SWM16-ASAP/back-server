@@ -69,8 +69,8 @@ jobs:
               -e S3_REGION_DEV=${{ secrets.S3_REGION_DEV }} \
               -e S3_NAME_DEV=${{ secrets.S3_NAME_DEV }} \
               -e IMPORT_API_KEY=${{ secrets.IMPORT_API_KEY }} \
-              -e AWS_ACCESS_KEY = ${{ secrets.AWS_ACCESS_KEY }} \
-              -e AWS_SECRET_KEY = ${{ secrets.AWS_SECRET_KEY }} \
+              -e AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }} \
+              -e AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }} \
               -p 80:8080 \
               devsolfe/server
             
