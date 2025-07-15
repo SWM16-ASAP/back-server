@@ -111,6 +111,7 @@ public class BookService {
                     chapter.setChapterNumber(metadata.getChapterNum());
                     chapter.setTitle(metadata.getTitle());
                     chapter.setDescription(metadata.getSummary());
+                    chapter.setReadingTime(0); // TODO : 실제 계산 값으로 변경
                     
                     int chunkCount = getChunkCountForChapter(importData, metadata.getChapterNum());
                     chapter.setChunkCount(chunkCount);
