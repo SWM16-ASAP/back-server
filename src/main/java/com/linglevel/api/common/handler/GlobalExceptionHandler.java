@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 @Slf4j
@@ -16,6 +18,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ExceptionResponseDTO> handleCommonException(CommonException e) {
         return ResponseEntity.status(e.getStatus())
                 .body(new ExceptionResponseDTO(e));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ExceptionResponseDTO> handleNoHandlerFoundException(NoResourceFoundException e) {
+        CommonException commonException = new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND);
+        return ResponseEntity.status(commonException.getStatus())
+                .body(new ExceptionResponseDTO(commonException));
     }
 
     @ExceptionHandler(Exception.class)
