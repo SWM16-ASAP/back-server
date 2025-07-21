@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/get-book ]
+    branches: [ develop, feat/customer-service ]
 
 jobs:
   build:
@@ -71,6 +71,7 @@ jobs:
               -e IMPORT_API_KEY=${{ secrets.IMPORT_API_KEY }} \
               -e AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }} \
               -e AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }} \
+              -e DISCORD_SUGGESTION_WEBHOOK=${{ secrets.DISCORD_SUGGESTION_WEBHOOK }} \
               -p 80:8080 \
               devsolfe/server
             
