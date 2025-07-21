@@ -699,3 +699,38 @@ Authorization: Bearer {AccessToken}
   "hasPrevious": false 
 }
 ```
+
+---
+
+## 💡 고객 건의 (Suggestions)
+
+### `POST /suggestions`
+
+고객의 건의사항을 제출받습니다.
+
+#### **Request Body**
+
+```json
+{
+  "email": "user@example.com",
+  "tags": "bug, ui, feature",
+  "content": "이런이런 기능이 추가되었으면 좋겠습니다."
+}
+```
+- `email`: 건의자를 식별하기 위한 이메일 주소
+- `tags`: 건의 내용의 분류를 위한 태그 (쉼표로 구분)
+- `content`: 건의 내용 본문
+
+#### **Success Response (201 Created)**
+```json
+{
+  "message": "Suggestion submitted successfully."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "Email and content are required."
+}
+```
