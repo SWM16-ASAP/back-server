@@ -21,6 +21,11 @@ public class SwaggerConfig {
                 .info(new Info()
                         .title("Ling Level API")
                         .version("1.0.0"))
+                .servers(List.of(
+                        new Server().url("http://localhost:8080").description("Local Development"),
+                        new Server().url("https://dev.linglevel.com").description("Development Server"),
+                        new Server().url("https://api.linglevel.com").description("Production Server")
+                ))
                 .components(new Components()
                         .addSecuritySchemes("bearerAuth", new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)
