@@ -1,0 +1,102 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "api-spring-prod",
+      "image": "638721195348.dkr.ecr.us-east-1.amazonaws.com/api-spring-prod:latest",
+      "cpu": 0,
+      "portMappings": [
+        {
+          "name": "api-spring-prod-8080-tcp",
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp",
+          "appProtocol": "http"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "prod"
+        }
+      ],
+      "environmentFiles": [],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "secrets": [
+        {
+          "name": "AWS_ACCESS_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:AWS_ACCESS_KEY::"
+        },
+        {
+          "name": "AWS_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:AWS_SECRET_KEY::"
+        },
+        {
+          "name": "DISCORD_SUGGESTION_WEBHOOK",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:DISCORD_SUGGESTION_WEBHOOK::"
+        },
+        {
+          "name": "IMPORT_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:IMPORT_API_KEY::"
+        },
+        {
+          "name": "MONGODB_DATABASE_PROD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:MONGODB_DATABASE_PROD::"
+        },
+        {
+          "name": "MONGODB_URI_PROD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:MONGODB_URI_PROD::"
+        },
+        {
+          "name": "S3_NAME_PROD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_NAME_PROD::"
+        },
+        {
+          "name": "S3_REGION_PROD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_REGION_PROD::"
+        }
+      ],
+      "ulimits": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/api-spring-prod",
+          "awslogs-create-group": "true",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        },
+        "secretOptions": []
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/actuator/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "systemControls": []
+    }
+  ],
+  "family": "api-spring-prod",
+  "taskRoleArn": "arn:aws:iam::638721195348:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::638721195348:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "volumes": [],
+  "placementConstraints": [],
+  "compatibilities": [
+    "EC2"
+  ],
+  "requiresCompatibilities": [
+    "EC2"
+  ],
+  "cpu": "1024",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "ARM64",
+    "operatingSystemFamily": "LINUX"
+  }
+}
