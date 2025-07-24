@@ -1,4 +1,4 @@
-FROM --platform=linux/arm64 gradle:8-jdk17 AS build
+FROM gradle:8-jdk17 AS build
 
 
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY src src
 # Build the application
 RUN ./gradlew build -x test --no-daemon
 
-FROM --platform=linux/arm64 openjdk:17
+FROM openjdk:17
 
 WORKDIR /app
 
