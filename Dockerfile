@@ -1,4 +1,4 @@
-FROM gradle:8.5-jdk17 AS build
+FROM gradle:8-jdk17 AS build
 
 
 WORKDIR /app
@@ -7,7 +7,6 @@ WORKDIR /app
 COPY gradle gradle
 COPY gradlew .
 COPY build.gradle settings.gradle ./
-RUN chmod +x gradlew
 
 # Download dependencies
 RUN ./gradlew dependencies --no-daemon
