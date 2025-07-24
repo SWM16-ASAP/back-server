@@ -2,7 +2,7 @@ name: Prod Deployment
 
 on:
   push:
-    branches: [ main, feat/ecs-cicd ]
+    branches: [ main ]
 
 jobs:
   deploy:
