@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/llv_api_local
+    env_file:
+      - path: ./.env.local
+    depends_on:
+      - mongo
+    volumes:
+      - ./logs:/app/logs
+
+  mongo:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=llv_api_local
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
