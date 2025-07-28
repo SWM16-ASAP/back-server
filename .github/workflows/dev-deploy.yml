@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, fix/swagger-try ]
+    branches: [ develop, feat/security ]
 
 jobs:
   build:
@@ -41,6 +41,8 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
+    environment: development
+
     steps:
       - name: executing remote ssh commands using ssh key
         uses: appleboy/ssh-action@master
@@ -72,6 +74,7 @@ jobs:
               -e AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }} \
               -e AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }} \
               -e DISCORD_SUGGESTION_WEBHOOK=${{ secrets.DISCORD_SUGGESTION_WEBHOOK }} \
+              -e REDIS_ENDPOINT_DEV=${{ secrets.REDIS_ENDPOINT_DEV }} \
               -p 80:8080 \
               devsolfe/server
             

@@ -23,7 +23,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/**").permitAll() // TODO: 임시 접근 허용
                         .anyRequest().authenticated()
                 );
         return http.build();
