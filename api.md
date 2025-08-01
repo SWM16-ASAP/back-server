@@ -111,11 +111,13 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "id": "60d0fe4f5311236168a109ca",
+  "username": "google_123456789",
   "email": "user@example.com",
-  "name": "홍길동",
+  "displayName": "홍길동",
+  "provider": "google",
   "profileImageUrl": "https://path/to/image.jpg",
-  "role": "user",
-  "subscription": "premium"
+  "role": "USER",
+  "createdAt": "2024-01-15T10:30:00"
 }
 ```
 
