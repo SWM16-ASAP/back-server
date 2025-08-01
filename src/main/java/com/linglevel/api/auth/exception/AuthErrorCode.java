@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum AuthErrorCode {
-    INVALID_GOOGLE_AUTH_CODE(HttpStatus.UNAUTHORIZED, "Invalid Google authorization code."),
+    INVALID_FIREBASE_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid Firebase token."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token."),
     INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid or expired token."),
     AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "Authentication failed."),
