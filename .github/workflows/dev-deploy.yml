@@ -78,6 +78,9 @@ jobs:
               -e AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }} \
               -e DISCORD_SUGGESTION_WEBHOOK=${{ secrets.DISCORD_SUGGESTION_WEBHOOK }} \
               -e REDIS_ENDPOINT_DEV=${{ secrets.REDIS_ENDPOINT_DEV }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e JWT_ACCESS_TOKEN_EXPIRATION=${{ vars.JWT_ACCESS_TOKEN_EXPIRATION }} \
+              -e JWT_REFRESH_TOKEN_EXPIRATION=${{ vars.JWT_REFRESH_TOKEN_EXPIRATION }} \
               -p 80:8080 \
               devsolfe/server
             
