@@ -20,6 +20,9 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
+      - name: Create Firebase config
+        run: echo '${{ secrets.FIREBASE_CONFIG_DEV }}' | base64 --decode > firebase.json
+
       - name: Build with Gradle
         run: |
           chmod +x ./gradlew
