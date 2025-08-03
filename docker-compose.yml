@@ -7,6 +7,11 @@ services:
       - "8080:8080"
     env_file:
       - path: ./.env.local
+    environment:
+      # 컨테이너 내부에서 호스트를 직접 호출하지 못하므로 컨테이너 주소로 override
+      # 컨테이너 내부에서 localhost는 도커 네트워크에서 자신의 주소
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/llv_api_local
+      - SPRING_DATA_REDIS_HOST=redis
     depends_on:
       - mongo
       - redis
