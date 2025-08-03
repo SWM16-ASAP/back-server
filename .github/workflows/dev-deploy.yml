@@ -22,7 +22,7 @@ jobs:
           distribution: 'adopt'
 
       - name: Create Firebase config
-        run: echo "${{ secrets.FIREBASE_CONFIG_DEV }}" | base64 --decode > src/main/resources/refirebase.json
+        run: echo "${{ secrets.FIREBASE_CONFIG_DEV }}" | base64 --decode > src/main/resources/firebase.json
 
       - name: Build with Gradle
         run: |
