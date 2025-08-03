@@ -5,15 +5,13 @@ services:
     build: .
     ports:
       - "8080:8080"
-    environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/llv_api_local
     env_file:
       - path: ./.env.local
     depends_on:
       - mongo
+      - redis
     volumes:
       - ./logs:/app/logs
-
   mongo:
     image: mongo:6.0
     ports:
