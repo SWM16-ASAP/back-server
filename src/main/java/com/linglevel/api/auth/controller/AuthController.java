@@ -2,6 +2,7 @@ package com.linglevel.api.auth.controller;
 
 import com.linglevel.api.auth.dto.*;
 import com.linglevel.api.auth.exception.AuthException;
+import com.linglevel.api.auth.service.AuthService;
 import com.linglevel.api.common.dto.ExceptionResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -22,18 +23,20 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Authentication", description = "인증 관련 API")
 public class AuthController {
 
-    @Operation(summary = "구글 소셜 로그인", description = "구글 소셜 로그인을 통해 서비스에 인증하고 JWT 토큰을 발급받습니다.",
+    private final AuthService authService;
+
+    @Operation(summary = "Firebase OAuth 로그인", description = "Firebase OAuth를 통해 소셜 로그인하고 JWT 토큰을 발급받습니다.",
             security = @SecurityRequirement(name = ""))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로그인 성공",
-                    content = @Content(schema = @Schema(implementation = GoogleLoginResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Firebase 토큰 인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @PostMapping("/google/login")
-    public ResponseEntity<GoogleLoginResponse> googleLogin(@RequestBody GoogleLoginRequest request) {
-        // TODO: 구글 로그인 로직 구현
-        throw new UnsupportedOperationException("Not implemented yet");
+    @PostMapping("/oauth/login")
+    public ResponseEntity<LoginResponse> oauthLogin(@RequestBody OauthLoginRequest request) {
+        LoginResponse response = authService.authenticateWithFirebase(request.getAuthCode());
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 새로운 Access Token을 발급받습니다.")

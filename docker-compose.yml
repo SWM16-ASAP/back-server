@@ -5,15 +5,18 @@ services:
     build: .
     ports:
       - "8080:8080"
-    environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/llv_api_local
     env_file:
       - path: ./.env.local
+    environment:
+      # 컨테이너 내부에서 호스트를 직접 호출하지 못하므로 컨테이너 주소로 override
+      # 컨테이너 내부에서 localhost는 도커 네트워크에서 자신의 주소
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/llv_api_local
+      - SPRING_DATA_REDIS_HOST=redis
     depends_on:
       - mongo
+      - redis
     volumes:
       - ./logs:/app/logs
-
   mongo:
     image: mongo:6.0
     ports:
@@ -23,5 +26,16 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  redis:
+    image: redis:7-alpine
+    container_name: llv-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
 volumes:
   mongo_data:
+  redis_data:
