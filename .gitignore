@@ -43,4 +43,4 @@ out/
 .env.local
 
 ### firebase key ###
-firebase.json
+src/main/resources/firebase.json
