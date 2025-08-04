@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, feat/jwt-verify ]
 
 jobs:
   build:
@@ -75,6 +75,8 @@ jobs:
               -e REDIS_ENDPOINT_DEV=${{ secrets.REDIS_ENDPOINT_DEV }} \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
               -e FIREBASE_CONFIG_BASE64=${{ secrets.FIREBASE_CONFIG_BASE64 }} \
+              -e SWAGGER_USERNAME=${{ secrets.SWAGGER_USERNAME }} \
+              -e SWAGGER_PASSWORD=${{ secrets.SWAGGER_PASSWORD }} \
               -p 80:8080 \
               devsolfe/server
             
