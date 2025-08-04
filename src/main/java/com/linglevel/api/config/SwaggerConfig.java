@@ -33,7 +33,7 @@ public class SwaggerConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                                .description("JWT 토큰을 사용한 인증. `/auth/google/login`을 제외한 모든 API는 인증이 필요합니다.")))
+                                .description("JWT 토큰을 사용한 인증. `/api/v1/auth/oauth/login`을 제외한 모든 API는 인증이 필요합니다.")))
                 .security(List.of(
                         new SecurityRequirement().addList("bearerAuth")));
     }
