@@ -98,9 +98,9 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
-### `GET /auth/verify`
+### `GET /auth/me`
 
-현재 Access Token의 유효성을 검증합니다.
+현재 Access Token에 포함된 JWT Claims 정보를 추출하여 반환합니다.
 
 #### **Request Headers**
 ```
@@ -110,21 +110,21 @@ Authorization: Bearer {AccessToken}
 #### **Success Response (200 OK)**
 ```json
 {
-  "id": "60d0fe4f5311236168a109ca",
+  "userId": "60d0fe4f5311236168a109ca",
   "username": "google_123456789",
   "email": "user@example.com",
-  "displayName": "홍길동",
-  "provider": "google",
-  "profileImageUrl": "https://path/to/image.jpg",
   "role": "USER",
-  "createdAt": "2024-01-15T10:30:00"
+  "provider": "google",
+  "displayName": "홍길동",
+  "issuedAt": "2025-08-04T09:30:00",
+  "expiresAt": "2025-08-04T19:30:00"
 }
 ```
 
 #### **Error Response (401 Unauthorized)**
 ```json
 {
-  "message": "Invalid or expired token."
+  "message": "Invalid or expired token"
 }
 ```
 
