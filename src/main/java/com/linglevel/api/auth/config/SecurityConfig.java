@@ -2,7 +2,12 @@ package com.linglevel.api.auth.config;
 
 import com.linglevel.api.auth.jwt.JwtTokenFilter;
 import com.linglevel.api.auth.jwt.JwtTokenProvider;
+import com.linglevel.api.auth.filter.TestAuthFilter;
+import com.linglevel.api.auth.handler.CustomAuthenticationEntryPoint;
 import com.linglevel.api.users.repository.UserRepository;
+import jakarta.servlet.Filter;
+import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,10 +35,16 @@ public class SecurityConfig {
 
     private final UserRepository userRepository;
     private final String secretKey;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    
+    @Autowired(required = false)
+    private TestAuthFilter testAuthFilter;
 
-    public SecurityConfig(UserRepository userRepository, @Value("${jwt.secret}") String secretKey) {
+    public SecurityConfig(UserRepository userRepository, @Value("${jwt.secret}") String secretKey, 
+                         CustomAuthenticationEntryPoint authenticationEntryPoint) {
         this.userRepository = userRepository;
         this.secretKey = secretKey;
+        this.authenticationEntryPoint = authenticationEntryPoint;
     }
 
     @Bean
@@ -43,11 +54,20 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers("/**").permitAll() // TODO: 임시 접근 허용
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll() // TODO: 임시 접근 허용
+                        .requestMatchers("/api/v1/auth/oauth/login").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtTokenFilter(userRepository, secretKey), UsernamePasswordAuthenticationFilter.class);
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                );
+
+        if (testAuthFilter != null) {
+            http.addFilterBefore(testAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        }
+        
+        http.addFilterBefore(new JwtTokenFilter(userRepository, secretKey), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
