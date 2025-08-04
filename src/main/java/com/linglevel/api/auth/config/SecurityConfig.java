@@ -1,12 +1,10 @@
 package com.linglevel.api.auth.config;
 
-import com.linglevel.api.auth.jwt.JwtTokenFilter;
-import com.linglevel.api.auth.jwt.JwtTokenProvider;
 import com.linglevel.api.auth.filter.TestAuthFilter;
 import com.linglevel.api.auth.handler.CustomAuthenticationEntryPoint;
+import com.linglevel.api.auth.jwt.JwtTokenFilter;
+import com.linglevel.api.auth.jwt.JwtTokenProvider;
 import com.linglevel.api.users.repository.UserRepository;
-import jakarta.servlet.Filter;
-import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -55,7 +53,6 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll() // TODO: 임시 접근 허용
                         .requestMatchers("/api/v1/auth/oauth/login").permitAll()
                         .anyRequest().authenticated()
                 )

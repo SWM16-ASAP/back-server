@@ -6,13 +6,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -34,12 +34,9 @@ public class TestAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         
         String testUsername = request.getHeader("X-Test-Username");
-        logger.info("TestAuthFilter - Header value: '{}'", testUsername);
         
         if (testUsername != null && !testUsername.trim().isEmpty()) {
-            logger.info("TestAuthFilter - Searching for username: '{}'", testUsername);
             Optional<User> userOptional = userRepository.findByUsername(testUsername);
-            logger.info("TestAuthFilter - User found: {}", userOptional.isPresent());
             
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
