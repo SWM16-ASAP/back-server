@@ -2,11 +2,9 @@ package com.linglevel.api.auth.config;
 
 import com.linglevel.api.auth.filter.TestAuthFilter;
 import com.linglevel.api.auth.handler.CustomAuthenticationEntryPoint;
-import com.linglevel.api.auth.jwt.JwtTokenFilter;
-import com.linglevel.api.auth.jwt.JwtTokenProvider;
-import com.linglevel.api.users.repository.UserRepository;
+import com.linglevel.api.auth.jwt.JwtFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,29 +19,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
-    @Value("${jwt.secret}")
-    private String jwtSecret;
 
-    @Value("${jwt.access-token-expiration}")
-    private long accessTokenExpiration;
-
-    @Value("${jwt.refresh-token-expiration}")
-    private long refreshTokenExpiration;
-
-    private final UserRepository userRepository;
-    private final String secretKey;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final JwtFilter jwtFilter;
     
     @Autowired(required = false)
     private TestAuthFilter testAuthFilter;
-
-    public SecurityConfig(UserRepository userRepository, @Value("${jwt.secret}") String secretKey, 
-                         CustomAuthenticationEntryPoint authenticationEntryPoint) {
-        this.userRepository = userRepository;
-        this.secretKey = secretKey;
-        this.authenticationEntryPoint = authenticationEntryPoint;
-    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -64,7 +47,7 @@ public class SecurityConfig {
             http.addFilterBefore(testAuthFilter, UsernamePasswordAuthenticationFilter.class);
         }
         
-        http.addFilterBefore(new JwtTokenFilter(userRepository, secretKey), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -77,7 +60,4 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
-
-    @Bean
-    public JwtTokenProvider jwtTokenProvider() { return new JwtTokenProvider(jwtSecret, accessTokenExpiration, refreshTokenExpiration); }
 }

@@ -4,15 +4,14 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import com.linglevel.api.auth.dto.LoginResponse;
-import com.linglevel.api.auth.exception.AuthException;
 import com.linglevel.api.auth.exception.AuthErrorCode;
-import com.linglevel.api.auth.jwt.JwtTokenProvider;
+import com.linglevel.api.auth.exception.AuthException;
+import com.linglevel.api.auth.jwt.JwtProvider;
 import com.linglevel.api.users.entity.User;
 import com.linglevel.api.users.entity.UserRole;
 import com.linglevel.api.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,7 +24,7 @@ public class AuthService {
 
     private final FirebaseAuth firebaseAuth;
     private final UserRepository userRepository;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtProvider jwtTokenProvider;
 
     public LoginResponse authenticateWithFirebase(String authCode) {
         try {
@@ -37,7 +36,7 @@ public class AuthService {
 
             User user = findOrCreateUser(username, email, provider);
 
-            String accessToken = jwtTokenProvider.createToken(user.getUsername());
+            String accessToken = jwtTokenProvider.createToken(user);
             String refreshToken = ""; // todo: add refresh token
             
             return LoginResponse.builder()

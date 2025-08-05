@@ -6,23 +6,21 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 @Component
 @Profile({"dev", "local"})
 public class TestAuthFilter extends OncePerRequestFilter {
 
-    private static final Logger logger = LoggerFactory.getLogger(TestAuthFilter.class);
     private final UserRepository userRepository;
 
     public TestAuthFilter(UserRepository userRepository) {
@@ -41,7 +39,7 @@ public class TestAuthFilter extends OncePerRequestFilter {
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
                 UsernamePasswordAuthenticationToken authentication = 
-                    new UsernamePasswordAuthenticationToken(user.getId(), null, Collections.emptyList());
+                    new UsernamePasswordAuthenticationToken(user.getId(), null, List.of(new SimpleGrantedAuthority(user.getRole().getSecurityRole())));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
