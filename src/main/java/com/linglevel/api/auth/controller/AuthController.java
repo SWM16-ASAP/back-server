@@ -2,6 +2,9 @@ package com.linglevel.api.auth.controller;
 
 import com.linglevel.api.auth.dto.*;
 import com.linglevel.api.auth.exception.AuthException;
+import com.linglevel.api.auth.jwt.JwtClaims;
+import com.linglevel.api.auth.service.AuthService;
+import com.linglevel.api.auth.jwt.JwtService;
 import com.linglevel.api.common.dto.ExceptionResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -10,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -22,18 +26,21 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Authentication", description = "인증 관련 API")
 public class AuthController {
 
-    @Operation(summary = "구글 소셜 로그인", description = "구글 소셜 로그인을 통해 서비스에 인증하고 JWT 토큰을 발급받습니다.",
+    private final AuthService authService;
+    private final JwtService jwtService;
+
+    @Operation(summary = "Firebase OAuth 로그인", description = "Firebase OAuth를 통해 소셜 로그인하고 JWT 토큰을 발급받습니다.",
             security = @SecurityRequirement(name = ""))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로그인 성공",
-                    content = @Content(schema = @Schema(implementation = GoogleLoginResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Firebase 토큰 인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @PostMapping("/google/login")
-    public ResponseEntity<GoogleLoginResponse> googleLogin(@RequestBody GoogleLoginRequest request) {
-        // TODO: 구글 로그인 로직 구현
-        throw new UnsupportedOperationException("Not implemented yet");
+    @PostMapping("/oauth/login")
+    public ResponseEntity<LoginResponse> oauthLogin(@RequestBody OauthLoginRequest request) {
+        LoginResponse response = authService.authenticateWithFirebase(request.getAuthCode());
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 새로운 Access Token을 발급받습니다.")
@@ -62,17 +69,17 @@ public class AuthController {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 
-    @Operation(summary = "토큰 검증", description = "현재 Access Token의 유효성을 검증합니다.")
+    @Operation(summary = "현재 사용자 정보 조회", description = "현재 Access Token에 포함된 JWT Claims 정보를 추출하여 반환합니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "토큰 검증 결과",
-                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
+            @ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공",
+                    content = @Content(schema = @Schema(implementation = JwtClaims.class))),
             @ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    @GetMapping("/verify")
-    public ResponseEntity<UserResponse> verifyToken() {
-        // TODO: 토큰 검증 로직 구현
-        throw new UnsupportedOperationException("Not implemented yet");
+    @GetMapping("/me")
+    public ResponseEntity<JwtClaims> getCurrentUser(HttpServletRequest request) {
+        JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
+        return ResponseEntity.ok(claims);
     }
 
     @ExceptionHandler(AuthException.class)

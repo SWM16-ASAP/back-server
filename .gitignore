@@ -41,3 +41,7 @@ out/
 
 ### env ###
 .env.local
+
+### firebase key ###
+firebase.json
+firebase.base64

@@ -37,8 +37,16 @@
           "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:DISCORD_SUGGESTION_WEBHOOK::"
         },
         {
+          "name": "FIREBASE_CONFIG_BASE64",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:FIREBASE_CONFIG_BASE64::"
+        },
+        {
           "name": "IMPORT_API_KEY",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:IMPORT_API_KEY::"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:JWT_SECRET::"
         },
         {
           "name": "MONGODB_DATABASE_PROD",
@@ -47,6 +55,10 @@
         {
           "name": "MONGODB_URI_PROD",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:MONGODB_URI_PROD::"
+        },
+        {
+          "name": "REDIS_ENDPOINT_PROD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:REDIS_ENDPOINT_PROD::"
         },
         {
           "name": "S3_NAME_PROD",

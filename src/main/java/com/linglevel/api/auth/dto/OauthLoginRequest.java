@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "구글 로그인 요청")
-public class GoogleLoginRequest {
-    @Schema(description = "구글 Authorization Code", example = "4/0AX4XfWh...")
+@Schema(description = "OAuth 로그인 요청")
+public class OauthLoginRequest {
+    @Schema(description = "Firebase Auth Code", example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")  
     private String authCode;
 } 

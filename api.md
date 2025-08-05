@@ -7,7 +7,7 @@
 ## 📝 기본 정보
 
 -   **Base URL**: `/api/v1`
--   **인증**: `/auth/google/login`을 제외한 모든 요청은 HTTP 헤더에 아래와 같이 인증 토큰을 포함해야 합니다.
+-   **인증**: `/oauth/login`을 제외한 모든 요청은 HTTP 헤더에 아래와 같이 인증 토큰을 포함해야 합니다.
     ```
     Authorization: Bearer {AccessToken}
     ```
@@ -16,9 +16,9 @@
 
 ## 👤 인증 (Authentication)
 
-### `POST /auth/google/login`
+### `POST /oauth/login`
 
-구글 소셜 로그인을 통해 서비스에 인증하고 JWT 토큰을 발급받습니다.
+Oauth Firebase 로그인을 통해 서비스에 인증하고 JWT 토큰을 발급받습니다.
 
 #### **Request Body**
 
@@ -27,28 +27,20 @@
   "authCode": "string"
 }
 ```
-- `authCode`: 클라이언트에서 구글 로그인을 통해 받은 Authorization Code
+- `authCode`: 클라이언트에서  Authorization Code
 
 #### **Success Response (200 OK)**
 ```json
 {
   "accessToken": "string",
-  "refreshToken": "string",
-  "user": {
-    "id": "60d0fe4f5311236168a109ca",
-    "email": "user@example.com",
-    "name": "홍길동",
-    "profileImageUrl": "https://path/to/image.jpg",
-    "role": "user",
-    "subscription": "premium"
-  }
+  "refreshToken": "string"
 }
 ```
 
 #### **Error Response (401 Unauthorized)**
 ```json
 {
-  "message": "Invalid Google authorization code."
+  "message": "Invalidauthorization code."
 }
 ```
 
@@ -106,9 +98,9 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
-### `GET /auth/verify`
+### `GET /auth/me`
 
-현재 Access Token의 유효성을 검증합니다.
+현재 Access Token에 포함된 JWT Claims 정보를 추출하여 반환합니다.
 
 #### **Request Headers**
 ```
@@ -118,19 +110,21 @@ Authorization: Bearer {AccessToken}
 #### **Success Response (200 OK)**
 ```json
 {
-  "id": "60d0fe4f5311236168a109ca",
+  "userId": "60d0fe4f5311236168a109ca",
+  "username": "google_123456789",
   "email": "user@example.com",
-  "name": "홍길동",
-  "profileImageUrl": "https://path/to/image.jpg",
-  "role": "user",
-  "subscription": "premium"
+  "role": "USER",
+  "provider": "google",
+  "displayName": "홍길동",
+  "issuedAt": "2025-08-04T09:30:00",
+  "expiresAt": "2025-08-04T19:30:00"
 }
 ```
 
 #### **Error Response (401 Unauthorized)**
 ```json
 {
-  "message": "Invalid or expired token."
+  "message": "Invalid or expired token"
 }
 ```
 
