@@ -1,15 +1,11 @@
 package com.linglevel.api.users.entity;
 
-import lombok.Getter;
-
-@Getter
 public enum UserRole {
-    ADMIN("ADMIN"),
-    USER("USER");
+    ADMIN,
+    USER;
 
-    private final String role;
-
-    UserRole(String role) {
-        this.role = role;
+    // for spring security GrantedAuthority
+    public String getSecurityRole() {
+        return "ROLE_" + this.name();
     }
 }

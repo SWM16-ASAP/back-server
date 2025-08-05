@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/jwt-verify ]
+    branches: [ develop ]
 
 jobs:
   build:
