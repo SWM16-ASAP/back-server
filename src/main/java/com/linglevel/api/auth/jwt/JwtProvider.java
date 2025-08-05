@@ -8,7 +8,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -50,39 +49,28 @@ public class JwtProvider {
     }
 
     public JwtClaims parseTokenToJwtClaims(String token) {
-        SecretKey key = getSecretKey();
+        try {
+            SecretKey key = getSecretKey();
 
-        Claims claims = Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+            Claims claims = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
 
-        return JwtClaims.builder()
-                .id(claims.getSubject())
-                .username(claims.get("username", String.class))
-                .email(claims.get("email", String.class))
-                .role(UserRole.valueOf(claims.get("role", String.class)))
-                .provider(claims.get("provider", String.class))
-                .displayName(claims.get("display_name", String.class))
-                .issuedAt(claims.getIssuedAt())
-                .expiresAt(claims.getExpiration())
-                .build();
-    }
-
-    public String extractTokenFromRequest(HttpServletRequest request) {
-        String authorizationHeader = request.getHeader("Authorization");
-
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            return authorizationHeader.substring(7);
+            return JwtClaims.builder()
+                    .id(claims.getSubject())
+                    .username(claims.get("username", String.class))
+                    .email(claims.get("email", String.class))
+                    .role(UserRole.valueOf(claims.get("role", String.class)))
+                    .provider(claims.get("provider", String.class))
+                    .displayName(claims.get("display_name", String.class))
+                    .issuedAt(claims.getIssuedAt())
+                    .expiresAt(claims.getExpiration())
+                    .build();
+        } catch (Exception e) {
+            throw new AuthException(AuthErrorCode.INVALID_ACCESS_TOKEN);
         }
-
-        return null;
-    }
-
-    public boolean isExpired(String token) {
-        Date expiredDate = parseTokenToJwtClaims(token).getExpiresAt();
-        return expiredDate.before(new Date());
     }
 
     private SecretKey getSecretKey() {

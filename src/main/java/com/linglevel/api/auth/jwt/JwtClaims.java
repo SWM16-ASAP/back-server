@@ -13,7 +13,6 @@ import java.util.Date;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "JWT Claims 응답")
 public class JwtClaims {
     
     @Schema(description = "사용자 고유 식별자", example = "60d0fe4f5311236168a109ca")
@@ -39,4 +38,8 @@ public class JwtClaims {
     
     @Schema(description = "토큰 만료 시간", example = "2025-08-04T19:30:00")
     private Date expiresAt;
+
+    public boolean isExpired() {
+        return expiresAt.before(new Date());
+    }
 }

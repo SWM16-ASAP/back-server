@@ -2,8 +2,6 @@ package com.linglevel.api.auth.jwt;
 
 import com.linglevel.api.auth.exception.AuthErrorCode;
 import com.linglevel.api.auth.exception.AuthException;
-import com.linglevel.api.users.entity.UserRole;
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,14 +15,17 @@ public class JwtService {
     private final JwtProvider jwtProvider;
 
     public JwtClaims extractJwtClaimsFromRequest(HttpServletRequest request) {
-        String token = jwtProvider.extractTokenFromRequest(request);
+        String token = extractTokenFromRequest(request);
+        return jwtProvider.parseTokenToJwtClaims(token);
+    }
 
-        JwtClaims jwtClaims = jwtProvider.parseTokenToJwtClaims(token);
+    public String extractTokenFromRequest(HttpServletRequest request) {
+        String authorizationHeader = request.getHeader("Authorization");
 
-        if (jwtProvider.isExpired(token) || jwtClaims.getId() == null) {
-            throw new AuthException(AuthErrorCode.INVALID_ACCESS_TOKEN);
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
         }
 
-        return jwtClaims;
+        throw new AuthException(AuthErrorCode.INVALID_ACCESS_TOKEN);
     }
 }
