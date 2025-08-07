@@ -696,6 +696,40 @@ Authorization: Bearer {AccessToken}
 
 ---
 
+## 👤 사용자 관리 (User Management)
+
+### `DELETE /users/me`
+
+현재 인증된 사용자의 계정을 삭제합니다. JWT 토큰을 통해 사용자를 식별하며, 관련된 모든 사용자 데이터가 삭제됩니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "User account deleted successfully."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "User not found."
+}
+```
+
+---
+
 ## 💡 고객 건의 (Suggestions)
 
 ### `POST /suggestions`
