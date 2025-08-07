@@ -6,8 +6,8 @@ import com.linglevel.api.books.service.BookService;
 import com.linglevel.api.books.service.ChapterService;
 import com.linglevel.api.books.service.ChunkService;
 import com.linglevel.api.books.service.ProgressService;
-import com.linglevel.api.common.dto.ExceptionResponseDTO;
-import com.linglevel.api.common.dto.PageResponseDTO;
+import com.linglevel.api.common.dto.ExceptionResponse;
+import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,12 +47,12 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping
-    public ResponseEntity<PageResponseDTO<BookResponse>> getBooks(
+    public ResponseEntity<PageResponse<BookResponse>> getBooks(
             @ParameterObject @ModelAttribute GetBooksRequest request) {
-        PageResponseDTO<BookResponse> response = bookService.getBooks(request);
+        PageResponse<BookResponse> response = bookService.getBooks(request);
         return ResponseEntity.ok(response);
     }
 
@@ -60,7 +60,7 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping("/{bookId}")
     public ResponseEntity<BookResponse> getBook(
@@ -74,14 +74,14 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping("/{bookId}/chapters")
-    public ResponseEntity<PageResponseDTO<ChapterResponse>> getChapters(
+    public ResponseEntity<PageResponse<ChapterResponse>> getChapters(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
             @ParameterObject @ModelAttribute GetChaptersRequest request) {
-        PageResponseDTO<ChapterResponse> response = chapterService.getChapters(bookId, request);
+        PageResponse<ChapterResponse> response = chapterService.getChapters(bookId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -89,7 +89,7 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "404", description = "책 또는 챕터를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping("/{bookId}/chapters/{chapterId}")
     public ResponseEntity<ChapterResponse> getChapter(
@@ -105,18 +105,18 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "404", description = "챕터를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
             @ApiResponse(responseCode = "400", description = "잘못된 난이도 레벨",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping("/{bookId}/chapters/{chapterId}/chunks")
-    public ResponseEntity<PageResponseDTO<ChunkResponse>> getChunks(
+    public ResponseEntity<PageResponse<ChunkResponse>> getChunks(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
             @PathVariable String chapterId,
             @ParameterObject @ModelAttribute GetChunksRequest request) {
-        PageResponseDTO<ChunkResponse> response = chunkService.getChunks(bookId, chapterId, request);
+        PageResponse<ChunkResponse> response = chunkService.getChunks(bookId, chapterId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -124,7 +124,7 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "404", description = "책, 챕터 또는 청크를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping("/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
     public ResponseEntity<ChunkResponse> getChunk(
@@ -142,9 +142,9 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "업데이트 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "404", description = "책 또는 챕터를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
             @ApiResponse(responseCode = "400", description = "잘못된 청크 번호",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PutMapping("/{bookId}/progress")
     public ResponseEntity<ProgressResponse> updateProgress(
@@ -159,7 +159,7 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping("/{bookId}/progress")
     public ResponseEntity<ProgressResponse> getProgress(
@@ -173,7 +173,7 @@ public class BooksController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "500", description = "import 실패",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping("/import")
     public ResponseEntity<BookImportResponse> importBook(
@@ -191,9 +191,9 @@ public class BooksController {
     }
 
     @ExceptionHandler(BooksException.class)
-    public ResponseEntity<ExceptionResponseDTO> handleBooksException(BooksException e) {
+    public ResponseEntity<ExceptionResponse> handleBooksException(BooksException e) {
         log.info("Books Exception: {}", e.getMessage());
         return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponseDTO(e));
+                .body(new ExceptionResponse(e));
     }
 } 

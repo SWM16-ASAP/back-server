@@ -35,6 +35,10 @@ public class User {
 
     private UserRole role;
 
+    private Boolean deleted;
+
     private LocalDateTime createdAt;
+
+    private LocalDateTime deletedAt;
 
 }

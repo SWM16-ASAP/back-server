@@ -39,7 +39,7 @@ public class TestAuthFilter extends OncePerRequestFilter {
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
                 UsernamePasswordAuthenticationToken authentication = 
-                    new UsernamePasswordAuthenticationToken(user.getId(), null, List.of(new SimpleGrantedAuthority(user.getRole().getSecurityRole())));
+                    new UsernamePasswordAuthenticationToken(user.getUsername(), null, List.of(new SimpleGrantedAuthority(user.getRole().getSecurityRole())));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }

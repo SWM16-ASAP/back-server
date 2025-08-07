@@ -11,7 +11,7 @@ import com.linglevel.api.books.exception.BooksException;
 import com.linglevel.api.books.repository.BookRepository;
 import com.linglevel.api.books.repository.ChapterRepository;
 import com.linglevel.api.books.repository.ChunkRepository;
-import com.linglevel.api.common.dto.PageResponseDTO;
+import com.linglevel.api.common.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -170,7 +170,7 @@ public class BookService {
         return chunk;
     }
 
-    public PageResponseDTO<BookResponse> getBooks(GetBooksRequest request) {
+    public PageResponse<BookResponse> getBooks(GetBooksRequest request) {
         Sort sort = createSort(request.getSortBy());
 
         Pageable pageable = PageRequest.of(
@@ -186,7 +186,7 @@ public class BookService {
             .map(this::convertToBookResponse)
             .collect(Collectors.toList());
 
-        return new PageResponseDTO<>(bookResponses, bookPage);
+        return new PageResponse<>(bookResponses, bookPage);
     }
 
     public BookResponse getBook(String bookId) {
