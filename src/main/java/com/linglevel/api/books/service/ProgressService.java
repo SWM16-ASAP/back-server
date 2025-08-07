@@ -2,7 +2,6 @@ package com.linglevel.api.books.service;
 
 import com.linglevel.api.books.dto.ProgressResponse;
 import com.linglevel.api.books.dto.ProgressUpdateRequest;
-import com.linglevel.api.books.entity.Book;
 import com.linglevel.api.books.entity.BookProgress;
 import com.linglevel.api.books.entity.Chapter;
 import com.linglevel.api.books.entity.Chunk;
@@ -11,11 +10,8 @@ import com.linglevel.api.books.exception.BooksException;
 import com.linglevel.api.books.repository.BookProgressRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor

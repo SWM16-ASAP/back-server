@@ -1,4 +1,4 @@
-package com.linglevel.api.users.dto;
+package com.linglevel.api.books.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "사용자 읽기 진도 정보 응답")
-public class UserBooksProgressResponse {
+public class BooksProgressResponse {
     @Schema(description = "진도 ID", example = "60d0fe4f5311236168a109d1")
     private String id;
     
