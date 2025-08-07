@@ -15,5 +15,7 @@ public interface ChapterRepository extends MongoRepository<Chapter, String> {
     
     Optional<Chapter> findFirstByBookIdOrderByChapterNumberAsc(String chapterId);
 
+    Integer countByBookId(String bookId);
+
     Optional<Chapter> findById(String chapterId);
 } 
