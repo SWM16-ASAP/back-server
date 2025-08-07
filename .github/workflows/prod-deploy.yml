@@ -2,7 +2,7 @@ name: Prod Deployment
 
 on:
   push:
-    branches: [ main, feat/delete-user ]
+    branches: [ main ]
 
 jobs:
   deploy:
