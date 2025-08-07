@@ -1,6 +1,6 @@
 package com.linglevel.api.suggestions.controller;
 
-import com.linglevel.api.common.dto.ExceptionResponseDTO;
+import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.suggestions.dto.SuggestionRequest;
 import com.linglevel.api.suggestions.dto.SuggestionResponse;
 import com.linglevel.api.suggestions.service.SuggestionsService;
@@ -11,14 +11,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 
 @RestController
 @RequestMapping("/api/v1/suggestions")
@@ -33,7 +30,7 @@ public class SuggestionsController {
             @ApiResponse(responseCode = "201", description = "건의 제출 성공",
                     content = @Content(schema = @Schema(implementation = SuggestionResponse.class))),
             @ApiResponse(responseCode = "400", description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping
     public ResponseEntity<SuggestionResponse> submitSuggestion(@RequestBody SuggestionRequest request) {

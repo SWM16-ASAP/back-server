@@ -8,7 +8,7 @@ import com.linglevel.api.books.entity.DifficultyLevel;
 import com.linglevel.api.books.exception.BooksException;
 import com.linglevel.api.books.exception.BooksErrorCode;
 import com.linglevel.api.books.repository.ChunkRepository;
-import com.linglevel.api.common.dto.PageResponseDTO;
+import com.linglevel.api.common.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,7 +29,7 @@ public class ChunkService {
     private final BookService bookService;
     private final ChapterService chapterService;
 
-    public PageResponseDTO<ChunkResponse> getChunks(String bookId, String chapterId, GetChunksRequest request) {
+    public PageResponse<ChunkResponse> getChunks(String bookId, String chapterId, GetChunksRequest request) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
@@ -58,7 +58,7 @@ public class ChunkService {
             .map(this::convertToChunkResponse)
             .collect(Collectors.toList());
 
-        return new PageResponseDTO<>(chunkResponses, chunkPage);
+        return new PageResponse<>(chunkResponses, chunkPage);
     }
 
     public ChunkResponse getChunk(String bookId, String chapterId, String chunkId) {

@@ -64,6 +64,7 @@ public class AuthService {
                     .email(email)
                     .displayName(email)
                     .role(UserRole.USER)
+                    .deleted(false)
                     .createdAt(LocalDateTime.now())
                     .build();
             

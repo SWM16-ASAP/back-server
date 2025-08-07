@@ -30,7 +30,7 @@ public class JwtProvider {
 
     public String createToken(User user) {
         Claims claims = Jwts.claims()
-                .add("username", user.getUsername())
+                .add("id", user.getId())
                 .add("email", user.getEmail())
                 .add("role", user.getRole().name())
                 .add("provider", user.getProvider())
@@ -41,7 +41,7 @@ public class JwtProvider {
 
         return Jwts.builder()
                 .claims(claims)
-                .subject(user.getId())
+                .subject(user.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
                 .signWith(key)
@@ -59,8 +59,8 @@ public class JwtProvider {
                     .getPayload();
 
             return JwtClaims.builder()
-                    .id(claims.getSubject())
-                    .username(claims.get("username", String.class))
+                    .username(claims.getSubject())
+                    .id(claims.get("id", String.class))
                     .email(claims.get("email", String.class))
                     .role(UserRole.valueOf(claims.get("role", String.class)))
                     .provider(claims.get("provider", String.class))

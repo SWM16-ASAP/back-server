@@ -1,10 +1,9 @@
 package com.linglevel.api.auth.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linglevel.api.common.dto.ExceptionResponseDTO;
+import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +28,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         log.warn("Unauthorized access attempt: {}", authException.getMessage());
         
         CommonException commonException = new CommonException(CommonErrorCode.UNAUTHORIZED);
-        ExceptionResponseDTO errorResponse = new ExceptionResponseDTO(commonException);
+        ExceptionResponse errorResponse = new ExceptionResponse(commonException);
         
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

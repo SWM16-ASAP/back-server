@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "공통 페이지네이션 응답")
-public class PageResponseDTO<T> {
+public class PageResponse<T> {
     @Schema(description = "응답 데이터")
     private List<T> data;
     
@@ -33,7 +33,7 @@ public class PageResponseDTO<T> {
     @Schema(description = "이전 페이지 존재 여부", example = "false")
     private boolean hasPrevious;
 
-    public PageResponseDTO(List<T> data, Page<?> page) {
+    public PageResponse(List<T> data, Page<?> page) {
         this.data = data;
         this.currentPage = page.getNumber();
         this.totalPages = page.getTotalPages();
