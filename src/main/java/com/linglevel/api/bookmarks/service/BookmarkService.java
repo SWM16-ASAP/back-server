@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +33,7 @@ public class BookmarkService {
     private final WordService wordService;
 
     public Page<BookmarkedWordResponse> getBookmarkedWords(String userId, int page, int limit, String search) {
-        Pageable pageable = PageRequest.of(page - 1, limit);
+        Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "bookmarkedAt"));
         
         if (search != null && !search.trim().isEmpty()) {
             // 검색어가 있는 경우: 단어를 먼저 검색한 후 북마크 필터링
