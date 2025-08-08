@@ -3,6 +3,9 @@ package com.linglevel.api.bookmarks.controller;
 import com.linglevel.api.bookmarks.dto.BookmarkedWordResponse;
 import com.linglevel.api.bookmarks.dto.GetBookmarkedWordsRequest;
 import com.linglevel.api.bookmarks.exception.BookmarksException;
+import com.linglevel.api.bookmarks.service.BookmarkService;
+import com.linglevel.api.users.repository.UserRepository;
+import com.linglevel.api.users.entity.User;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.dto.PageResponse;
@@ -27,6 +30,9 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Bookmarks", description = "북마크 관련 API")
 public class BookmarksController {
 
+    private final BookmarkService bookmarkService;
+    private final UserRepository userRepository;
+
     @Operation(summary = "북마크된 단어 목록 조회", description = "현재 사용자가 북마크한 단어 목록을 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
@@ -38,7 +44,9 @@ public class BookmarksController {
             @ParameterObject @ModelAttribute GetBookmarkedWordsRequest request,
             Authentication authentication) {
         String username = authentication.getName();
-        throw new UnsupportedOperationException("Not implemented yet");
+        User user = userRepository.findByUsername(username).orElseThrow();
+        var bookmarkedWords = bookmarkService.getBookmarkedWords(user.getId(), request.getPage(), request.getLimit(), request.getSearch());
+        return ResponseEntity.ok(new PageResponse<>(bookmarkedWords.getContent(), bookmarkedWords));
     }
 
     @Operation(summary = "단어 북마크 추가", description = "특정 단어를 북마크에 추가합니다.")
@@ -58,7 +66,9 @@ public class BookmarksController {
             @PathVariable String word,
             Authentication authentication) {
         String username = authentication.getName();
-        throw new UnsupportedOperationException("Not implemented yet");
+        User user = userRepository.findByUsername(username).orElseThrow();
+        bookmarkService.addWordBookmark(user.getId(), word);
+        return ResponseEntity.ok(new MessageResponse("Word bookmarked successfully."));
     }
 
     @Operation(summary = "단어 북마크 제거", description = "특정 단어를 북마크에서 제거합니다.")
@@ -76,7 +86,9 @@ public class BookmarksController {
             @PathVariable String word,
             Authentication authentication) {
         String username = authentication.getName();
-        throw new UnsupportedOperationException("Not implemented yet");
+        User user = userRepository.findByUsername(username).orElseThrow();
+        bookmarkService.removeWordBookmark(user.getId(), word);
+        return ResponseEntity.ok(new MessageResponse("Word bookmark removed successfully."));
     }
 
     @ExceptionHandler(BookmarksException.class)
