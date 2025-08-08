@@ -12,11 +12,11 @@ import java.util.Optional;
 @Repository
 public interface WordBookmarkRepository extends MongoRepository<WordBookmark, String> {
     
-    boolean existsByUserIdAndWordId(String userId, String wordId);
+    boolean existsByUserIdAndWord(String userId, String word);
     
     Page<WordBookmark> findByUserId(String userId, Pageable pageable);
 
-    Page<WordBookmark> findByUserIdAndWordIdIn(String userId, java.util.List<String> wordIds, Pageable pageable);
+    Page<WordBookmark> findByUserIdAndWordIn(String userId, java.util.List<String> words, Pageable pageable);
     
-    void deleteByUserIdAndWordId(String userId, String wordId);
+    void deleteByUserIdAndWord(String userId, String word);
 }

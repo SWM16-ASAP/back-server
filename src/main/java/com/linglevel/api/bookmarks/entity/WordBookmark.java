@@ -13,14 +13,14 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "wordBookmarks")
-@CompoundIndex(name = "userId_wordId_unique", def = "{'userId': 1, 'wordId': 1}", unique = true)
+@CompoundIndex(name = "userId_word_unique", def = "{'userId': 1, 'word': 1}", unique = true)
 public class WordBookmark {
     @Id
     private String id;
     
     private String userId;
     
-    private String wordId;
+    private String word;
     
     private LocalDateTime bookmarkedAt;
 }
