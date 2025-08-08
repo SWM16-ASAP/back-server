@@ -8,7 +8,6 @@ import com.linglevel.api.bookmarks.repository.WordBookmarkRepository;
 import com.linglevel.api.words.entity.Word;
 import com.linglevel.api.words.repository.WordRepository;
 import com.linglevel.api.words.service.WordService;
-import com.linglevel.api.words.exception.WordsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -88,14 +86,12 @@ public class BookmarkService {
         List<BookmarkedWordResponse> responses = new ArrayList<>();
         
         for (WordBookmark bookmark : bookmarks.getContent()) {
-            Word word = wordRepository.findByWord(bookmark.getWord()).orElse(null);
-            if (word != null) {
-                responses.add(BookmarkedWordResponse.builder()
-                        .id(word.getId())
-                        .word(word.getWord())
-                        .bookmarkedAt(bookmark.getBookmarkedAt())
-                        .build());
-            }
+             wordRepository.findByWord(bookmark.getWord())
+                    .ifPresent(word -> responses.add(BookmarkedWordResponse.builder()
+                            .id(word.getId())
+                            .word(word.getWord())
+                            .bookmarkedAt(bookmark.getBookmarkedAt())
+                            .build()));
         }
         
         return new PageImpl<>(responses, bookmarks.getPageable(), bookmarks.getTotalElements());
