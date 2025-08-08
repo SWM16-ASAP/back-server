@@ -1,6 +1,7 @@
 package com.linglevel.api.bookmarks.controller;
 
 import com.linglevel.api.bookmarks.dto.BookmarkedWordResponse;
+import com.linglevel.api.bookmarks.dto.BookmarkToggleResponse;
 import com.linglevel.api.bookmarks.dto.GetBookmarkedWordsRequest;
 import com.linglevel.api.bookmarks.exception.BookmarksException;
 import com.linglevel.api.bookmarks.service.BookmarkService;
@@ -89,6 +90,23 @@ public class BookmarksController {
         User user = userRepository.findByUsername(username).orElseThrow();
         bookmarkService.removeWordBookmark(user.getId(), word);
         return ResponseEntity.ok(new MessageResponse("Word bookmark removed successfully."));
+    }
+
+    @Operation(summary = "단어 북마크 토글", description = "특정 단어의 북마크 상태를 토글합니다. 북마크되어 있으면 제거하고, 북마크되어 있지 않으면 추가합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "토글 성공", useReturnTypeSchema = true),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @PutMapping("/words/{word}/toggle")
+    public ResponseEntity<BookmarkToggleResponse> toggleWordBookmark(
+            @Parameter(description = "토글할 단어", example = "magnificent")
+            @PathVariable String word,
+            Authentication authentication) {
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username).orElseThrow();
+        boolean bookmarked = bookmarkService.toggleWordBookmark(user.getId(), word);
+        return ResponseEntity.ok(new BookmarkToggleResponse(bookmarked));
     }
 
     @ExceptionHandler(BookmarksException.class)

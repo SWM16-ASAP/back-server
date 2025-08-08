@@ -42,7 +42,7 @@ public class WordsController {
         return ResponseEntity.ok(new PageResponse<>(words.getContent(), words));
     }
 
-    @Operation(summary = "단일 단어 조회", description = "특정 단어의 상세 정보를 조회합니다.")
+    @Operation(summary = "단일 단어 조회", description = "특정 단어의 상세 정보를 조회합니다. 현재 사용자의 북마크 상태도 함께 반환됩니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "404", description = "단어를 찾을 수 없음",
@@ -54,9 +54,8 @@ public class WordsController {
     public ResponseEntity<WordResponse> getWord(
             @Parameter(description = "조회할 단어", example = "magnificent")
             @PathVariable String word) {
-        return wordService.getWordByWord(word)
-                .map(ResponseEntity::ok)
-                .orElseThrow(() -> new WordsException(WordsErrorCode.WORD_NOT_FOUND));
+        WordResponse wordResponse = wordService.getOrCreateWord(word);
+        return ResponseEntity.ok(wordResponse);
     }
 
     @ExceptionHandler(WordsException.class)

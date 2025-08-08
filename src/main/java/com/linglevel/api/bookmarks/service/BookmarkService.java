@@ -5,6 +5,7 @@ import com.linglevel.api.bookmarks.entity.WordBookmark;
 import com.linglevel.api.bookmarks.exception.BookmarksErrorCode;
 import com.linglevel.api.bookmarks.exception.BookmarksException;
 import com.linglevel.api.bookmarks.repository.WordBookmarkRepository;
+import com.linglevel.api.words.dto.WordResponse;
 import com.linglevel.api.words.entity.Word;
 import com.linglevel.api.words.repository.WordRepository;
 import com.linglevel.api.words.service.WordService;
@@ -55,7 +56,8 @@ public class BookmarkService {
     
     @Transactional
     public void addWordBookmark(String userId, String wordStr) {
-        Word word = wordRepository.findByWord(wordStr).orElseGet(() -> wordService.createWord(wordStr));
+        // todo DTO를 내부에서 사용하는 문제
+        WordResponse word = wordService.getOrCreateWord(wordStr);
 
         if (wordBookmarkRepository.existsByUserIdAndWord(userId, word.getWord())) {
             throw new BookmarksException(BookmarksErrorCode.WORD_ALREADY_BOOKMARKED);
@@ -81,6 +83,29 @@ public class BookmarkService {
         }
 
         wordBookmarkRepository.deleteByUserIdAndWord(userId, wordStr);
+    }
+    
+    @Transactional
+    public boolean toggleWordBookmark(String userId, String wordStr) {
+        // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
+        wordService.getOrCreateWord(wordStr);
+
+        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr);
+        
+        if (isBookmarked) {
+            // 북마크 해제
+            wordBookmarkRepository.deleteByUserIdAndWord(userId, wordStr);
+            return false;
+        } else {
+            // 북마크 추가
+            WordBookmark bookmark = WordBookmark.builder()
+                    .userId(userId)
+                    .word(wordStr)
+                    .bookmarkedAt(LocalDateTime.now())
+                    .build();
+            wordBookmarkRepository.save(bookmark);
+            return true;
+        }
     }
     
     private Page<BookmarkedWordResponse> convertToBookmarkedWordResponseDirect(Page<WordBookmark> bookmarks) {

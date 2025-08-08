@@ -17,4 +17,7 @@ public class WordResponse {
     
     @Schema(description = "단어", example = "magnificent")
     private String word;
+    
+    @Schema(description = "현재 사용자가 해당 단어를 북마크했는지 여부", example = "true")
+    private Boolean bookmarked;
 }
