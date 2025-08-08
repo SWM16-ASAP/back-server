@@ -46,10 +46,10 @@ public class WordsController {
             @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @GetMapping("/{wordId}")
+    @GetMapping("/{word}")
     public ResponseEntity<WordResponse> getWord(
-            @Parameter(description = "단어 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String wordId) {
+            @Parameter(description = "조회할 단어", example = "magnificent")
+            @PathVariable String word) {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 

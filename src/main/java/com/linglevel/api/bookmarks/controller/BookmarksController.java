@@ -52,10 +52,10 @@ public class BookmarksController {
             @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @PostMapping("/words/{wordId}")
+    @PostMapping("/words/{word}")
     public ResponseEntity<MessageResponse> addWordBookmark(
-            @Parameter(description = "단어 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String wordId,
+            @Parameter(description = "북마크할 단어", example = "magnificent")
+            @PathVariable String word,
             Authentication authentication) {
         String username = authentication.getName();
         throw new UnsupportedOperationException("Not implemented yet");
@@ -70,10 +70,10 @@ public class BookmarksController {
             @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @DeleteMapping("/words/{wordId}")
+    @DeleteMapping("/words/{word}")
     public ResponseEntity<MessageResponse> removeWordBookmark(
-            @Parameter(description = "단어 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String wordId,
+            @Parameter(description = "북마크 해제할 단어", example = "magnificent")
+            @PathVariable String word,
             Authentication authentication) {
         String username = authentication.getName();
         throw new UnsupportedOperationException("Not implemented yet");
