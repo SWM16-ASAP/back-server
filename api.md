@@ -759,6 +759,243 @@ Authorization: Bearer {AccessToken}
 
 ---
 
+## 📚 단어장 (Words & Bookmarks)
+
+### `GET /words`
+
+전체 단어 목록을 페이지네이션으로 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                      |
+| :------- | :------ | :--- | :------------------------ |
+| `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수                |
+| `search` | String  | 아니요                       | 검색할 단어 (부분 일치 검색)         |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "word": "magnificent"
+    },
+    {
+      "id": "60d0fe4f5311236168a109cb", 
+      "word": "picture"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 10,
+  "totalCount": 100,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회**
+```
+GET /api/v1/words
+```
+
+**2. 단어 검색**
+```
+GET /api/v1/words?search=magn
+```
+
+**3. 페이지네이션**
+```
+GET /api/v1/words?page=2&limit=20
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+### `GET /words/{wordId}`
+
+특정 단어의 상세 정보를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `wordId` | String | 조회할 단어의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "word": "magnificent"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Word not found."
+}
+```
+
+
+---
+
+## 📖 북마크 (Bookmarks)
+
+### `GET /bookmarks/words`
+
+현재 사용자가 북마크한 단어 목록을 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                      |
+| :------- | :------ | :--- | :------------------------ |
+| `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수                |
+| `search` | String  | 아니요                       | 검색할 단어 (부분 일치 검색)         |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "word": "magnificent",
+      "bookmarkedAt": "2024-01-15T10:30:00"
+    },
+    {
+      "id": "60d0fe4f5311236168a109cb",
+      "word": "adventure", 
+      "bookmarkedAt": "2024-01-14T15:45:00"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 5,
+  "totalCount": 45,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회**
+```
+GET /api/v1/bookmarks/words
+```
+
+**2. 북마크된 단어 검색**
+```
+GET /api/v1/bookmarks/words?search=magn
+```
+
+**3. 페이지네이션**
+```
+GET /api/v1/bookmarks/words?page=2&limit=20
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+### `POST /bookmarks/words/{wordId}`
+
+특정 단어를 북마크에 추가합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `wordId` | String | 북마크할 단어의 고유 ID |
+
+#### **Success Response (201 Created)**
+```json
+{
+  "message": "Word bookmarked successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Word not found."
+}
+```
+
+#### **Error Response (409 Conflict)**
+```json
+{
+  "message": "Word is already bookmarked."
+}
+```
+
+### `DELETE /bookmarks/words/{wordId}`
+
+특정 단어를 북마크에서 제거합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `wordId` | String | 북마크 해제할 단어의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Word bookmark removed successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Word not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Word bookmark not found."
+}
+```
+
+---
+
 ## 💡 고객 건의 (Suggestions)
 
 ### `POST /suggestions`
