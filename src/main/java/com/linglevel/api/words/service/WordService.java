@@ -2,9 +2,9 @@ package com.linglevel.api.words.service;
 
 import com.linglevel.api.words.dto.WordResponse;
 import com.linglevel.api.words.entity.Word;
-import com.linglevel.api.words.repository.WordRepository;
-import com.linglevel.api.words.exception.WordsException;
 import com.linglevel.api.words.exception.WordsErrorCode;
+import com.linglevel.api.words.exception.WordsException;
+import com.linglevel.api.words.repository.WordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -50,13 +50,6 @@ public class WordService {
         
         Word savedWord = wordRepository.save(newWord);
         return convertToResponse(savedWord);
-    }
-    
-    public void deleteWord(String wordId) {
-        if (!wordRepository.existsById(wordId)) {
-            throw new WordsException(WordsErrorCode.WORD_NOT_FOUND_BY_ID);
-        }
-        wordRepository.deleteById(wordId);
     }
     
     private WordResponse convertToResponse(Word word) {
