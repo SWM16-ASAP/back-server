@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -55,18 +56,15 @@ public class BookmarkService {
     
     @Transactional
     public void addWordBookmark(String userId, String wordStr) {
-        // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
-        if (!wordRepository.existsByWord(wordStr)) {
-            wordService.createWord(wordStr);
-        }
+        Word word = wordRepository.findByWord(wordStr).orElseGet(() -> wordService.createWord(wordStr));
 
-        if (wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
+        if (wordBookmarkRepository.existsByUserIdAndWord(userId, word.getWord())) {
             throw new BookmarksException(BookmarksErrorCode.WORD_ALREADY_BOOKMARKED);
         }
 
         WordBookmark bookmark = WordBookmark.builder()
                 .userId(userId)
-                .word(wordStr)
+                .word(word.getWord())
                 .bookmarkedAt(LocalDateTime.now())
                 .build();
         

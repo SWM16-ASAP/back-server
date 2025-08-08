@@ -39,17 +39,16 @@ public class WordService {
                 .map(this::convertToResponse);
     }
     
-    public WordResponse createWord(String word) {
+    public Word createWord(String word) {
         if (wordRepository.existsByWord(word)) {
             throw new WordsException(WordsErrorCode.WORD_ALREADY_EXISTS);
         }
-        
+
         Word newWord = Word.builder()
                 .word(word)
                 .build();
-        
-        Word savedWord = wordRepository.save(newWord);
-        return convertToResponse(savedWord);
+
+        return wordRepository.save(newWord);
     }
     
     private WordResponse convertToResponse(Word word) {
