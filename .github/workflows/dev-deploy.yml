@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/delete-user ]
+    branches: [ develop, feat/bookmark-word ]
 
 jobs:
   build:
