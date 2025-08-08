@@ -5,7 +5,6 @@ import com.linglevel.api.bookmarks.entity.WordBookmark;
 import com.linglevel.api.bookmarks.exception.BookmarksErrorCode;
 import com.linglevel.api.bookmarks.exception.BookmarksException;
 import com.linglevel.api.bookmarks.repository.WordBookmarkRepository;
-import com.linglevel.api.words.dto.WordResponse;
 import com.linglevel.api.words.entity.Word;
 import com.linglevel.api.words.repository.WordRepository;
 import com.linglevel.api.words.service.WordService;
@@ -56,16 +55,16 @@ public class BookmarkService {
     
     @Transactional
     public void addWordBookmark(String userId, String wordStr) {
-        // todo DTO를 내부에서 사용하는 문제
-        WordResponse word = wordService.getOrCreateWord(wordStr);
+        // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
+        wordService.getOrCreateWordEntity(wordStr);
 
-        if (wordBookmarkRepository.existsByUserIdAndWord(userId, word.getWord())) {
+        if (wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_ALREADY_BOOKMARKED);
         }
 
         WordBookmark bookmark = WordBookmark.builder()
                 .userId(userId)
-                .word(word.getWord())
+                .word(wordStr)
                 .bookmarkedAt(LocalDateTime.now())
                 .build();
         
@@ -88,7 +87,7 @@ public class BookmarkService {
     @Transactional
     public boolean toggleWordBookmark(String userId, String wordStr) {
         // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
-        wordService.getOrCreateWord(wordStr);
+        wordService.getOrCreateWordEntity(wordStr);
 
         boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr);
         

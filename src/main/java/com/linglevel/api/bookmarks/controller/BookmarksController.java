@@ -1,15 +1,15 @@
 package com.linglevel.api.bookmarks.controller;
 
-import com.linglevel.api.bookmarks.dto.BookmarkedWordResponse;
 import com.linglevel.api.bookmarks.dto.BookmarkToggleResponse;
+import com.linglevel.api.bookmarks.dto.BookmarkedWordResponse;
 import com.linglevel.api.bookmarks.dto.GetBookmarkedWordsRequest;
 import com.linglevel.api.bookmarks.exception.BookmarksException;
 import com.linglevel.api.bookmarks.service.BookmarkService;
-import com.linglevel.api.users.repository.UserRepository;
-import com.linglevel.api.users.entity.User;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.users.entity.User;
+import com.linglevel.api.users.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

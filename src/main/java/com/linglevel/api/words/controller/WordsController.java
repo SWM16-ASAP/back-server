@@ -14,7 +14,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import com.linglevel.api.users.entity.User;
+import com.linglevel.api.users.repository.UserRepository;
+import org.springdoc.core.annotations.ParameterObject;
 
 import com.linglevel.api.words.dto.WordResponse;
 import com.linglevel.api.words.service.WordService;
@@ -29,6 +34,7 @@ import com.linglevel.api.words.exception.WordsErrorCode;
 public class WordsController {
 
     private final WordService wordService;
+    private final UserRepository userRepository;
 
     @Operation(summary = "단어 목록 조회", description = "전체 단어 목록을 페이지네이션으로 조회합니다.")
     @ApiResponses(value = {
@@ -37,8 +43,12 @@ public class WordsController {
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping
-    public ResponseEntity<PageResponse<WordResponse>> getWords(GetWordsRequest request) {
-        var words = wordService.getWords(request.getPage(), request.getLimit(), request.getSearch());
+    public ResponseEntity<PageResponse<WordResponse>> getWords(
+            @ParameterObject @ModelAttribute GetWordsRequest request,
+            Authentication authentication) {
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username).orElseThrow();
+        var words = wordService.getWords(user.getId(), request.getPage(), request.getLimit(), request.getSearch());
         return ResponseEntity.ok(new PageResponse<>(words.getContent(), words));
     }
 
@@ -53,8 +63,11 @@ public class WordsController {
     @GetMapping("/{word}")
     public ResponseEntity<WordResponse> getWord(
             @Parameter(description = "조회할 단어", example = "magnificent")
-            @PathVariable String word) {
-        WordResponse wordResponse = wordService.getOrCreateWord(word);
+            @PathVariable String word,
+            Authentication authentication) {
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username).orElseThrow();
+        WordResponse wordResponse = wordService.getOrCreateWord(user.getId(), word);
         return ResponseEntity.ok(wordResponse);
     }
 

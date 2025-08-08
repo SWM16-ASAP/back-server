@@ -1,6 +1,5 @@
 package com.linglevel.api.words.service;
 
-import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.bookmarks.repository.WordBookmarkRepository;
 import com.linglevel.api.words.dto.WordResponse;
 import com.linglevel.api.words.entity.Word;
@@ -10,8 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,7 +23,7 @@ public class WordService {
     private final WordRepository wordRepository;
     private final WordBookmarkRepository wordBookmarkRepository;
 
-    public Page<WordResponse> getWords(int page, int limit, String search) {
+    public Page<WordResponse> getWords(String userId, int page, int limit, String search) {
         Pageable pageable = PageRequest.of(page - 1, limit);
         Page<Word> words;
 
@@ -33,9 +32,6 @@ public class WordService {
         } else {
             words = wordRepository.findAll(pageable);
         }
-
-        JwtClaims claims = (JwtClaims) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String userId = claims.getId();
 
         List<String> wordStrings = words.getContent().stream()
                 .map(Word::getWord)
@@ -49,20 +45,21 @@ public class WordService {
         return words.map(word -> convertToResponse(word, bookmarkedWords.contains(word.getWord())));
     }
 
-    public WordResponse getOrCreateWord(String word) {
-        JwtClaims claims = (JwtClaims) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String userId = claims.getId();
+    public WordResponse getOrCreateWord(String userId, String word) {
+        Word wordEntity = getOrCreateWordEntity(word);
+        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, word);
+        return convertToResponse(wordEntity, isBookmarked);
+    }
 
-        Word wordEntity = wordRepository.findByWord(word)
+    @Transactional
+    public Word getOrCreateWordEntity(String word) {
+        return wordRepository.findByWord(word)
                 .orElseGet(() -> {
                     Word newWord = Word.builder()
                             .word(word)
                             .build();
                     return wordRepository.save(newWord);
                 });
-
-        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, word);
-        return convertToResponse(wordEntity, isBookmarked);
     }
 
     private WordResponse convertToResponse(Word word, boolean isBookmarked) {
