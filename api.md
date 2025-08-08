@@ -825,7 +825,7 @@ GET /api/v1/words?page=2&limit=20
 
 ### `GET /words/{word}`
 
-특정 단어의 상세 정보를 조회합니다.
+특정 단어의 상세 정보를 조회합니다. 현재 사용자의 북마크 상태도 함께 반환됩니다.
 
 #### **Request Headers**
 ```
@@ -842,9 +842,12 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "id": "60d0fe4f5311236168a109ca",
-  "word": "magnificent"
+  "word": "magnificent",
+  "bookmarked": true
 }
 ```
+
+- `bookmarked`: 현재 사용자가 해당 단어를 북마크했는지 여부
 
 #### **Error Response (404 Not Found)**
 ```json
@@ -991,6 +994,38 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "message": "Word bookmark not found."
+}
+```
+
+### `PUT /bookmarks/words/{word}/toggle`
+
+특정 단어의 북마크 상태를 토글합니다. 북마크되어 있으면 제거하고, 북마크되어 있지 않으면 추가합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터   | 타입     | 설명       |
+|:-------| :------- |:---------|
+| `word` | String | 토글할 단어 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "bookmarked": true
+}
+```
+
+- `bookmarked`: 토글 후의 북마크 상태 (true: 북마크됨, false: 북마크 해제됨)
+- `message`: 수행된 작업에 대한 메시지
+
+#### **Success Response (200 OK) - 북마크 해제 시**
+```json
+{
+  "bookmarked": false
 }
 ```
 
