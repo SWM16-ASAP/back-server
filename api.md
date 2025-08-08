@@ -823,7 +823,7 @@ GET /api/v1/words?page=2&limit=20
 }
 ```
 
-### `GET /words/{wordId}`
+### `GET /words/{word}`
 
 특정 단어의 상세 정보를 조회합니다.
 
@@ -834,9 +834,9 @@ Authorization: Bearer {AccessToken}
 
 #### **Path Parameters**
 
-| 파라미터  | 타입     | 설명             |
-| :-------- | :------- | :--------------- |
-| `wordId` | String | 조회할 단어의 고유 ID |
+| 파라미터   | 타입     | 설명      |
+|:-------| :------- | :-------- |
+| `word` | String | 조회할 단어 |
 
 #### **Success Response (200 OK)**
 ```json
@@ -922,7 +922,7 @@ GET /api/v1/bookmarks/words?page=2&limit=20
 }
 ```
 
-### `POST /bookmarks/words/{wordId}`
+### `POST /bookmarks/words/{word}`
 
 특정 단어를 북마크에 추가합니다.
 
@@ -933,9 +933,9 @@ Authorization: Bearer {AccessToken}
 
 #### **Path Parameters**
 
-| 파라미터  | 타입     | 설명             |
-| :-------- | :------- | :--------------- |
-| `wordId` | String | 북마크할 단어의 고유 ID |
+| 파라미터   | 타입     | 설명      |
+|:-------| :------- |:--------|
+| `word` | String | 북마크할 단어 |
 
 #### **Success Response (201 Created)**
 ```json
@@ -958,7 +958,7 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
-### `DELETE /bookmarks/words/{wordId}`
+### `DELETE /bookmarks/words/{word}`
 
 특정 단어를 북마크에서 제거합니다.
 
@@ -969,9 +969,9 @@ Authorization: Bearer {AccessToken}
 
 #### **Path Parameters**
 
-| 파라미터  | 타입     | 설명             |
-| :-------- | :------- | :--------------- |
-| `wordId` | String | 북마크 해제할 단어의 고유 ID |
+| 파라미터   | 타입     | 설명         |
+|:-------| :------- |:-----------|
+| `word` | String | 북마크 해제할 단어 |
 
 #### **Success Response (200 OK)**
 ```json
