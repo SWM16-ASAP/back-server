@@ -1,4 +1,4 @@
-package com.linglevel.api.users.dto;
+package com.linglevel.api.books.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "나의 읽기 진도 조회 요청")
-public class GetMyBooksProgressRequest {
+public class GetBooksProgressRequest {
     
     @Schema(description = "페이지 번호", 
             example = "1", 

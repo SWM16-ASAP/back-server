@@ -655,16 +655,21 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
-### `GET /users/me/progress/books`
+### `GET /books/progress`
 
 현재 사용자의 모든 책에 대한 읽기 진도를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
 
 #### **Query Parameters**
 
 | 파라미터 | 타입    | 필수 | 설명                      |
 | :------- | :------ | :--- | :------------------------ |
-| `page`   | Integer | 아니요 | 페이지 번호 (기본값: `1`)    |
-| `limit`  | Integer | 아니요 | 페이지 당 항목 수 (기본값: `10`, 최댓값: `50`) |
+| `page`   | Integer | 아니요 (기본값: `1`) | 조회할 페이지 번호 |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수 |
 
 #### **Success Response (200 OK)**
 ```json
@@ -691,6 +696,64 @@ Authorization: Bearer {AccessToken}
   "totalCount": 25,
   "hasNext": true,
   "hasPrevious": false 
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회 (첫 번째 페이지)**
+```
+GET /api/v1/books/progress
+```
+
+**2. 특정 페이지 조회**
+```
+GET /api/v1/books/progress?page=2
+```
+
+**3. 페이지 크기 조정**
+```
+GET /api/v1/books/progress?page=1&limit=20
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+---
+
+## 👤 사용자 관리 (User Management)
+
+### `DELETE /users/me`
+
+현재 인증된 사용자의 계정을 삭제합니다. JWT 토큰을 통해 사용자를 식별하며, 관련된 모든 사용자 데이터가 삭제됩니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "User account deleted successfully."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "User not found."
 }
 ```
 

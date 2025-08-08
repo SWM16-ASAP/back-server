@@ -3,9 +3,9 @@ package com.linglevel.api.auth.controller;
 import com.linglevel.api.auth.dto.*;
 import com.linglevel.api.auth.exception.AuthException;
 import com.linglevel.api.auth.jwt.JwtClaims;
-import com.linglevel.api.auth.service.AuthService;
 import com.linglevel.api.auth.jwt.JwtService;
-import com.linglevel.api.common.dto.ExceptionResponseDTO;
+import com.linglevel.api.auth.service.AuthService;
+import com.linglevel.api.common.dto.ExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -35,7 +35,7 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "로그인 성공",
                     content = @Content(schema = @Schema(implementation = LoginResponse.class))),
             @ApiResponse(responseCode = "401", description = "Firebase 토큰 인증 실패",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping("/oauth/login")
     public ResponseEntity<LoginResponse> oauthLogin(@RequestBody OauthLoginRequest request) {
@@ -48,7 +48,7 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
                     content = @Content(schema = @Schema(implementation = RefreshTokenResponse.class))),
             @ApiResponse(responseCode = "401", description = "리프레시 토큰 유효하지 않음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping("/refresh")
     public ResponseEntity<RefreshTokenResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
@@ -61,7 +61,7 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "로그아웃 성공",
                     content = @Content(schema = @Schema(implementation = LogoutResponse.class))),
             @ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping("/logout")
     public ResponseEntity<LogoutResponse> logout() {
@@ -74,7 +74,7 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공",
                     content = @Content(schema = @Schema(implementation = JwtClaims.class))),
             @ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @GetMapping("/me")
     public ResponseEntity<JwtClaims> getCurrentUser(HttpServletRequest request) {
@@ -83,9 +83,9 @@ public class AuthController {
     }
 
     @ExceptionHandler(AuthException.class)
-    public ResponseEntity<ExceptionResponseDTO> handleAuthException(AuthException e) {
+    public ResponseEntity<ExceptionResponse> handleAuthException(AuthException e) {
         log.error("Auth Exception: {}", e.getMessage());
         return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponseDTO(e));
+                .body(new ExceptionResponse(e));
     }
 } 

@@ -6,7 +6,7 @@ import com.linglevel.api.books.entity.Chapter;
 import com.linglevel.api.books.exception.BooksException;
 import com.linglevel.api.books.exception.BooksErrorCode;
 import com.linglevel.api.books.repository.ChapterRepository;
-import com.linglevel.api.common.dto.PageResponseDTO;
+import com.linglevel.api.common.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,7 +26,7 @@ public class ChapterService {
     private final ChapterRepository chapterRepository;
     private final BookService bookService;
 
-    public PageResponseDTO<ChapterResponse> getChapters(String bookId, GetChaptersRequest request) {
+    public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
@@ -43,7 +43,7 @@ public class ChapterService {
             .map(this::convertToChapterResponse)
             .collect(Collectors.toList());
 
-        return new PageResponseDTO<>(chapterResponses, chapterPage);
+        return new PageResponse<>(chapterResponses, chapterPage);
     }
 
     public ChapterResponse getChapter(String bookId, String chapterId) {

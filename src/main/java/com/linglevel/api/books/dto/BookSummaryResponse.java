@@ -1,4 +1,4 @@
-package com.linglevel.api.users.dto;
+package com.linglevel.api.books.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;

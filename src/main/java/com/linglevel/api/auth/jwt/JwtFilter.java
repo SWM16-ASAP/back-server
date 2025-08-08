@@ -37,7 +37,7 @@ public class JwtFilter extends OncePerRequestFilter {
             }
 
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                    claims.getId(),
+                    claims.getUsername(),
                     null,
                     List.of(new SimpleGrantedAuthority(claims.getRole().getSecurityRole()))
             );
@@ -45,7 +45,6 @@ public class JwtFilter extends OncePerRequestFilter {
             authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
         } catch (Exception e) {
-            log.error("Invalid token provided", e);
             filterChain.doFilter(request, response);
             return;
         }
