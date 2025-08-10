@@ -1,9 +1,8 @@
 package com.linglevel.api.words.service;
 
+import com.linglevel.api.bookmarks.repository.WordBookmarkRepository;
 import com.linglevel.api.words.dto.WordResponse;
 import com.linglevel.api.words.entity.Word;
-import com.linglevel.api.words.exception.WordsErrorCode;
-import com.linglevel.api.words.exception.WordsException;
 import com.linglevel.api.words.repository.WordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,51 +10,63 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class WordService {
-    
+
     private final WordRepository wordRepository;
-    
-    public Page<WordResponse> getWords(int page, int limit, String search) {
+    private final WordBookmarkRepository wordBookmarkRepository;
+
+    public Page<WordResponse> getWords(String userId, int page, int limit, String search) {
         Pageable pageable = PageRequest.of(page - 1, limit);
         Page<Word> words;
-        
+
         if (search != null && !search.trim().isEmpty()) {
             words = wordRepository.findByWordContainingIgnoreCase(search.trim(), pageable);
         } else {
             words = wordRepository.findAll(pageable);
         }
-        
-        return words.map(this::convertToResponse);
+
+        List<String> wordStrings = words.getContent().stream()
+                .map(Word::getWord)
+                .collect(Collectors.toList());
+
+        List<String> bookmarkedWords = wordBookmarkRepository.findByUserIdAndWordIn(userId, wordStrings, Pageable.unpaged())
+                .getContent().stream()
+                .map(bookmark -> bookmark.getWord())
+                .collect(Collectors.toList());
+
+        return words.map(word -> convertToResponse(word, bookmarkedWords.contains(word.getWord())));
     }
-    
-    public Optional<WordResponse> getWordByWord(String word) {
+
+    public WordResponse getOrCreateWord(String userId, String word) {
+        Word wordEntity = getOrCreateWordEntity(word);
+        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, word);
+        return convertToResponse(wordEntity, isBookmarked);
+    }
+
+    @Transactional
+    public Word getOrCreateWordEntity(String word) {
         return wordRepository.findByWord(word)
-                .map(this::convertToResponse);
+                .orElseGet(() -> {
+                    Word newWord = Word.builder()
+                            .word(word)
+                            .build();
+                    return wordRepository.save(newWord);
+                });
     }
-    
-    public WordResponse createWord(String word) {
-        if (wordRepository.existsByWord(word)) {
-            throw new WordsException(WordsErrorCode.WORD_ALREADY_EXISTS);
-        }
-        
-        Word newWord = Word.builder()
-                .word(word)
-                .build();
-        
-        Word savedWord = wordRepository.save(newWord);
-        return convertToResponse(savedWord);
-    }
-    
-    private WordResponse convertToResponse(Word word) {
+
+    private WordResponse convertToResponse(Word word, boolean isBookmarked) {
         return WordResponse.builder()
                 .id(word.getId())
                 .word(word.getWord())
+                .bookmarked(isBookmarked)
                 .build();
     }
 }

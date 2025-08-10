@@ -8,12 +8,12 @@ import com.linglevel.api.bookmarks.repository.WordBookmarkRepository;
 import com.linglevel.api.words.entity.Word;
 import com.linglevel.api.words.repository.WordRepository;
 import com.linglevel.api.words.service.WordService;
-import com.linglevel.api.words.exception.WordsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +33,7 @@ public class BookmarkService {
     private final WordService wordService;
 
     public Page<BookmarkedWordResponse> getBookmarkedWords(String userId, int page, int limit, String search) {
-        Pageable pageable = PageRequest.of(page - 1, limit);
+        Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "bookmarkedAt"));
         
         if (search != null && !search.trim().isEmpty()) {
             // 검색어가 있는 경우: 단어를 먼저 검색한 후 북마크 필터링
@@ -56,9 +56,7 @@ public class BookmarkService {
     @Transactional
     public void addWordBookmark(String userId, String wordStr) {
         // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
-        if (!wordRepository.existsByWord(wordStr)) {
-            wordService.createWord(wordStr);
-        }
+        wordService.getOrCreateWordEntity(wordStr);
 
         if (wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_ALREADY_BOOKMARKED);
@@ -86,18 +84,39 @@ public class BookmarkService {
         wordBookmarkRepository.deleteByUserIdAndWord(userId, wordStr);
     }
     
+    @Transactional
+    public boolean toggleWordBookmark(String userId, String wordStr) {
+        // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
+        wordService.getOrCreateWordEntity(wordStr);
+
+        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr);
+        
+        if (isBookmarked) {
+            // 북마크 해제
+            wordBookmarkRepository.deleteByUserIdAndWord(userId, wordStr);
+            return false;
+        } else {
+            // 북마크 추가
+            WordBookmark bookmark = WordBookmark.builder()
+                    .userId(userId)
+                    .word(wordStr)
+                    .bookmarkedAt(LocalDateTime.now())
+                    .build();
+            wordBookmarkRepository.save(bookmark);
+            return true;
+        }
+    }
+    
     private Page<BookmarkedWordResponse> convertToBookmarkedWordResponseDirect(Page<WordBookmark> bookmarks) {
         List<BookmarkedWordResponse> responses = new ArrayList<>();
         
         for (WordBookmark bookmark : bookmarks.getContent()) {
-            Word word = wordRepository.findByWord(bookmark.getWord()).orElse(null);
-            if (word != null) {
-                responses.add(BookmarkedWordResponse.builder()
-                        .id(word.getId())
-                        .word(word.getWord())
-                        .bookmarkedAt(bookmark.getBookmarkedAt())
-                        .build());
-            }
+             wordRepository.findByWord(bookmark.getWord())
+                    .ifPresent(word -> responses.add(BookmarkedWordResponse.builder()
+                            .id(word.getId())
+                            .word(word.getWord())
+                            .bookmarkedAt(bookmark.getBookmarkedAt())
+                            .build()));
         }
         
         return new PageImpl<>(responses, bookmarks.getPageable(), bookmarks.getTotalElements());
