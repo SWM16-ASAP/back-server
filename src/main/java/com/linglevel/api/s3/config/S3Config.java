@@ -1,4 +1,4 @@
-package com.linglevel.api.config;
+package com.linglevel.api.s3.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -20,8 +20,33 @@ public class S3Config {
     @Value("${aws.secret-key}")
     private String secretKey;
 
-    @Bean
-    public S3Client s3Client() {
+    @Value("${aws.s3.static.bucket}")
+    private String staticBucketName;
+
+    @Value("${aws.s3.ai.bucket}")
+    private String aiBucketName;
+
+    @Bean("s3AiClient")
+    public S3Client s3AiClient() {
+        return createS3Client();
+    }
+
+    @Bean("s3StaticClient")
+    public S3Client s3StaticClient() {
+        return createS3Client();
+    }
+
+    @Bean("aiBucketName")
+    public String aiBucketName() {
+        return aiBucketName;
+    }
+
+    @Bean("staticBucketName")
+    public String staticBucketName() {
+        return staticBucketName;
+    }
+
+    private S3Client createS3Client() {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
         
         return S3Client.builder()

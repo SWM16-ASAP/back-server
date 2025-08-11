@@ -1,6 +1,5 @@
 package com.linglevel.api.books.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.books.dto.*;
 import com.linglevel.api.books.entity.Book;
 import com.linglevel.api.books.entity.Chapter;
@@ -12,19 +11,16 @@ import com.linglevel.api.books.repository.BookRepository;
 import com.linglevel.api.books.repository.ChapterRepository;
 import com.linglevel.api.books.repository.ChunkRepository;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.s3.service.S3AiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -38,18 +34,15 @@ public class BookService {
     private final BookRepository bookRepository;
     private final ChapterRepository chapterRepository;
     private final ChunkRepository chunkRepository;
-    private final S3Client s3Client;
-    private final ObjectMapper objectMapper;
+    private final S3AiService s3AiService;
 
     private final int AVERAGE_READING_SPEED_PER_MINUTE = 500;
 
-    @Value("${aws.s3.bucket.name}")
-    private String bucketName;
 
     @Transactional
     public BookImportResponse importBook(BookImportRequest request) {
         log.info("Starting book import for file: {}", request.getId());
-        BookImportData importData = readJsonFromS3(request.getId());
+        BookImportData importData = s3AiService.downloadJsonFile(request.getId(), BookImportData.class);
 
         Book book = createBook(importData);
         Book savedBook = bookRepository.save(book);
@@ -64,26 +57,6 @@ public class BookService {
         return new BookImportResponse(savedBook.getId());
     }
 
-    private BookImportData readJsonFromS3(String fileId) {
-        try {
-            String key = fileId + ".json";
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(key)
-                    .build();
-            
-            var response = s3Client.getObject(getObjectRequest);
-            String jsonContent = new String(response.readAllBytes());
-            
-            return objectMapper.readValue(jsonContent, BookImportData.class);
-        } catch (IOException e) {
-            log.error("Failed to read JSON from S3: {}", e.getMessage());
-            throw new BooksException(BooksErrorCode.BOOK_IMPORT_FAILED);
-        } catch (Exception e) {
-            log.error("S3 operation failed: {}", e.getMessage());
-            throw new BooksException(BooksErrorCode.BOOK_IMPORT_FAILED);
-        }
-    }
 
     private Book createBook(BookImportData importData) {
         Book book = new Book();
