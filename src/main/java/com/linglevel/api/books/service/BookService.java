@@ -4,6 +4,7 @@ import com.linglevel.api.books.dto.*;
 import com.linglevel.api.books.entity.Book;
 import com.linglevel.api.books.entity.Chapter;
 import com.linglevel.api.books.entity.Chunk;
+import com.linglevel.api.books.entity.ChunkType;
 import com.linglevel.api.books.entity.DifficultyLevel;
 import com.linglevel.api.books.exception.BooksErrorCode;
 import com.linglevel.api.books.exception.BooksException;
@@ -139,7 +140,8 @@ public class BookService {
         chunk.setChunkNumber(chunkData.getChunkNum());
         chunk.setContent(chunkData.getChunkText());
         chunk.setDifficulty(DifficultyLevel.valueOf(difficultyLevel.toUpperCase()));
-        chunk.setIsImage(false); // 텍스트 청크이므로 false로 설정
+        chunk.setType(ChunkType.TEXT);
+        chunk.setDescription(null);
         return chunk;
     }
 
