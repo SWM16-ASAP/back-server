@@ -472,17 +472,17 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
     {
       "id": "60d0fe4f5311236168a109cd",
       "chunkNumber": 1,
-      "content": "Once when I was six years old I saw a magnificent picture in a book...",
-      "isImage": false, // 텍스트 청크인지 이미지 청크인지
-      "chunkImageUrl": null, // 이미지 청크일 경우 이미지 URL
-      "description": null // 이미지 설명
+      "difficulty": "A1",
+      "type": "TEXT", // "TEXT" 또는 "IMAGE"
+      "content": "Once when I was six years old I saw a magnificent picture in a book...", // TEXT 타입일 경우 텍스트 내용
+      "description": null // 이미지 설명 (IMAGE 타입일 경우)
     },
     {
-      "id": "60d0fe4f5311236168a109ce",
+      "id": "60d0fe4f5311236168a109ce", 
       "chunkNumber": 2,
-      "content": null, // 이미지 청크일 경우 content는 null
-      "isImage": true, // 이미지 청크
-      "chunkImageUrl": "https://path/to/boa-constrictor-image.jpg", // 이미지 URL
+      "difficulty": "A1",
+      "type": "IMAGE", // 이미지 청크
+      "content": "https://img.linglevel.com/images/boa-constrictor.jpg", // IMAGE 타입일 경우 이미지 URL
       "description": "A picture of a boa constrictor swallowing an animal" // 이미지 설명
     }
   ],
@@ -518,9 +518,9 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 {
   "id": "60d0fe4f5311236168a109cd",
   "chunkNumber": 1,
+  "difficulty": "A1",
+  "type": "TEXT",
   "content": "Once when I was six years old I saw a magnificent picture in a book...",
-  "isImage": false,
-  "chunkImageUrl": null,
   "description": null
 }
 ```
@@ -530,9 +530,9 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 {
   "id": "60d0fe4f5311236168a109ce",
   "chunkNumber": 2,
-  "content": null,
-  "isImage": true,
-  "chunkImageUrl": "https://path/to/boa-constrictor-image.jpg",
+  "difficulty": "A1", 
+  "type": "IMAGE",
+  "content": "https://img.linglevel.com/images/boa-constrictor.jpg",
   "description": "A picture of a boa constrictor swallowing an animal"
 }
 ```
@@ -754,6 +754,278 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "message": "User not found."
+}
+```
+
+---
+
+## 📚 단어장 (Words & Bookmarks)
+
+### `GET /words`
+
+전체 단어 목록을 페이지네이션으로 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                      |
+| :------- | :------ | :--- | :------------------------ |
+| `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수                |
+| `search` | String  | 아니요                       | 검색할 단어 (부분 일치 검색)         |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "word": "magnificent"
+    },
+    {
+      "id": "60d0fe4f5311236168a109cb", 
+      "word": "picture"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 10,
+  "totalCount": 100,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회**
+```
+GET /api/v1/words
+```
+
+**2. 단어 검색**
+```
+GET /api/v1/words?search=magn
+```
+
+**3. 페이지네이션**
+```
+GET /api/v1/words?page=2&limit=20
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+### `GET /words/{word}`
+
+특정 단어의 상세 정보를 조회합니다. 현재 사용자의 북마크 상태도 함께 반환됩니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터   | 타입     | 설명      |
+|:-------| :------- | :-------- |
+| `word` | String | 조회할 단어 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "word": "magnificent",
+  "bookmarked": true
+}
+```
+
+- `bookmarked`: 현재 사용자가 해당 단어를 북마크했는지 여부
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Word not found."
+}
+```
+
+
+---
+
+## 📖 북마크 (Bookmarks)
+
+### `GET /bookmarks/words`
+
+현재 사용자가 북마크한 단어 목록을 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                      |
+| :------- | :------ | :--- | :------------------------ |
+| `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수                |
+| `search` | String  | 아니요                       | 검색할 단어 (부분 일치 검색)         |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "word": "magnificent",
+      "bookmarkedAt": "2024-01-15T10:30:00"
+    },
+    {
+      "id": "60d0fe4f5311236168a109cb",
+      "word": "adventure", 
+      "bookmarkedAt": "2024-01-14T15:45:00"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 5,
+  "totalCount": 45,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회**
+```
+GET /api/v1/bookmarks/words
+```
+
+**2. 북마크된 단어 검색**
+```
+GET /api/v1/bookmarks/words?search=magn
+```
+
+**3. 페이지네이션**
+```
+GET /api/v1/bookmarks/words?page=2&limit=20
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+### `POST /bookmarks/words/{word}`
+
+특정 단어를 북마크에 추가합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터   | 타입     | 설명      |
+|:-------| :------- |:--------|
+| `word` | String | 북마크할 단어 |
+
+#### **Success Response (201 Created)**
+```json
+{
+  "message": "Word bookmarked successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Word not found."
+}
+```
+
+#### **Error Response (409 Conflict)**
+```json
+{
+  "message": "Word is already bookmarked."
+}
+```
+
+### `DELETE /bookmarks/words/{word}`
+
+특정 단어를 북마크에서 제거합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터   | 타입     | 설명         |
+|:-------| :------- |:-----------|
+| `word` | String | 북마크 해제할 단어 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Word bookmark removed successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Word not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Word bookmark not found."
+}
+```
+
+### `PUT /bookmarks/words/{word}/toggle`
+
+특정 단어의 북마크 상태를 토글합니다. 북마크되어 있으면 제거하고, 북마크되어 있지 않으면 추가합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터   | 타입     | 설명       |
+|:-------| :------- |:---------|
+| `word` | String | 토글할 단어 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "bookmarked": true
+}
+```
+
+- `bookmarked`: 토글 후의 북마크 상태 (true: 북마크됨, false: 북마크 해제됨)
+- `message`: 수행된 작업에 대한 메시지
+
+#### **Success Response (200 OK) - 북마크 해제 시**
+```json
+{
+  "bookmarked": false
 }
 ```
 

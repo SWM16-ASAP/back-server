@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/delete-user ]
+    branches: [ develop ]
 
 jobs:
   build:
@@ -66,8 +66,9 @@ jobs:
               -e SPRING_PROFILES_ACTIVE=dev \
               -e 'MONGODB_URI_DEV=${{ secrets.MONGODB_URI_DEV }}' \
               -e MONGODB_DATABASE_DEV=${{ secrets.MONGODB_DATABASE_DEV }} \
-              -e S3_REGION_DEV=${{ secrets.S3_REGION_DEV }} \
-              -e S3_NAME_DEV=${{ secrets.S3_NAME_DEV }} \
+              -e S3_REGION=${{ secrets.S3_REGION }} \
+              -e S3_STATIC_NAME=${{ secrets.S3_STATIC_NAME }} \
+              -e S3_AI_NAME=${{ secrets.S3_AI_NAME }} \
               -e IMPORT_API_KEY=${{ secrets.IMPORT_API_KEY }} \
               -e AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }} \
               -e AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }} \

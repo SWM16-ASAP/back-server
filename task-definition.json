@@ -61,12 +61,16 @@
           "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:REDIS_ENDPOINT_PROD::"
         },
         {
-          "name": "S3_NAME_PROD",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_NAME_PROD::"
+          "name": "S3_STATIC_NAME",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_STATIC_NAME::"
         },
         {
-          "name": "S3_REGION_PROD",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_REGION_PROD::"
+          "name": "S3_AI_NAME",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_AI_NAME::"
+        },
+        {
+          "name": "S3_REGION",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_REGION::"
         }
       ],
       "ulimits": [],

@@ -42,5 +42,7 @@ public class BookImportData {
     public static class ChunkData {
         private int chunkNum;
         private String chunkText;
+        private Boolean isImage;
+        private String description;
     }
 } 

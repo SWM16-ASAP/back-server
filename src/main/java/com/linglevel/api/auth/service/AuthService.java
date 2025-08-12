@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -74,12 +75,22 @@ public class AuthService {
     }
 
     private String getProviderFromToken(FirebaseToken token) {
-        String issuer = token.getIssuer();
-        if (issuer != null && issuer.contains("google")) {
-            return "google";
-        } else if (issuer != null && issuer.contains("apple")) {
-            return "apple";
+        Map<String, Object> claims = token.getClaims();
+        Object firebase = claims.get("firebase");
+
+        if (firebase instanceof Map) {
+            Map<String, Object> firebaseClaims = (Map<String, Object>) firebase;
+            String signInProvider = (String) firebaseClaims.get("sign_in_provider");
+
+            if (signInProvider != null) {
+                return switch (signInProvider) {
+                    case "google.com" -> "google";
+                    case "apple.com" -> "apple";
+                    default -> signInProvider;
+                };
+            }
         }
-        return "firebase"; // default value
+        
+        return "unknown";
     }
 }

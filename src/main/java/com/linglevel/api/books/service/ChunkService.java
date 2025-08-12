@@ -98,9 +98,8 @@ public class ChunkService {
             .id(chunk.getId())
             .chunkNumber(chunk.getChunkNumber())
             .difficulty(chunk.getDifficulty())
+            .type(chunk.getType())
             .content(chunk.getContent())
-            .isImage(chunk.getIsImage())
-            .chunkImageUrl(chunk.getChunkImageUrl())
             .description(chunk.getDescription())
             .build();
     }

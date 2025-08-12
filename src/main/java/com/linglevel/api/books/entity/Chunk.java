@@ -22,11 +22,9 @@ public class Chunk {
     
     private DifficultyLevel difficulty;
     
+    private ChunkType type;
+    
     private String content;
-    
-    private Boolean isImage;
-    
-    private String chunkImageUrl;
     
     private String description;
 } 
