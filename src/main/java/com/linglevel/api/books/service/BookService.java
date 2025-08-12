@@ -51,9 +51,8 @@ public class BookService {
         Book savedBook = bookRepository.save(book);
         
         uploadImagesFromAiToStatic(request.getId(), savedBook.getId());
-        
-        // 커버 이미지 URL을 책 ID 기반으로 업데이트
-        String coverImageUrl = s3StaticService.getPublicUrl(savedBook.getId() + "/images/cover.jpg");
+
+        String coverImageUrl = getCoverImageUrl(savedBook.getId());
         savedBook.setCoverImageUrl(coverImageUrl);
         bookRepository.save(savedBook);
         
@@ -75,9 +74,8 @@ public class BookService {
         DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(importData
                 .getOriginalTextLevel().toUpperCase());
         book.setDifficultyLevel(difficultyLevel);
-        
-        // 커버 이미지 URL 생성 - request ID 사용 (S3 경로와 일치)
-        String coverImageUrl = s3StaticService.getPublicUrl(requestId + "/images/cover.jpg");
+
+        String coverImageUrl = getCoverImageUrl(requestId);
         book.setCoverImageUrl(coverImageUrl);
         
         book.setViewCount(0);
@@ -169,7 +167,19 @@ public class BookService {
     }
     
     private String buildImageUrl(String bookId, String imageFileName) {
-        return s3StaticService.getPublicUrl(bookId + "/images/" + imageFileName);
+        return getImageUrl(bookId, imageFileName);
+    }
+    
+    private String getCoverImageUrl(String bookId) {
+        return s3StaticService.getPublicUrl("books/" + bookId + "/images/cover.jpg");
+    }
+    
+    private String getImageUrl(String bookId, String imageFileName) {
+        return s3StaticService.getPublicUrl("books/" + bookId + "/images/" + imageFileName);
+    }
+    
+    private String getBookImagePath(String bookId) {
+        return "books/" + bookId;
     }
 
     private void uploadImagesFromAiToStatic(String requestId, String bookId) {
@@ -181,9 +191,8 @@ public class BookService {
             for (String imageKey : imageKeys) {
                 byte[] imageBytes = s3AiService.downloadImageFile(imageKey);
                 String contentType = getContentTypeFromKey(imageKey);
-                
-                // requestId 경로에서 bookId 경로로 변경
-                String newKey = imageKey.replace(requestId, bookId);
+
+                String newKey = imageKey.replace(requestId, getBookImagePath(bookId));
                 s3StaticService.uploadFileFromBytes(imageBytes, newKey, contentType);
             }
             
