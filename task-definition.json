@@ -8,7 +8,7 @@
         {
           "name": "api-spring-prod-8080-tcp",
           "containerPort": 8080,
-          "hostPort": 8080,
+          "hostPort": 80,
           "protocol": "tcp",
           "appProtocol": "http"
         }
@@ -100,7 +100,7 @@
   "family": "api-spring-prod",
   "taskRoleArn": "arn:aws:iam::638721195348:role/ecsTaskExecutionRole",
   "executionRoleArn": "arn:aws:iam::638721195348:role/ecsTaskExecutionRole",
-  "networkMode": "host",
+  "networkMode": "bridge",
   "volumes": [],
   "placementConstraints": [],
   "compatibilities": [
