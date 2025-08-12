@@ -100,7 +100,7 @@
   "family": "api-spring-prod",
   "taskRoleArn": "arn:aws:iam::638721195348:role/ecsTaskExecutionRole",
   "executionRoleArn": "arn:aws:iam::638721195348:role/ecsTaskExecutionRole",
-  "networkMode": "awsvpc",
+  "networkMode": "host",
   "volumes": [],
   "placementConstraints": [],
   "compatibilities": [
