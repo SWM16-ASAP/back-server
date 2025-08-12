@@ -6,6 +6,7 @@ import com.linglevel.api.books.entity.Chapter;
 import com.linglevel.api.books.entity.Chunk;
 import com.linglevel.api.books.entity.ChunkType;
 import com.linglevel.api.books.entity.DifficultyLevel;
+import com.linglevel.api.s3.service.S3StaticService;
 import com.linglevel.api.books.exception.BooksErrorCode;
 import com.linglevel.api.books.exception.BooksException;
 import com.linglevel.api.books.repository.BookRepository;
@@ -36,6 +37,7 @@ public class BookService {
     private final ChapterRepository chapterRepository;
     private final ChunkRepository chunkRepository;
     private final S3AiService s3AiService;
+    private final S3StaticService s3StaticService;
 
     private final int AVERAGE_READING_SPEED_PER_MINUTE = 500;
 
@@ -45,12 +47,12 @@ public class BookService {
         log.info("Starting book import for file: {}", request.getId());
         BookImportData importData = s3AiService.downloadJsonFile(request.getId(), BookImportData.class);
 
-        Book book = createBook(importData);
+        Book book = createBook(importData, request.getId());
         Book savedBook = bookRepository.save(book);
         
         List<Chapter> savedChapters = createChaptersFromMetadata(importData, savedBook.getId());
         
-        createChunksFromLeveledResults(importData, savedChapters);
+        createChunksFromLeveledResults(importData, savedChapters, savedBook.getId());
         
         updateReadingTimes(savedBook.getId(), importData);
         
@@ -59,14 +61,18 @@ public class BookService {
     }
 
 
-    private Book createBook(BookImportData importData) {
+    private Book createBook(BookImportData importData, String requestId) {
         Book book = new Book();
         book.setTitle(importData.getTitle());
         book.setAuthor(importData.getAuthor());
         DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(importData
                 .getOriginalTextLevel().toUpperCase());
         book.setDifficultyLevel(difficultyLevel);
-        book.setCoverImageUrl(null);
+        
+        // 커버 이미지 URL 생성 - request ID 사용 (S3 경로와 일치)
+        String coverImageUrl = s3StaticService.getPublicUrl(requestId + "/images/cover.jpg");
+        book.setCoverImageUrl(coverImageUrl);
+        
         book.setViewCount(0);
         book.setAverageRating(0.0);
         book.setReviewCount(0);
@@ -113,7 +119,7 @@ public class BookService {
                 .orElse(0);
     }
     
-    private void createChunksFromLeveledResults(BookImportData importData, List<Chapter> savedChapters) {
+    private void createChunksFromLeveledResults(BookImportData importData, List<Chapter> savedChapters, String databaseBookId) {
         Map<Integer, Chapter> chapterMap = savedChapters.stream()
                 .collect(Collectors.toMap(Chapter::getChapterNumber, chapter -> chapter));
         
@@ -125,7 +131,8 @@ public class BookService {
                                 .map(chunkData -> createChunk(
                                     chunkData,
                                     chapterMap.get(chapterData.getChapterNum()),
-                                    textLevelData.getTextLevel()
+                                    textLevelData.getTextLevel(),
+                                    databaseBookId
                                 ))
                         )
                 )
@@ -134,15 +141,30 @@ public class BookService {
         chunkRepository.saveAll(allChunks);
     }
     
-    private Chunk createChunk(BookImportData.ChunkData chunkData, Chapter chapter, String difficultyLevel) {
+    private Chunk createChunk(BookImportData.ChunkData chunkData, Chapter chapter, String difficultyLevel, String bookId) {
         Chunk chunk = new Chunk();
         chunk.setChapterId(chapter.getId());
         chunk.setChunkNumber(chunkData.getChunkNum());
-        chunk.setContent(chunkData.getChunkText());
         chunk.setDifficulty(DifficultyLevel.valueOf(difficultyLevel.toUpperCase()));
-        chunk.setType(ChunkType.TEXT);
-        chunk.setDescription(null);
+        
+        if (Boolean.TRUE.equals(chunkData.getIsImage())) {
+            chunk.setType(ChunkType.IMAGE);
+            String imageUrl = buildImageUrl(bookId, chunkData.getChunkText()); 
+            chunk.setContent(imageUrl);
+            chunk.setDescription(chunkData.getDescription());
+        } else {
+            chunk.setType(ChunkType.TEXT);
+            chunk.setContent(chunkData.getChunkText());
+            chunk.setDescription(null);
+        }
+        
         return chunk;
+    }
+    
+    private String buildImageUrl(String bookId, String imageFileName) {
+        // 이미지 파일명을 완전한 URL로 변환
+        // 예: "001" -> "https://img.linglevel.com/uuid-example-123456/images/001.jpg"
+        return s3StaticService.getPublicUrl(bookId + "/images/" + imageFileName + ".jpg");
     }
 
     public PageResponse<BookResponse> getBooks(GetBooksRequest request) {
