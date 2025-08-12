@@ -52,6 +52,25 @@ public class S3StaticService {
         }
     }
 
+    public String uploadFileFromBytes(byte[] fileBytes, String key, String contentType) {
+        try {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(staticBucketName)
+                    .key(key)
+                    .contentType(contentType)
+                    .build();
+                    
+            s3StaticClient.putObject(putObjectRequest, RequestBody.fromBytes(fileBytes));
+            
+            log.info("Successfully uploaded file to S3 Static: {}", key);
+            return getPublicUrl(key);
+            
+        } catch (Exception e) {
+            log.error("Failed to upload file to S3 Static: {}", e.getMessage());
+            throw new RuntimeException("File upload failed", e);
+        }
+    }
+
     public String getPublicUrl(String key) {
         return staticUrl + "/" + key;
     }

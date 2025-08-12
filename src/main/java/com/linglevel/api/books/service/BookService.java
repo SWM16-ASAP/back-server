@@ -45,10 +45,17 @@ public class BookService {
     @Transactional
     public BookImportResponse importBook(BookImportRequest request) {
         log.info("Starting book import for file: {}", request.getId());
-        BookImportData importData = s3AiService.downloadJsonFile(request.getId(), BookImportData.class);
+        BookImportData importData = s3AiService.downloadJsonFile(request.getId() + "/" + request.getId(), BookImportData.class);
 
         Book book = createBook(importData, request.getId());
         Book savedBook = bookRepository.save(book);
+        
+        uploadImagesFromAiToStatic(request.getId(), savedBook.getId());
+        
+        // 커버 이미지 URL을 책 ID 기반으로 업데이트
+        String coverImageUrl = s3StaticService.getPublicUrl(savedBook.getId() + "/images/cover.jpg");
+        savedBook.setCoverImageUrl(coverImageUrl);
+        bookRepository.save(savedBook);
         
         List<Chapter> savedChapters = createChaptersFromMetadata(importData, savedBook.getId());
         
@@ -162,9 +169,44 @@ public class BookService {
     }
     
     private String buildImageUrl(String bookId, String imageFileName) {
-        // 이미지 파일명을 완전한 URL로 변환
-        // 예: "001" -> "https://img.linglevel.com/uuid-example-123456/images/001.jpg"
-        return s3StaticService.getPublicUrl(bookId + "/images/" + imageFileName + ".jpg");
+        return s3StaticService.getPublicUrl(bookId + "/images/" + imageFileName);
+    }
+
+    private void uploadImagesFromAiToStatic(String requestId, String bookId) {
+        try {
+            log.info("Starting image upload from AI bucket to Static bucket for requestId: {} to bookId: {}", requestId, bookId);
+            
+            List<String> imageKeys = s3AiService.listImagesInFolder(requestId);
+            
+            for (String imageKey : imageKeys) {
+                byte[] imageBytes = s3AiService.downloadImageFile(imageKey);
+                String contentType = getContentTypeFromKey(imageKey);
+                
+                // requestId 경로에서 bookId 경로로 변경
+                String newKey = imageKey.replace(requestId, bookId);
+                s3StaticService.uploadFileFromBytes(imageBytes, newKey, contentType);
+            }
+            
+            log.info("Successfully uploaded {} images to Static bucket with bookId path", imageKeys.size());
+            
+        } catch (Exception e) {
+            log.error("Failed to upload images from AI to Static bucket: {}", e.getMessage());
+            throw new RuntimeException("Image upload failed", e);
+        }
+    }
+
+    private String getContentTypeFromKey(String key) {
+        String lowerKey = key.toLowerCase();
+        if (lowerKey.endsWith(".jpg") || lowerKey.endsWith(".jpeg")) {
+            return "image/jpeg";
+        } else if (lowerKey.endsWith(".png")) {
+            return "image/png";
+        } else if (lowerKey.endsWith(".gif")) {
+            return "image/gif";
+        } else if (lowerKey.endsWith(".webp")) {
+            return "image/webp";
+        }
+        return "image/jpeg";
     }
 
     public PageResponse<BookResponse> getBooks(GetBooksRequest request) {
