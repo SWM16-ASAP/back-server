@@ -1,5 +1,6 @@
 package com.linglevel.api.books.dto;
 
+import com.linglevel.api.books.entity.ChunkType;
 import com.linglevel.api.books.entity.DifficultyLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -22,15 +23,12 @@ public class ChunkResponse {
     @Schema(description = "난이도 레벨", example = "A1")
     private DifficultyLevel difficulty;
     
-    @Schema(description = "텍스트 내용", example = "Once when I was six years old...")
+    @Schema(description = "청크 타입", example = "TEXT")
+    private ChunkType type;
+    
+    @Schema(description = "내용 (텍스트일 경우 텍스트, 이미지일 경우 URL)", example = "Once when I was six years old...")
     private String content;
     
-    @Schema(description = "이미지 청크 여부", example = "false")
-    private Boolean isImage;
-    
-    @Schema(description = "청크 이미지 URL", example = "null")
-    private String chunkImageUrl;
-    
-    @Schema(description = "이미지 설명", example = "null")
+    @Schema(description = "이미지 설명 (이미지 타입일 경우)", example = "null")
     private String description;
 } 

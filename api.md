@@ -472,17 +472,17 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
     {
       "id": "60d0fe4f5311236168a109cd",
       "chunkNumber": 1,
-      "content": "Once when I was six years old I saw a magnificent picture in a book...",
-      "isImage": false, // 텍스트 청크인지 이미지 청크인지
-      "chunkImageUrl": null, // 이미지 청크일 경우 이미지 URL
-      "description": null // 이미지 설명
+      "difficulty": "A1",
+      "type": "TEXT", // "TEXT" 또는 "IMAGE"
+      "content": "Once when I was six years old I saw a magnificent picture in a book...", // TEXT 타입일 경우 텍스트 내용
+      "description": null // 이미지 설명 (IMAGE 타입일 경우)
     },
     {
-      "id": "60d0fe4f5311236168a109ce",
+      "id": "60d0fe4f5311236168a109ce", 
       "chunkNumber": 2,
-      "content": null, // 이미지 청크일 경우 content는 null
-      "isImage": true, // 이미지 청크
-      "chunkImageUrl": "https://path/to/boa-constrictor-image.jpg", // 이미지 URL
+      "difficulty": "A1",
+      "type": "IMAGE", // 이미지 청크
+      "content": "https://img.linglevel.com/images/boa-constrictor.jpg", // IMAGE 타입일 경우 이미지 URL
       "description": "A picture of a boa constrictor swallowing an animal" // 이미지 설명
     }
   ],
@@ -518,9 +518,9 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 {
   "id": "60d0fe4f5311236168a109cd",
   "chunkNumber": 1,
+  "difficulty": "A1",
+  "type": "TEXT",
   "content": "Once when I was six years old I saw a magnificent picture in a book...",
-  "isImage": false,
-  "chunkImageUrl": null,
   "description": null
 }
 ```
@@ -530,9 +530,9 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 {
   "id": "60d0fe4f5311236168a109ce",
   "chunkNumber": 2,
-  "content": null,
-  "isImage": true,
-  "chunkImageUrl": "https://path/to/boa-constrictor-image.jpg",
+  "difficulty": "A1", 
+  "type": "IMAGE",
+  "content": "https://img.linglevel.com/images/boa-constrictor.jpg",
   "description": "A picture of a boa constrictor swallowing an animal"
 }
 ```
