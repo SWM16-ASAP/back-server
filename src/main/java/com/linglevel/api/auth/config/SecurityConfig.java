@@ -37,7 +37,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/v1/auth/oauth/login").permitAll()
-                        .requestMatchers("/api/v1/books/import").permitAll()
+                        .requestMatchers("/api/v1/books/import", "/api/v1/news/import").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptions -> exceptions
