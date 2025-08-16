@@ -117,8 +117,8 @@ public class NewsController {
             throw new CommonException(CommonErrorCode.UNAUTHORIZED);
         }
 
-        // TODO: Service 구현 후 연결
-        throw new RuntimeException("Not implemented yet");
+        NewsImportResponse response = newsService.importNews(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @ExceptionHandler(NewsException.class)

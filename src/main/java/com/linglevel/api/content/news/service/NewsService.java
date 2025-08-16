@@ -1,11 +1,16 @@
 package com.linglevel.api.content.news.service;
 
+import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.news.dto.*;
 import com.linglevel.api.content.news.entity.News;
 import com.linglevel.api.content.news.exception.NewsErrorCode;
 import com.linglevel.api.content.news.exception.NewsException;
 import com.linglevel.api.content.news.repository.NewsRepository;
-import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.s3.service.S3AiService;
+import com.linglevel.api.s3.service.S3TransferService;
+import com.linglevel.api.s3.service.S3UrlService;
+import com.linglevel.api.s3.strategy.NewsPathStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -13,7 +18,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,6 +30,11 @@ import java.util.List;
 public class NewsService {
 
     private final NewsRepository newsRepository;
+    private final NewsImportService newsImportService;
+    private final S3AiService s3AiService;
+    private final S3TransferService s3TransferService;
+    private final S3UrlService s3UrlService;
+    private final NewsPathStrategy newsPathStrategy;
 
     public PageResponse<NewsResponse> getNews(GetNewsRequest request) {
         validateGetNewsRequest(request);
@@ -42,6 +54,30 @@ public class NewsService {
                 .orElseThrow(() -> new NewsException(NewsErrorCode.NEWS_NOT_FOUND));
         
         return convertToNewsResponse(news);
+    }
+
+    @Transactional
+    public NewsImportResponse importNews(NewsImportRequest request) {
+        log.info("Starting news import for file: {}", request.getId());
+        
+        NewsImportData importData = s3AiService.downloadJsonFile(request.getId(), NewsImportData.class, newsPathStrategy);
+        
+        News news = createNews(importData, request.getId());
+        News savedNews = newsRepository.save(news);
+        
+        s3TransferService.transferImagesFromAiToStatic(request.getId(), savedNews.getId(), newsPathStrategy);
+        
+        String coverImageUrl = s3UrlService.getCoverImageUrl(savedNews.getId(), newsPathStrategy);
+        savedNews.setCoverImageUrl(coverImageUrl);
+        newsRepository.save(savedNews);
+        
+        newsImportService.createChunksFromLeveledResults(importData, savedNews.getId());
+        
+        log.info("Successfully imported news with id: {}", savedNews.getId());
+        
+        NewsImportResponse response = new NewsImportResponse();
+        response.setId(savedNews.getId());
+        return response;
     }
 
     private void validateGetNewsRequest(GetNewsRequest request) {
@@ -90,6 +126,31 @@ public class NewsService {
         } else {
             return newsRepository.findAll(pageable);
         }
+    }
+
+    private News createNews(NewsImportData importData, String requestId) {
+        News news = new News();
+        news.setTitle(importData.getTitle());
+        news.setAuthor(importData.getAuthor());
+        
+        DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(
+                importData.getOriginalTextLevel().toUpperCase());
+        news.setDifficultyLevel(difficultyLevel);
+        
+        String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, newsPathStrategy);
+        news.setCoverImageUrl(coverImageUrl);
+        
+        int chunkCount = newsImportService.calculateTotalChunkCount(importData);
+        news.setChunkCount(chunkCount);
+        
+        news.setReadingTime(0);
+        news.setAverageRating(0.0);
+        news.setReviewCount(0);
+        news.setViewCount(0);
+        news.setTags(List.of());
+        news.setCreatedAt(LocalDateTime.now());
+        
+        return news;
     }
 
     private NewsResponse convertToNewsResponse(News news) {
