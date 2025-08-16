@@ -2,6 +2,8 @@ package com.linglevel.api.content.news.controller;
 
 import com.linglevel.api.content.news.dto.*;
 import com.linglevel.api.content.news.exception.NewsException;
+import com.linglevel.api.content.news.service.NewsService;
+import com.linglevel.api.content.news.service.NewsChunkService;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
@@ -28,6 +30,9 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "News", description = "뉴스 관련 API")
 public class NewsController {
 
+    private final NewsService newsService;
+    private final NewsChunkService newsChunkService;
+
     // TODO : JWT으로 인증 변경 후 삭제
     @Value("${import.api.key}")
     private String importApiKey;
@@ -42,8 +47,8 @@ public class NewsController {
     public ResponseEntity<PageResponse<NewsResponse>> getNews(
             @ParameterObject @ModelAttribute GetNewsRequest request) {
         
-        // TODO: Service 구현 후 연결
-        throw new RuntimeException("Not implemented yet");
+        PageResponse<NewsResponse> response = newsService.getNews(request);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "단일 뉴스 조회", description = "특정 뉴스의 상세 정보를 조회합니다.")
@@ -57,8 +62,8 @@ public class NewsController {
             @Parameter(description = "뉴스 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String newsId) {
         
-        // TODO: Service 구현 후 연결
-        throw new RuntimeException("Not implemented yet");
+        NewsResponse response = newsService.getNews(newsId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "뉴스 청크 목록 조회", description = "특정 뉴스의 청크 목록을 난이도별로 조회합니다.")
@@ -75,8 +80,8 @@ public class NewsController {
             @PathVariable String newsId,
             @ParameterObject @ModelAttribute GetNewsChunksRequest request) {
         
-        // TODO: Service 구현 후 연결
-        throw new RuntimeException("Not implemented yet");
+        PageResponse<NewsChunkResponse> response = newsChunkService.getNewsChunks(newsId, request);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "단일 뉴스 청크 조회", description = "특정 뉴스 청크의 상세 정보를 조회합니다.")
@@ -92,8 +97,8 @@ public class NewsController {
             @Parameter(description = "청크 ID", example = "60d0fe4f5311236168a109cd")
             @PathVariable String chunkId) {
         
-        // TODO: Service 구현 후 연결
-        throw new RuntimeException("Not implemented yet");
+        NewsChunkResponse response = newsChunkService.getNewsChunk(newsId, chunkId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "뉴스 데이터 import", description = "S3에 저장된 JSON 파일을 읽어서 새로운 뉴스와 관련 청크 데이터를 생성합니다.")

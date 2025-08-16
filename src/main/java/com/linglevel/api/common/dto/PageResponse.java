@@ -35,10 +35,14 @@ public class PageResponse<T> {
 
     public PageResponse(List<T> data, Page<?> page) {
         this.data = data;
-        this.currentPage = page.getNumber();
+        this.currentPage = page.getNumber() + 1; // 0-based to 1-based
         this.totalPages = page.getTotalPages();
-        this.totalCount = page.getTotalPages();
+        this.totalCount = (int) page.getTotalElements(); // 총 항목 수
         this.hasNext = page.hasNext();
         this.hasPrevious = page.hasPrevious();
+    }
+
+    public static <T> PageResponse<T> of(Page<?> page, List<T> data) {
+        return new PageResponse<>(data, page);
     }
 } 
