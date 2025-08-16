@@ -1,4 +1,4 @@
-package com.linglevel.api.config;
+package com.linglevel.api.common.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;

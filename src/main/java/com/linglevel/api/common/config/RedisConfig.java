@@ -1,4 +1,4 @@
-package com.linglevel.api.config;
+package com.linglevel.api.common.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
