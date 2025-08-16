@@ -4,6 +4,7 @@ import com.linglevel.api.content.books.dto.BookImportData;
 import com.linglevel.api.content.books.entity.Book;
 import com.linglevel.api.content.books.entity.Chapter;
 import com.linglevel.api.content.common.DifficultyLevel;
+import com.linglevel.api.content.common.service.ReadingTimeService;
 import com.linglevel.api.content.books.exception.BooksErrorCode;
 import com.linglevel.api.content.books.exception.BooksException;
 import com.linglevel.api.content.books.repository.BookRepository;
@@ -19,8 +20,7 @@ public class BookReadingTimeService {
 
     private final BookRepository bookRepository;
     private final ChapterRepository chapterRepository;
-
-    private final int AVERAGE_READING_SPEED_PER_MINUTE = 500;
+    private final ReadingTimeService readingTimeService;
 
     public void updateReadingTimes(String bookId, BookImportData importData) {
         Book book = bookRepository.findById(bookId)
@@ -55,6 +55,6 @@ public class BookReadingTimeService {
     }
     
     private int calculateReadingTimeFromCharacters(int characterCount) {
-        return (int) Math.ceil((double) characterCount / AVERAGE_READING_SPEED_PER_MINUTE);
+        return readingTimeService.calculateReadingTimeFromCharacters(characterCount);
     }
 }

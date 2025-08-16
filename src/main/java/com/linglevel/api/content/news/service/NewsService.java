@@ -31,6 +31,7 @@ public class NewsService {
 
     private final NewsRepository newsRepository;
     private final NewsImportService newsImportService;
+    private final NewsReadingTimeService newsReadingTimeService;
     private final S3AiService s3AiService;
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
@@ -72,6 +73,8 @@ public class NewsService {
         newsRepository.save(savedNews);
         
         newsImportService.createChunksFromLeveledResults(importData, savedNews.getId());
+        
+        newsReadingTimeService.updateReadingTime(savedNews.getId(), importData);
         
         log.info("Successfully imported news with id: {}", savedNews.getId());
         
