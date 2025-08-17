@@ -1,7 +1,7 @@
 package com.linglevel.api.auth.filter;
 
-import com.linglevel.api.users.entity.User;
-import com.linglevel.api.users.repository.UserRepository;
+import com.linglevel.api.user.entity.User;
+import com.linglevel.api.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
