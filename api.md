@@ -1031,21 +1031,21 @@ Authorization: Bearer {AccessToken}
 
 ---
 
-## 📰 뉴스 (News)
+## 📰 기사 (Articles)
 
-### `GET /news`
+### `GET /articles`
 
-뉴스 목록을 조건에 따라 조회합니다. 기본적으로 최신순으로 정렬되며, 선택적으로 태그나 키워드 필터를 적용할 수 있습니다.
+기사 목록을 조건에 따라 조회합니다. 기본적으로 최신순으로 정렬되며, 선택적으로 태그나 키워드 필터를 적용할 수 있습니다.
 
 #### **Query Parameters**
 
-| 파라미터  | 타입    | 필수 | 설명                                                               |
-| :-------- | :------ | :--- | :----------------------------------------------------------------- |
+| 파라미터  | 타입    | 필수 | 설명                                                                    |
+| :-------- | :------ | :--- |:----------------------------------------------------------------------|
 | `sort_by` | String  | 아니요 (기본값: `created_at`) | `view_count` (조회수순), `average_rating` (평점순), `created_at` (최신순) 중 하나. |
-| `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: "technology,business"). 제공 시 해당 태그가 포함된 뉴스만 조회. |
-| `keyword` | String  | 아니요                       | 검색할 뉴스 제목 또는 작가 이름 (부분 일치 검색). 제공 시 키워드가 포함된 뉴스만 조회. |
-| `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호.                                                |
-| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `50`)          | 페이지 당 항목 수.                                                 |
+| `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: "technology,business"). 제공 시 해당 태그가 포함된 기사만 조회.   |
+| `keyword` | String  | 아니요                       | 검색할 기사 제목 또는 작가 이름 (부분 일치 검색). 제공 시 키워드가 포함된 기사만 조회.                  |
+| `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호.                                                           |
+| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `50`)          | 페이지 당 항목 수.                                                           |
 
 #### **Success Response (200 OK)**
 ```json
@@ -1078,22 +1078,22 @@ Authorization: Bearer {AccessToken}
 
 **1. 기본 조회 (최신순 정렬)**
 ```
-GET /api/v1/news
+GET /api/v1/articles
 ```
 
 **2. 조회수 높은 순으로 정렬**
 ```
-GET /api/v1/news?sort_by=view_count
+GET /api/v1/articles?sort_by=view_count
 ```
 
 **3. 태그 필터링 (여러 태그)**
 ```
-GET /api/v1/news?tags=technology,business
+GET /api/v1/articles?tags=technology,business
 ```
 
 **4. 키워드 검색 (제목/작가)**
 ```
-GET /api/v1/news?keyword=viking
+GET /api/v1/articles?keyword=viking
 ```
 
 #### **Error Response (400 Bad Request)**
@@ -1103,15 +1103,15 @@ GET /api/v1/news?keyword=viking
 }
 ```
 
-### `GET /news/{newsId}`
+### `GET /articles/{articleId}`
 
-특정 뉴스의 상세 정보를 조회합니다.
+특정 기사의 상세 정보를 조회합니다.
 
 #### **Path Parameters**
 
-| 파라미터  | 타입     | 설명             |
-| :-------- | :------- | :--------------- |
-| `newsId` | String | 조회할 뉴스의 고유 ID |
+| 파라미터        | 타입     | 설명            |
+|:------------| :------- |:--------------|
+| `articleId` | String | 조회할 기사의 고유 ID |
 
 #### **Success Response (200 OK)**
 ```json
@@ -1134,13 +1134,13 @@ GET /api/v1/news?keyword=viking
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "message": "News not found."
+  "message": "Article not found."
 }
 ```
 
-### `POST /news/import`
+### `POST /articles/import`
 
-S3에 저장된 JSON 파일을 읽어서 새로운 뉴스와 관련 청크 데이터를 생성합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
+S3에 저장된 JSON 파일을 읽어서 새로운 기사와 관련 청크 데이터를 생성합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
 
 #### **Request Headers**
 ```
@@ -1195,17 +1195,17 @@ X-API-Key: {TempApiKey}
 
 ---
 
-## 📑 뉴스 청크 (News Chunks)
+## 📑 기사 청크 (Articles Chunks)
 
-### `GET /news/{newsId}/chunks`
+### `GET /articles/{articleId}/chunks`
 
-특정 뉴스에 속한 텍스트 청크(Chunk)들을 난이도별로 조회합니다.
+특정 기사에 속한 텍스트 청크(Chunk)들을 난이도별로 조회합니다.
 
 #### **Path Parameters**
 
-| 파라미터     | 타입     | 설명               |
-| :----------- | :------- | :----------------- |
-| `newsId`    | String | 조회할 뉴스의 고유 ID   |
+| 파라미터        | 타입     | 설명            |
+|:------------| :------- |:--------------|
+| `articleId` | String | 조회할 기사의 고유 ID |
 
 #### **Query Parameters**
 
@@ -1247,19 +1247,19 @@ X-API-Key: {TempApiKey}
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "message": "News not found."
+  "message": "Article not found."
 }
 ```
 
-### `GET /news/{newsId}/chunks/{chunkId}`
+### `GET /articles/{articleId}/chunks/{chunkId}`
 
-특정 뉴스 청크의 상세 정보를 조회합니다.
+특정 기사 청크의 상세 정보를 조회합니다.
 
 #### **Path Parameters**
 
-| 파라미터     | 타입     | 설명               |
-| :----------- | :------- | :----------------- |
-| `newsId`    | String | 조회할 뉴스의 고유 ID   |
+| 파라미터        | 타입     | 설명            |
+|:------------| :------- |:--------------|
+| `articleId` | String | 조회할 기사의 고유 ID |
 | `chunkId`   | String | 조회할 청크의 고유 ID |
 
 #### **Success Response (200 OK) - 텍스트 청크**
@@ -1289,7 +1289,7 @@ X-API-Key: {TempApiKey}
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "message": "News not found."
+  "message": "Article not found."
 }
 ```
 
