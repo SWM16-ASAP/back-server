@@ -93,7 +93,7 @@ public class BookService {
 
         Pageable pageable = PageRequest.of(
             request.getPage() - 1, 
-            Math.min(request.getLimit(), 50),
+            Math.min(request.getLimit(), 100),
             sort
         );
 

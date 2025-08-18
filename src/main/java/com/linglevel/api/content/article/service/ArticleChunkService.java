@@ -71,8 +71,8 @@ public class ArticleChunkService {
     }
 
     private void validatePaginationRequest(GetArticleChunksRequest request) {
-        if (request.getLimit() != null && request.getLimit() > 50) {
-            request.setLimit(50);
+        if (request.getLimit() != null && request.getLimit() > 100) {
+            request.setLimit(100);
         }
     }
 

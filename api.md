@@ -144,7 +144,7 @@ Authorization: Bearer {AccessToken}
 | `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: "philosophy,children"). 제공 시 해당 태그가 포함된 책만 조회. |
 | `keyword` | String  | 아니요                       | 검색할 책 제목 또는 작가 이름 (부분 일치 검색). 제공 시 키워드가 포함된 책만 조회. |
 | `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호.                                                |
-| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `50`)          | 페이지 당 항목 수.                                                 |
+| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `100`)          | 페이지 당 항목 수.                                                 |
 
 #### **Success Response (200 OK)**
 ```json
@@ -341,7 +341,7 @@ X-API-Key: {TempApiKey}
 | 파라미터 | 타입    | 필수 | 설명                      |
 | :------- | :------ | :--- | :------------------------ |
 | `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
-| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수                |
 
 #### **Success Response (200 OK)**
 ```json
@@ -463,7 +463,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 | :----------- | :------ | :--- | :------------------------------------- |
 | `difficulty` | String  | 예   | `a0`, `a1`, `a2`, `b1`, `b2`, `c1`, `c2` 등 청크의 난이도. |
 | `page`       | Integer | 아니요 | 페이지 번호 (기본값: `1`).                 |
-| `limit`      | Integer | 아니요 | 페이지 당 항목 수 (기본값: `10`, 최댓값 `50`).          |
+| `limit`      | Integer | 아니요 | 페이지 당 항목 수 (기본값: `10`, 최댓값 `100`).          |
 
 #### **Success Response (200 OK)**
 ```json
@@ -669,7 +669,7 @@ Authorization: Bearer {AccessToken}
 | 파라미터 | 타입    | 필수 | 설명                      |
 | :------- | :------ | :--- | :------------------------ |
 | `page`   | Integer | 아니요 (기본값: `1`) | 조회할 페이지 번호 |
-| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수 |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수 |
 
 #### **Success Response (200 OK)**
 ```json
@@ -775,7 +775,7 @@ Authorization: Bearer {AccessToken}
 | 파라미터 | 타입    | 필수 | 설명                      |
 | :------- | :------ | :--- | :------------------------ |
 | `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
-| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수                |
 | `search` | String  | 아니요                       | 검색할 단어 (부분 일치 검색)         |
 
 #### **Success Response (200 OK)**
@@ -875,7 +875,7 @@ Authorization: Bearer {AccessToken}
 | 파라미터 | 타입    | 필수 | 설명                      |
 | :------- | :------ | :--- | :------------------------ |
 | `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
-| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `50`) | 페이지 당 항목 수                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수                |
 | `search` | String  | 아니요                       | 검색할 단어 (부분 일치 검색)         |
 
 #### **Success Response (200 OK)**
@@ -1045,7 +1045,7 @@ Authorization: Bearer {AccessToken}
 | `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: "technology,business"). 제공 시 해당 태그가 포함된 기사만 조회.   |
 | `keyword` | String  | 아니요                       | 검색할 기사 제목 또는 작가 이름 (부분 일치 검색). 제공 시 키워드가 포함된 기사만 조회.                  |
 | `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호.                                                           |
-| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `50`)          | 페이지 당 항목 수.                                                           |
+| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `100`)          | 페이지 당 항목 수.                                                           |
 
 #### **Success Response (200 OK)**
 ```json
@@ -1213,7 +1213,7 @@ X-API-Key: {TempApiKey}
 | :----------- | :------ | :--- | :------------------------------------- |
 | `difficulty` | String  | 예   | `a0`, `a1`, `a2`, `b1`, `b2`, `c1`, `c2` 등 청크의 난이도. |
 | `page`       | Integer | 아니요 | 페이지 번호 (기본값: `1`).                 |
-| `limit`      | Integer | 아니요 | 페이지 당 항목 수 (기본값: `10`, 최댓값 `50`).          |
+| `limit`      | Integer | 아니요 | 페이지 당 항목 수 (기본값: `10`, 최댓값 `100`).          |
 
 #### **Success Response (200 OK)**
 ```json

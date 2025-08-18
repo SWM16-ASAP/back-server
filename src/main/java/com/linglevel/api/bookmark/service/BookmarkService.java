@@ -33,6 +33,7 @@ public class BookmarkService {
     private final WordService wordService;
 
     public Page<BookmarkedWordResponse> getBookmarkedWords(String userId, int page, int limit, String search) {
+        limit = Math.min(limit, 100);
         Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "bookmarkedAt"));
         
         if (search != null && !search.trim().isEmpty()) {

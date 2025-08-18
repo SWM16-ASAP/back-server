@@ -33,7 +33,7 @@ public class ChapterService {
 
         Pageable pageable = PageRequest.of(
             request.getPage() - 1, 
-            Math.min(request.getLimit(), 50),
+            Math.min(request.getLimit(), 100),
             Sort.by("chapterNumber").ascending()
         );
 
