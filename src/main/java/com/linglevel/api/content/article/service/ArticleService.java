@@ -90,8 +90,8 @@ public class ArticleService {
             }
         }
         
-        if (request.getLimit() != null && request.getLimit() > 50) {
-            request.setLimit(50);
+        if (request.getLimit() != null && request.getLimit() > 100) {
+            request.setLimit(100);
         }
     }
 

@@ -36,7 +36,7 @@ public class GetBooksRequest {
     @Schema(description = "페이지 크기", 
             example = "10", 
             minimum = "1", 
-            maximum = "50",
+            maximum = "100",
             defaultValue = "10")
     private Integer limit = 10;
 } 
