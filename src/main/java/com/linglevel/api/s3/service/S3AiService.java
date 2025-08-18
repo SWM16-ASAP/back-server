@@ -1,6 +1,7 @@
 package com.linglevel.api.s3.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linglevel.api.s3.strategy.S3PathStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,9 +28,9 @@ public class S3AiService {
     
     private final ObjectMapper objectMapper;
 
-    public <T> T downloadJsonFile(String fileId, Class<T> targetClass) {
+    public <T> T downloadJsonFile(String fileId, Class<T> targetClass, S3PathStrategy pathStrategy) {
         try {
-            String key = fileId + ".json";
+            String key = pathStrategy.generateJsonFilePath(fileId);
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(aiBucketName)
                     .key(key)
@@ -48,9 +49,9 @@ public class S3AiService {
         }
     }
 
-    public List<String> listImagesInFolder(String folderId) {
+    public List<String> listImagesInFolder(String folderId, S3PathStrategy pathStrategy) {
         try {
-            String prefix = folderId + "/images/";
+            String prefix = pathStrategy.generateImageFolderPath(folderId);
             ListObjectsV2Request listObjectsRequest = ListObjectsV2Request.builder()
                     .bucket(aiBucketName)
                     .prefix(prefix)
@@ -58,10 +59,11 @@ public class S3AiService {
             
             ListObjectsV2Response response = s3AiClient.listObjectsV2(listObjectsRequest);
             
-            return response.contents().stream()
+            List<String> rawKeys = response.contents().stream()
                     .map(S3Object::key)
-                    .filter(key -> !key.endsWith("/")) // 폴더 제외, 파일만
                     .toList();
+            
+            return pathStrategy.processImageKeys(rawKeys);
         } catch (Exception e) {
             log.error("Failed to list images from S3 AI folder {}: {}", folderId, e.getMessage());
             throw new RuntimeException("Failed to list images", e);

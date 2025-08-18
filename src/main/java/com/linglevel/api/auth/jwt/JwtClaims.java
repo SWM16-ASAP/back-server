@@ -1,6 +1,6 @@
 package com.linglevel.api.auth.jwt;
 
-import com.linglevel.api.users.entity.UserRole;
+import com.linglevel.api.user.entity.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

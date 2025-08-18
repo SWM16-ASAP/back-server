@@ -1031,6 +1031,277 @@ Authorization: Bearer {AccessToken}
 
 ---
 
+## 📰 기사 (Articles)
+
+### `GET /articles`
+
+기사 목록을 조건에 따라 조회합니다. 기본적으로 최신순으로 정렬되며, 선택적으로 태그나 키워드 필터를 적용할 수 있습니다.
+
+#### **Query Parameters**
+
+| 파라미터  | 타입    | 필수 | 설명                                                                    |
+| :-------- | :------ | :--- |:----------------------------------------------------------------------|
+| `sort_by` | String  | 아니요 (기본값: `created_at`) | `view_count` (조회수순), `average_rating` (평점순), `created_at` (최신순) 중 하나. |
+| `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: "technology,business"). 제공 시 해당 태그가 포함된 기사만 조회.   |
+| `keyword` | String  | 아니요                       | 검색할 기사 제목 또는 작가 이름 (부분 일치 검색). 제공 시 키워드가 포함된 기사만 조회.                  |
+| `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호.                                                           |
+| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `50`)          | 페이지 당 항목 수.                                                           |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "title": "Viking King's Bizarre Legacy: The Shocking Truth Behind Your Phone's Most Mysterious Feature!",
+      "author": "",
+      "coverImageUrl": "https://path/to/cover.jpg",
+      "difficultyLevel": "C1",
+      "chunkCount": 15,
+      "readingTime": 8,
+      "averageRating": 4.5,
+      "reviewCount": 230,
+      "viewCount": 15000,
+      "tags": ["technology", "history"],
+      "createdAt": "2024-01-15T00:00:00"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 5,
+  "totalCount": 50,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회 (최신순 정렬)**
+```
+GET /api/v1/articles
+```
+
+**2. 조회수 높은 순으로 정렬**
+```
+GET /api/v1/articles?sort_by=view_count
+```
+
+**3. 태그 필터링 (여러 태그)**
+```
+GET /api/v1/articles?tags=technology,business
+```
+
+**4. 키워드 검색 (제목/작가)**
+```
+GET /api/v1/articles?keyword=viking
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "Invalid sort_by parameter. Must be one of: view_count, average_rating, created_at."
+}
+```
+
+### `GET /articles/{articleId}`
+
+특정 기사의 상세 정보를 조회합니다.
+
+#### **Path Parameters**
+
+| 파라미터        | 타입     | 설명            |
+|:------------| :------- |:--------------|
+| `articleId` | String | 조회할 기사의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "title": "Viking King's Bizarre Legacy: The Shocking Truth Behind Your Phone's Most Mysterious Feature!",
+  "author": "",
+  "coverImageUrl": "https://path/to/cover.jpg",
+  "difficultyLevel": "C1",
+  "chunkCount": 15,
+  "readingTime": 8,
+  "averageRating": 4.5,
+  "reviewCount": 230,
+  "viewCount": 15000,
+  "tags": ["technology", "history"],
+  "createdAt": "2024-01-15T00:00:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+### `POST /articles/import`
+
+S3에 저장된 JSON 파일을 읽어서 새로운 기사와 관련 청크 데이터를 생성합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "id": "string"
+}
+```
+- `id`: S3에 저장된 JSON 파일의 식별자 (예: "86781f8a-cb42-4fa1-865e-0e8e20d903d8" → "86781f8a-cb42-4fa1-865e-0e8e20d903d8.json" 파일을 조회)
+
+#### **Success Response (201 Created)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca"
+}
+```
+
+#### **예상 JSON 파일 구조**
+```json
+{
+  "id": "86781f8a-cb42-4fa1-865e-0e8e20d903d8",
+  "content_type": "article",
+  "title": "Viking King's Bizarre Legacy: The Shocking Truth Behind Your Phone's Most Mysterious Feature!",
+  "author": "",
+  "cover_image_url": "s3://leveling-dev-output-bucket/article/86781f8a-cb42-4fa1-865e-0e8e20d903d8/images/cover.jpg",
+  "original_text_level": "C1",
+  "leveled_results": [
+    {
+      "textLevel": "A0",
+      "chapters": [
+        {
+          "chapterNum": 1,
+          "chunks": [
+            {
+              "chunkNum": 1,
+              "isImage": false,
+              "chunkText": "You have a phone. The phone has a sign...",
+              "description": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## 📑 기사 청크 (Articles Chunks)
+
+### `GET /articles/{articleId}/chunks`
+
+특정 기사에 속한 텍스트 청크(Chunk)들을 난이도별로 조회합니다.
+
+#### **Path Parameters**
+
+| 파라미터        | 타입     | 설명            |
+|:------------| :------- |:--------------|
+| `articleId` | String | 조회할 기사의 고유 ID |
+
+#### **Query Parameters**
+
+| 파라미터     | 타입    | 필수 | 설명                                   |
+| :----------- | :------ | :--- | :------------------------------------- |
+| `difficulty` | String  | 예   | `a0`, `a1`, `a2`, `b1`, `b2`, `c1`, `c2` 등 청크의 난이도. |
+| `page`       | Integer | 아니요 | 페이지 번호 (기본값: `1`).                 |
+| `limit`      | Integer | 아니요 | 페이지 당 항목 수 (기본값: `10`, 최댓값 `50`).          |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109cd",
+      "chunkNumber": 1,
+      "difficulty": "A1",
+      "type": "TEXT",
+      "content": "You have a phone. The phone has a sign. The sign is called Bluetooth...",
+      "description": null
+    },
+    {
+      "id": "60d0fe4f5311236168a109ce", 
+      "chunkNumber": 2,
+      "difficulty": "A1",
+      "type": "IMAGE",
+      "content": "https://static.linglevel.com/article/86781f8a-cb42-4fa1-865e-0e8e20d903d8/images/bluetooth-logo.jpg",
+      "description": "Bluetooth logo symbol"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 3,
+  "totalCount": 25,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+### `GET /articles/{articleId}/chunks/{chunkId}`
+
+특정 기사 청크의 상세 정보를 조회합니다.
+
+#### **Path Parameters**
+
+| 파라미터        | 타입     | 설명            |
+|:------------| :------- |:--------------|
+| `articleId` | String | 조회할 기사의 고유 ID |
+| `chunkId`   | String | 조회할 청크의 고유 ID |
+
+#### **Success Response (200 OK) - 텍스트 청크**
+```json
+{
+  "id": "60d0fe4f5311236168a109cd",
+  "chunkNumber": 1,
+  "difficulty": "A1",
+  "type": "TEXT",
+  "content": "You have a phone. The phone has a sign. The sign is called Bluetooth...",
+  "description": null
+}
+```
+
+#### **Success Response (200 OK) - 이미지 청크**
+```json
+{
+  "id": "60d0fe4f5311236168a109ce",
+  "chunkNumber": 2,
+  "difficulty": "A1", 
+  "type": "IMAGE",
+  "content": "https://static.linglevel.com/article/86781f8a-cb42-4fa1-865e-0e8e20d903d8/images/bluetooth-logo.jpg",
+  "description": "Bluetooth logo symbol"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Chunk not found."
+}
+```
+
+---
+
 ## 💡 고객 건의 (Suggestions)
 
 ### `POST /suggestions`

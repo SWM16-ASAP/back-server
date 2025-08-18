@@ -2,8 +2,8 @@ package com.linglevel.api.auth.jwt;
 
 import com.linglevel.api.auth.exception.AuthErrorCode;
 import com.linglevel.api.auth.exception.AuthException;
-import com.linglevel.api.users.entity.User;
-import com.linglevel.api.users.entity.UserRole;
+import com.linglevel.api.user.entity.User;
+import com.linglevel.api.user.entity.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
