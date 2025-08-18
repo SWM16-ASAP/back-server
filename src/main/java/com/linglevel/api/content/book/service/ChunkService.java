@@ -48,7 +48,7 @@ public class ChunkService {
 
         Pageable pageable = PageRequest.of(
             request.getPage() - 1, 
-            Math.min(request.getLimit(), 100),
+            Math.min(request.getLimit(), 200),
             Sort.by("chunkNumber").ascending()
         );
 

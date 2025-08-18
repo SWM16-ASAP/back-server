@@ -28,7 +28,7 @@ public class GetChunksRequest {
     @Schema(description = "페이지 크기", 
             example = "10", 
             minimum = "1", 
-            maximum = "100",
+            maximum = "200",
             defaultValue = "10")
     private Integer limit = 10;
 } 
