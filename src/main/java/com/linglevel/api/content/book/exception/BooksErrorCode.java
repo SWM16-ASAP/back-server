@@ -16,7 +16,8 @@ public enum BooksErrorCode {
     INVALID_TAGS_FORMAT(HttpStatus.BAD_REQUEST, "Invalid tags format. Tags should be comma-separated strings."),
     INVALID_CHUNK_NUMBER(HttpStatus.BAD_REQUEST, "Invalid chunkNumber. Must be a positive integer."),
     INVALID_PAGINATION(HttpStatus.BAD_REQUEST, "Invalid pagination parameters."),
-    BOOK_IMPORT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to import book from S3.");
+    BOOK_IMPORT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to import book from S3."),
+    BOOK_DELETION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete book and related data.");
     
     private final HttpStatus status;
     private final String message;
