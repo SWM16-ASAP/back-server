@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ChunkRepository extends MongoRepository<Chunk, String> {
@@ -16,4 +17,6 @@ public interface ChunkRepository extends MongoRepository<Chunk, String> {
     Optional<Chunk> findFirstByChapterIdOrderByChunkNumberAsc(String chapterId);
 
     Optional<Chunk> findById(String chunkId);
+    
+    List<Chunk> findByChapterIdOrderByChunkNumber(String chapterId);
 } 

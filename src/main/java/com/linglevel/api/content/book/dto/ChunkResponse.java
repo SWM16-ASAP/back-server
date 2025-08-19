@@ -1,5 +1,6 @@
 package com.linglevel.api.content.book.dto;
 
+import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.common.ChunkType;
 import com.linglevel.api.content.common.DifficultyLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,4 +32,15 @@ public class ChunkResponse {
     
     @Schema(description = "이미지 설명 (이미지 타입일 경우)", example = "null")
     private String description;
+    
+    public static ChunkResponse from(Chunk chunk) {
+        return ChunkResponse.builder()
+                .id(chunk.getId())
+                .chunkNumber(chunk.getChunkNumber())
+                .difficulty(chunk.getDifficulty())
+                .type(chunk.getType())
+                .content(chunk.getContent())
+                .description(chunk.getDescription())
+                .build();
+    }
 } 

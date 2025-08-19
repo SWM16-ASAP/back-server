@@ -1,5 +1,6 @@
 package com.linglevel.api.s3.service;
 
+import com.linglevel.api.s3.strategy.S3PathStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -8,7 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.*;
+
+import java.util.List;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -73,5 +76,61 @@ public class S3StaticService {
 
     public String getPublicUrl(String key) {
         return staticUrl + "/" + key;
+    }
+
+    public void deleteFiles(String contentId, S3PathStrategy pathStrategy) {
+        try {
+            String prefix = pathStrategy.generateBasePath(contentId);
+            deleteFilesWithPrefix(prefix);
+            log.info("Successfully deleted files from S3 Static - contentId: {}, prefix: {}", contentId, prefix);
+        } catch (Exception e) {
+            log.error("Failed to delete files from S3 Static - contentId: {}, prefix: {}, error: {}", 
+                    contentId, pathStrategy.generateBasePath(contentId), e.getMessage());
+            throw new RuntimeException("Failed to delete files from S3", e);
+        }
+    }
+
+    private void deleteFilesWithPrefix(String prefix) {
+        try {
+            // List all objects with the given prefix
+            ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
+                    .bucket(staticBucketName)
+                    .prefix(prefix)
+                    .build();
+
+            ListObjectsV2Response listResponse;
+            do {
+                listResponse = s3StaticClient.listObjectsV2(listRequest);
+                
+                if (!listResponse.contents().isEmpty()) {
+                    // Delete objects in batches
+                    List<ObjectIdentifier> objectsToDelete = listResponse.contents().stream()
+                            .map(s3Object -> ObjectIdentifier.builder()
+                                    .key(s3Object.key())
+                                    .build())
+                            .toList();
+
+                    DeleteObjectsRequest deleteRequest = DeleteObjectsRequest.builder()
+                            .bucket(staticBucketName)
+                            .delete(Delete.builder()
+                                    .objects(objectsToDelete)
+                                    .build())
+                            .build();
+
+                    DeleteObjectsResponse deleteResponse = s3StaticClient.deleteObjects(deleteRequest);
+                    log.info("Deleted {} objects from S3 Static with prefix: {}", deleteResponse.deleted().size(), prefix);
+                }
+
+                // Update request for next iteration if there are more objects
+                listRequest = listRequest.toBuilder()
+                        .continuationToken(listResponse.nextContinuationToken())
+                        .build();
+                        
+            } while (listResponse.isTruncated());
+            
+        } catch (Exception e) {
+            log.error("Failed to delete files with prefix {} from S3 Static: {}", prefix, e.getMessage());
+            throw e;
+        }
     }
 }
