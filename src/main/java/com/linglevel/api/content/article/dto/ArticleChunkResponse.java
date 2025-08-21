@@ -1,13 +1,20 @@
 package com.linglevel.api.content.article.dto;
 
+import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.common.ChunkType;
 import com.linglevel.api.content.common.DifficultyLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Schema(description = "기사 청크 응답")
 public class ArticleChunkResponse {
     
@@ -28,4 +35,15 @@ public class ArticleChunkResponse {
     
     @Schema(description = "설명 (이미지인 경우)", example = "Bluetooth logo symbol")
     private String description;
+    
+    public static ArticleChunkResponse from(ArticleChunk chunk) {
+        return ArticleChunkResponse.builder()
+                .id(chunk.getId())
+                .chunkNumber(chunk.getChunkNumber())
+                .difficulty(chunk.getDifficulty())
+                .type(chunk.getType())
+                .content(chunk.getContent())
+                .description(chunk.getDescription())
+                .build();
+    }
 }

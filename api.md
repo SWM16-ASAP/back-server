@@ -1,4 +1,4 @@
-# Ling Level API 명세서 v1.0
+yp# Ling Level API 명세서 v1.0
 
 'Ling Level' 서비스의 프론트엔드와 백엔드 개발을 위한 API 명세서입니다.
 
@@ -1297,6 +1297,224 @@ X-API-Key: {TempApiKey}
 ```json
 {
   "message": "Chunk not found."
+}
+```
+
+---
+
+## 🔧 어드민 관리 (Admin Management)
+
+### `PUT /admin/books/{bookId}/chapters/{chapterId}/chunks/{chunkId}`
+
+어드민 권한으로 특정 책의 청크 내용을 수정합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터     | 타입     | 설명               |
+| :----------- | :------- | :----------------- |
+| `bookId`    | String | 수정할 책의 고유 ID   |
+| `chapterId` | String | 수정할 챕터의 고유 ID |
+| `chunkId`   | String | 수정할 청크의 고유 ID |
+
+#### **Request Body**
+
+```json
+{
+  "content": "Updated chunk content...",
+  "description": "Updated description for image chunks"
+}
+```
+- `content`: 수정할 청크 내용 (텍스트 청크의 경우 텍스트, 이미지 청크의 경우 이미지 URL)
+- `description`: 이미지 청크의 설명 (선택사항, 이미지 청크인 경우에만 사용)
+
+#### **API 사용 예시**
+
+**특정 책의 청크 수정**
+```
+PUT /api/v1/admin/books/60d0fe4f5311236168a109ca/chapters/60d0fe4f5311236168a109cb/chunks/60d0fe4f5311236168a109cd
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109cd",
+  "chunkNumber": 1,
+  "difficulty": "A1",
+  "type": "TEXT",
+  "content": "Updated chunk content...",
+  "description": null
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Book not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Chapter not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Chunk not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+### `DELETE /admin/books/{bookId}`
+
+어드민 권한으로 특정 책과 관련된 모든 데이터(챕터, 청크, 진도 등)를 삭제합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `bookId` | String | 삭제할 책의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Book and all related data deleted successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Book not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+### `PUT /admin/articles/{articleId}/chunks/{chunkId}`
+
+어드민 권한으로 특정 기사의 청크 내용을 수정합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터        | 타입     | 설명            |
+|:------------| :------- |:--------------|
+| `articleId` | String | 수정할 기사의 고유 ID |
+| `chunkId`   | String | 수정할 청크의 고유 ID |
+
+#### **Request Body**
+
+```json
+{
+  "content": "Updated article chunk content...",
+  "description": "Updated description for image chunks"
+}
+```
+- `content`: 수정할 청크 내용 (텍스트 청크의 경우 텍스트, 이미지 청크의 경우 이미지 URL)
+- `description`: 이미지 청크의 설명 (선택사항, 이미지 청크인 경우에만 사용)
+
+#### **API 사용 예시**
+
+**특정 기사의 청크 수정**
+```
+PUT /api/v1/admin/articles/60d0fe4f5311236168a109ca/chunks/60d0fe4f5311236168a109cd
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109cd",
+  "chunkNumber": 1,
+  "difficulty": "A1",
+  "type": "TEXT",
+  "content": "Updated article chunk content...",
+  "description": null
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Chunk not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+### `DELETE /admin/articles/{articleId}`
+
+어드민 권한으로 특정 기사와 관련된 모든 데이터(청크 등)를 삭제합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터        | 타입     | 설명            |
+|:------------| :------- |:--------------|
+| `articleId` | String | 삭제할 기사의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Article and all related data deleted successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
 }
 ```
 

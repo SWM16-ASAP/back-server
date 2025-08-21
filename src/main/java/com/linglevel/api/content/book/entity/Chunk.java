@@ -29,4 +29,11 @@ public class Chunk {
     private String content;
     
     private String description;
+    
+    public void updateContent(String content, String description) {
+        this.content = content;
+        if (description != null) {
+            this.description = description;
+        }
+    }
 } 
