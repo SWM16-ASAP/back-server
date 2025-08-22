@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/v1/auth/oauth/login").permitAll()
                         .requestMatchers("/api/v1/books/import", "/api/v1/articles/import").permitAll()
+                        .requestMatchers("/api/v1/admin/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptions -> exceptions
