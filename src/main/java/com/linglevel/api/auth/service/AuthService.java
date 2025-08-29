@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import com.linglevel.api.auth.dto.LoginResponse;
+import com.linglevel.api.auth.dto.RefreshTokenResponse;
 import com.linglevel.api.auth.exception.AuthErrorCode;
 import com.linglevel.api.auth.exception.AuthException;
 import com.linglevel.api.auth.jwt.JwtProvider;
@@ -26,6 +27,7 @@ public class AuthService {
     private final FirebaseAuth firebaseAuth;
     private final UserRepository userRepository;
     private final JwtProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
 
     public LoginResponse authenticateWithFirebase(String authCode) {
         try {
@@ -38,7 +40,7 @@ public class AuthService {
             User user = findOrCreateUser(username, email, provider);
 
             String accessToken = jwtTokenProvider.createToken(user);
-            String refreshToken = ""; // todo: add refresh token
+            String refreshToken = refreshTokenService.createRefreshToken(user.getId());
             
             return LoginResponse.builder()
                     .accessToken(accessToken)
@@ -92,5 +94,14 @@ public class AuthService {
         }
         
         return "unknown";
+    }
+    
+    public RefreshTokenResponse refreshToken(String refreshToken) {
+        return refreshTokenService.refreshAccessToken(refreshToken);
+    }
+    
+    public void logout(String userId) {
+        refreshTokenService.deleteRefreshToken(userId);
+        log.info("User logged out: {}", userId);
     }
 }

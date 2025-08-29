@@ -52,8 +52,8 @@ public class AuthController {
     })
     @PostMapping("/refresh")
     public ResponseEntity<RefreshTokenResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
-        // TODO: 토큰 갱신 로직 구현
-        throw new UnsupportedOperationException("Not implemented yet");
+        RefreshTokenResponse response = authService.refreshToken(request.getRefreshToken());
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "로그아웃", description = "현재 세션을 종료하고 토큰을 무효화합니다.")
@@ -64,9 +64,14 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping("/logout")
-    public ResponseEntity<LogoutResponse> logout() {
-        // TODO: 로그아웃 로직 구현
-        throw new UnsupportedOperationException("Not implemented yet");
+    public ResponseEntity<LogoutResponse> logout(HttpServletRequest request) {
+        JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
+        authService.logout(claims.getId());
+        
+        LogoutResponse response = LogoutResponse.builder()
+                .message("Successfully logged out")
+                .build();
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "현재 사용자 정보 조회", description = "현재 Access Token에 포함된 JWT Claims 정보를 추출하여 반환합니다.")
