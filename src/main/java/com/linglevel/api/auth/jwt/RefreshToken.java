@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.time.LocalDateTime;
 
-@Document(collection = "refresh_tokens")
+@Document(collection = "refreshTokens")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
