@@ -1520,6 +1520,93 @@ X-API-Key: {TempApiKey}
 
 ---
 
+## 📱 앱 버전 관리 (App Version Management)
+
+### `GET /version`
+
+클라이언트 앱에서 버전 확인을 위한 API입니다. 현재 최신 버전과 최소 요구 버전을 반환합니다.
+
+#### **Success Response (200 OK)**
+```json
+{
+  "latestVersion": "1.2.3",
+  "minimumVersion": "1.1.0"
+}
+```
+
+- `latestVersion`: 스토어에 배포된 최신 앱 버전
+- `minimumVersion`: 앱 사용을 위한 최소 요구 버전
+
+#### **API 사용 예시**
+
+**버전 정보 조회**
+```
+GET /api/v1/version
+```
+
+클라이언트는 이 정보를 사용하여:
+- 최신 버전과 비교하여 업데이트 안내 표시
+- 최소 버전 미달 시 강제 업데이트 요구
+
+---
+
+## 🔧 어드민 - 앱 버전 관리 (Admin App Version Management)
+
+### `PATCH /admin/version`
+
+어드민 권한으로 앱의 최신 버전 및 최소 요구 버전을 부분 업데이트합니다. 이 API는 임시 API 키를 사용하여 인증합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "latestVersion": "1.2.3"
+}
+```
+
+- `latestVersion`: 업데이트할 최신 버전 (선택사항)
+- `minimumVersion`: 업데이트할 최소 요구 버전 (선택사항)
+
+#### **Success Response (200 OK)**
+```json
+{
+  "latestVersion": "1.2.3",
+  "minimumVersion": "1.1.0",
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **API 사용 예시**
+
+**최신 버전만 업데이트**
+```
+PATCH /api/v1/admin/version
+{
+  "latestVersion": "1.2.4"
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "At least one version field (latestVersion or minimumVersion) must be provided."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+---
+
 ## 💡 고객 건의 (Suggestions)
 
 ### `POST /suggestions`
