@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/version")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Version", description = "앱 버전 관리 API")
+@Tag(name = "App Version", description = "앱 버전 관리 API")
 public class VersionController {
     
     private final VersionService versionService;
