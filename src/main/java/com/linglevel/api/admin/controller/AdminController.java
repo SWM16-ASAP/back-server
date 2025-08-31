@@ -7,6 +7,9 @@ import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
 import com.linglevel.api.content.book.dto.ChunkResponse;
 import com.linglevel.api.content.article.dto.ArticleChunkResponse;
+import com.linglevel.api.version.dto.VersionUpdateRequest;
+import com.linglevel.api.version.dto.VersionUpdateResponse;
+import com.linglevel.api.version.service.VersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +30,7 @@ import jakarta.validation.Valid;
 public class AdminController {
 
     private final AdminService adminService;
+    private final VersionService versionService;
     
     @Value("${import.api.key}")
     private String importApiKey;
@@ -90,6 +94,21 @@ public class AdminController {
         
         adminService.deleteArticle(articleId);
         return ResponseEntity.ok(new MessageResponse("Article and all related data deleted successfully."));
+    }
+
+    @Operation(summary = "앱 버전 업데이트", description = "어드민 권한으로 앱의 최신 버전 및 최소 요구 버전을 부분 업데이트합니다.")
+    @PatchMapping("/version")
+    public ResponseEntity<VersionUpdateResponse> updateVersion(
+            @Parameter(description = "API 키", required = true) @RequestHeader(value = "X-API-Key") String apiKey,
+            @Parameter(description = "버전 업데이트 요청", required = true) @Valid @RequestBody VersionUpdateRequest request) {
+        
+        validateApiKey(apiKey);
+        
+        log.info("Admin updating app version - latestVersion: {}, minimumVersion: {}", 
+                request.getLatestVersion(), request.getMinimumVersion());
+        
+        VersionUpdateResponse response = versionService.updateVersion(request);
+        return ResponseEntity.ok(response);
     }
 
     private void validateApiKey(String apiKey) {
