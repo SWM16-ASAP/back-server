@@ -17,6 +17,7 @@ public class ArticleImportData {
     private String coverImageUrl;
     @JsonProperty("original_text_level")
     private String originalTextLevel;
+    private List<String> tags;
     @JsonProperty("leveled_results")
     private List<TextLevelData> leveledResults;
     
