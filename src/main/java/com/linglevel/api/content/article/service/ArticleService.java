@@ -150,7 +150,7 @@ public class ArticleService {
         article.setAverageRating(0.0);
         article.setReviewCount(0);
         article.setViewCount(0);
-        article.setTags(List.of());
+        article.setTags(importData.getTags() != null ? importData.getTags() : List.of());
         article.setCreatedAt(LocalDateTime.now());
         
         return article;
