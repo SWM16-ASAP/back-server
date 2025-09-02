@@ -272,10 +272,10 @@ X-API-Key: {TempApiKey}
 
 ```json
 {
-  "id": "string"
+  "requestId": "60d0fe4f5311236168a109ca"
 }
 ```
-- `id`: S3에 저장된 JSON 파일의 식별자 (예: "fdsljfi134" → "fdsljfi134.json" 파일을 조회)
+- `requestId`: 처리 요청의 고유 ID (필수)
 
 #### **Success Response (201 Created)**
 ```json
