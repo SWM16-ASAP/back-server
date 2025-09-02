@@ -2111,7 +2111,6 @@ X-API-Key: {TempApiKey}
 
 - `requestId`: 처리 요청의 고유 ID (필수)
 - `errorMessage`: 사용자에게 표시할 에러 메시지 (필수)
-- `errorDetails`: 추가 에러 정보 (선택사항)
 
 #### **Success Response (200 OK)**
 ```json
@@ -2149,15 +2148,13 @@ X-API-Key: {TempApiKey}
 {
   "requestId": "60d0fe4f5311236168a109ca",
   "progress": 75,
-  "status": "PROCESSING",
-  "message": "Generating chunks for difficulty level A1..."
+  "status": "PROCESSING"
 }
 ```
 
 - `requestId`: 처리 요청의 고유 ID (필수)
 - `progress`: 진행률 0-100 (필수)
 - `status`: 현재 상태 - `PROCESSING` (기본값)
-- `message`: 진행 상황 메시지 (선택사항)
 
 #### **Success Response (200 OK)**
 ```json
