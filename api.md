@@ -2211,3 +2211,59 @@ X-API-Key: {TempApiKey}
   "message": "Email and content are required."
 }
 ```
+
+---
+
+## 🔔 FCM 토큰 관리 (FCM Token Management)
+
+### `PUT /fcm/token`
+
+사용자의 FCM 토큰을 등록하거나 업데이트합니다. 동일한 사용자+디바이스 조합이 이미 존재하는 경우 토큰을 업데이트하고, 존재하지 않는 경우 새로 생성합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Request Body**
+
+```json
+{
+  "fcmToken": "string",
+  "deviceId": "string",
+  "platform": "string"
+}
+```
+- `fcmToken`: Firebase Cloud Messaging 토큰
+- `deviceId`: 디바이스 고유 식별자
+- `platform`: 플랫폼 종류 ("ANDROID", "IOS", "WEB")
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "FCM token updated successfully.",
+  "tokenId": "string"
+}
+```
+
+#### **Success Response (201 Created)**
+```json
+{
+  "message": "FCM token created successfully.",
+  "tokenId": "string"
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "fcmToken, deviceId, and platform are required."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
