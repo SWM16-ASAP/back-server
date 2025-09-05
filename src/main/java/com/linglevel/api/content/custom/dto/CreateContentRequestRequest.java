@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
 @Getter
 @Setter
@@ -27,8 +28,8 @@ public class CreateContentRequestRequest {
     @NotBlank(message = "원본 콘텐츠는 필수입니다.")
     private String originalContent;
     
-    @Schema(description = "목표 난이도", example = "A1")
-    private DifficultyLevel targetDifficultyLevel;
+    @Schema(description = "목표 난이도 목록", example = "[\"A1\", \"B1\"]")
+    private List<DifficultyLevel> targetDifficultyLevels;
     
     @Schema(description = "원본 링크 URL (링크 타입인 경우)", example = "https://example.com/article")
     private String originUrl;

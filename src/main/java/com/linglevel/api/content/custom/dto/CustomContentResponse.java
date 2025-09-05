@@ -28,8 +28,8 @@ public class CustomContentResponse {
     @Schema(description = "AI가 분석한 최종 난이도", example = "A1")
     private DifficultyLevel difficultyLevel;
     
-    @Schema(description = "사용자가 요청한 목표 난이도", example = "A1")
-    private DifficultyLevel targetDifficultyLevel;
+    @Schema(description = "사용자가 요청한 목표 난이도 목록", example = "[\"A1\", \"B1\"]")
+    private List<DifficultyLevel> targetDifficultyLevels;
     
     @Schema(description = "청크 개수", example = "12")
     private Integer chunkCount;

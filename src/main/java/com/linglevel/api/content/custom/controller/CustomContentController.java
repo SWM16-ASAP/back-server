@@ -42,7 +42,6 @@ public class CustomContentController {
         @ApiResponse(responseCode = "401", description = "인증 실패",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @SecurityRequirement(name = "bearerAuth")
     @GetMapping
     public ResponseEntity<PageResponse<CustomContentResponse>> getCustomContents(
             @AuthenticationPrincipal String username,
@@ -65,7 +64,6 @@ public class CustomContentController {
         @ApiResponse(responseCode = "401", description = "인증 실패",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/{customContentId}")
     public ResponseEntity<CustomContentResponse> getCustomContent(
             @AuthenticationPrincipal String username,
@@ -91,7 +89,6 @@ public class CustomContentController {
         @ApiResponse(responseCode = "400", description = "잘못된 난이도 레벨",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/{customContentId}/chunks")
     public ResponseEntity<PageResponse<CustomContentChunkResponse>> getCustomContentChunks(
             @AuthenticationPrincipal String username,
@@ -116,7 +113,6 @@ public class CustomContentController {
         @ApiResponse(responseCode = "401", description = "인증 실패",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/{customContentId}/chunks/{chunkId}")
     public ResponseEntity<CustomContentChunkResponse> getCustomContentChunk(
             @AuthenticationPrincipal String username,
@@ -142,7 +138,6 @@ public class CustomContentController {
         @ApiResponse(responseCode = "401", description = "인증 실패",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @SecurityRequirement(name = "bearerAuth")
     @DeleteMapping("/{customContentId}")
     public ResponseEntity<MessageResponse> deleteCustomContent(
             @AuthenticationPrincipal String username,

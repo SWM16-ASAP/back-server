@@ -17,8 +17,8 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "contentRequests")
-public class ContentRequest {
+@Document(collection = "customContents")
+public class CustomContent {
     
     @Id
     private String id;
@@ -28,37 +28,49 @@ public class ContentRequest {
     private String userId;
 
     @NotNull
-    private String title;
+    @Indexed
+    private String contentRequestId;
+
+    @Builder.Default
+    private Boolean isDeleted = false;
 
     @NotNull
-    private ContentType contentType;
+    private String title;
 
-    private String originAuthor;
+    private String author;
+
+    private String coverImageUrl;
+
+    @NotNull
+    private Integer chunkCount;
+
+    @NotNull
+    private DifficultyLevel difficultyLevel;
 
     private List<DifficultyLevel> targetDifficultyLevels;
+
+    private Integer readingTime;
+
+    @Builder.Default
+    private Double averageRating = 0.0;
+
+    @Builder.Default
+    private Integer reviewCount = 0;
+
+    @Builder.Default
+    private Integer viewCount = 0;
+
+    private List<String> tags;
 
     private String originUrl;
 
     private String originDomain;
 
-    @NotNull
-    @Builder.Default
-    private ContentRequestStatus status = ContentRequestStatus.PENDING;
-
-    @Builder.Default
-    private Integer progress = 0;
-
     @CreatedDate
     private LocalDateTime createdAt;
 
-    private LocalDateTime completedAt;
-
-    private LocalDateTime deletedAt;
-
-    private String errorMessage;
-
-    private String resultCustomContentId;
-
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    private LocalDateTime deletedAt;
 }

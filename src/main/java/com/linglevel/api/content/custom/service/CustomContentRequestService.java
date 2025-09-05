@@ -42,7 +42,7 @@ public class CustomContentRequestService {
                 .userId(user.getId())
                 .title(request.getTitle())
                 .contentType(request.getContentType())
-                .targetDifficultyLevel(request.getTargetDifficultyLevel())
+                .targetDifficultyLevels(request.getTargetDifficultyLevels())
                 .originUrl(request.getOriginUrl())
                 .originAuthor(request.getOriginAuthor())
                 .status(ContentRequestStatus.PENDING)
@@ -123,7 +123,7 @@ public class CustomContentRequestService {
         response.setId(contentRequest.getId());
         response.setTitle(contentRequest.getTitle());
         response.setContentType(contentRequest.getContentType().getCode());
-        response.setTargetDifficultyLevel(contentRequest.getTargetDifficultyLevel());
+        response.setTargetDifficultyLevels(contentRequest.getTargetDifficultyLevels());
         response.setOriginUrl(contentRequest.getOriginUrl());
         response.setOriginDomain(contentRequest.getOriginDomain());
         response.setOriginAuthor(contentRequest.getOriginAuthor());

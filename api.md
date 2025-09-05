@@ -1625,7 +1625,7 @@ Authorization: Bearer {AccessToken}
   "title": "My Custom Article",
   "contentType": "TEXT",
   "originalContent": "Once upon a time, there was a little prince who lived on a small planet...",
-  "targetDifficultyLevel": "A1",
+  "targetDifficultyLevels": ["A1", "B1"],
   "originUrl": null,
   "originAuthor": null
 }
@@ -1634,7 +1634,7 @@ Authorization: Bearer {AccessToken}
 - `title`: 콘텐츠 제목 (필수)
 - `contentType`: 콘텐츠 타입 (필수)
 - `originalContent`: 처리할 원본 텍스트 (CLIPBOARD 타입인 경우 필수)
-- `targetDifficultyLevel`: 목표 난이도 - `A0`, `A1`, `A2`, `B1`, `B2`, `C1`, `C2` (선택사항)
+- `targetDifficultyLevels`: 목표 난이도 배열 - `["A1", "B1"]` 형태, 각 항목은 `A0`, `A1`, `A2`, `B1`, `B2`, `C1`, `C2` 중 하나 (선택사항)
 - `originUrl`: 원본 링크 URL (링크 타입인 경우)
 - `originAuthor`: 원본 저자 (선택사항)
 
@@ -1679,7 +1679,7 @@ Authorization: Bearer {AccessToken}
       "id": "60d0fe4f5311236168a109ca",
       "title": "My Custom Article",
       "contentType": "CLIPBOARD",
-      "targetDifficultyLevel": "A1",
+      "targetDifficultyLevels": ["A1", "B1"],
       "originUrl": null,
       "originDomain": null,
       "originAuthor": null,
@@ -1694,7 +1694,7 @@ Authorization: Bearer {AccessToken}
       "id": "60d0fe4f5311236168a109cb",
       "title": "Tech News Article",
       "contentType": "LINK",
-      "targetDifficultyLevel": "B1",
+      "targetDifficultyLevels": ["B1"],
       "originUrl": "https://techcrunch.com/example-article",
       "originDomain": "techcrunch.com",
       "originAuthor": "TechCrunch",
@@ -1752,7 +1752,7 @@ Authorization: Bearer {AccessToken}
   "id": "60d0fe4f5311236168a109ca",
   "title": "My Custom Article",
   "contentType": "CLIPBOARD",
-  "targetDifficultyLevel": "A1",
+  "targetDifficultyLevels": ["A1", "B1"],
   "originUrl": null,
   "originDomain": null,
   "originAuthor": null,
@@ -1801,7 +1801,7 @@ Authorization: Bearer {AccessToken}
       "author": "AI Generated",
       "coverImageUrl": "https://path/to/cover.jpg",
       "difficultyLevel": "A1",
-      "targetDifficultyLevel": "A1",
+      "targetDifficultyLevels": ["A1", "B1"],
       "chunkCount": 12,
       "readingTime": 8,
       "averageRating": 4.2,
@@ -1862,7 +1862,7 @@ Authorization: Bearer {AccessToken}
   "author": "AI Generated",
   "coverImageUrl": "https://path/to/cover.jpg",
   "difficultyLevel": "A1",
-  "targetDifficultyLevel": "A1",
+  "targetDifficultyLevels": ["A1", "B1"],
   "chunkCount": 12,
   "readingTime": 8,
   "averageRating": 4.2,

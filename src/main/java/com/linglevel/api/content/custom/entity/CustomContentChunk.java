@@ -10,55 +10,51 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "contentRequests")
-public class ContentRequest {
+@Document(collection = "customContentChunks")
+public class CustomContentChunk {
     
     @Id
     private String id;
 
     @NotNull
     @Indexed
+    private String customContentId;
+
+    @NotNull
+    @Indexed
     private String userId;
 
     @NotNull
-    private String title;
+    private DifficultyLevel difficultyLevel;
 
     @NotNull
-    private ContentType contentType;
-
-    private String originAuthor;
-
-    private List<DifficultyLevel> targetDifficultyLevels;
-
-    private String originUrl;
-
-    private String originDomain;
+    private Integer chapterNum;
 
     @NotNull
-    @Builder.Default
-    private ContentRequestStatus status = ContentRequestStatus.PENDING;
+    private Integer chunkNum;
+
+    @NotNull
+    private Boolean isImage;
+
+    @NotNull
+    private String chunkText;
+
+    private String description;
 
     @Builder.Default
-    private Integer progress = 0;
+    private Boolean isDeleted = false;
 
     @CreatedDate
     private LocalDateTime createdAt;
 
-    private LocalDateTime completedAt;
-
-    private LocalDateTime deletedAt;
-
-    private String errorMessage;
-
-    private String resultCustomContentId;
-
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    private LocalDateTime deletedAt;
 }

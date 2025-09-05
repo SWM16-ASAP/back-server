@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -21,8 +22,8 @@ public class ContentRequestResponse {
     @Schema(description = "콘텐츠 타입", example = "CLIPBOARD")
     private String contentType;
     
-    @Schema(description = "목표 난이도", example = "A1")
-    private DifficultyLevel targetDifficultyLevel;
+    @Schema(description = "목표 난이도 목록", example = "[\"A1\", \"B1\"]")
+    private List<DifficultyLevel> targetDifficultyLevels;
     
     @Schema(description = "원본 URL", example = "https://example.com/article")
     private String originUrl;

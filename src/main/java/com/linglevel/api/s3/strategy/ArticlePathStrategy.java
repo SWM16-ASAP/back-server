@@ -10,11 +10,11 @@ public class ArticlePathStrategy implements S3PathStrategy {
     private static final String BASE_DIR = "article";
     private static final String IMAGES_DIR = "/images/";
     private static final String COVER_FILENAME = "cover.jpg";
-    private static final String JSON_EXTENSION = ".json";
+    private static final String METADATA_FILENAME = "metadata.json";
 
     @Override
     public String generateJsonFilePath(String articleId) {
-        return generateBasePath(articleId) + "/" + articleId + JSON_EXTENSION;
+        return generateBasePath(articleId) + "/" + METADATA_FILENAME;
     }
 
     @Override
