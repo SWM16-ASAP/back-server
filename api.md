@@ -1623,7 +1623,7 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "title": "My Custom Article",
-  "contentType": "CLIPBOARD",
+  "contentType": "TEXT",
   "originalContent": "Once upon a time, there was a little prince who lived on a small planet...",
   "targetDifficultyLevel": "A1",
   "originUrl": null,
@@ -1632,7 +1632,7 @@ Authorization: Bearer {AccessToken}
 ```
 
 - `title`: 콘텐츠 제목 (필수)
-- `contentType`: 콘텐츠 타입 - `CLIPBOARD`, `LINK`, `BBC` (필수)
+- `contentType`: 콘텐츠 타입 (필수)
 - `originalContent`: 처리할 원본 텍스트 (CLIPBOARD 타입인 경우 필수)
 - `targetDifficultyLevel`: 목표 난이도 - `A0`, `A1`, `A2`, `B1`, `B2`, `C1`, `C2` (선택사항)
 - `originUrl`: 원본 링크 URL (링크 타입인 경우)
@@ -1693,7 +1693,7 @@ Authorization: Bearer {AccessToken}
     {
       "id": "60d0fe4f5311236168a109cb",
       "title": "Tech News Article",
-      "contentType": "NEWS_LINK",
+      "contentType": "LINK",
       "targetDifficultyLevel": "B1",
       "originUrl": "https://techcrunch.com/example-article",
       "originDomain": "techcrunch.com",

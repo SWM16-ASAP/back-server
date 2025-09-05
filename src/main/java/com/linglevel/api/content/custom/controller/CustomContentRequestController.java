@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -44,12 +44,13 @@ public class CustomContentRequestController {
         @ApiResponse(responseCode = "401", description = "인증 실패",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @SecurityRequirement(name = "bearerAuth")
     @PostMapping
     public ResponseEntity<CreateContentRequestResponse> createContentRequest(
-            @AuthenticationPrincipal String username,
-            @Valid @RequestBody CreateContentRequestRequest request) {
+            @Parameter(description = "콘텐츠 처리 요청 생성", required = true) 
+            @Valid @RequestBody CreateContentRequestRequest request,
+            Authentication authentication) {
         
+        String username = authentication.getName();
         CreateContentRequestResponse response = customContentRequestService.createContentRequest(username, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -63,12 +64,12 @@ public class CustomContentRequestController {
         @ApiResponse(responseCode = "401", description = "인증 실패",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @SecurityRequirement(name = "bearerAuth")
     @GetMapping
     public ResponseEntity<PageResponse<ContentRequestResponse>> getContentRequests(
-            @AuthenticationPrincipal String username,
-            @ParameterObject @ModelAttribute GetContentRequestsRequest request) {
+            @ParameterObject @ModelAttribute GetContentRequestsRequest request,
+            Authentication authentication) {
         
+        String username = authentication.getName();
         PageResponse<ContentRequestResponse> response = customContentRequestService.getContentRequests(username, request);
         return ResponseEntity.ok(response);
     }
@@ -86,13 +87,13 @@ public class CustomContentRequestController {
         @ApiResponse(responseCode = "401", description = "인증 실패",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/{requestId}")
     public ResponseEntity<ContentRequestResponse> getContentRequest(
-            @AuthenticationPrincipal String username,
             @Parameter(description = "요청 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String requestId) {
+            @PathVariable String requestId,
+            Authentication authentication) {
         
+        String username = authentication.getName();
         ContentRequestResponse response = customContentRequestService.getContentRequest(username, requestId);
         return ResponseEntity.ok(response);
     }

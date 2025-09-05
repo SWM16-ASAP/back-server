@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +32,7 @@ public class FcmController {
     private final UserRepository userRepository;
 
     @Operation(summary = "FCM 토큰 등록/업데이트", 
-               description = "사용자의 FCM 토큰을 등록하거나 업데이트합니다. 동일한 사용자+디바이스 조합이 이미 존재하는 경우 토큰을 업데이트하고, 존재하지 않는 경우 새로 생성합니다.",
-               security = {@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")})
+               description = "사용자의 FCM 토큰을 등록하거나 업데이트합니다. 동일한 사용자+디바이스 조합이 이미 존재하는 경우 토큰을 업데이트하고, 존재하지 않는 경우 새로 생성합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "FCM 토큰 업데이트 성공",
                     content = @Content(schema = @Schema(implementation = FcmTokenUpdateResponse.class))),
