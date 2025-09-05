@@ -12,33 +12,29 @@ public class ArticlePathStrategy implements S3PathStrategy {
     private static final String COVER_FILENAME = "cover.jpg";
     private static final String JSON_EXTENSION = ".json";
 
-    private String getBasePathWithId(String articleId) {
-        return BASE_DIR + "/" + articleId;
-    }
-
     @Override
     public String generateJsonFilePath(String articleId) {
-        return getBasePathWithId(articleId) + "/" + articleId + JSON_EXTENSION;
+        return generateBasePath(articleId) + "/" + articleId + JSON_EXTENSION;
     }
 
     @Override
     public String generateImageFolderPath(String articleId) {
-        return getBasePathWithId(articleId) + IMAGES_DIR;
+        return generateBasePath(articleId) + IMAGES_DIR;
     }
 
     @Override
     public String generateCoverImagePath(String articleId) {
-        return getBasePathWithId(articleId) + IMAGES_DIR + COVER_FILENAME;
+        return generateBasePath(articleId) + IMAGES_DIR + COVER_FILENAME;
     }
 
     @Override
     public String generateImagePath(String articleId, String imageFileName) {
-        return getBasePathWithId(articleId) + IMAGES_DIR + imageFileName;
+        return generateBasePath(articleId) + IMAGES_DIR + imageFileName;
     }
 
     @Override
     public String generateBasePath(String articleId) {
-        return getBasePathWithId(articleId);
+        return BASE_DIR + "/" + articleId;
     }
 
     @Override

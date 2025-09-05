@@ -68,7 +68,8 @@ jobs:
               -e MONGODB_DATABASE_DEV=${{ secrets.MONGODB_DATABASE_DEV }} \
               -e S3_REGION=${{ secrets.S3_REGION }} \
               -e S3_STATIC_NAME=${{ secrets.S3_STATIC_NAME }} \
-              -e S3_AI_NAME=${{ secrets.S3_AI_NAME }} \
+              -e S3_AI_INPUT_NAME=${{ secrets.S3_AI_INPUT_NAME }} \
+              -e S3_AI_OUTPUT_NAME=${{ secrets.S3_AI_OUTPUT_NAME }} \
               -e IMPORT_API_KEY=${{ secrets.IMPORT_API_KEY }} \
               -e AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }} \
               -e AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }} \

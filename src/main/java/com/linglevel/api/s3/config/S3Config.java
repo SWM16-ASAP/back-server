@@ -23,8 +23,11 @@ public class S3Config {
     @Value("${aws.s3.static.bucket}")
     private String staticBucketName;
 
-    @Value("${aws.s3.ai.bucket}")
-    private String aiBucketName;
+    @Value("${aws.s3.ai.input.bucket}")
+    private String aiInputBucketName;
+
+    @Value("${aws.s3.ai.output.bucket}")
+    private String aiOutputBucketName;
 
     @Bean("s3AiClient")
     public S3Client s3AiClient() {
@@ -36,9 +39,14 @@ public class S3Config {
         return createS3Client();
     }
 
-    @Bean("aiBucketName")
-    public String aiBucketName() {
-        return aiBucketName;
+    @Bean("aiInputBucketName")
+    public String aiInputBucketName() {
+        return aiInputBucketName;
+    }
+
+    @Bean("aiOutputBucketName")
+    public String aiOutputBucketName() {
+        return aiOutputBucketName;
     }
 
     @Bean("staticBucketName")

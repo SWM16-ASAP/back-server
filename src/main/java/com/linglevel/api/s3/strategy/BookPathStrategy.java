@@ -12,33 +12,29 @@ public class BookPathStrategy implements S3PathStrategy {
     private static final String COVER_FILENAME = "cover.jpg";
     private static final String JSON_EXTENSION = ".json";
 
-    private String getBasePathWithId(String bookId) {
-        return BASE_DIR + "/" + bookId;
-    }
-
     @Override
     public String generateJsonFilePath(String bookId) {
-        return getBasePathWithId(bookId) + "/" + bookId + JSON_EXTENSION;
+        return generateBasePath(bookId) + "/" + bookId + JSON_EXTENSION;
     }
 
     @Override
     public String generateImageFolderPath(String bookId) {
-        return getBasePathWithId(bookId) + IMAGES_DIR;
+        return generateBasePath(bookId) + IMAGES_DIR;
     }
 
     @Override
     public String generateCoverImagePath(String bookId) {
-        return getBasePathWithId(bookId) + IMAGES_DIR + COVER_FILENAME;
+        return generateBasePath(bookId) + IMAGES_DIR + COVER_FILENAME;
     }
 
     @Override
     public String generateImagePath(String bookId, String imageFileName) {
-        return getBasePathWithId(bookId) + IMAGES_DIR + imageFileName;
+        return generateBasePath(bookId) + IMAGES_DIR + imageFileName;
     }
 
     @Override
     public String generateBasePath(String bookId) {
-        return getBasePathWithId(bookId);
+        return BASE_DIR + "/" + bookId;
     }
 
     @Override
