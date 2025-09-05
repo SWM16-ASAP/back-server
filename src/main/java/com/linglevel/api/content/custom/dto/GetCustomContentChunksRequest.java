@@ -14,7 +14,7 @@ public class GetCustomContentChunksRequest {
     
     @Schema(description = "청크의 난이도", example = "A1", required = true)
     @NotNull(message = "난이도는 필수입니다.")
-    private DifficultyLevel difficulty;
+    private DifficultyLevel difficultyLevel;
     
     @Schema(description = "페이지 번호", example = "1", defaultValue = "1")
     private Integer page = 1;
