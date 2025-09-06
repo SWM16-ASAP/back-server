@@ -15,5 +15,7 @@ public interface CustomContentRepository extends MongoRepository<CustomContent, 
     
     Optional<CustomContent> findByIdAndUserIdAndIsDeletedFalse(String id, String userId);
     
+    Optional<CustomContent> findByIdAndIsDeletedFalse(String id);
+    
     Optional<CustomContent> findByContentRequestIdAndIsDeletedFalse(String contentRequestId);
 }

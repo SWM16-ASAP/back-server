@@ -24,7 +24,7 @@ public class CustomContentReadingTimeService {
 
     @Transactional
     public void updateReadingTime(String customContentId) {
-        CustomContent customContent = customContentRepository.findById(customContentId)
+        CustomContent customContent = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
         List<CustomContentChunk> chunks = customContentChunkRepository.findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(

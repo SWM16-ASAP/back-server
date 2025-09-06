@@ -19,6 +19,9 @@ public interface CustomContentChunkRepository extends MongoRepository<CustomCont
     
     List<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId, DifficultyLevel difficultyLevel);
     
+    @Query("{ 'customContentId': ?0, 'difficultyLevel': ?1, 'isDeleted': false }")
+    Page<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId, DifficultyLevel difficultyLevel, Pageable pageable);
+    
     List<CustomContentChunk> findByUserIdAndIsDeletedFalse(String userId);
     
     Page<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(

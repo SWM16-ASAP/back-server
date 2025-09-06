@@ -5,8 +5,10 @@ import com.linglevel.api.content.custom.dto.CustomContentResponse;
 import com.linglevel.api.content.custom.dto.GetCustomContentsRequest;
 import com.linglevel.api.content.custom.dto.UpdateCustomContentRequest;
 import com.linglevel.api.content.custom.entity.CustomContent;
+import com.linglevel.api.content.custom.entity.CustomContentChunk;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
+import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
@@ -29,6 +31,7 @@ import java.util.List;
 public class CustomContentService {
 
     private final CustomContentRepository customContentRepository;
+    private final CustomContentChunkRepository customContentChunkRepository;
     private final UserRepository userRepository;
     private final MongoTemplate mongoTemplate;
 
@@ -117,9 +120,21 @@ public class CustomContentService {
         CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, user.getId())
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
+        // Soft delete the main content
         content.setIsDeleted(true);
         content.setDeletedAt(LocalDateTime.now());
         customContentRepository.save(content);
+
+        // Cascade soft delete to all related chunks
+        List<CustomContentChunk> chunks = customContentChunkRepository.findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(customContentId);
+        if (!chunks.isEmpty()) {
+            chunks.forEach(chunk -> {
+                chunk.setIsDeleted(true);
+                chunk.setDeletedAt(LocalDateTime.now());
+            });
+            customContentChunkRepository.saveAll(chunks);
+            log.info("Soft deleted {} related chunks for custom content: {}", chunks.size(), customContentId);
+        }
     }
 
     private CustomContentResponse mapToResponse(CustomContent content) {
