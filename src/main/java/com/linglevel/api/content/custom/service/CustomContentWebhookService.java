@@ -1,21 +1,24 @@
 package com.linglevel.api.content.custom.service;
 
-import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.custom.dto.*;
-import com.linglevel.api.content.custom.entity.*;
+import com.linglevel.api.content.custom.entity.ContentRequest;
+import com.linglevel.api.content.custom.entity.ContentRequestStatus;
+import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
-import com.linglevel.api.content.custom.repository.*;
+import com.linglevel.api.content.custom.repository.ContentRequestRepository;
+import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.s3.service.S3AiService;
+import com.linglevel.api.s3.service.S3TransferService;
+import com.linglevel.api.s3.service.S3UrlService;
 import com.linglevel.api.s3.strategy.CustomContentPathStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,8 +27,11 @@ public class CustomContentWebhookService {
 
     private final ContentRequestRepository contentRequestRepository;
     private final CustomContentRepository customContentRepository;
-    private final CustomContentChunkRepository customContentChunkRepository;
+    private final CustomContentImportService customContentImportService;
+    private final CustomContentReadingTimeService customContentReadingTimeService;
     private final S3AiService s3AiService;
+    private final S3TransferService s3TransferService;
+    private final S3UrlService s3UrlService;
     private final CustomContentPathStrategy pathStrategy;
     private final CustomContentNotificationService notificationService;
 
@@ -34,32 +40,38 @@ public class CustomContentWebhookService {
         log.info("Handling content completion for request: {}", request.getRequestId());
         
         try {
-            // 1. ContentRequest 조회
+            // 1. Get ContentRequest and AiResultDto
             ContentRequest contentRequest = contentRequestRepository.findById(request.getRequestId())
                     .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
             
-            // 2. S3에서 AI 결과 JSON 다운로드
             AiResultDto aiResult = s3AiService.downloadJsonFile(
                     request.getRequestId(), 
                     AiResultDto.class, 
                     pathStrategy
             );
             
-            // 3. CustomContent 및 CustomContentChunk 엔티티 생성
-            List<CustomContent> customContents = createCustomContentsFromAiResult(contentRequest, aiResult);
+            // 2. Create the main CustomContent entity
+            CustomContent savedContent = customContentImportService.createCustomContent(contentRequest, aiResult);
+
+            // 3. Transfer S3 images from AI temp location to static location (outside transaction for performance)
+            transferS3ImagesAndUpdateCoverUrl(request.getRequestId(), savedContent, aiResult);
             
-            // 4. 데이터베이스 저장
-            customContentRepository.saveAll(customContents);
-            
-            // 5. ContentRequest 상태 업데이트
+            // Save updated content with permanent cover image URL
+            savedContent = customContentRepository.save(savedContent);
+
+            // 5. Create all associated chunks with permanent image URLs
+            customContentImportService.createCustomContentChunks(savedContent, aiResult);
+
+            // 6. Calculate and update reading time
+            customContentReadingTimeService.updateReadingTime(savedContent.getId());
+
+            // 7. Update ContentRequest status
+            contentRequest.setResultCustomContentId(savedContent.getId());
             contentRequest.setStatus(ContentRequestStatus.COMPLETED);
             contentRequest.setCompletedAt(LocalDateTime.now());
-            if (!customContents.isEmpty()) {
-                contentRequest.setResultCustomContentId(customContents.get(0).getId());
-            }
             contentRequestRepository.save(contentRequest);
-            
-            // 6. FCM 알림 전송
+
+            // 8. Send notification
             notificationService.sendContentCompletedNotification(
                     contentRequest.getUserId(),
                     request.getRequestId(),
@@ -74,87 +86,13 @@ public class CustomContentWebhookService {
                     .build();
                     
         } catch (Exception e) {
-            log.error("Failed to process content completion for request: {}", request.getRequestId(), e);
+            log.error("Failed to process content completion for request: {}. Error: {}", request.getRequestId(), e.getMessage());
             
-            // ContentRequest 상태를 FAILED로 업데이트
-            ContentRequest contentRequest = contentRequestRepository.findById(request.getRequestId())
-                    .orElse(null);
-            if (contentRequest != null) {
-                contentRequest.setStatus(ContentRequestStatus.FAILED);
-                contentRequest.setErrorMessage("AI 결과 처리 실패: " + e.getMessage());
-                contentRequestRepository.save(contentRequest);
-            }
+            // Handle failure case with proper exception handling
+            handleContentProcessingFailure(request.getRequestId(), e);
             
-            throw new CustomContentException(CustomContentErrorCode.AI_RESULT_PROCESSING_FAILED);
+            throw new CustomContentException(CustomContentErrorCode.AI_RESULT_PROCESSING_FAILED, e.getMessage());
         }
-    }
-    
-    private List<CustomContent> createCustomContentsFromAiResult(ContentRequest contentRequest, AiResultDto aiResult) {
-        List<CustomContent> customContents = new ArrayList<>();
-        
-        for (AiResultDto.LeveledResult leveledResult : aiResult.getLeveledResults()) {
-            DifficultyLevel difficultyLevel = DifficultyLevel.fromCode(leveledResult.getTextLevel());
-            
-            // 각 난이도별로 CustomContent 생성
-            CustomContent customContent = CustomContent.builder()
-                    .userId(contentRequest.getUserId())
-                    .contentRequestId(contentRequest.getId())
-                    .title(aiResult.getTitle())
-                    .author(aiResult.getAuthor())
-                    .coverImageUrl(aiResult.getCoverImageUrl())
-                    .difficultyLevel(difficultyLevel)
-                    .targetDifficultyLevels(contentRequest.getTargetDifficultyLevels())
-                    .chunkCount(calculateTotalChunkCount(leveledResult))
-                    .originUrl(contentRequest.getOriginUrl())
-                    .originDomain(contentRequest.getOriginDomain())
-                    .build();
-            
-            customContent = customContentRepository.save(customContent);
-            customContents.add(customContent);
-            
-            // CustomContentChunk 생성
-            List<CustomContentChunk> chunks = createChunksFromLeveledResult(
-                    customContent, 
-                    leveledResult, 
-                    contentRequest.getUserId()
-            );
-            customContentChunkRepository.saveAll(chunks);
-        }
-        
-        return customContents;
-    }
-    
-    private Integer calculateTotalChunkCount(AiResultDto.LeveledResult leveledResult) {
-        return leveledResult.getChapters().stream()
-                .mapToInt(chapter -> chapter.getChunks().size())
-                .sum();
-    }
-    
-    private List<CustomContentChunk> createChunksFromLeveledResult(
-            CustomContent customContent, 
-            AiResultDto.LeveledResult leveledResult,
-            String userId) {
-        
-        List<CustomContentChunk> chunks = new ArrayList<>();
-        
-        for (AiResultDto.Chapter chapter : leveledResult.getChapters()) {
-            for (AiResultDto.Chunk chunkData : chapter.getChunks()) {
-                CustomContentChunk chunk = CustomContentChunk.builder()
-                        .customContentId(customContent.getId())
-                        .userId(userId)
-                        .difficultyLevel(customContent.getDifficultyLevel())
-                        .chapterNum(chapter.getChapterNum())
-                        .chunkNum(chunkData.getChunkNum())
-                        .isImage(chunkData.getIsImage())
-                        .chunkText(chunkData.getChunkText())
-                        .description(chunkData.getDescription())
-                        .build();
-                
-                chunks.add(chunk);
-            }
-        }
-        
-        return chunks;
     }
 
     @Transactional
@@ -169,7 +107,6 @@ public class CustomContentWebhookService {
             contentRequest.setErrorMessage(request.getErrorMessage());
             contentRequestRepository.save(contentRequest);
             
-            // FCM 실패 알림 전송
             notificationService.sendContentFailedNotification(
                     contentRequest.getUserId(),
                     request.getRequestId(),
@@ -180,8 +117,8 @@ public class CustomContentWebhookService {
             log.info("Updated request status to FAILED for request: {}", request.getRequestId());
             
         } catch (Exception e) {
-            log.error("Failed to handle content failure for request: {}", request.getRequestId(), e);
-            throw new CustomContentException(CustomContentErrorCode.WEBHOOK_PROCESSING_FAILED);
+            log.error("Failed to handle content failure for request: {}. Error: {}", request.getRequestId(), e.getMessage());
+            throw new CustomContentException(CustomContentErrorCode.WEBHOOK_PROCESSING_FAILED, e.getMessage());
         }
     }
 
@@ -200,8 +137,37 @@ public class CustomContentWebhookService {
             log.info("Updated progress to {}% for request: {}", request.getProgress(), request.getRequestId());
             
         } catch (Exception e) {
-            log.error("Failed to handle content progress for request: {}", request.getRequestId(), e);
-            throw new CustomContentException(CustomContentErrorCode.WEBHOOK_PROCESSING_FAILED);
+            log.error("Failed to handle content progress for request: {}. Error: {}", request.getRequestId(), e.getMessage());
+            throw new CustomContentException(CustomContentErrorCode.WEBHOOK_PROCESSING_FAILED, e.getMessage());
+        }
+    }
+
+    private void transferS3ImagesAndUpdateCoverUrl(String requestId, CustomContent customContent, AiResultDto aiResult) {
+        try {
+            s3TransferService.transferImagesFromAiToStatic(requestId, customContent.getId(), pathStrategy);
+            
+            if (StringUtils.hasText(aiResult.getCoverImageUrl())) {
+                String permanentCoverImageUrl = s3UrlService.getCoverImageUrl(customContent.getId(), pathStrategy);
+                customContent.setCoverImageUrl(permanentCoverImageUrl);
+            }
+        } catch (Exception e) {
+            log.error("Failed to transfer S3 images for content: {}. Error: {}", customContent.getId(), e.getMessage());
+            // Don't fail the entire process for S3 transfer issues
+        }
+    }
+    
+    private void handleContentProcessingFailure(String requestId, Exception originalException) {
+        try {
+            ContentRequest contentRequest = contentRequestRepository.findById(requestId)
+                    .orElse(null);
+            if (contentRequest != null) {
+                contentRequest.setStatus(ContentRequestStatus.FAILED);
+                contentRequest.setErrorMessage("AI 결과 처리 실패: " + originalException.getMessage());
+                contentRequestRepository.save(contentRequest);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update content request status to FAILED for request: {}. Error: {}", requestId, e.getMessage());
+            // Don't throw exception here to preserve original exception
         }
     }
 }

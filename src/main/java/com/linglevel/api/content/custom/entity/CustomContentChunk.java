@@ -1,5 +1,6 @@
 package com.linglevel.api.content.custom.entity;
 
+import com.linglevel.api.content.common.ChunkType;
 import com.linglevel.api.content.common.DifficultyLevel;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -40,7 +41,7 @@ public class CustomContentChunk {
     private Integer chunkNum;
 
     @NotNull
-    private Boolean isImage;
+    private ChunkType type;
 
     @NotNull
     private String chunkText;

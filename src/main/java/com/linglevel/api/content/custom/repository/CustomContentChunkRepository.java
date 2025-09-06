@@ -7,12 +7,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.mongodb.repository.Query;
+
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface CustomContentChunkRepository extends MongoRepository<CustomContentChunk, String> {
-    
+
     List<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId);
     
     List<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId, DifficultyLevel difficultyLevel);
@@ -22,7 +24,7 @@ public interface CustomContentChunkRepository extends MongoRepository<CustomCont
     Page<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
             String customContentId, Pageable pageable);
     
-    Optional<CustomContentChunk> findByIdAndCustomContentId(String id, String customContentId);
+    Optional<CustomContentChunk> findByIdAndCustomContentIdAndIsDeletedFalse(String id, String customContentId);
     
     long countByCustomContentIdAndIsDeletedFalse(String customContentId);
 }

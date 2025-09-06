@@ -15,11 +15,11 @@ public class CustomContentChunkService {
 
     public PageResponse<CustomContentChunkResponse> getCustomContentChunks(String userId, String customContentId, GetCustomContentChunksRequest request) {
         log.info("Getting custom content chunks for content {} and user: {}", customContentId, userId);
-        throw new CustomContentException(CustomContentErrorCode.SERVICE_NOT_IMPLEMENTED);
+        throw new CustomContentException(CustomContentErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE);
     }
 
     public CustomContentChunkResponse getCustomContentChunk(String userId, String customContentId, String chunkId) {
         log.info("Getting custom content chunk {} from content {} for user: {}", chunkId, customContentId, userId);
-        throw new CustomContentException(CustomContentErrorCode.SERVICE_NOT_IMPLEMENTED);
+        throw new CustomContentException(CustomContentErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE);
     }
 }

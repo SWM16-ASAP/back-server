@@ -1632,8 +1632,8 @@ Authorization: Bearer {AccessToken}
 ```
 
 - `title`: 콘텐츠 제목 (필수)
-- `contentType`: 콘텐츠 타입 (필수)
-- `originalContent`: 처리할 원본 텍스트 (CLIPBOARD 타입인 경우 필수)
+- `contentType`: 콘텐츠 타입 (필수) - `TEXT` 또는 `LINK`
+- `originalContent`: 처리할 원본 텍스트 (TEXT 타입인 경우 필수)
 - `targetDifficultyLevels`: 목표 난이도 배열 - `["A1", "B1"]` 형태, 각 항목은 `A0`, `A1`, `A2`, `B1`, `B2`, `C1`, `C2` 중 하나 (선택사항)
 - `originUrl`: 원본 링크 URL (링크 타입인 경우)
 - `originAuthor`: 원본 저자 (선택사항)
@@ -1641,9 +1641,10 @@ Authorization: Bearer {AccessToken}
 #### **Success Response (201 Created)**
 ```json
 {
-  "id": "60d0fe4f5311236168a109ca",
+  "requestId": "60d0fe4f5311236168a109ca",
+  "title": "My Custom Article",
   "status": "PENDING",
-  "message": "Content processing request created successfully"
+  "createdAt": "2024-01-15T10:00:00"
 }
 ```
 
@@ -1678,7 +1679,7 @@ Authorization: Bearer {AccessToken}
     {
       "id": "60d0fe4f5311236168a109ca",
       "title": "My Custom Article",
-      "contentType": "CLIPBOARD",
+      "contentType": "TEXT",
       "targetDifficultyLevels": ["A1", "B1"],
       "originUrl": null,
       "originDomain": null,
@@ -1693,7 +1694,7 @@ Authorization: Bearer {AccessToken}
     {
       "id": "60d0fe4f5311236168a109cb",
       "title": "Tech News Article",
-      "contentType": "LINK",
+      "contentType": "TEXT",
       "targetDifficultyLevels": ["B1"],
       "originUrl": "https://techcrunch.com/example-article",
       "originDomain": "techcrunch.com",
@@ -1751,7 +1752,7 @@ Authorization: Bearer {AccessToken}
 {
   "id": "60d0fe4f5311236168a109ca",
   "title": "My Custom Article",
-  "contentType": "CLIPBOARD",
+  "contentType": "TEXT",
   "targetDifficultyLevels": ["A1", "B1"],
   "originUrl": null,
   "originDomain": null,
@@ -1880,6 +1881,81 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "message": "Custom content not found."
+}
+```
+
+### `PATCH /custom-contents/{customContentId}`
+
+커스텀 콘텐츠의 제목이나 태그를 수정합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터 | 타입 | 설명 |
+|:---------|:-----|:-----|
+| `customContentId` | String | 수정할 커스텀 콘텐츠의 고유 ID |
+
+#### **Request Body**
+```json
+{
+  "title": "Updated Custom Article Title",
+  "tags": ["technology", "updated", "beginner"]
+}
+```
+- `title`: 수정할 제목 (선택사항)
+- `tags`: 수정할 태그 배열 (선택사항)
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "title": "Updated Custom Article Title",
+  "author": "AI Generated",
+  "coverImageUrl": "https://path/to/cover.jpg",
+  "difficultyLevel": "A1",
+  "targetDifficultyLevels": ["A1", "B1"],
+  "chunkCount": 12,
+  "readingTime": 8,
+  "averageRating": 4.2,
+  "reviewCount": 15,
+  "viewCount": 150,
+  "tags": ["technology", "updated", "beginner"],
+  "originUrl": null,
+  "originDomain": null,
+  "createdAt": "2024-01-15T10:05:00",
+  "updatedAt": "2024-01-15T11:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+#### **Error Response (403 Forbidden)**
+```json
+{
+  "message": "You can only modify your own custom content."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "At least one field (title or tags) must be provided."
 }
 ```
 
@@ -2060,13 +2136,12 @@ X-API-Key: {TempApiKey}
 ```
 
 - `requestId`: 처리 요청의 고유 ID (필수)
-- `resultJsonUrl`: AI 처리 결과가 저장된 JSON 파일의 S3 URL (필수)
 
 #### **Success Response (200 OK)**
 ```json
 {
-  "message": "Custom content created successfully",
-  "customContentId": "60d0fe4f5311236168a109cc"
+  "requestId": "60d0fe4f5311236168a109ca",
+  "status": "completed"
 }
 ```
 
