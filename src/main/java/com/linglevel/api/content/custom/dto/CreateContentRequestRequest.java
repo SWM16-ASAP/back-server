@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 @Getter
@@ -23,9 +24,10 @@ public class CreateContentRequestRequest {
     @NotNull(message = "콘텐츠 타입은 필수입니다.")
     private ContentType contentType;
     
-    @Schema(description = "처리할 원본 텍스트", 
+    @Schema(description = "처리할 원본 텍스트 (최대 10,000자)", 
             example = "Once upon a time, there was a little prince who lived on a small planet...")
     @NotBlank(message = "원본 콘텐츠는 필수입니다.")
+    @Size(max = 10000, message = "원본 콘텐츠는 최대 10,000자까지 입력 가능합니다.")
     private String originalContent;
     
     @Schema(description = "목표 난이도 목록", example = "[\"A1\", \"B1\"]")
