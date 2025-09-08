@@ -1518,6 +1518,99 @@ X-API-Key: {TempApiKey}
 }
 ```
 
+### `POST /admin/notifications/send`
+
+어드민 권한으로 사용자에게 FCM 푸시 알림을 전송합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "targets": ["userId1", "userId2"],
+  "title": "이벤트 안내",
+  "body": "새로운 이벤트가 시작되었습니다.",
+  "data": { "eventId": "12345" },
+  "priority": "high",
+  "ttl": 3600
+}
+```
+
+- `targets`: 알림을 받을 사용자 ID 배열 (필수)
+- `title`: 알림 제목 (필수)
+- `body`: 알림 내용 (필수)
+- `data`: 커스텀 데이터 객체 (선택)
+- `priority`: 우선순위 - "normal" 또는 "high" (선택, 기본값: "normal")
+- `ttl`: 메시지 유효 시간(초) (선택)
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Notification sent successfully.",
+  "sentCount": 2,
+  "failedCount": 0,
+  "details": {
+    "sentTokens": ["token1", "token2"],
+    "failedTokens": []
+  }
+}
+```
+
+- `sentCount`: 성공적으로 전송된 디바이스 수
+- `failedCount`: 전송 실패한 디바이스 수
+- `details`: 전송 결과 상세 정보
+
+#### **Success Response (200 OK) - 사용자에게 등록된 디바이스가 없는 경우**
+```json
+{
+  "message": "No FCM tokens found for user.",
+  "sentCount": 0,
+  "failedCount": 0,
+  "details": {
+    "sentTokens": [],
+    "failedTokens": []
+  }
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "User not found."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "target and notification are required."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+#### **API 사용 예시**
+
+```
+POST /api/v1/admin/notifications/send
+{
+  "targets": ["userId1", "userId2"],
+  "title": "이벤트 안내", 
+  "body": "새로운 이벤트가 시작되었습니다.",
+  "data": { "eventId": "12345" },
+  "priority": "high"
+}
+```
+
 ---
 
 ## 📱 앱 버전 관리 (App Version Management)
@@ -2222,7 +2315,7 @@ X-API-Key: {TempApiKey}
 ```json
 {
   "requestId": "60d0fe4f5311236168a109ca",
-  "progress": 75,
+  "progress": 75
 }
 ```
 
