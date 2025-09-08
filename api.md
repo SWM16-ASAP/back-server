@@ -272,10 +272,10 @@ X-API-Key: {TempApiKey}
 
 ```json
 {
-  "id": "string"
+  "requestId": "60d0fe4f5311236168a109ca"
 }
 ```
-- `id`: S3에 저장된 JSON 파일의 식별자 (예: "fdsljfi134" → "fdsljfi134.json" 파일을 조회)
+- `requestId`: 처리 요청의 고유 ID (필수)
 
 #### **Success Response (201 Created)**
 ```json
@@ -1518,6 +1518,131 @@ X-API-Key: {TempApiKey}
 }
 ```
 
+### `POST /admin/notifications/send`
+
+어드민 권한으로 사용자에게 FCM 푸시 알림을 전송합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "targets": ["userId1", "userId2"],
+  "title": "새로운 책이 추가되었습니다!",
+  "body": "The Little Prince가 업데이트되었습니다. 지금 읽어보세요.",
+  "data": { 
+    "deeplink": "/books/60d0fe4f5311236168a109ca",
+    "action": "open_book"
+  }
+}
+```
+
+- `targets`: 알림을 받을 사용자 ID 배열 (필수)
+- `title`: 알림 제목 (필수)
+- `body`: 알림 내용 (필수)
+- `data`: 커스텀 데이터 객체 (선택)
+  - `deeplink`: 앱 내 특정 화면으로 이동할 경로
+  - `action`: 수행할 액션 유형
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Notification sent successfully.",
+  "sentCount": 2,
+  "failedCount": 0,
+  "details": {
+    "sentTokens": ["token1", "token2"],
+    "failedTokens": []
+  }
+}
+```
+
+- `sentCount`: 성공적으로 전송된 디바이스 수
+- `failedCount`: 전송 실패한 디바이스 수
+- `details`: 전송 결과 상세 정보
+
+#### **Success Response (200 OK) - 사용자에게 등록된 디바이스가 없는 경우**
+```json
+{
+  "message": "No FCM tokens found for user.",
+  "sentCount": 0,
+  "failedCount": 0,
+  "details": {
+    "sentTokens": [],
+    "failedTokens": []
+  }
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "User not found."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "target and notification are required."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+#### **API 사용 예시**
+
+**1. 새 책 알림 (책 상세 페이지로 이동)**
+```
+POST /api/v1/admin/notifications/send
+{
+  "targets": ["userId1", "userId2"],
+  "title": "새로운 책이 추가되었습니다!",
+  "body": "The Little Prince가 업데이트되었습니다. 지금 읽어보세요.",
+  "data": { 
+    "deeplink": "/books/60d0fe4f5311236168a109ca",
+    "action": "open_book"
+  }
+}
+```
+
+**2. 커스텀 콘텐츠 완료 알림 (콘텐츠 보기로 이동)**
+```
+POST /api/v1/admin/notifications/send
+{
+  "targets": ["userId123"],
+  "title": "콘텐츠 처리 완료!",
+  "body": "요청하신 '나만의 기사'가 완성되었습니다.",
+  "data": { 
+    "deeplink": "/custom-contents/60d0fe4f5311236168a109cc",
+    "action": "open_custom_content"
+  }
+}
+```
+
+**3. 일반 공지사항 (홈으로 이동)**
+```
+POST /api/v1/admin/notifications/send
+{
+  "targets": ["userId1", "userId2", "userId3"],
+  "title": "시스템 업데이트 안내",
+  "body": "더 나은 서비스를 위해 시스템이 업데이트되었습니다.",
+  "data": { 
+    "deeplink": "/home",
+    "action": "open_home"
+  }
+}
+```
+
 ---
 
 ## 📱 앱 버전 관리 (App Version Management)
@@ -1607,6 +1732,651 @@ PATCH /api/v1/admin/version
 
 ---
 
+## 🎨 커스텀 콘텐츠 (Custom Contents)
+
+### `POST /custom-contents/requests`
+
+사용자가 텍스트를 입력하여 AI 콘텐츠 처리 요청을 생성합니다. 클립보드 텍스트나 웹 링크 크롤링을 통한 콘텐츠 처리를 요청할 수 있습니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Request Body**
+
+```json
+{
+  "title": "My Custom Article",
+  "contentType": "TEXT",
+  "originalContent": "Once upon a time, there was a little prince who lived on a small planet...",
+  "targetDifficultyLevels": ["A1", "B1"],
+  "originUrl": null,
+  "originAuthor": null
+}
+```
+
+- `title`: 콘텐츠 제목 (필수)
+- `contentType`: 콘텐츠 타입 (필수) - `TEXT` 또는 `LINK`
+- `originalContent`: 처리할 원본 텍스트 (TEXT 타입인 경우 필수)
+- `targetDifficultyLevels`: 목표 난이도 배열 - `["A1", "B1"]` 형태, 각 항목은 `A0`, `A1`, `A2`, `B1`, `B2`, `C1`, `C2` 중 하나 (선택사항)
+- `originUrl`: 원본 링크 URL (링크 타입인 경우)
+- `originAuthor`: 원본 저자 (선택사항)
+
+#### **Success Response (201 Created)**
+```json
+{
+  "requestId": "60d0fe4f5311236168a109ca",
+  "title": "My Custom Article",
+  "status": "PENDING",
+  "createdAt": "2024-01-15T10:00:00"
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "Title and contentType are required."
+}
+```
+
+### `GET /custom-contents/requests`
+
+사용자의 콘텐츠 처리 요청 목록을 조회합니다. 진행 중이거나 완료된 요청들을 상태별로 확인할 수 있습니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Query Parameters**
+
+| 파라미터  | 타입    | 필수 | 설명                                                 |
+| :-------- | :------ | :--- | :--------------------------------------------------- |
+| `status`  | String  | 아니요 | `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED` 상태별 필터링 |
+| `page`    | Integer | 아니요 (기본값: `1`) | 조회할 페이지 번호 |
+| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "title": "My Custom Article",
+      "contentType": "TEXT",
+      "targetDifficultyLevels": ["A1", "B1"],
+      "originUrl": null,
+      "originDomain": null,
+      "originAuthor": null,
+      "status": "PROCESSING",
+      "progress": 45,
+      "createdAt": "2024-01-15T10:00:00",
+      "completedAt": null,
+      "errorMessage": null,
+      "resultCustomContentId": null
+    },
+    {
+      "id": "60d0fe4f5311236168a109cb",
+      "title": "Tech News Article",
+      "contentType": "TEXT",
+      "targetDifficultyLevels": ["B1"],
+      "originUrl": "https://techcrunch.com/example-article",
+      "originDomain": "techcrunch.com",
+      "originAuthor": "TechCrunch",
+      "status": "COMPLETED",
+      "progress": 100,
+      "createdAt": "2024-01-14T15:30:00",
+      "completedAt": "2024-01-14T15:35:00",
+      "errorMessage": null,
+      "resultCustomContentId": "60d0fe4f5311236168a109cc"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 3,
+  "totalCount": 25,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회 (모든 요청)**
+```
+GET /api/v1/custom-contents/requests
+```
+
+**2. 완료된 요청만 조회**
+```
+GET /api/v1/custom-contents/requests?status=COMPLETED
+```
+
+**3. 진행 중인 요청만 조회**
+```
+GET /api/v1/custom-contents/requests?status=PROCESSING
+```
+
+### `GET /custom-contents/requests/{requestId}`
+
+특정 콘텐츠 처리 요청의 상세 정보를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터    | 타입   | 설명                   |
+| :---------- | :----- | :--------------------- |
+| `requestId` | String | 조회할 요청의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "title": "My Custom Article",
+  "contentType": "TEXT",
+  "targetDifficultyLevels": ["A1", "B1"],
+  "originUrl": null,
+  "originDomain": null,
+  "originAuthor": null,
+  "status": "COMPLETED",
+  "progress": 100,
+  "createdAt": "2024-01-15T10:00:00",
+  "completedAt": "2024-01-15T10:05:00",
+  "errorMessage": null,
+  "resultCustomContentId": "60d0fe4f5311236168a109cc"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Content request not found."
+}
+```
+
+### `GET /custom-contents`
+
+완료된 커스텀 콘텐츠 목록을 조회합니다. 기본적으로 최신순으로 정렬되며, 선택적으로 태그나 키워드 필터를 적용할 수 있습니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Query Parameters**
+
+| 파라미터  | 타입    | 필수 | 설명                                                               |
+| :-------- | :------ | :--- | :----------------------------------------------------------------- |
+| `sort_by` | String  | 아니요 (기본값: `created_at`) | `view_count` (조회수순), `average_rating` (평점순), `created_at` (최신순) 중 하나 |
+| `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: \"technology,beginner\"). 제공 시 해당 태그가 포함된 콘텐츠만 조회 |
+| `keyword` | String  | 아니요                       | 검색할 콘텐츠 제목 또는 작가 이름 (부분 일치 검색) |
+| `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호 |
+| `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `100`)          | 페이지 당 항목 수 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "title": "My Custom Article",
+      "author": "AI Generated",
+      "coverImageUrl": "https://path/to/cover.jpg",
+      "difficultyLevel": "A1",
+      "targetDifficultyLevels": ["A1", "B1"],
+      "chunkCount": 12,
+      "readingTime": 8,
+      "averageRating": 4.2,
+      "reviewCount": 15,
+      "viewCount": 150,
+      "tags": ["technology", "beginner"],
+      "originUrl": null,
+      "originDomain": null,
+      "createdAt": "2024-01-15T10:05:00",
+      "updatedAt": "2024-01-15T10:05:00"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 5,
+  "totalCount": 45,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회 (최신순 정렬)**
+```
+GET /api/v1/custom-contents
+```
+
+**2. 조회수 높은 순으로 정렬**
+```
+GET /api/v1/custom-contents?sort_by=view_count
+```
+
+**3. 태그 필터링**
+```
+GET /api/v1/custom-contents?tags=technology,beginner
+```
+
+### `GET /custom-contents/{customContentId}`
+
+특정 커스텀 콘텐츠의 상세 정보를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터            | 타입   | 설명                       |
+| :------------------ | :----- | :------------------------- |
+| `customContentId` | String | 조회할 커스텀 콘텐츠의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "title": "My Custom Article",
+  "author": "AI Generated",
+  "coverImageUrl": "https://path/to/cover.jpg",
+  "difficultyLevel": "A1",
+  "targetDifficultyLevels": ["A1", "B1"],
+  "chunkCount": 12,
+  "readingTime": 8,
+  "averageRating": 4.2,
+  "reviewCount": 15,
+  "viewCount": 150,
+  "tags": ["technology", "beginner"],
+  "originUrl": null,
+  "originDomain": null,
+  "createdAt": "2024-01-15T10:05:00",
+  "updatedAt": "2024-01-15T10:05:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+### `PATCH /custom-contents/{customContentId}`
+
+커스텀 콘텐츠의 제목이나 태그를 수정합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터 | 타입 | 설명 |
+|:---------|:-----|:-----|
+| `customContentId` | String | 수정할 커스텀 콘텐츠의 고유 ID |
+
+#### **Request Body**
+```json
+{
+  "title": "Updated Custom Article Title",
+  "tags": ["technology", "updated", "beginner"]
+}
+```
+- `title`: 수정할 제목 (선택사항)
+- `tags`: 수정할 태그 배열 (선택사항)
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "title": "Updated Custom Article Title",
+  "author": "AI Generated",
+  "coverImageUrl": "https://path/to/cover.jpg",
+  "difficultyLevel": "A1",
+  "targetDifficultyLevels": ["A1", "B1"],
+  "chunkCount": 12,
+  "readingTime": 8,
+  "averageRating": 4.2,
+  "reviewCount": 15,
+  "viewCount": 150,
+  "tags": ["technology", "updated", "beginner"],
+  "originUrl": null,
+  "originDomain": null,
+  "createdAt": "2024-01-15T10:05:00",
+  "updatedAt": "2024-01-15T11:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+#### **Error Response (403 Forbidden)**
+```json
+{
+  "message": "You can only modify your own custom content."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "At least one field (title or tags) must be provided."
+}
+```
+
+### `GET /custom-contents/{customContentId}/chunks`
+
+특정 커스텀 콘텐츠에 속한 텍스트 청크(Chunk)들을 난이도별로 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터            | 타입   | 설명                       |
+| :------------------ | :----- | :------------------------- |
+| `customContentId` | String | 조회할 커스텀 콘텐츠의 고유 ID |
+
+#### **Query Parameters**
+
+| 파라미터     | 타입    | 필수 | 설명                                                  |
+| :----------- | :------ | :--- |:-------------------------------------------------------|
+| `difficulty` | String  | 예   | `a0`, `a1`, `a2`, `b1`, `b2`, `c1`, `c2` 등 청크의 난이도 |
+| `page`       | Integer | 아니요 | 페이지 번호 (기본값: `1`) |
+| `limit`      | Integer | 아니요 | 페이지 당 항목 수 (기본값: `10`, 최댓값 `100`) |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109cd",
+      "chunkNumber": 1,
+      "difficulty": "A1",
+      "type": "TEXT",
+      "content": "Once upon a time, there was a little prince. He lived on a small planet...",
+      "description": null
+    },
+    {
+      "id": "60d0fe4f5311236168a109ce", 
+      "chunkNumber": 2,
+      "difficulty": "A1",
+      "type": "IMAGE",
+      "content": "https://static.linglevel.com/custom/60d0fe4f5311236168a109ca/images/prince-planet.jpg",
+      "description": "The little prince on his planet"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 3,
+  "totalCount": 25,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+### `GET /custom-contents/{customContentId}/chunks/{chunkId}`
+
+특정 커스텀 콘텐츠 청크의 상세 정보를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터            | 타입   | 설명                       |
+| :------------------ | :----- | :------------------------- |
+| `customContentId` | String | 조회할 커스텀 콘텐츠의 고유 ID |
+| `chunkId`         | String | 조회할 청크의 고유 ID |
+
+#### **Success Response (200 OK) - 텍스트 청크**
+```json
+{
+  "id": "60d0fe4f5311236168a109cd",
+  "chunkNumber": 1,
+  "difficulty": "A1",
+  "type": "TEXT",
+  "content": "Once upon a time, there was a little prince. He lived on a small planet...",
+  "description": null
+}
+```
+
+#### **Success Response (200 OK) - 이미지 청크**
+```json
+{
+  "id": "60d0fe4f5311236168a109ce",
+  "chunkNumber": 2,
+  "difficulty": "A1", 
+  "type": "IMAGE",
+  "content": "https://static.linglevel.com/custom/60d0fe4f5311236168a109ca/images/prince-planet.jpg",
+  "description": "The little prince on his planet"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+### `DELETE /custom-contents/{customContentId}`
+
+사용자가 본인이 생성한 커스텀 콘텐츠를 삭제합니다. 콘텐츠와 관련된 모든 청크 데이터도 함께 삭제됩니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터            | 타입   | 설명                       |
+| :------------------ | :----- | :------------------------- |
+| `customContentId` | String | 삭제할 커스텀 콘텐츠의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Custom content deleted successfully."
+}
+```
+
+**동작:**
+- 커스텀 콘텐츠와 관련된 모든 청크 데이터를 soft delete 처리합니다 (isDeleted: true)
+- 연관된 콘텐츠 요청(contentRequest)의 상태를 DELETED로 변경합니다
+- contentRequestId를 통해 사용자 소유권을 확인합니다
+- 실제 데이터는 보존되며, 조회 API에서는 제외됩니다
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+#### **Error Response (403 Forbidden)**
+```json
+{
+  "message": "You can only delete your own custom content."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+---
+
+## 🤖 웹훅 (Webhooks) - AI 처리 결과
+
+### `POST /webhooks/custom-contents/completed`
+
+AI가 콘텐츠 처리를 완료했을 때 결과 JSON 파일의 위치를 전달하여 백엔드에서 처리하도록 하는 웹훅 API입니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "requestId": "60d0fe4f5311236168a109ca"
+}
+```
+
+- `requestId`: 처리 요청의 고유 ID (필수)
+
+#### **Success Response (200 OK)**
+```json
+{
+  "requestId": "60d0fe4f5311236168a109ca",
+  "status": "completed"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Content request not found."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "Request is not in PROCESSING status."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+### `POST /webhooks/custom-contents/failed`
+
+AI 콘텐츠 처리가 실패했을 때 요청 상태를 업데이트하고 사용자에게 실패 알림을 발송하는 웹훅 API입니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "requestId": "60d0fe4f5311236168a109ca",
+  "errorMessage": "Content processing failed due to unsupported format"
+}
+```
+
+- `requestId`: 처리 요청의 고유 ID (필수)
+- `errorMessage`: 사용자에게 표시할 에러 메시지 (필수)
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Content request marked as failed successfully"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Content request not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+### `POST /webhooks/custom-contents/progress`
+
+AI 콘텐츠 처리 중 진행률을 업데이트하는 웹훅 API입니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "requestId": "60d0fe4f5311236168a109ca",
+  "progress": 75
+}
+```
+
+- `requestId`: 처리 요청의 고유 ID (필수)
+- `progress`: 진행률 0-100 (필수)
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Progress updated successfully"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Content request not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+---
+
 ## 💡 고객 건의 (Suggestions)
 
 ### `POST /suggestions`
@@ -1637,5 +2407,61 @@ PATCH /api/v1/admin/version
 ```json
 {
   "message": "Email and content are required."
+}
+```
+
+---
+
+## 🔔 FCM 토큰 관리 (FCM Token Management)
+
+### `PUT /fcm/token`
+
+사용자의 FCM 토큰을 등록하거나 업데이트합니다. 동일한 사용자+디바이스 조합이 이미 존재하는 경우 토큰을 업데이트하고, 존재하지 않는 경우 새로 생성합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Request Body**
+
+```json
+{
+  "fcmToken": "string",
+  "deviceId": "string",
+  "platform": "string"
+}
+```
+- `fcmToken`: Firebase Cloud Messaging 토큰
+- `deviceId`: 디바이스 고유 식별자
+- `platform`: 플랫폼 종류 ("ANDROID", "IOS", "WEB")
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "FCM token updated successfully.",
+  "tokenId": "string"
+}
+```
+
+#### **Success Response (201 Created)**
+```json
+{
+  "message": "FCM token created successfully.",
+  "tokenId": "string"
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "fcmToken, deviceId, and platform are required."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
 }
 ```

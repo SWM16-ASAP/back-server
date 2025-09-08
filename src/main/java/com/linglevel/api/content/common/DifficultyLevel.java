@@ -21,4 +21,13 @@ public enum DifficultyLevel {
         this.name = name;
         this.description = description;
     }
+    
+    public static DifficultyLevel fromCode(String code) {
+        for (DifficultyLevel level : DifficultyLevel.values()) {
+            if (level.code.equals(code)) {
+                return level;
+            }
+        }
+        throw new IllegalArgumentException("Invalid difficulty level code: " + code);
+    }
 }
