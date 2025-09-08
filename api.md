@@ -1780,6 +1780,20 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
+#### **Error Response (400 Bad Request) - 지원되지 않는 URL**
+```json
+{
+  "message": "URL is not supported for crawling. Please check supported domains."
+}
+```
+
+#### **Error Response (400 Bad Request) - 잘못된 URL 형식**
+```json
+{
+  "message": "Invalid URL format provided."
+}
+```
+
 ### `GET /custom-contents/requests`
 
 사용자의 콘텐츠 처리 요청 목록을 조회합니다. 진행 중이거나 완료된 요청들을 상태별로 확인할 수 있습니다.
@@ -2408,6 +2422,270 @@ X-API-Key: {TempApiKey}
 {
   "message": "Email and content are required."
 }
+```
+
+---
+
+## 🕷️ 크롤링 DSL 관리 (Crawling DSL Management)
+
+### `GET /crawling-dsl/lookup`
+
+클라이언트가 현재 접속 중인 URL을 전달하면, 해당 URL의 도메인이 존재하는 경우 DSL을 반환합니다. 또한 URL이 크롤링 가능한지 유효성 검증도 수행할 수 있습니다.
+
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                     |
+| :------- | :------ | :--- | :----------------------- |
+| `url`    | String  | 예   | 크롤링할 전체 URL |
+| `validate_only` | Boolean | 아니요 (기본값: `false`) | `true`인 경우 DSL 반환 없이 유효성만 검증 |
+
+#### **Success Response (200 OK) - DSL 조회**
+```json
+{
+  "domain": "coupang.com",
+  "dsl": "text content of DSL rules",
+  "valid": true
+}
+```
+
+#### **Success Response (200 OK) - 유효성 검증만**
+```json
+{
+  "domain": "coupang.com",
+  "valid": true,
+  "message": "URL is valid for crawling."
+}
+```
+
+#### **Success Response (200 OK) - 유효하지 않은 도메인**
+```json
+{
+  "domain": "unsupported-site.com",
+  "valid": false,
+  "message": "DSL not available for this domain."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "URL parameter is required."
+}
+```
+
+#### **Error Response (400 Bad Request) - 잘못된 URL 형식**
+```json
+{
+  "message": "Invalid URL format."
+}
+```
+
+#### **API 사용 예시**
+
+**1. DSL 조회 (기본)**
+```
+GET /api/v1/crawling-dsl/lookup?url=https://www.coupang.com/vp/products/123456
+```
+
+**2. 유효성 검증만**
+```
+GET /api/v1/crawling-dsl/lookup?url=https://www.coupang.com/vp/products/123456&validate_only=true
+```
+
+**3. 커스텀 콘텐츠 요청 전 유효성 검증**
+```
+// 1단계: URL 유효성 검증
+GET /api/v1/crawling-dsl/lookup?url=https://techcrunch.com/article/123&validate_only=true
+
+// 2단계: 유효한 경우 커스텀 콘텐츠 요청
+POST /api/v1/custom-contents/requests
+{
+  "contentType": "LINK",
+  "originUrl": "https://techcrunch.com/article/123",
+  ...
+}
+```
+
+### `GET /crawling-dsl/domains`
+
+시스템에 등록된 모든 도메인 목록을 조회합니다.
+
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                      |
+| :------- | :------ | :--- | :------------------------ |
+| `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수                |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "domain": "coupang.com",
+      "_id": "60d0fe4f5311236168a109ca"
+    },
+    {
+      "domain": "amazon.com",
+      "_id": "60d0fe4f5311236168a109cb"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 5,
+  "totalCount": 45,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+### `POST /admin/crawling-dsl`
+
+어드민 권한으로 새로운 도메인과 DSL을 추가합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "domain": "coupang.com",
+  "dsl": "text content of DSL rules for coupang.com"
+}
+```
+
+- `domain`: 도메인명 (필수)
+- `dsl`: DSL 규칙 텍스트 (필수)
+
+#### **Success Response (201 Created)**
+```json
+{
+  "_id": "60d0fe4f5311236168a109ca",
+  "domain": "coupang.com",
+  "message": "DSL created successfully."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "Domain and dsl are required."
+}
+```
+
+#### **Error Response (409 Conflict)**
+```json
+{
+  "message": "Domain already exists."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+### `PUT /admin/crawling-dsl/{domain}`
+
+어드민 권한으로 특정 도메인의 DSL을 업데이트합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터 | 타입   | 설명                |
+| :------- | :----- | :------------------ |
+| `domain` | String | 업데이트할 도메인명 |
+
+#### **Request Body**
+
+```json
+{
+  "dsl": "updated DSL rules for the domain"
+}
+```
+
+- `dsl`: 업데이트할 DSL 규칙 텍스트 (필수)
+
+#### **Success Response (200 OK)**
+```json
+{
+  "_id": "60d0fe4f5311236168a109ca",
+  "domain": "coupang.com",
+  "dsl": "updated DSL rules for the domain",
+  "message": "DSL updated successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Domain not found."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "DSL is required."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+### `DELETE /admin/crawling-dsl/{domain}`
+
+어드민 권한으로 특정 도메인과 관련 DSL을 삭제합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터 | 타입   | 설명            |
+| :------- | :----- | :-------------- |
+| `domain` | String | 삭제할 도메인명 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "DSL deleted successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Domain not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+#### **API 사용 예시**
+
+**특정 도메인의 DSL 삭제**
+```
+DELETE /api/v1/admin/crawling-dsl/coupang.com
 ```
 
 ---
