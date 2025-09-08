@@ -2223,13 +2223,11 @@ X-API-Key: {TempApiKey}
 {
   "requestId": "60d0fe4f5311236168a109ca",
   "progress": 75,
-  "status": "PROCESSING"
 }
 ```
 
 - `requestId`: 처리 요청의 고유 ID (필수)
 - `progress`: 진행률 0-100 (필수)
-- `status`: 현재 상태 - `PROCESSING` (기본값)
 
 #### **Success Response (200 OK)**
 ```json

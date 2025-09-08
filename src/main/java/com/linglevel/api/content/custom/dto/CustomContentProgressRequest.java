@@ -23,7 +23,4 @@ public class CustomContentProgressRequest {
     @Min(value = 0, message = "진행률은 0 이상이어야 합니다.")
     @Max(value = 100, message = "진행률은 100 이하여야 합니다.")
     private Integer progress;
-    
-    @Schema(description = "현재 상태", example = "PROCESSING", defaultValue = "PROCESSING")
-    private String status = "PROCESSING";
 }
