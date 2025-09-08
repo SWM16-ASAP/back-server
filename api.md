@@ -1532,11 +1532,12 @@ X-API-Key: {TempApiKey}
 ```json
 {
   "targets": ["userId1", "userId2"],
-  "title": "이벤트 안내",
-  "body": "새로운 이벤트가 시작되었습니다.",
-  "data": { "eventId": "12345" },
-  "priority": "high",
-  "ttl": 3600
+  "title": "새로운 책이 추가되었습니다!",
+  "body": "The Little Prince가 업데이트되었습니다. 지금 읽어보세요.",
+  "data": { 
+    "deeplink": "/books/60d0fe4f5311236168a109ca",
+    "action": "open_book"
+  }
 }
 ```
 
@@ -1544,8 +1545,8 @@ X-API-Key: {TempApiKey}
 - `title`: 알림 제목 (필수)
 - `body`: 알림 내용 (필수)
 - `data`: 커스텀 데이터 객체 (선택)
-- `priority`: 우선순위 - "normal" 또는 "high" (선택, 기본값: "normal")
-- `ttl`: 메시지 유효 시간(초) (선택)
+  - `deeplink`: 앱 내 특정 화면으로 이동할 경로
+  - `action`: 수행할 액션 유형
 
 #### **Success Response (200 OK)**
 ```json
@@ -1600,14 +1601,45 @@ X-API-Key: {TempApiKey}
 
 #### **API 사용 예시**
 
+**1. 새 책 알림 (책 상세 페이지로 이동)**
 ```
 POST /api/v1/admin/notifications/send
 {
   "targets": ["userId1", "userId2"],
-  "title": "이벤트 안내", 
-  "body": "새로운 이벤트가 시작되었습니다.",
-  "data": { "eventId": "12345" },
-  "priority": "high"
+  "title": "새로운 책이 추가되었습니다!",
+  "body": "The Little Prince가 업데이트되었습니다. 지금 읽어보세요.",
+  "data": { 
+    "deeplink": "/books/60d0fe4f5311236168a109ca",
+    "action": "open_book"
+  }
+}
+```
+
+**2. 커스텀 콘텐츠 완료 알림 (콘텐츠 보기로 이동)**
+```
+POST /api/v1/admin/notifications/send
+{
+  "targets": ["userId123"],
+  "title": "콘텐츠 처리 완료!",
+  "body": "요청하신 '나만의 기사'가 완성되었습니다.",
+  "data": { 
+    "deeplink": "/custom-contents/60d0fe4f5311236168a109cc",
+    "action": "open_custom_content"
+  }
+}
+```
+
+**3. 일반 공지사항 (홈으로 이동)**
+```
+POST /api/v1/admin/notifications/send
+{
+  "targets": ["userId1", "userId2", "userId3"],
+  "title": "시스템 업데이트 안내",
+  "body": "더 나은 서비스를 위해 시스템이 업데이트되었습니다.",
+  "data": { 
+    "deeplink": "/home",
+    "action": "open_home"
+  }
 }
 ```
 

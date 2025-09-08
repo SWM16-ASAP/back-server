@@ -36,7 +36,7 @@ public class FirebaseConfig {
     }
     
     @Bean
-    public FirebaseMessaging firebaseMessaging() {
+    public FirebaseMessaging firebaseMessaging(FirebaseAuth firebaseAuth) {
         return FirebaseMessaging.getInstance(FirebaseApp.getInstance());
     }
 }

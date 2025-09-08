@@ -1,7 +1,11 @@
 package com.linglevel.api.admin.controller;
 
+import com.linglevel.api.admin.dto.NotificationSendResponse;
+import com.linglevel.api.admin.dto.NotificationSendRequest;
+import com.linglevel.api.fcm.dto.FcmMessageRequest;
 import com.linglevel.api.admin.dto.UpdateChunkRequest;
 import com.linglevel.api.admin.service.AdminService;
+import com.linglevel.api.admin.service.NotificationService;
 import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
@@ -21,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -31,6 +36,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final VersionService versionService;
+    private final NotificationService notificationService;
     
     @Value("${import.api.key}")
     private String importApiKey;
@@ -108,6 +114,21 @@ public class AdminController {
                 request.getLatestVersion(), request.getMinimumVersion());
         
         VersionUpdateResponse response = versionService.updateVersion(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "푸시 알림 전송", description = "어드민 권한으로 사용자에게 FCM 푸시 알림을 전송합니다.")
+    @PostMapping("/notifications/send")
+    public ResponseEntity<NotificationSendResponse> sendNotification(
+            @Parameter(description = "API 키", required = true) @RequestHeader(value = "X-API-Key") String apiKey,
+            @Parameter(description = "알림 전송 요청", required = true) @Valid @RequestBody NotificationSendRequest request) {
+        
+        validateApiKey(apiKey);
+        
+        log.info("Admin sending notification - targets: {}, title: {}", 
+                request.getTargets() != null ? request.getTargets().size() : 0, request.getTitle());
+        
+        NotificationSendResponse response = notificationService.sendNotificationFromRequest(request);
         return ResponseEntity.ok(response);
     }
 

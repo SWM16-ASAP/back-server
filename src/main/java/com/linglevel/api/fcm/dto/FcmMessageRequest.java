@@ -11,15 +11,12 @@ import java.util.Map;
 @Schema(description = "FCM 메시지 요청")
 public class FcmMessageRequest {
 
-    @Schema(description = "알림 제목", example = "새로운 메시지")
+    @Schema(description = "알림 제목", example = "이벤트 안내", required = true)
     private String title;
 
-    @Schema(description = "알림 내용", example = "안녕하세요! 새로운 알림이 도착했습니다.")
+    @Schema(description = "알림 내용", example = "새로운 이벤트가 시작되었습니다", required = true)
     private String body;
 
-    @Schema(description = "알림 이미지 URL", example = "https://example.com/image.jpg")
-    private String imageUrl;
-
-    @Schema(description = "추가 데이터", example = "{\"type\": \"news\", \"id\": \"123\"}")
+    @Schema(description = "링크/액션 데이터", example = "{\"link\": \"/events/123\", \"type\": \"event\"}")
     private Map<String, String> data;
 }
