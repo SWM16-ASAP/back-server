@@ -7,13 +7,15 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['dev.linglevel.com:443']
-    headers:
-      X-API-Key: "${DEV_TOKEN}"
+    authorization:
+      type: llvk
+      credentials: "${DEV_TOKEN}"
 
   - job_name: 'prod'
     scheme: https
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['api.linglevel.com:443']
-    headers:
-      X-API-Key: "${PROD_TOKEN}"
+    authorization:
+      type: llvk
+      credentials: "${PROD_TOKEN}"
