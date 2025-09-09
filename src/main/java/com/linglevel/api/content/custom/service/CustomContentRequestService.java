@@ -7,6 +7,7 @@ import com.linglevel.api.content.custom.entity.ContentRequestStatus;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.ContentRequestRepository;
+import com.linglevel.api.crawling.service.CrawlingService;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.strategy.CustomContentPathStrategy;
 import com.linglevel.api.user.entity.User;
@@ -31,9 +32,15 @@ public class CustomContentRequestService {
     private final UserRepository userRepository;
     private final S3AiService s3AiService;
     private final CustomContentPathStrategy pathStrategy;
+    private final CrawlingService crawlingService;
 
     public CreateContentRequestResponse createContentRequest(String username, CreateContentRequestRequest request) {
         log.info("Creating content request for user: {}", username);
+        
+        // URL 유효성 검증 (LINK 타입인 경우)
+        if (request.getContentType() == com.linglevel.api.content.custom.entity.ContentType.LINK) {
+            validateUrlForCrawling(request.getOriginUrl());
+        }
         
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
@@ -60,6 +67,29 @@ public class CustomContentRequestService {
                 .status(savedRequest.getStatus().getCode())
                 .createdAt(savedRequest.getCreatedAt())
                 .build();
+    }
+
+    private void validateUrlForCrawling(String originUrl) {
+        if (originUrl == null || originUrl.trim().isEmpty()) {
+            throw new CustomContentException(CustomContentErrorCode.URL_REQUIRED);
+        }
+        
+        try {
+            // URL 형식 및 크롤링 가능 여부 검증
+            if (!crawlingService.isValidUrl(originUrl)) {
+                throw new CustomContentException(CustomContentErrorCode.INVALID_URL_FORMAT);
+            }
+            
+            // DSL 존재 여부 확인 (크롤링 가능한 도메인인지 검증)
+            var lookupResult = crawlingService.lookupDsl(originUrl, true);
+            if (!lookupResult.isValid()) {
+                throw new CustomContentException(CustomContentErrorCode.URL_NOT_SUPPORTED);
+            }
+            
+        } catch (com.linglevel.api.crawling.exception.CrawlingException e) {
+            // CrawlingException을 CustomContentException으로 변환
+            throw new CustomContentException(CustomContentErrorCode.INVALID_REQUEST, e.getMessage());
+        }
     }
 
     private void uploadToAiInput(ContentRequest contentRequest, CreateContentRequestRequest request) {
