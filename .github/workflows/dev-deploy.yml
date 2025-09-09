@@ -64,6 +64,8 @@ jobs:
             docker run -d \
               --name server \
               -e SPRING_PROFILES_ACTIVE=dev \
+              -e 'SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}' \
+              -e SENTRY_DSN=${{ vars.SENTRY_DSN }} \
               -e 'MONGODB_URI_DEV=${{ secrets.MONGODB_URI_DEV }}' \
               -e MONGODB_DATABASE_DEV=${{ secrets.MONGODB_DATABASE_DEV }} \
               -e S3_REGION=${{ secrets.S3_REGION }} \
