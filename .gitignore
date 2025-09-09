@@ -45,3 +45,7 @@ out/
 ### firebase key ###
 firebase.json
 firebase.base64
+
+### monitoring data ###
+monitoring/prometheus-data/
+monitoring/grafana-data/

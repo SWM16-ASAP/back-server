@@ -18,4 +18,17 @@
 
 - **Swagger UI**: `http://localhost:8080/swagger-ui/index.html`
 
-> Swagger UI는 local 프로필에서만 활성화됩니다. 
+> Swagger UI는 local 프로필에서만 활성화됩니다.
+
+## 모니터링 (선택사항)
+
+Prometheus + Grafana 모니터링을 사용하려면:
+
+```bash
+# 모니터링 스택 시작
+docker-compose -f docker-compose.monitoring.yml up -d
+
+# 접속 정보
+# Prometheus: http://localhost:9090
+# Grafana: http://localhost:3000 (admin/admin123)
+```
