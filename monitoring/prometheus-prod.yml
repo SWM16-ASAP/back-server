@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'dev'
+    scheme: https
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['dev.linglevel.com:443']
+    authorization:
+      type: llvk
+      credentials: "${DEV_TOKEN}"
+
+  - job_name: 'prod'
+    scheme: https
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['api.linglevel.com:443']
+    authorization:
+      type: llvk
+      credentials: "${PROD_TOKEN}"

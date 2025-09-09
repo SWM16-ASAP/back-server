@@ -75,6 +75,14 @@
         {
           "name": "S3_REGION",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_REGION::"
+        },
+        {
+          "name": "SENTRY_DSN",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:SENTRY_DSN::"
+        },
+        {
+          "name": "SENTRY_AUTH_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:SENTRY_AUTH_TOKEN::"
         }
       ],
       "ulimits": [],

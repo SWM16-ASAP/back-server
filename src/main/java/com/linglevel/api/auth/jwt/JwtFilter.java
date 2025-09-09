@@ -2,6 +2,7 @@ package com.linglevel.api.auth.jwt;
 
 import com.linglevel.api.auth.exception.AuthErrorCode;
 import com.linglevel.api.auth.exception.AuthException;
+import com.linglevel.api.common.config.SentryUserContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,6 +49,10 @@ public class JwtFilter extends OncePerRequestFilter {
 
             authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+            
+            // Sentry 사용자 컨텍스트 설정
+            SentryUserContext.setSentryUser();
+
         } catch (Exception e) {
             filterChain.doFilter(request, response);
             return;

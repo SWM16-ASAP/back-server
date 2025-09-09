@@ -35,7 +35,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll() // todo: 프로메테우스 엔드포인트 어드민 권한으로 보호
                         .requestMatchers("/api/v1/version").permitAll()
                         .requestMatchers("/api/v1/auth/oauth/login").permitAll()
                         .requestMatchers("/api/v1/auth/refresh").permitAll()

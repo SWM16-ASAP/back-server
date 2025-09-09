@@ -41,7 +41,12 @@ out/
 
 ### env ###
 .env.local
+monitoring/.env.monitoring.local
+monitoring/.env.monitoring.prod
 
 ### firebase key ###
 firebase.json
 firebase.base64
+
+### monitoring data ###
+monitoring/data/
