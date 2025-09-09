@@ -13,6 +13,10 @@ public enum CustomContentErrorCode {
     INVALID_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 콘텐츠 타입입니다."),
     INVALID_DIFFICULTY_LEVEL(HttpStatus.BAD_REQUEST, "유효하지 않은 난이도 레벨입니다."),
     INVALID_REQUEST_STATUS(HttpStatus.CONFLICT, "요청이 처리 가능한 상태가 아닙니다."),
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
+    URL_REQUIRED(HttpStatus.BAD_REQUEST, "URL is required for LINK content type."),
+    INVALID_URL_FORMAT(HttpStatus.BAD_REQUEST, "Invalid URL format provided."),
+    URL_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "URL is not supported for crawling. Please check supported domains."),
     
     // 커스텀 콘텐츠 관련 (4xx)
     CUSTOM_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "커스텀 콘텐츠를 찾을 수 없습니다."),
