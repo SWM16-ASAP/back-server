@@ -1,0 +1,26 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-prod
+    ports:
+      - "9090:9090"
+    env_file:
+      - path: .env.monitoring.prod
+    volumes:
+      - ./prometheus-prod.yml:/etc/prometheus/prometheus.yml
+      - ./data/prometheus-data-prod:/prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-prod
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: .env.monitoring.prod
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
+    volumes:
+      - ./data/grafana-data-prod:/var/lib/grafana
+    depends_on:
+      - prometheus

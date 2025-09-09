@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'dev'
+    scheme: https
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['dev.linglevel.com:443']
+    headers:
+      X-API-Key: "${DEV_TOKEN}"
+
+  - job_name: 'prod'
+    scheme: https
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['api.linglevel.com:443']
+    headers:
+      X-API-Key: "${PROD_TOKEN}"
