@@ -39,7 +39,8 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/actuator/**").permitAll() // todo: 프로메테우스 엔드포인트 어드민 권한으로 보호
+                        .requestMatchers("/actuator/prometheus").hasRole("ADMIN") // 프로메테우스 엔드포인트만 어드민 권한 필요
+                        .requestMatchers("/actuator/**").permitAll() // 다른 actuator 엔드포인트들은 공개
                         .requestMatchers("/api/v1/version").permitAll()
                         .requestMatchers("/api/v1/auth/oauth/login").permitAll()
                         .requestMatchers("/api/v1/auth/refresh").permitAll()
