@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.util.List;
 
 @Component
@@ -29,22 +30,30 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String requestUri = request.getRequestURI();
-        
-        // admin API 경로인 경우에만 처리
-        if (requestUri.startsWith("/api/v1/admin/")) {
-            String apiKey = request.getHeader("X-API-Key");
-            
-            if (importApiKey.equals(apiKey)) {
-                SimpleGrantedAuthority adminAuthority = new SimpleGrantedAuthority(UserRole.ADMIN.getSecurityRole());
-                UsernamePasswordAuthenticationToken authentication = 
-                    new UsernamePasswordAuthenticationToken("admin", null, List.of(adminAuthority));
-                
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("Admin authentication successful for URI: {}", requestUri);
-            }
+        String apiKey = request.getHeader("X-API-Key");
+
+        if (isValidApiKey(apiKey)) {
+            SimpleGrantedAuthority adminAuthority = new SimpleGrantedAuthority(UserRole.ADMIN.getSecurityRole());
+            UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken("admin", null, List.of(adminAuthority));
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
         
         filterChain.doFilter(request, response);
+    }
+
+
+    // Timing Attack 방지
+    private boolean isValidApiKey(String providedApiKey) {
+        if (providedApiKey == null || importApiKey == null) {
+            return false;
+        }
+        
+        // Constant-time 비교를 위해 MessageDigest.isEqual() 사용
+        byte[] expected = importApiKey.getBytes();
+        byte[] provided = providedApiKey.getBytes();
+        
+        return MessageDigest.isEqual(expected, provided);
     }
 }
