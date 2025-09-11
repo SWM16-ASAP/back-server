@@ -12,10 +12,10 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,12 +26,10 @@ import jakarta.validation.Valid;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Custom Content Webhooks", description = "AI 처리 결과 웹훅 API")
+@SecurityRequirement(name = "adminApiKey")
 public class CustomContentWebhookController {
 
     private final CustomContentWebhookService customContentWebhookService;
-
-    @Value("${import.api.key}")
-    private String importApiKey;
 
     @Operation(
         summary = "AI 콘텐츠 처리 완료 웹훅", 
@@ -48,13 +46,7 @@ public class CustomContentWebhookController {
     })
     @PostMapping("/completed")
     public ResponseEntity<CustomContentCompletedResponse> handleContentCompleted(
-            @RequestHeader(value = "X-API-Key", required = true) String apiKey,
             @Valid @RequestBody CustomContentCompletedRequest request) {
-
-        if (!importApiKey.equals(apiKey)) {
-            log.warn("Invalid API key provided for custom content completion webhook");
-            throw new CommonException(CommonErrorCode.UNAUTHORIZED);
-        }
 
         CustomContentCompletedResponse response = customContentWebhookService.handleContentCompleted(request);
         return ResponseEntity.ok(response);
@@ -73,13 +65,7 @@ public class CustomContentWebhookController {
     })
     @PostMapping("/failed")
     public ResponseEntity<MessageResponse> handleContentFailed(
-            @RequestHeader(value = "X-API-Key", required = true) String apiKey,
             @Valid @RequestBody CustomContentFailedRequest request) {
-
-        if (!importApiKey.equals(apiKey)) {
-            log.warn("Invalid API key provided for custom content failure webhook");
-            throw new CommonException(CommonErrorCode.UNAUTHORIZED);
-        }
 
         customContentWebhookService.handleContentFailed(request);
         return ResponseEntity.ok(new MessageResponse("Content request marked as failed successfully"));
@@ -98,13 +84,7 @@ public class CustomContentWebhookController {
     })
     @PostMapping("/progress")
     public ResponseEntity<MessageResponse> handleContentProgress(
-            @RequestHeader(value = "X-API-Key", required = true) String apiKey,
             @Valid @RequestBody CustomContentProgressRequest request) {
-
-        if (!importApiKey.equals(apiKey)) {
-            log.warn("Invalid API key provided for custom content progress webhook");
-            throw new CommonException(CommonErrorCode.UNAUTHORIZED);
-        }
 
         customContentWebhookService.handleContentProgress(request);
         return ResponseEntity.ok(new MessageResponse("Progress updated successfully"));
