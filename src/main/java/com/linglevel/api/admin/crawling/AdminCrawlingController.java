@@ -15,10 +15,10 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,12 +30,10 @@ import jakarta.validation.Valid;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Admin - Crawling DSL", description = "어드민 크롤링 DSL 관리 API")
+@SecurityRequirement(name = "adminApiKey")
 public class AdminCrawlingController {
 
     private final CrawlingService crawlingService;
-    
-    @Value("${import.api.key}")
-    private String importApiKey;
 
     @Operation(summary = "어드민 - DSL 생성", description = "어드민 권한으로 새로운 도메인의 제목/본문 추출 DSL을 추가합니다.")
     @ApiResponses(value = {
@@ -49,10 +47,7 @@ public class AdminCrawlingController {
     })
     @PostMapping("/crawling-dsl")
     public ResponseEntity<CreateDslResponse> createDsl(
-            @RequestHeader("X-API-Key") String apiKey,
             @Valid @RequestBody CreateDslRequest request) {
-        
-        validateApiKey(apiKey);
         CreateDslResponse response = crawlingService.createDsl(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -69,12 +64,9 @@ public class AdminCrawlingController {
     })
     @PutMapping("/crawling-dsl/{domain}")
     public ResponseEntity<UpdateDslResponse> updateDsl(
-            @RequestHeader("X-API-Key") String apiKey,
             @Parameter(description = "업데이트할 도메인명", example = "coupang.com")
             @PathVariable String domain,
             @Valid @RequestBody UpdateDslRequest request) {
-        
-        validateApiKey(apiKey);
         UpdateDslResponse response = crawlingService.updateDsl(domain, request);
         return ResponseEntity.ok(response);
     }
@@ -90,26 +82,10 @@ public class AdminCrawlingController {
     })
     @DeleteMapping("/crawling-dsl/{domain}")
     public ResponseEntity<MessageResponse> deleteDsl(
-            @RequestHeader("X-API-Key") String apiKey,
             @Parameter(description = "삭제할 도메인명", example = "coupang.com")
             @PathVariable String domain) {
-        
-        validateApiKey(apiKey);
         crawlingService.deleteDsl(domain);
         return ResponseEntity.ok(new MessageResponse("DSL deleted successfully."));
     }
 
-    private void validateApiKey(String apiKey) {
-        if (!importApiKey.equals(apiKey)) {
-            log.warn("Invalid API key attempt");
-            throw new CommonException(CommonErrorCode.UNAUTHORIZED);
-        }
-    }
-
-    @ExceptionHandler(CommonException.class)
-    public ResponseEntity<MessageResponse> handleCommonException(CommonException e) {
-        log.error("Admin Crawling API error: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new MessageResponse("Invalid API key."));
-    }
 }
