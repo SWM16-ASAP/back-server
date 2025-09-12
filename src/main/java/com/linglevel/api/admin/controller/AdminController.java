@@ -1,16 +1,23 @@
 package com.linglevel.api.admin.controller;
 
+import com.linglevel.api.admin.dto.GrantTicketRequest;
+import com.linglevel.api.admin.dto.GrantTicketResponse;
 import com.linglevel.api.admin.dto.NotificationSendResponse;
 import com.linglevel.api.admin.dto.NotificationSendRequest;
 import com.linglevel.api.fcm.dto.FcmMessageRequest;
 import com.linglevel.api.admin.dto.UpdateChunkRequest;
 import com.linglevel.api.admin.service.AdminService;
 import com.linglevel.api.admin.service.NotificationService;
+import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
+import com.linglevel.api.user.ticket.exception.TicketException;
 import com.linglevel.api.content.book.dto.ChunkResponse;
 import com.linglevel.api.content.article.dto.ArticleChunkResponse;
+import com.linglevel.api.user.entity.User;
+import com.linglevel.api.user.repository.UserRepository;
+import com.linglevel.api.user.ticket.service.TicketService;
 import com.linglevel.api.version.dto.VersionUpdateRequest;
 import com.linglevel.api.version.dto.VersionUpdateResponse;
 import com.linglevel.api.version.service.VersionService;
@@ -37,6 +44,8 @@ public class AdminController {
     private final AdminService adminService;
     private final VersionService versionService;
     private final NotificationService notificationService;
+    private final TicketService ticketService;
+    private final UserRepository userRepository;
 
     @Operation(summary = "책 청크 수정", description = "어드민 권한으로 특정 책의 청크 내용을 수정합니다.")
     @PutMapping("/books/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
@@ -109,6 +118,45 @@ public class AdminController {
         
         NotificationSendResponse response = notificationService.sendNotificationFromRequest(request);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "티켓 지급", description = "어드민 권한으로 사용자에게 티켓을 지급합니다.")
+    @PostMapping("/tickets/grant")
+    public ResponseEntity<GrantTicketResponse> grantTicket(
+            @Parameter(description = "티켓 지급 요청", required = true) @Valid @RequestBody GrantTicketRequest request) {
+        
+        log.info("Admin granting tickets - userId: {}, amount: {}, reason: {}", 
+                request.getUserId(), request.getAmount(), request.getReason());
+        
+        // 사용자 존재 여부 확인
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "User not found."));
+        
+        String reason = request.getReason() != null ? request.getReason() : "관리자 지급";
+        int newBalance = ticketService.grantTicket(user.getId(), request.getAmount(), reason);
+        
+        GrantTicketResponse response = GrantTicketResponse.builder()
+                .message("Tickets granted successfully.")
+                .userId(request.getUserId())
+                .amount(request.getAmount())
+                .newBalance(newBalance)
+                .build();
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @ExceptionHandler(TicketException.class)
+    public ResponseEntity<ExceptionResponse> handleTicketException(TicketException e) {
+        log.error("Admin Ticket Exception: {}", e.getMessage());
+        return ResponseEntity.status(e.getStatus())
+                .body(new ExceptionResponse(e));
+    }
+
+    @ExceptionHandler(CommonException.class)
+    public ResponseEntity<ExceptionResponse> handleCommonException(CommonException e) {
+        log.error("Admin Common Exception: {}", e.getMessage());
+        return ResponseEntity.status(e.getStatus())
+                .body(new ExceptionResponse(e));
     }
 
 }
