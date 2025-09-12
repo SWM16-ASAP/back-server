@@ -12,6 +12,7 @@ import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.strategy.CustomContentPathStrategy;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
+import com.linglevel.api.user.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,7 @@ public class CustomContentRequestService {
     private final S3AiService s3AiService;
     private final CustomContentPathStrategy pathStrategy;
     private final CrawlingService crawlingService;
+    private final TicketService ticketService;
 
     public CreateContentRequestResponse createContentRequest(String username, CreateContentRequestRequest request) {
         log.info("Creating content request for user: {}", username);
@@ -44,6 +46,16 @@ public class CustomContentRequestService {
         
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+        
+        // 🎫 티켓 예약 (1개 티켓 필요)
+        String reservationId;
+        try {
+            reservationId = ticketService.reserveTicket(user.getId(), 1, "Custom content creation: " + request.getTitle());
+            log.info("Ticket reserved for user: {} (Custom content: {})", user.getId(), request.getTitle());
+        } catch (Exception e) {
+            log.info("Failed to reserve ticket for user: {}", user.getId(), e);
+            throw new CustomContentException(CustomContentErrorCode.INSUFFICIENT_TICKETS);
+        }
         
         ContentRequest contentRequest = ContentRequest.builder()
                 .userId(user.getId())
@@ -59,7 +71,7 @@ public class CustomContentRequestService {
         ContentRequest savedRequest = contentRequestRepository.save(contentRequest);
         log.info("Content request created with ID: {}", savedRequest.getId());
 
-        uploadToAiInput(savedRequest, request);
+        uploadToAiInput(savedRequest, request, reservationId);
 
         return CreateContentRequestResponse.builder()
                 .requestId(savedRequest.getId())
@@ -92,7 +104,7 @@ public class CustomContentRequestService {
         }
     }
 
-    private void uploadToAiInput(ContentRequest contentRequest, CreateContentRequestRequest request) {
+    private void uploadToAiInput(ContentRequest contentRequest, CreateContentRequestRequest request, String reservationId) {
         try {
             Map<String, Object> aiInputData = new HashMap<>();
             aiInputData.put("type", "custom");
@@ -101,11 +113,24 @@ public class CustomContentRequestService {
             s3AiService.uploadJsonToInputBucket(contentRequest.getId(), aiInputData, pathStrategy);
             log.info("Successfully uploaded AI input data for request: {}", contentRequest.getId());
             
+            // AI 입력 업로드 성공 시 티켓 예약 확정
+            ticketService.confirmReservation(reservationId);
+            log.info("Ticket reservation confirmed for request: {}", contentRequest.getId());
+            
         } catch (Exception e) {
             log.error("Failed to upload AI input data for request: {}", contentRequest.getId(), e);
             contentRequest.setStatus(ContentRequestStatus.FAILED);
             contentRequest.setErrorMessage("AI 입력 데이터 업로드 실패: " + e.getMessage());
             contentRequestRepository.save(contentRequest);
+            
+            // AI 입력 업로드 실패 시 티켓 예약 취소 (복구)
+            try {
+                ticketService.cancelReservation(reservationId);
+                log.info("Ticket reservation cancelled for failed request: {}", contentRequest.getId());
+            } catch (Exception ticketE) {
+                log.error("Failed to cancel ticket reservation for request: {}", contentRequest.getId(), ticketE);
+            }
+            
             throw new CustomContentException(CustomContentErrorCode.AI_INPUT_UPLOAD_FAILED);
         }
     }
