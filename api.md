@@ -2426,6 +2426,144 @@ X-API-Key: {TempApiKey}
 
 ---
 
+## 🎫 티켓 관리 (Ticket Management)
+
+### `GET /tickets/balance`
+
+사용자의 현재 티켓 잔고를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "balance": 5,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+### `GET /tickets/transactions`
+
+사용자의 티켓 거래 내역을 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                      |
+| :------- | :------ | :--- | :------------------------ |
+| `page`   | Integer | 아니요 (기본값: `1`) | 조회할 페이지 번호 |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "amount": -1,
+      "description": "콘텐츠 생성 (My Custom Article)",
+      "createdAt": "2024-01-15T10:30:00"
+    },
+    {
+      "id": "60d0fe4f5311236168a109cc",
+      "amount": 3,
+      "description": "구독 갱신 보상",
+      "createdAt": "2024-01-14T15:30:00"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 5,
+  "totalCount": 45,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 기본 조회 (모든 거래)**
+```
+GET /api/v1/tickets/transactions
+```
+
+**2. 페이지네이션**
+```
+GET /api/v1/tickets/transactions?page=2&limit=20
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
+---
+
+## 🔧 어드민 - 티켓 관리 (Admin Ticket Management)
+
+### `POST /admin/tickets/grant`
+
+어드민 권한으로 사용자에게 티켓을 지급합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+```json
+{
+  "userId": "60d0fe4f5311236168a109ca",
+  "amount": 5,
+  "reason": "구독 갱신 보상"
+}
+```
+
+- `userId`: 티켓을 지급받을 사용자 ID (필수)
+- `amount`: 지급할 티켓 수 (필수, 양수)
+- `reason`: 지급 사유 (선택사항)
+
+#### **Success Response (201 Created)**
+```json
+{
+  "message": "Tickets granted successfully.",
+  "userId": "60d0fe4f5311236168a109ca",
+  "amount": 5,
+  "newBalance": 8
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "User not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+---
+
 ## 🕷️ 크롤링 DSL 관리 (Crawling DSL Management)
 
 ### `GET /crawling-dsl/lookup`
