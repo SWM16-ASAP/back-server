@@ -25,6 +25,7 @@ public enum CustomContentErrorCode {
     
     // 인증/인가 관련 (4xx)
     USER_NOT_FOUND(HttpStatus.UNAUTHORIZED, "인증된 사용자 정보를 찾을 수 없습니다."),
+    INSUFFICIENT_TICKETS(HttpStatus.PAYMENT_REQUIRED, "티켓이 부족합니다."),
     
     // 외부 서비스 관련 (5xx)
     AI_INPUT_UPLOAD_FAILED(HttpStatus.BAD_GATEWAY, "AI 서비스 입력 전송에 실패했습니다."),

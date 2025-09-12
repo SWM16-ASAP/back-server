@@ -26,6 +26,10 @@ public class TicketTransaction {
     
     private String description;
     
+    private TransactionStatus status;
+    
+    private String reservationId; // 예약 그룹 ID
+    
     @CreatedDate
     private LocalDateTime createdAt;
 }

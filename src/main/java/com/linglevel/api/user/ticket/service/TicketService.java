@@ -3,6 +3,7 @@ package com.linglevel.api.user.ticket.service;
 import com.linglevel.api.user.ticket.dto.TicketBalanceResponse;
 import com.linglevel.api.user.ticket.dto.TicketTransactionResponse;
 import com.linglevel.api.user.ticket.entity.TicketTransaction;
+import com.linglevel.api.user.ticket.entity.TransactionStatus;
 import com.linglevel.api.user.ticket.entity.UserTicket;
 import com.linglevel.api.user.ticket.exception.TicketErrorCode;
 import com.linglevel.api.user.ticket.exception.TicketException;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 
 @Service
@@ -36,13 +39,68 @@ public class TicketService {
         
         PageRequest pageRequest = PageRequest.of(page - 1, limit);
         Page<TicketTransaction> transactions = ticketTransactionRepository
-                .findByUserIdOrderByCreatedAtDesc(userId, pageRequest);
+                .findByUserIdAndStatusOrderByCreatedAtDesc(userId, TransactionStatus.CONFIRMED, pageRequest);
         
         return transactions.map(this::toTicketTransactionResponse);
     }
+
+    @Transactional
+    public String reserveTicket(String userId, int amount, String description) {
+        UserTicket userTicket = getOrCreateUserTicket(userId);
+        
+        // 잔고 확인
+        if (userTicket.getBalance() < amount) {
+            throw new TicketException(TicketErrorCode.INSUFFICIENT_BALANCE);
+        }
+        
+        String reservationId = UUID.randomUUID().toString();
+        
+        // 티켓 차감 (예약 상태)
+        userTicket.setBalance(userTicket.getBalance() - amount);
+        userTicketRepository.save(userTicket);
+        
+        // 예약 거래 내역 기록
+        TicketTransaction transaction = TicketTransaction.builder()
+                .userId(userId)
+                .amount(-amount)
+                .description(description)
+                .status(TransactionStatus.RESERVED)
+                .reservationId(reservationId)
+                .build();
+        ticketTransactionRepository.save(transaction);
+        
+        return reservationId;
+    }
+
+    @Transactional
+    public void confirmReservation(String reservationId) {
+        TicketTransaction transaction = ticketTransactionRepository
+                .findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED)
+                .orElseThrow(() -> new TicketException(TicketErrorCode.RESERVATION_NOT_FOUND));
+        
+        // 예약 상태를 확정으로 변경
+        transaction.setStatus(TransactionStatus.CONFIRMED);
+        ticketTransactionRepository.save(transaction);
+    }
+
+    @Transactional
+    public void cancelReservation(String reservationId) {
+        TicketTransaction transaction = ticketTransactionRepository
+                .findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED)
+                .orElseThrow(() -> new TicketException(TicketErrorCode.RESERVATION_NOT_FOUND));
+        
+        // 티켓 복구
+        UserTicket userTicket = getOrCreateUserTicket(transaction.getUserId());
+        userTicket.setBalance(userTicket.getBalance() + Math.abs(transaction.getAmount()));
+        userTicketRepository.save(userTicket);
+        
+        // 예약 상태를 취소로 변경
+        transaction.setStatus(TransactionStatus.CANCELLED);
+        ticketTransactionRepository.save(transaction);
+    }
     
     /**
-     * 티켓을 사용합니다. (내부 로직에서만 사용)
+     * 티켓을 사용합니다. (내부 로직에서만 사용 - 즉시 확정)
      * @param userId 사용자 ID
      * @param amount 사용할 티켓 수
      * @param description 사용 내역 설명
@@ -66,6 +124,7 @@ public class TicketService {
                 .userId(userId)
                 .amount(-amount) // 음수로 저장
                 .description(description)
+                .status(TransactionStatus.CONFIRMED)
                 .build();
         ticketTransactionRepository.save(transaction);
         
@@ -92,6 +151,7 @@ public class TicketService {
                 .userId(userId)
                 .amount(amount) // 양수로 저장
                 .description(description)
+                .status(TransactionStatus.CONFIRMED)
                 .build();
         ticketTransactionRepository.save(transaction);
         
@@ -117,7 +177,8 @@ public class TicketService {
         TicketTransaction welcomeTransaction = TicketTransaction.builder()
                 .userId(userId)
                 .amount(3)
-                .description("🎉 Welcome Ticket")
+                .description("Welcome bonus for new user")
+                .status(TransactionStatus.CONFIRMED)
                 .build();
         ticketTransactionRepository.save(welcomeTransaction);
         

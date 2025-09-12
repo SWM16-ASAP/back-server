@@ -4,6 +4,7 @@ import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -50,6 +51,14 @@ public class GlobalExceptionHandler {
         
         CommonException commonException = new CommonException(CommonErrorCode.INVALID_INPUT, specificError);
         log.warn("Constraint violation: {}", specificError);
+        return ResponseEntity.status(commonException.getStatus())
+                .body(new ExceptionResponse(commonException));
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ExceptionResponse> handleOptimisticLockingFailureException(OptimisticLockingFailureException e) {
+        CommonException commonException = new CommonException(CommonErrorCode.REQUEST_CONFLICT);
+        log.warn("Optimistic locking failure occurred: {}", e.getMessage());
         return ResponseEntity.status(commonException.getStatus())
                 .body(new ExceptionResponse(commonException));
     }
