@@ -2,8 +2,8 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus-prod
-    ports:
-      - "9090:9090"
+    expose:
+      - "9090"
     env_file:
       - path: .env.monitoring.prod
     volumes:
@@ -13,8 +13,8 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana-prod
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     env_file:
       - path: .env.monitoring.prod
     environment:
