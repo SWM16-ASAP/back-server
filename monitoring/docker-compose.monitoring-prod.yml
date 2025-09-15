@@ -1,7 +1,7 @@
- networks:
-   default:
-     name: npm_nginx-proxy
-     external: true
+networks:
+  default:
+    name: npm_nginx-proxy
+    external: true
 
 services:
   prometheus:
