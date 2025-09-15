@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,8 +34,9 @@ public class SuggestionsController {
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping
-    public ResponseEntity<SuggestionResponse> submitSuggestion(@RequestBody SuggestionRequest request) {
-        SuggestionResponse response = suggestionsService.saveSuggestion(request);
+    public ResponseEntity<SuggestionResponse> submitSuggestion(@RequestBody SuggestionRequest request, Authentication authentication) {
+        String username = authentication.getName();
+        SuggestionResponse response = suggestionsService.saveSuggestion(request, username);
         return ResponseEntity.ok(response);
     }
 }
