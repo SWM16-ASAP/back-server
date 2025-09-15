@@ -80,29 +80,27 @@ public class NotificationService {
 
     private NotificationSendResponse sendNotification(List<String> tokens, FcmMessageRequest request) {
         try {
-            BatchResponse response = fcmMessagingService.sendMulticastMessage(tokens, request);
-
-            // 결과 분석
+            // 멀티캐스트 대신 개별 전송으로 변경 (FCM /batch 엔드포인트 문제 회피)
             List<String> sentTokens = new ArrayList<>();
             List<String> failedTokens = new ArrayList<>();
 
-            for (int i = 0; i < response.getResponses().size(); i++) {
-                SendResponse sendResponse = response.getResponses().get(i);
-                String token = tokens.get(i);
-
-                if (sendResponse.isSuccessful()) {
+            for (String token : tokens) {
+                try {
+                    String response = fcmMessagingService.sendMessage(token, request);
                     sentTokens.add(token);
-                } else {
+                    log.debug("FCM message sent successfully to token: {}", maskToken(token));
+                } catch (Exception e) {
                     failedTokens.add(token);
-                    
+                    log.warn("Failed to send FCM message to token: {}, error: {}", maskToken(token), e.getMessage());
+
                     // 유효하지 않은 토큰인 경우 비활성화
-                    if (isInvalidToken(sendResponse.getException())) {
+                    if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
                         deactivateTokenByFcmToken(token);
                     }
                 }
             }
 
-            log.info("Notification send completed - Success: {}, Failed: {}", 
+            log.info("Notification send completed - Success: {}, Failed: {}",
                      sentTokens.size(), failedTokens.size());
 
             return new NotificationSendResponse(
@@ -118,14 +116,6 @@ public class NotificationService {
         }
     }
 
-    private boolean isInvalidToken(Exception exception) {
-        if (exception instanceof FirebaseMessagingException) {
-            MessagingErrorCode errorCode = ((FirebaseMessagingException) exception).getMessagingErrorCode();
-            return errorCode == MessagingErrorCode.UNREGISTERED ||
-                   errorCode == MessagingErrorCode.INVALID_ARGUMENT;
-        }
-        return false;
-    }
 
     private void deactivateTokenByFcmToken(String fcmToken) {
         try {
