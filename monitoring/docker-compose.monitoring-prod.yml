@@ -1,3 +1,7 @@
+networks:
+  monitoring:
+    driver: bridge
+
 services:
   prometheus:
     image: prom/prometheus:latest
@@ -8,7 +12,19 @@ services:
       - path: .env.monitoring.prod
     volumes:
       - ./prometheus-prod.yml:/etc/prometheus/prometheus.yml
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml
       - ./data/prometheus-data-prod:/prometheus
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager-prod
+    expose:
+      - "9093"
+    env_file:
+      - path: .env.monitoring.prod
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./data/alertmanager-data-prod:/alertmanager
 
   grafana:
     image: grafana/grafana:latest
