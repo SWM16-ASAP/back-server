@@ -50,3 +50,7 @@ firebase.base64
 
 ### monitoring data ###
 monitoring/data/
+
+### monitoring config with secrets ###
+monitoring/prometheus-*.yml
+monitoring/alertmanager.yml
