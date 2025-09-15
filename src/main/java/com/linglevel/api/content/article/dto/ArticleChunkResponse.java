@@ -23,9 +23,9 @@ public class ArticleChunkResponse {
     
     @Schema(description = "청크 번호", example = "1")
     private Integer chunkNumber;
-    
-    @Schema(description = "난이도 레벨", example = "A1")
-    private DifficultyLevel difficulty;
+
+    @Schema(description = "난이도", example = "A1")
+    private DifficultyLevel difficultyLevel;
     
     @Schema(description = "청크 타입", example = "TEXT")
     private ChunkType type;
@@ -40,7 +40,7 @@ public class ArticleChunkResponse {
         return ArticleChunkResponse.builder()
                 .id(chunk.getId())
                 .chunkNumber(chunk.getChunkNumber())
-                .difficulty(chunk.getDifficulty())
+                .difficultyLevel(chunk.getDifficulty())
                 .type(chunk.getType())
                 .content(chunk.getContent())
                 .description(chunk.getDescription())

@@ -28,7 +28,7 @@ public class ArticleChunkService {
     public PageResponse<ArticleChunkResponse> getArticleChunks(String articleId, GetArticleChunksRequest request) {
         validateArticleExists(articleId);
 
-        DifficultyLevel difficulty = validateAndParseDifficulty(request.getDifficulty());
+        DifficultyLevel difficulty = request.getDifficultyLevel();
 
         validatePaginationRequest(request);
         Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit());
@@ -80,7 +80,7 @@ public class ArticleChunkService {
         ArticleChunkResponse response = new ArticleChunkResponse();
         response.setId(chunk.getId());
         response.setChunkNumber(chunk.getChunkNumber());
-        response.setDifficulty(chunk.getDifficulty());
+        response.setDifficultyLevel(chunk.getDifficulty());
         response.setType(chunk.getType());
         response.setContent(chunk.getContent());
         response.setDescription(chunk.getDescription());
