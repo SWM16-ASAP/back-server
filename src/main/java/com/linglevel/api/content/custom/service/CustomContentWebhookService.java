@@ -75,7 +75,8 @@ public class CustomContentWebhookService {
             notificationService.sendContentCompletedNotification(
                     contentRequest.getUserId(),
                     request.getRequestId(),
-                    aiResult.getTitle()
+                    aiResult.getTitle(),
+                    savedContent.getId()
             );
             
             log.info("Successfully processed AI result for request: {}", request.getRequestId());

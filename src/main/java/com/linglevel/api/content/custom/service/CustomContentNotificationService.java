@@ -20,24 +20,30 @@ public class CustomContentNotificationService {
     private final FcmTokenRepository fcmTokenRepository;
     private final FcmMessagingService fcmMessagingService;
 
-    public void sendContentCompletedNotification(String userId, String requestId, String contentTitle) {
+    public void sendContentCompletedNotification(String userId, String requestId, String contentTitle, String contentId) {
         try {
             List<FcmToken> userTokens = fcmTokenRepository.findByUserId(userId);
-            
+
             if (userTokens.isEmpty()) {
                 log.info("No FCM tokens found for user: {}", userId);
                 return;
             }
-            
-            Map<String, String> data = new HashMap<>();
-            data.put("type", "custom_content_completed");
-            data.put("requestId", requestId);
-            data.put("contentTitle", contentTitle);
-            
+
+            Map<String, String> additionalData = new HashMap<>();
+            additionalData.put("requestId", requestId);
+            additionalData.put("contentTitle", contentTitle);
+            if (contentId != null) {
+                additionalData.put("contentId", contentId);
+            }
+
             FcmMessageRequest messageRequest = FcmMessageRequest.builder()
-                    .title("콘텐츠 처리 완료")
-                    .body(String.format("'%s' 콘텐츠가 성공적으로 처리되었습니다.", contentTitle))
-                    .data(data)
+                    .title("Content Ready")
+                    .body(String.format("'%s' has been successfully processed.", contentTitle))
+                    .type("custom_content_completed")
+                    .userId(userId)
+                    .action("view_content")
+                    .deepLink(contentId != null ? "/custom-content/" + contentId : "/custom-content/requests")
+                    .additionalData(additionalData)
                     .build();
             
             for (FcmToken token : userTokens) {
@@ -60,22 +66,25 @@ public class CustomContentNotificationService {
     public void sendContentFailedNotification(String userId, String requestId, String contentTitle, String errorMessage) {
         try {
             List<FcmToken> userTokens = fcmTokenRepository.findByUserId(userId);
-            
+
             if (userTokens.isEmpty()) {
                 log.info("No FCM tokens found for user: {}", userId);
                 return;
             }
-            
-            Map<String, String> data = new HashMap<>();
-            data.put("type", "custom_content_failed");
-            data.put("requestId", requestId);
-            data.put("contentTitle", contentTitle);
-            data.put("errorMessage", errorMessage);
-            
+
+            Map<String, String> additionalData = new HashMap<>();
+            additionalData.put("requestId", requestId);
+            additionalData.put("contentTitle", contentTitle);
+            additionalData.put("errorMessage", errorMessage);
+
             FcmMessageRequest messageRequest = FcmMessageRequest.builder()
-                    .title("콘텐츠 처리 실패")
-                    .body(String.format("'%s' 콘텐츠 처리 중 오류가 발생했습니다.", contentTitle))
-                    .data(data)
+                    .title("Content Processing Failed")
+                    .body(String.format("An error occurred while processing '%s'.", contentTitle))
+                    .type("custom_content_failed")
+                    .userId(userId)
+                    .action("view_requests")
+                    .deepLink("/custom-content/requests")
+                    .additionalData(additionalData)
                     .build();
             
             for (FcmToken token : userTokens) {
