@@ -34,8 +34,8 @@ services:
     env_file:
       - path: .env.monitoring.prod
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=password
     volumes:
       - ./data/grafana-data-prod:/var/lib/grafana
     depends_on:
