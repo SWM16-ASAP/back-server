@@ -2581,7 +2581,9 @@ X-API-Key: {TempApiKey}
 ```json
 {
   "domain": "coupang.com",
-  "dsl": "text content of DSL rules",
+  "name": "쿠팡",
+  "titleDsl": "title selector DSL",
+  "contentDsl": "content selector DSL",
   "valid": true
 }
 ```
@@ -2660,12 +2662,14 @@ POST /api/v1/custom-contents/requests
 {
   "data": [
     {
+      "_id": "60d0fe4f5311236168a109ca",
       "domain": "coupang.com",
-      "_id": "60d0fe4f5311236168a109ca"
+      "name": "쿠팡"
     },
     {
+      "_id": "60d0fe4f5311236168a109cb",
       "domain": "amazon.com",
-      "_id": "60d0fe4f5311236168a109cb"
+      "name": "아마존"
     }
   ],
   "currentPage": 1,
@@ -2690,18 +2694,23 @@ X-API-Key: {TempApiKey}
 ```json
 {
   "domain": "coupang.com",
-  "dsl": "text content of DSL rules for coupang.com"
+  "name": "쿠팡",
+  "titleDsl": "title selector DSL",
+  "contentDsl": "content selector DSL"
 }
 ```
 
 - `domain`: 도메인명 (필수)
-- `dsl`: DSL 규칙 텍스트 (필수)
+- `name`: 사이트 이름 (필수)
+- `titleDsl`: 제목 추출 DSL 규칙 (필수)
+- `contentDsl`: 내용 추출 DSL 규칙 (필수)
 
 #### **Success Response (201 Created)**
 ```json
 {
   "_id": "60d0fe4f5311236168a109ca",
   "domain": "coupang.com",
+  "name": "쿠팡",
   "message": "DSL created successfully."
 }
 ```
@@ -2709,7 +2718,7 @@ X-API-Key: {TempApiKey}
 #### **Error Response (400 Bad Request)**
 ```json
 {
-  "message": "Domain and dsl are required."
+  "message": "Domain, name, titleDsl, and contentDsl are required."
 }
 ```
 
@@ -2746,18 +2755,24 @@ X-API-Key: {TempApiKey}
 
 ```json
 {
-  "dsl": "updated DSL rules for the domain"
+  "name": "쿠팡",
+  "titleDsl": "updated title selector DSL",
+  "contentDsl": "updated content selector DSL"
 }
 ```
 
-- `dsl`: 업데이트할 DSL 규칙 텍스트 (필수)
+- `name`: 업데이트할 사이트 이름 (선택사항)
+- `titleDsl`: 업데이트할 제목 추출 DSL 규칙 (선택사항)
+- `contentDsl`: 업데이트할 내용 추출 DSL 규칙 (선택사항)
 
 #### **Success Response (200 OK)**
 ```json
 {
   "_id": "60d0fe4f5311236168a109ca",
   "domain": "coupang.com",
-  "dsl": "updated DSL rules for the domain",
+  "name": "쿠팡",
+  "titleDsl": "updated title selector DSL",
+  "contentDsl": "updated content selector DSL",
   "message": "DSL updated successfully."
 }
 ```
@@ -2772,7 +2787,7 @@ X-API-Key: {TempApiKey}
 #### **Error Response (400 Bad Request)**
 ```json
 {
-  "message": "DSL is required."
+  "message": "At least one field (name, titleDsl, contentDsl) is required."
 }
 ```
 

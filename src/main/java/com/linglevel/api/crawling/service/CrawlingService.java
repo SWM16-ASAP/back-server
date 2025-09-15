@@ -64,6 +64,7 @@ public class CrawlingService {
         return domains.map(dsl -> DomainsResponse.builder()
                 .id(dsl.getId())
                 .domain(dsl.getDomain())
+                .name(dsl.getName())
                 .build());
     }
 
@@ -74,6 +75,7 @@ public class CrawlingService {
 
         CrawlingDsl crawlingDsl = CrawlingDsl.builder()
                 .domain(request.getDomain())
+                .name(request.getName())
                 .titleDsl(request.getTitleDsl())
                 .contentDsl(request.getContentDsl())
                 .createdAt(LocalDateTime.now())
@@ -93,6 +95,7 @@ public class CrawlingService {
         CrawlingDsl crawlingDsl = crawlingDslRepository.findByDomain(domain)
                 .orElseThrow(() -> new CrawlingException(CrawlingErrorCode.DOMAIN_NOT_FOUND));
 
+        crawlingDsl.setName(request.getName());
         crawlingDsl.setTitleDsl(request.getTitleDsl());
         crawlingDsl.setContentDsl(request.getContentDsl());
         crawlingDsl.setUpdatedAt(LocalDateTime.now());
@@ -102,6 +105,7 @@ public class CrawlingService {
         return UpdateDslResponse.builder()
                 .id(updated.getId())
                 .domain(updated.getDomain())
+                .name(updated.getName())
                 .titleDsl(updated.getTitleDsl())
                 .contentDsl(updated.getContentDsl())
                 .message("DSL updated successfully.")
