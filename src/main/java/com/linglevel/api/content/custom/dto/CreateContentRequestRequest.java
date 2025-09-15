@@ -15,7 +15,6 @@ import java.util.List;
 public class CreateContentRequestRequest {
     
     @Schema(description = "콘텐츠 제목", example = "My Custom Article")
-    @NotBlank(message = "제목은 필수입니다.")
     private String title;
     
     @Schema(description = "콘텐츠 타입", example = "TEXT", allowableValues = {"TEXT", "LINK", "PDF"})
