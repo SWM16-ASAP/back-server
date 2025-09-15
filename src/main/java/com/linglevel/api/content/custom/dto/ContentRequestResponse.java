@@ -18,6 +18,9 @@ public class ContentRequestResponse {
     
     @Schema(description = "제목", example = "My Custom Article")
     private String title;
+
+    @Schema(description = "원본 텍스트")
+    private String originalText;
     
     @Schema(description = "콘텐츠 타입", example = "CLIPBOARD")
     private String contentType;

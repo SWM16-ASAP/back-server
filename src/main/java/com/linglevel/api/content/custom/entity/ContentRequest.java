@@ -30,6 +30,8 @@ public class ContentRequest {
     @NotNull
     private String title;
 
+    private String originalText;
+
     @NotNull
     private ContentType contentType;
 
