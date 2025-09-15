@@ -1,6 +1,7 @@
-networks:
-  monitoring:
-    driver: bridge
+ networks:
+   default:
+     name: npm_nginx-proxy
+     external: true
 
 services:
   prometheus:
@@ -40,3 +41,30 @@ services:
       - ./data/grafana-data-prod:/var/lib/grafana
     depends_on:
       - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki-prod
+    expose:
+      - "3100"
+    env_file:
+      - path: .env.monitoring.prod
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml
+      - ./data/loki-data-prod:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail-prod
+    env_file:
+      - path: .env.monitoring.prod
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
