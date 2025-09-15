@@ -14,7 +14,11 @@ public class CreateDslRequest {
     @NotBlank(message = "Domain is required")
     @Schema(description = "도메인명", example = "coupang.com", required = true)
     private String domain;
-    
+
+    @NotBlank(message = "Name is required")
+    @Schema(description = "사이트명", example = "쿠팡", required = true)
+    private String name;
+
     @NotBlank(message = "Title DSL is required")
     @Schema(description = "제목 추출 DSL 규칙", example = "h1.product-title", required = true)
     private String titleDsl;

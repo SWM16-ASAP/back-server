@@ -2664,16 +2664,12 @@ POST /api/v1/custom-contents/requests
     {
       "_id": "60d0fe4f5311236168a109ca",
       "domain": "coupang.com",
-      "name": "쿠팡",
-      "createdAt": "2024-01-15T10:00:00",
-      "updatedAt": "2024-01-15T10:30:00"
+      "name": "쿠팡"
     },
     {
       "_id": "60d0fe4f5311236168a109cb",
       "domain": "amazon.com",
-      "name": "아마존",
-      "createdAt": "2024-01-15T09:00:00",
-      "updatedAt": "2024-01-15T09:15:00"
+      "name": "아마존"
     }
   ],
   "currentPage": 1,
@@ -2715,10 +2711,6 @@ X-API-Key: {TempApiKey}
   "_id": "60d0fe4f5311236168a109ca",
   "domain": "coupang.com",
   "name": "쿠팡",
-  "titleDsl": "title selector DSL",
-  "contentDsl": "content selector DSL",
-  "createdAt": "2024-01-15T10:00:00",
-  "updatedAt": "2024-01-15T10:00:00",
   "message": "DSL created successfully."
 }
 ```
@@ -2781,8 +2773,6 @@ X-API-Key: {TempApiKey}
   "name": "쿠팡",
   "titleDsl": "updated title selector DSL",
   "contentDsl": "updated content selector DSL",
-  "createdAt": "2024-01-15T10:00:00",
-  "updatedAt": "2024-01-15T11:00:00",
   "message": "DSL updated successfully."
 }
 ```

@@ -19,4 +19,7 @@ public class DomainsResponse {
     
     @Schema(description = "도메인명", example = "coupang.com")
     private String domain;
+
+    @Schema(description = "사이트명", example = "쿠팡")
+    private String name;
 }

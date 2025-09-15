@@ -19,7 +19,9 @@ public class CrawlingDsl {
     
     @Indexed(unique = true)
     private String domain;
-    
+
+    private String name;
+
     private String titleDsl;
     
     private String contentDsl;
