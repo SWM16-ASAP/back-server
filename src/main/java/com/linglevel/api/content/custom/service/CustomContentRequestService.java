@@ -50,7 +50,7 @@ public class CustomContentRequestService {
         // 🎫 티켓 예약 (1개 티켓 필요)
         String reservationId;
         try {
-            reservationId = ticketService.reserveTicket(user.getId(), 1, "Custom content creation: " + request.getTitle());
+            reservationId = ticketService.reserveTicket(user.getId(), 1, "Custom content creation");
             log.info("Ticket reserved for user: {} (Custom content: {})", user.getId(), request.getTitle());
         } catch (Exception e) {
             log.info("Failed to reserve ticket for user: {}", user.getId(), e);
