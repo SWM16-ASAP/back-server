@@ -83,7 +83,7 @@ public class BookImportService {
         Chunk chunk = new Chunk();
         chunk.setChapterId(chapter.getId());
         chunk.setChunkNumber(chunkData.getChunkNum());
-        chunk.setDifficulty(DifficultyLevel.valueOf(difficultyLevel.toUpperCase()));
+        chunk.setDifficultyLevel(DifficultyLevel.valueOf(difficultyLevel.toUpperCase()));
         
         if (Boolean.TRUE.equals(chunkData.getIsImage())) {
             chunk.setType(ChunkType.IMAGE);

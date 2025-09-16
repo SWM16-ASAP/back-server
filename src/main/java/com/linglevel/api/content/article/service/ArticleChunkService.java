@@ -33,7 +33,7 @@ public class ArticleChunkService {
         validatePaginationRequest(request);
         Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit());
 
-        Page<ArticleChunk> chunksPage = articleChunkRepository.findByArticleIdAndDifficultyOrderByChunkNumber(
+        Page<ArticleChunk> chunksPage = articleChunkRepository.findByArticleIdAndDifficultyLevelOrderByChunkNumber(
                 articleId, difficulty, pageable);
         
         List<ArticleChunkResponse> chunkResponses = chunksPage.getContent().stream()
@@ -77,13 +77,6 @@ public class ArticleChunkService {
     }
 
     private ArticleChunkResponse convertToArticleChunkResponse(ArticleChunk chunk) {
-        ArticleChunkResponse response = new ArticleChunkResponse();
-        response.setId(chunk.getId());
-        response.setChunkNumber(chunk.getChunkNumber());
-        response.setDifficultyLevel(chunk.getDifficulty());
-        response.setType(chunk.getType());
-        response.setContent(chunk.getContent());
-        response.setDescription(chunk.getDescription());
-        return response;
+        return ArticleChunkResponse.from(chunk);
     }
 }

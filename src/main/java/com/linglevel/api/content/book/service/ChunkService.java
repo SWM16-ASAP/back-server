@@ -52,7 +52,7 @@ public class ChunkService {
             Sort.by("chunkNumber").ascending()
         );
 
-        Page<Chunk> chunkPage = chunkRepository.findByChapterIdAndDifficulty(chapterId, difficulty, pageable);
+        Page<Chunk> chunkPage = chunkRepository.findByChapterIdAndDifficultyLevel(chapterId, difficulty, pageable);
         
         List<ChunkResponse> chunkResponses = chunkPage.getContent().stream()
             .map(this::convertToChunkResponse)
@@ -97,7 +97,7 @@ public class ChunkService {
         return ChunkResponse.builder()
             .id(chunk.getId())
             .chunkNumber(chunk.getChunkNumber())
-            .difficultyLevel(chunk.getDifficulty())
+            .difficultyLevel(chunk.getDifficultyLevel())
             .type(chunk.getType())
             .content(chunk.getContent())
             .description(chunk.getDescription())

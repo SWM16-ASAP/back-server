@@ -3,7 +3,6 @@ package com.linglevel.api.content.custom.service;
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.custom.dto.*;
-import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.entity.CustomContentChunk;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
@@ -68,7 +67,7 @@ public class CustomContentChunkService {
     }
 
     private void validateCustomContentAccess(String customContentId, String userId) {
-        CustomContent customContent = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
+        customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
     }
 
@@ -80,17 +79,6 @@ public class CustomContentChunkService {
     }
 
     private CustomContentChunkResponse convertToCustomContentChunkResponse(CustomContentChunk chunk) {
-        CustomContentChunkResponse response = new CustomContentChunkResponse();
-        response.setId(chunk.getId());
-        response.setCustomContentId(chunk.getCustomContentId());
-        response.setDifficultyLevel(chunk.getDifficultyLevel());
-        response.setChapterNum(chunk.getChapterNum());
-        response.setChunkNum(chunk.getChunkNum());
-        response.setIsImage(chunk.getType() == com.linglevel.api.content.common.ChunkType.IMAGE);
-        response.setChunkText(chunk.getChunkText());
-        response.setDescription(chunk.getDescription());
-        response.setCreatedAt(chunk.getCreatedAt());
-        response.setUpdatedAt(chunk.getUpdatedAt());
-        return response;
+        return CustomContentChunkResponse.from(chunk);
     }
 }

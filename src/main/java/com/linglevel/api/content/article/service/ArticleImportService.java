@@ -50,7 +50,7 @@ public class ArticleImportService {
         ArticleChunk chunk = new ArticleChunk();
         chunk.setArticleId(articleId);
         chunk.setChunkNumber(chunkData.getChunkNum());
-        chunk.setDifficulty(difficulty);
+        chunk.setDifficultyLevel(difficulty);
         
         if (Boolean.TRUE.equals(chunkData.getIsImage())) {
             chunk.setType(ChunkType.IMAGE);

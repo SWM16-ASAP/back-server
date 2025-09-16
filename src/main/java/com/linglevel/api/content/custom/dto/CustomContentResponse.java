@@ -38,7 +38,7 @@ public class CustomContentResponse {
     private Integer readingTime;
     
     @Schema(description = "평균 평점", example = "4.2")
-    private Float averageRating;
+    private Double averageRating;
     
     @Schema(description = "리뷰 개수", example = "15")
     private Integer reviewCount;
