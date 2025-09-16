@@ -147,7 +147,7 @@ public class CustomContentService {
         response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
         response.setChunkCount(content.getChunkCount());
         response.setReadingTime(content.getReadingTime());
-        response.setAverageRating(content.getAverageRating() != null ? content.getAverageRating().floatValue() : 0.0f);
+        response.setAverageRating(content.getAverageRating() != null ? content.getAverageRating().floatValue() : 0.0d);
         response.setReviewCount(content.getReviewCount());
         response.setViewCount(content.getViewCount());
         response.setTags(content.getTags());

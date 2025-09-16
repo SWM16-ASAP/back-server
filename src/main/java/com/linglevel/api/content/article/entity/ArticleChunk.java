@@ -19,7 +19,7 @@ public class ArticleChunk {
 
     private Integer chunkNumber;
 
-    private DifficultyLevel difficulty;
+    private DifficultyLevel difficultyLevel;
 
     private ChunkType type;
 
