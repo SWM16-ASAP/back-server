@@ -41,8 +41,6 @@ out/
 
 ### env ###
 .env.local
-monitoring/.env.monitoring.local
-monitoring/.env.monitoring.prod
 
 ### firebase key ###
 firebase.json
@@ -54,3 +52,8 @@ monitoring/data/
 ### monitoring config with secrets ###
 monitoring/prometheus-*.yml
 monitoring/alertmanager.yml
+
+### K6 data ###
+k6/data/**
+k6/reports/**
+k6/scripts/**

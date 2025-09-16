@@ -1,0 +1,13 @@
+services:
+  k6:
+    image: grafana/k6:latest
+    volumes:
+      - ./scripts:/scripts
+      - ./data:/data
+      - ./reports:/reports
+    environment:
+      - K6_OUT=json=/reports/results.json
+
+# 사용법:
+# docker-compose run --rm k6 run /scripts/load-test.js
+# docker-compose run --rm k6 run /scripts/smoke-test.js --vus 1 --duration 30s
