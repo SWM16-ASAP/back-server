@@ -42,6 +42,7 @@ public class FcmToken {
     private LocalDateTime createdAt;
     
     @LastModifiedDate
+    @Indexed(expireAfter = "7776000s") // 90일 자동 삭제
     private LocalDateTime updatedAt;
     
     @Builder.Default

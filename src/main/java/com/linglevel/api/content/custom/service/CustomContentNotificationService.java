@@ -42,7 +42,7 @@ public class CustomContentNotificationService {
                     .type("custom_content_completed")
                     .userId(userId)
                     .action("view_content")
-                    .deepLink(contentId != null ? "/custom-content/" + contentId : "/custom-content/requests")
+                    .deepLink(contentId != null ? "linglevel://customContent/" + contentId : "linglevel://customContent")
                     .additionalData(additionalData)
                     .build();
             
@@ -79,11 +79,11 @@ public class CustomContentNotificationService {
 
             FcmMessageRequest messageRequest = FcmMessageRequest.builder()
                     .title("Content Processing Failed")
-                    .body(String.format("An error occurred while processing '%s'.", contentTitle))
+                    .body("An error occurred while processing.")
                     .type("custom_content_failed")
                     .userId(userId)
-                    .action("view_requests")
-                    .deepLink("/custom-content/requests")
+                    .action("view_chat")
+                    .deepLink("linglevel://import?state=chat")
                     .additionalData(additionalData)
                     .build();
             
