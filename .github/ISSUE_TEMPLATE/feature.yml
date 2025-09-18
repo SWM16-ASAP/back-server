@@ -1,5 +1,5 @@
-name: 기능
-description: 새로운 기능 요청
+name: 'Feature Request'
+description: 'Suggest an idea for this project'
 labels: ["enhancement"]
 body:
   - type: textarea
