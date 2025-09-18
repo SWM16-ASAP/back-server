@@ -12,6 +12,7 @@ import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
 import com.linglevel.api.s3.service.S3UrlService;
 import com.linglevel.api.s3.strategy.CustomContentPathStrategy;
+import com.linglevel.api.user.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class CustomContentWebhookService {
     private final S3UrlService s3UrlService;
     private final CustomContentPathStrategy pathStrategy;
     private final CustomContentNotificationService notificationService;
+    private final TicketService ticketService;
 
     @Transactional
     public CustomContentCompletedResponse handleContentCompleted(CustomContentCompletedRequest request) {
@@ -107,14 +109,22 @@ public class CustomContentWebhookService {
             contentRequest.setStatus(ContentRequestStatus.FAILED);
             contentRequest.setErrorMessage(request.getErrorMessage());
             contentRequestRepository.save(contentRequest);
-            
+
+            // 티켓 복원 (1개 환불)
+            try {
+                ticketService.grantTicket(contentRequest.getUserId(), 1, "Content creation failed - refund");
+                log.info("Ticket refunded for failed request: {}", request.getRequestId());
+            } catch (Exception ticketE) {
+                log.error("Failed to refund ticket for request: {}. Error: {}", request.getRequestId(), ticketE.getMessage());
+            }
+
             notificationService.sendContentFailedNotification(
                     contentRequest.getUserId(),
                     request.getRequestId(),
                     contentRequest.getTitle(),
                     request.getErrorMessage()
             );
-            
+
             log.info("Updated request status to FAILED for request: {}", request.getRequestId());
             
         } catch (Exception e) {
@@ -165,6 +175,14 @@ public class CustomContentWebhookService {
                 contentRequest.setStatus(ContentRequestStatus.FAILED);
                 contentRequest.setErrorMessage("AI 결과 처리 실패: " + originalException.getMessage());
                 contentRequestRepository.save(contentRequest);
+
+                // 티켓 복원 (1개 환불)
+                try {
+                    ticketService.grantTicket(contentRequest.getUserId(), 1, "Content processing failed - refund");
+                    log.info("Ticket refunded for processing failure: {}", requestId);
+                } catch (Exception ticketE) {
+                    log.error("Failed to refund ticket for processing failure: {}. Error: {}", requestId, ticketE.getMessage());
+                }
             }
         } catch (Exception e) {
             log.error("Failed to update content request status to FAILED for request: {}. Error: {}", requestId, e.getMessage());
