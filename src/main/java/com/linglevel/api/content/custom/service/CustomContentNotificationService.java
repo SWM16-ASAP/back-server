@@ -42,7 +42,7 @@ public class CustomContentNotificationService {
                     .type("custom_content_completed")
                     .userId(userId)
                     .action("view_content")
-                    .deepLink(contentId != null ? "linglevel://customContent/" + contentId : "linglevel://customContent")
+                    .deepLink(contentId != null ? "linglevel:///customContent/" + contentId : "linglevel:///customContent")
                     .additionalData(additionalData)
                     .build();
             
@@ -83,7 +83,7 @@ public class CustomContentNotificationService {
                     .type("custom_content_failed")
                     .userId(userId)
                     .action("view_chat")
-                    .deepLink("linglevel://import?state=chat")
+                    .deepLink("linglevel:///import?state=chat")
                     .additionalData(additionalData)
                     .build();
             
@@ -97,7 +97,7 @@ public class CustomContentNotificationService {
                             token.getDeviceId(), userId, e);
                 }
             }
-            
+
         } catch (Exception e) {
             log.error("Failed to send content failure notification for user: {}, requestId: {}", 
                     userId, requestId, e);
