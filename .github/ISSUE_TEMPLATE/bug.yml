@@ -1,0 +1,27 @@
+name: 🐛 버그
+description: 버그 리포트
+title: ""
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 문제 설명
+      placeholder: 발생한 문제를 간단히 설명해주세요
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 방법
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: 추가 정보
+      placeholder: 오류 로그, 스크린샷 등
