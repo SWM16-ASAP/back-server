@@ -13,16 +13,18 @@ import lombok.NoArgsConstructor;
 @Schema(description = "챕터 목록 조회 요청")
 public class GetChaptersRequest {
     
-    @Schema(description = "페이지 번호", 
-            example = "1", 
+    @Schema(description = "페이지 번호",
+            example = "1",
             minimum = "1",
             defaultValue = "1")
+    @Builder.Default
     private Integer page = 1;
     
-    @Schema(description = "페이지 크기", 
-            example = "10", 
-            minimum = "1", 
+    @Schema(description = "페이지 크기",
+            example = "10",
+            minimum = "1",
             maximum = "100",
             defaultValue = "10")
+    @Builder.Default
     private Integer limit = 10;
 } 

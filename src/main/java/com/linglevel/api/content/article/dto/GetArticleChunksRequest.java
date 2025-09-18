@@ -19,16 +19,18 @@ public class GetArticleChunksRequest {
     @NotNull(message = "난이도는 필수입니다.")
     private DifficultyLevel difficultyLevel;
     
-    @Schema(description = "페이지 번호", 
-            example = "1", 
+    @Schema(description = "페이지 번호",
+            example = "1",
             minimum = "1",
             defaultValue = "1")
+    @Builder.Default
     private Integer page = 1;
-    
-    @Schema(description = "페이지 크기", 
-            example = "10", 
-            minimum = "1", 
+
+    @Schema(description = "페이지 크기",
+            example = "10",
+            minimum = "1",
             maximum = "100",
             defaultValue = "10")
+    @Builder.Default
     private Integer limit = 10;
 }
