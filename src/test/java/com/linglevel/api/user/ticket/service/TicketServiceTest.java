@@ -9,6 +9,7 @@ import com.linglevel.api.user.ticket.exception.TicketException;
 import com.linglevel.api.user.ticket.repository.TicketTransactionRepository;
 import com.linglevel.api.user.ticket.repository.UserTicketRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,7 +67,8 @@ class TicketServiceTest {
     }
 
     @Nested
-    class 티켓잔고조회테스트 {
+    @DisplayName("티켓 잔고 조회 테스트")
+    class GetTicketBalanceTest {
 
         @Test
         void 기존사용자_티켓잔고조회_성공() {
@@ -105,7 +107,8 @@ class TicketServiceTest {
     }
 
     @Nested
-    class 티켓거래내역조회테스트 {
+    @DisplayName("티켓 거래 내역 조회 테스트")
+    class GetTicketTransactionsTest {
 
         @Test
         void 티켓거래내역조회_성공() {
@@ -134,7 +137,8 @@ class TicketServiceTest {
     }
 
     @Nested
-    class 티켓예약테스트 {
+    @DisplayName("티켓 예약 테스트")
+    class ReserveTicketTest {
 
         @Test
         void 티켓예약_성공() {
@@ -167,7 +171,8 @@ class TicketServiceTest {
     }
 
     @Nested
-    class 예약확정테스트 {
+    @DisplayName("예약 확정 테스트")
+    class ConfirmReservationTest {
 
         @Test
         void 예약확정_성공() {
@@ -206,7 +211,8 @@ class TicketServiceTest {
     }
 
     @Nested
-    class 예약취소테스트 {
+    @DisplayName("예약 취소 테스트")
+    class CancelReservationTest {
 
         @Test
         void 예약취소_성공() {
@@ -235,7 +241,8 @@ class TicketServiceTest {
     }
 
     @Nested
-    class 티켓사용테스트 {
+    @DisplayName("티켓 사용 테스트")
+    class SpendTicketTest {
 
         @Test
         void 티켓사용_성공() {
@@ -264,7 +271,8 @@ class TicketServiceTest {
     }
 
     @Nested
-    class 티켓지급테스트 {
+    @DisplayName("티켓 지급 테스트")
+    class GrantTicketTest {
 
         @Test
         void 티켓지급_성공() {
