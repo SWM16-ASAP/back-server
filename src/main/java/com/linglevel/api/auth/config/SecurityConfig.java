@@ -1,5 +1,6 @@
 package com.linglevel.api.auth.config;
 
+import com.linglevel.api.auth.filter.AdminAuthenticationFilter;
 import com.linglevel.api.auth.filter.TestAuthFilter;
 import com.linglevel.api.auth.handler.CustomAuthenticationEntryPoint;
 import com.linglevel.api.auth.jwt.JwtFilter;
@@ -9,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -19,11 +21,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtFilter jwtFilter;
+    private final AdminAuthenticationFilter adminAuthenticationFilter;
     
     @Autowired(required = false)
     private TestAuthFilter testAuthFilter;
@@ -35,12 +39,13 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/actuator/prometheus").hasRole("ADMIN") // 프로메테우스 엔드포인트만 어드민 권한 필요
+                        .requestMatchers("/actuator/**").permitAll() // 다른 actuator 엔드포인트들은 공개
                         .requestMatchers("/api/v1/version").permitAll()
                         .requestMatchers("/api/v1/auth/oauth/login").permitAll()
                         .requestMatchers("/api/v1/auth/refresh").permitAll()
-                        .requestMatchers("/api/v1/books/import", "/api/v1/articles/import").permitAll()
-                        .requestMatchers("/api/v1/admin/**").permitAll()
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/custom-contents/webhooks/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptions -> exceptions
@@ -51,6 +56,7 @@ public class SecurityConfig {
             http.addFilterBefore(testAuthFilter, UsernamePasswordAuthenticationFilter.class);
         }
         
+        http.addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

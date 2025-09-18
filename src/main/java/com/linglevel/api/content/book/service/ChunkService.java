@@ -41,7 +41,7 @@ public class ChunkService {
 
         DifficultyLevel difficulty;
         try {
-            difficulty = DifficultyLevel.valueOf(request.getDifficulty().toUpperCase());
+            difficulty = request.getDifficultyLevel();
         } catch (IllegalArgumentException e) {
             throw new BooksException(BooksErrorCode.INVALID_DIFFICULTY_LEVEL);
         }
@@ -52,7 +52,7 @@ public class ChunkService {
             Sort.by("chunkNumber").ascending()
         );
 
-        Page<Chunk> chunkPage = chunkRepository.findByChapterIdAndDifficulty(chapterId, difficulty, pageable);
+        Page<Chunk> chunkPage = chunkRepository.findByChapterIdAndDifficultyLevel(chapterId, difficulty, pageable);
         
         List<ChunkResponse> chunkResponses = chunkPage.getContent().stream()
             .map(this::convertToChunkResponse)
@@ -97,7 +97,7 @@ public class ChunkService {
         return ChunkResponse.builder()
             .id(chunk.getId())
             .chunkNumber(chunk.getChunkNumber())
-            .difficulty(chunk.getDifficulty())
+            .difficultyLevel(chunk.getDifficultyLevel())
             .type(chunk.getType())
             .content(chunk.getContent())
             .description(chunk.getDescription())

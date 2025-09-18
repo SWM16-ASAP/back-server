@@ -10,7 +10,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.core.sync.RequestBody;
 
 import java.io.IOException;
 import java.util.List;
@@ -23,8 +25,11 @@ public class S3AiService {
     @Qualifier("s3AiClient")
     private final S3Client s3AiClient;
     
-    @Qualifier("aiBucketName")
-    private final String aiBucketName;
+    @Qualifier("aiInputBucketName")
+    private final String aiInputBucketName;
+    
+    @Qualifier("aiOutputBucketName")
+    private final String aiOutputBucketName;
     
     private final ObjectMapper objectMapper;
 
@@ -32,7 +37,7 @@ public class S3AiService {
         try {
             String key = pathStrategy.generateJsonFilePath(fileId);
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(aiBucketName)
+                    .bucket(aiOutputBucketName)
                     .key(key)
                     .build();
             
@@ -53,7 +58,7 @@ public class S3AiService {
         try {
             String prefix = pathStrategy.generateImageFolderPath(folderId);
             ListObjectsV2Request listObjectsRequest = ListObjectsV2Request.builder()
-                    .bucket(aiBucketName)
+                    .bucket(aiOutputBucketName)
                     .prefix(prefix)
                     .build();
             
@@ -73,7 +78,7 @@ public class S3AiService {
     public byte[] downloadImageFile(String imageKey) {
         try {
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(aiBucketName)
+                    .bucket(aiOutputBucketName)
                     .key(imageKey)
                     .build();
             
@@ -82,6 +87,25 @@ public class S3AiService {
         } catch (Exception e) {
             log.error("Failed to download image from S3 AI: {}", e.getMessage());
             throw new RuntimeException("Failed to download image", e);
+        }
+    }
+
+    public void uploadJsonToInputBucket(String requestId, Object data, S3PathStrategy pathStrategy) {
+        try {
+            String key = pathStrategy.generateJsonFilePath(requestId);
+            String jsonContent = objectMapper.writeValueAsString(data);
+            
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(aiInputBucketName)
+                    .key(key)
+                    .contentType("application/json")
+                    .build();
+            
+            s3AiClient.putObject(putObjectRequest, RequestBody.fromString(jsonContent));
+            log.info("Successfully uploaded JSON to AI input bucket: {}", key);
+        } catch (Exception e) {
+            log.error("Failed to upload JSON to S3 AI input bucket: {}", e.getMessage());
+            throw new RuntimeException("Failed to upload to input bucket", e);
         }
     }
 }

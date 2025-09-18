@@ -65,12 +65,24 @@
           "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_STATIC_NAME::"
         },
         {
-          "name": "S3_AI_NAME",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_AI_NAME::"
+          "name": "S3_AI_INPUT_NAME",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_AI_INPUT_NAME::"
+        },
+        {
+          "name": "S3_AI_OUTPUT_NAME",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_AI_OUTPUT_NAME::"
         },
         {
           "name": "S3_REGION",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:S3_REGION::"
+        },
+        {
+          "name": "SENTRY_DSN",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:SENTRY_DSN::"
+        },
+        {
+          "name": "SENTRY_AUTH_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:638721195348:secret:api-spring-prod-a2EbuZ:SENTRY_AUTH_TOKEN::"
         }
       ],
       "ulimits": [],

@@ -80,11 +80,10 @@ public class AuthService {
         Map<String, Object> claims = token.getClaims();
         Object firebase = claims.get("firebase");
 
-        if (firebase instanceof Map) {
-            Map<String, Object> firebaseClaims = (Map<String, Object>) firebase;
-            String signInProvider = (String) firebaseClaims.get("sign_in_provider");
+        if (firebase instanceof Map<?, ?> firebaseMap) {
+            Object signInProviderObj = firebaseMap.get("sign_in_provider");
 
-            if (signInProvider != null) {
+            if (signInProviderObj instanceof String signInProvider) {
                 return switch (signInProvider) {
                     case "google.com" -> "google";
                     case "apple.com" -> "apple";
@@ -92,7 +91,7 @@ public class AuthService {
                 };
             }
         }
-        
+
         return "unknown";
     }
     

@@ -45,7 +45,12 @@ public class SwaggerConfig {
                                 .type(SecurityScheme.Type.APIKEY)
                                 .in(SecurityScheme.In.HEADER)
                                 .name("X-Test-Username")
-                                .description("테스트용 인증 (dev, local 환경만 사용 가능). 사용자의 username을 입력하세요.")))
+                                .description("테스트용 인증 (dev, local 환경만 사용 가능). 사용자의 username을 입력하세요."))
+                        .addSecuritySchemes("adminApiKey", new SecurityScheme()
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER)
+                                .name("X-API-Key")
+                                .description("어드민 API 인증키.")))
                 .security(List.of(
                         new SecurityRequirement().addList("bearerAuth"),
                         new SecurityRequirement().addList("testAuth")));

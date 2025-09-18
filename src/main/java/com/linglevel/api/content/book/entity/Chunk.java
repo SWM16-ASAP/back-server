@@ -22,7 +22,7 @@ public class Chunk {
     
     private Integer chunkNumber;
     
-    private DifficultyLevel difficulty;
+    private DifficultyLevel difficultyLevel;
     
     private ChunkType type;
     

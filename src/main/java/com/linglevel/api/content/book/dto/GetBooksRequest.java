@@ -13,10 +13,11 @@ import lombok.NoArgsConstructor;
 @Schema(description = "책 목록 조회 요청")
 public class GetBooksRequest {
     
-    @Schema(description = "정렬 기준", 
-            example = "created_at", 
+    @Schema(description = "정렬 기준",
+            example = "created_at",
             allowableValues = {"view_count", "average_rating", "created_at"},
             defaultValue = "created_at")
+    @Builder.Default
     private String sortBy = "created_at";
     
     @Schema(description = "태그 필터 (쉼표로 구분)", 
@@ -27,16 +28,18 @@ public class GetBooksRequest {
             example = "prince")
     private String keyword;
     
-    @Schema(description = "페이지 번호", 
-            example = "1", 
+    @Schema(description = "페이지 번호",
+            example = "1",
             minimum = "1",
             defaultValue = "1")
+    @Builder.Default
     private Integer page = 1;
     
-    @Schema(description = "페이지 크기", 
-            example = "10", 
-            minimum = "1", 
+    @Schema(description = "페이지 크기",
+            example = "10",
+            minimum = "1",
             maximum = "100",
             defaultValue = "10")
+    @Builder.Default
     private Integer limit = 10;
 } 

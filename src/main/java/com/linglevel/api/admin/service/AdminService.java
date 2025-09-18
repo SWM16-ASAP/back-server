@@ -163,7 +163,7 @@ public class AdminService {
             log.info("S3 article files deleted successfully - articleId: {}", articleId);
 
             // 2. 기사 청크 삭제
-            List<ArticleChunk> chunks = articleChunkRepository.findByArticleIdAndDifficultyOrderByChunkNumber(
+            List<ArticleChunk> chunks = articleChunkRepository.findByArticleIdAndDifficultyLevelOrderByChunkNumber(
                     articleId, article.getDifficultyLevel(), PageRequest.of(0, Integer.MAX_VALUE)).getContent();
             if (!chunks.isEmpty()) {
                 articleChunkRepository.deleteAll(chunks);

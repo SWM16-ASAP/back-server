@@ -45,3 +45,15 @@ out/
 ### firebase key ###
 firebase.json
 firebase.base64
+
+### monitoring data ###
+monitoring/data/
+
+### monitoring config with secrets ###
+monitoring/prometheus-*.yml
+monitoring/alertmanager.yml
+
+### K6 data ###
+k6/data/**
+k6/reports/**
+k6/scripts/**

@@ -12,7 +12,7 @@ import java.util.Optional;
 public interface ChunkRepository extends MongoRepository<Chunk, String> {
     Page<Chunk> findByChapterId(String chapterId, Pageable pageable);
     
-    Page<Chunk> findByChapterIdAndDifficulty(String chapterId, DifficultyLevel difficulty, Pageable pageable);
+    Page<Chunk> findByChapterIdAndDifficultyLevel(String chapterId, DifficultyLevel difficultyLevel, Pageable pageable);
     
     Optional<Chunk> findFirstByChapterIdOrderByChunkNumberAsc(String chapterId);
 

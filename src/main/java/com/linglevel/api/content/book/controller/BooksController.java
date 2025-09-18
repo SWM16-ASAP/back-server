@@ -15,13 +15,14 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -37,9 +38,6 @@ public class BooksController {
     private final ChapterService chapterService;
     private final ChunkService chunkService;
 
-    // TODO : JWT으로 인증 변경 후 삭제
-    @Value("${import.api.key}")
-    private String importApiKey;
 
     @Operation(summary = "책 목록 조회", description = "책 목록을 조건에 따라 조회합니다.")
     @ApiResponses(value = {
@@ -142,16 +140,11 @@ public class BooksController {
             @ApiResponse(responseCode = "500", description = "import 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
+    @SecurityRequirement(name = "adminApiKey")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/import")
     public ResponseEntity<BookImportResponse> importBook(
-            @RequestHeader(value = "X-API-Key", required = true) String apiKey,
             @RequestBody BookImportRequest request) {
-
-        // TODO : JWT 기반 어드민 인증으로 변경
-        if (!importApiKey.equals(apiKey)) {
-            log.warn("Invalid API key provided for book import");
-            throw new CommonException(CommonErrorCode.UNAUTHORIZED);
-        }
 
         BookImportResponse response = bookService.importBook(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

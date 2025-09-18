@@ -13,17 +13,19 @@ import lombok.NoArgsConstructor;
 @Schema(description = "북마크된 단어 목록 조회 요청")
 public class GetBookmarkedWordsRequest {
     
-    @Schema(description = "페이지 번호", 
-            example = "1", 
+    @Schema(description = "페이지 번호",
+            example = "1",
             minimum = "1",
             defaultValue = "1")
+    @Builder.Default
     private Integer page = 1;
     
-    @Schema(description = "페이지 크기", 
-            example = "10", 
-            minimum = "1", 
+    @Schema(description = "페이지 크기",
+            example = "10",
+            minimum = "1",
             maximum = "100",
             defaultValue = "10")
+    @Builder.Default
     private Integer limit = 10;
     
     @Schema(description = "검색 키워드 (단어 부분 일치 검색)", 

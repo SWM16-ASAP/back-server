@@ -10,7 +10,7 @@ public class BookPathStrategy implements S3PathStrategy {
     private static final String BASE_DIR = "literature";
     private static final String IMAGES_DIR = "/images/";
     private static final String COVER_FILENAME = "cover.jpg";
-    private static final String JSON_EXTENSION = ".json";
+    private static final String METADATA_FILENAME = "metadata.json";
 
     private String getBasePathWithId(String bookId) {
         return BASE_DIR + "/" + bookId;
@@ -18,7 +18,7 @@ public class BookPathStrategy implements S3PathStrategy {
 
     @Override
     public String generateJsonFilePath(String bookId) {
-        return getBasePathWithId(bookId) + "/" + bookId + JSON_EXTENSION;
+        return getBasePathWithId(bookId) + "/" + METADATA_FILENAME;
     }
 
     @Override
