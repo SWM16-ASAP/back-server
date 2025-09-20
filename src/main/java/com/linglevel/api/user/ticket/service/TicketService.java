@@ -165,12 +165,12 @@ public class TicketService {
 
     /**
      * 기본 사용자 티켓을 생성합니다
-     * 🎁 이벤트: 최초 지갑 생성 시 3개 티켓 지급
+     * 🎁 이벤트: 최초 지갑 생성 시 10개 티켓 지급
      */
     private UserTicket createDefaultUserTicket(String userId) {
         UserTicket userTicket = UserTicket.builder()
                 .userId(userId)
-                .balance(3) // 🎁 이벤트: 최초 3개 티켓 지급
+                .balance(3) // 🎁 이벤트: 최초 10개 티켓 지급
                 .build();
         UserTicket savedUserTicket = userTicketRepository.save(userTicket);
 
