@@ -89,7 +89,7 @@ class TicketServiceTest {
             // given
             UserTicket newUserTicket = UserTicket.builder()
                     .userId(userId)
-                    .balance(3)
+                    .balance(10)
                     .build();
 
             when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.empty());
@@ -99,7 +99,7 @@ class TicketServiceTest {
             TicketBalanceResponse response = ticketService.getTicketBalance(userId);
 
             // then
-            assertThat(response.getBalance()).isEqualTo(3);
+            assertThat(response.getBalance()).isEqualTo(10);
             verify(userTicketRepository).findByUserId(userId);
             verify(userTicketRepository).save(any(UserTicket.class));
             verify(ticketTransactionRepository).save(any(TicketTransaction.class));
