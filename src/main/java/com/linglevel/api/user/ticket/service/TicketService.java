@@ -170,13 +170,13 @@ public class TicketService {
     private UserTicket createDefaultUserTicket(String userId) {
         UserTicket userTicket = UserTicket.builder()
                 .userId(userId)
-                .balance(3) // 🎁 이벤트: 최초 10개 티켓 지급
+                .balance(10) // 🎁 이벤트: 최초 10개 티켓 지급
                 .build();
         UserTicket savedUserTicket = userTicketRepository.save(userTicket);
 
         TicketTransaction welcomeTransaction = TicketTransaction.builder()
                 .userId(userId)
-                .amount(3)
+                .amount(10)
                 .description("Welcome bonus for new user")
                 .status(TransactionStatus.CONFIRMED)
                 .build();
