@@ -1,5 +1,6 @@
 package com.linglevel.api.user.ticket.repository;
 
+import com.linglevel.api.common.AbstractDatabaseTest;
 import com.linglevel.api.user.ticket.entity.UserTicket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataMongoTest
-class UserTicketRepositoryTest {
+class UserTicketRepositoryTest extends AbstractDatabaseTest {
 
     @Autowired
     private UserTicketRepository userTicketRepository;
