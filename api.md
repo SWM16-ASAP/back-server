@@ -2896,3 +2896,387 @@ Authorization: Bearer {AccessToken}
   "message": "Invalid or expired token."
 }
 ```
+
+---
+
+## 🎯 콘텐츠 배너 (Content Banners)
+
+### `GET /content-banners`
+
+메인 페이지에 노출할 활성화된 콘텐츠 배너 목록을 조회합니다. 국가별로 필터링 가능하며, 표시 순서에 따라 정렬됩니다.
+
+#### **Query Parameters**
+
+| 파라미터      | 타입    | 필수                        | 설명                           |
+| :----------- | :------ |:--------------------------| :----------------------------- |
+| `countryCode` | String | 예                         | 국가 코드 (`KR`, `US`, `JP` 등) |
+| `limit`       | Integer | 아니요 (기본값: `5`, 최댓값: `10`) | 반환할 배너 수 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "countryCode": "KR",
+      "contentId": "60d0fe4f5311236168a109cb",
+      "contentType": "BOOK",
+      "contentTitle": "The Little Prince",
+      "contentAuthor": "Antoine de Saint-Exupéry",
+      "contentCoverImageUrl": "https://path/to/cover.jpg",
+      "contentReadingTime": 120,
+      "subtitle": "세계에서 가장 사랑받는 소설",
+      "title": "어린왕자와 함께하는 영어 공부",
+      "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요. A1부터 C2까지 다양한 난이도로 제공됩니다.",
+      "displayOrder": 1,
+      "isActive": true,
+      "createdAt": "2024-01-15T00:00:00"
+    },
+    {
+      "id": "60d0fe4f5311236168a109cc",
+      "countryCode": "KR",
+      "contentId": "60d0fe4f5311236168a109cd",
+      "contentType": "ARTICLE",
+      "contentTitle": "Viking King's Bizarre Legacy",
+      "contentAuthor": "TechCrunch",
+      "contentCoverImageUrl": "https://path/to/article-cover.jpg",
+      "contentReadingTime": 8,
+      "subtitle": "기술과 역사의 만남",
+      "title": "바이킹 왕의 놀라운 유산",
+      "description": "당신의 휴대폰에 숨겨진 놀라운 역사적 비밀을 알아보세요.",
+      "displayOrder": 2,
+      "isActive": true,
+      "createdAt": "2024-01-14T00:00:00"
+    }
+  ]
+}
+```
+
+#### **API 사용 예시**
+
+**1. 한국 사용자용 배너 조회**
+```
+GET /api/v1/content-banners?countryCode=KR
+```
+
+**2. 미국 사용자용 배너 조회 (최대 3개)**
+```
+GET /api/v1/content-banners?countryCode=US&limit=3
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "CountryCode is required."
+}
+```
+
+---
+
+## 🔧 어드민 - 콘텐츠 배너 관리 (Admin Content Banner Management)
+
+### `POST /admin/content-banners`
+
+새로운 콘텐츠 배너를 생성합니다. contentId와 contentType을 통해 실제 콘텐츠 정보를 자동으로 조회하여 설정합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "countryCode": "KR",
+  "contentId": "60d0fe4f5311236168a109cb",
+  "contentType": "BOOK",
+  "subtitle": "세계에서 가장 사랑받는 소설",
+  "title": "어린왕자와 함께하는 영어 공부",
+  "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요. A1부터 C2까지 다양한 난이도로 제공됩니다.",
+  "displayOrder": 1,
+  "isActive": true
+}
+```
+
+- `countryCode`: 국가 코드 (필수) - `KR`, `US`, `JP` 등
+- `contentId`: 연결할 콘텐츠의 ID (필수)
+- `contentType`: 콘텐츠 타입 (필수) - `BOOK` 또는 `ARTICLE`
+- `subtitle`: 배너 부제목 (선택사항)
+- `title`: 배너 제목 (필수)
+- `description`: 배너 설명 (필수)
+- `displayOrder`: 표시 순서 (선택사항, 기본값: 9)
+- `isActive`: 활성화 여부 (선택사항, 기본값: true)
+
+#### **Success Response (201 Created)**
+
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "countryCode": "KR",
+  "contentId": "60d0fe4f5311236168a109cb",
+  "contentType": "BOOK",
+  "contentTitle": "The Little Prince",
+  "contentAuthor": "Antoine de Saint-Exupéry",
+  "contentCoverImageUrl": "https://path/to/cover.jpg",
+  "contentReadingTime": 120,
+  "subtitle": "세계에서 가장 사랑받는 소설",
+  "title": "어린왕자와 함께하는 영어 공부",
+  "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요. A1부터 C2까지 다양한 난이도로 제공됩니다.",
+  "displayOrder": 1,
+  "isActive": true,
+  "createdAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Content not found."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "Unsupported content type. Must be BOOK or ARTICLE."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+### `GET /admin/content-banners`
+
+관리자용 콘텐츠 배너 목록을 조회합니다. 모든 배너를 조회하며 국가별 필터링이 가능합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Query Parameters**
+
+| 파라미터      | 타입    | 필수 | 설명                           |
+| :----------- | :------ | :--- | :----------------------------- |
+| `countryCode` | String | 아니요 | 국가 코드로 필터링 (`KR`, `US`, `JP` 등) |
+| `page`        | Integer | 아니요 (기본값: `1`) | 조회할 페이지 번호 |
+| `limit`       | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수 |
+
+#### **Success Response (200 OK)**
+
+```json
+{
+  "data": [
+    {
+      "id": "60d0fe4f5311236168a109ca",
+      "countryCode": "KR",
+      "contentId": "60d0fe4f5311236168a109cb",
+      "contentType": "BOOK",
+      "contentTitle": "The Little Prince",
+      "contentAuthor": "Antoine de Saint-Exupéry",
+      "contentCoverImageUrl": "https://path/to/cover.jpg",
+      "contentReadingTime": 120,
+      "subtitle": "세계에서 가장 사랑받는 소설",
+      "title": "어린왕자와 함께하는 영어 공부",
+      "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요.",
+      "displayOrder": 1,
+      "isActive": true,
+      "createdAt": "2024-01-15T10:30:00"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 3,
+  "totalCount": 25,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+#### **API 사용 예시**
+
+**1. 전체 배너 조회**
+```
+GET /api/v1/admin/content-banners
+```
+
+**2. 한국 배너만 조회**
+```
+GET /api/v1/admin/content-banners?countryCode=KR
+```
+
+### `GET /admin/content-banners/{bannerId}`
+
+특정 콘텐츠 배너의 상세 정보를 조회합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터     | 타입   | 설명              |
+| :----------- | :----- | :---------------- |
+| `bannerId`   | String | 조회할 배너의 ID |
+
+#### **Success Response (200 OK)**
+
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "countryCode": "KR",
+  "contentId": "60d0fe4f5311236168a109cb",
+  "contentType": "BOOK",
+  "contentTitle": "The Little Prince",
+  "contentAuthor": "Antoine de Saint-Exupéry",
+  "contentCoverImageUrl": "https://path/to/cover.jpg",
+  "contentReadingTime": 120,
+  "subtitle": "세계에서 가장 사랑받는 소설",
+  "title": "어린왕자와 함께하는 영어 공부",
+  "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요.",
+  "displayOrder": 1,
+  "isActive": true,
+  "createdAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Banner not found."
+}
+```
+
+### `PATCH /admin/content-banners/{bannerId}`
+
+콘텐츠 배너의 정보를 부분 업데이트합니다. 제목, 설명, 순서, 활성화 상태 등을 변경할 수 있습니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터     | 타입   | 설명              |
+| :----------- | :----- | :---------------- |
+| `bannerId`   | String | 수정할 배너의 ID |
+
+#### **Request Body**
+
+```json
+{
+  "title": "업데이트된 배너 제목",
+  "subtitle": "업데이트된 부제목",
+  "description": "업데이트된 설명",
+  "displayOrder": 2,
+  "isActive": false
+}
+```
+
+- 모든 필드는 선택사항이며, 제공된 필드만 업데이트됩니다.
+- `displayOrder`: 표시 순서
+- `isActive`: 활성화 여부
+
+#### **Success Response (200 OK)**
+
+```json
+{
+  "id": "60d0fe4f5311236168a109ca",
+  "countryCode": "KR",
+  "contentId": "60d0fe4f5311236168a109cb",
+  "contentType": "BOOK",
+  "contentTitle": "The Little Prince",
+  "contentAuthor": "Antoine de Saint-Exupéry",
+  "contentCoverImageUrl": "https://path/to/cover.jpg",
+  "contentReadingTime": 120,
+  "subtitle": "업데이트된 부제목",
+  "title": "업데이트된 배너 제목",
+  "description": "업데이트된 설명",
+  "displayOrder": 2,
+  "isActive": false,
+  "createdAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **API 사용 예시**
+
+**1. 배너 활성화/비활성화**
+```
+PATCH /api/v1/admin/content-banners/60d0fe4f5311236168a109ca
+{
+  "isActive": false
+}
+```
+
+**2. 배너 순서 변경**
+```
+PATCH /api/v1/admin/content-banners/60d0fe4f5311236168a109ca
+{
+  "displayOrder": 1
+}
+```
+
+**3. 배너 제목과 설명 수정**
+```
+PATCH /api/v1/admin/content-banners/60d0fe4f5311236168a109ca
+{
+  "title": "새로운 제목",
+  "description": "새로운 설명"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Banner not found."
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "At least one field must be provided for update."
+}
+```
+
+### `DELETE /admin/content-banners/{bannerId}`
+
+콘텐츠 배너를 삭제합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Path Parameters**
+
+| 파라미터     | 타입   | 설명              |
+| :----------- | :----- | :---------------- |
+| `bannerId`   | String | 삭제할 배너의 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Banner deleted successfully."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Banner not found."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
