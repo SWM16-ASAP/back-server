@@ -2,6 +2,7 @@ package com.linglevel.api.banner.controller;
 
 import com.linglevel.api.banner.dto.*;
 import com.linglevel.api.banner.exception.BannerException;
+import com.linglevel.api.banner.service.ContentBannerService;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +30,8 @@ import java.util.List;
 @Tag(name = "Content Banners", description = "콘텐츠 배너 관련 API")
 public class ContentBannerController {
 
+    private final ContentBannerService contentBannerService;
+
     @Operation(summary = "콘텐츠 배너 목록 조회",
                description = "메인 페이지에 노출할 활성화된 콘텐츠 배너 목록을 조회합니다. 국가별로 필터링 가능하며, 표시 순서에 따라 정렬됩니다.")
     @ApiResponses(value = {
@@ -41,8 +44,13 @@ public class ContentBannerController {
     public ResponseEntity<ContentBannerListResponse> getContentBanners(
             @ParameterObject @Valid @ModelAttribute GetContentBannersRequest request) {
 
-        // TODO: 실제 서비스 구현
+        log.info("Getting content banners for country: {}", request.getCountryCode());
+
+        List<ContentBannerResponse> banners = contentBannerService.getActiveBanners(request.getCountryCode());
+
         ContentBannerListResponse response = new ContentBannerListResponse();
+        response.setData(banners);
+
         return ResponseEntity.ok(response);
     }
 

@@ -2,6 +2,7 @@ package com.linglevel.api.banner.controller;
 
 import com.linglevel.api.banner.dto.*;
 import com.linglevel.api.banner.exception.BannerException;
+import com.linglevel.api.banner.service.ContentBannerService;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +35,8 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminContentBannerController {
 
+    private final ContentBannerService contentBannerService;
+
     @Operation(summary = "콘텐츠 배너 생성",
                description = "새로운 콘텐츠 배너를 생성합니다. contentId와 contentType을 통해 실제 콘텐츠 정보를 자동으로 조회하여 설정합니다.")
     @ApiResponses(value = {
@@ -49,8 +52,9 @@ public class AdminContentBannerController {
     public ResponseEntity<ContentBannerResponse> createContentBanner(
             @Valid @RequestBody CreateContentBannerRequest request) {
 
-        // TODO: 실제 서비스 구현
-        ContentBannerResponse response = new ContentBannerResponse();
+        log.info("Creating content banner for content: {} ({})", request.getContentId(), request.getContentType());
+
+        ContentBannerResponse response = contentBannerService.createBanner(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -65,8 +69,14 @@ public class AdminContentBannerController {
     public ResponseEntity<PageResponse<ContentBannerResponse>> getAdminContentBanners(
             @ParameterObject @Valid @ModelAttribute GetAdminContentBannersRequest request) {
 
-        // TODO: 실제 서비스 구현
-        PageResponse<ContentBannerResponse> response = new PageResponse<>();
+        log.info("Getting admin content banners for country: {}, page: {}, size: {}",
+                request.getCountryCode(), request.getPage(), request.getLimit());
+
+        org.springframework.data.domain.Page<ContentBannerResponse> bannerPage =
+                contentBannerService.getBanners(request.getCountryCode(), request.getPage() - 1, request.getLimit());
+
+        PageResponse<ContentBannerResponse> response = PageResponse.of(bannerPage, bannerPage.getContent());
+
         return ResponseEntity.ok(response);
     }
 
@@ -84,8 +94,9 @@ public class AdminContentBannerController {
             @Parameter(description = "조회할 배너의 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bannerId) {
 
-        // TODO: 실제 서비스 구현
-        ContentBannerResponse response = new ContentBannerResponse();
+        log.info("Getting content banner: {}", bannerId);
+
+        ContentBannerResponse response = contentBannerService.getBanner(bannerId);
         return ResponseEntity.ok(response);
     }
 
@@ -106,8 +117,9 @@ public class AdminContentBannerController {
             @PathVariable String bannerId,
             @Valid @RequestBody UpdateContentBannerRequest request) {
 
-        // TODO: 실제 서비스 구현
-        ContentBannerResponse response = new ContentBannerResponse();
+        log.info("Updating content banner: {}", bannerId);
+
+        ContentBannerResponse response = contentBannerService.updateBanner(bannerId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -126,7 +138,9 @@ public class AdminContentBannerController {
             @Parameter(description = "삭제할 배너의 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bannerId) {
 
-        // TODO: 실제 서비스 구현
+        log.info("Deleting content banner: {}", bannerId);
+
+        contentBannerService.deleteBanner(bannerId);
         DeleteResponse response = new DeleteResponse("Banner deleted successfully.");
         return ResponseEntity.ok(response);
     }
