@@ -13,7 +13,7 @@ public class UpdateContentBannerRequest {
     private String title;
 
     @Schema(description = "배너 부제목", example = "업데이트된 부제목")
-    private String subTitle;
+    private String subtitle;
 
     @Schema(description = "배너 설명", example = "업데이트된 설명")
     private String description;

@@ -2925,7 +2925,7 @@ Authorization: Bearer {AccessToken}
       "contentAuthor": "Antoine de Saint-Exupéry",
       "contentCoverImageUrl": "https://path/to/cover.jpg",
       "contentReadingTime": 120,
-      "subTitle": "세계에서 가장 사랑받는 소설",
+      "subtitle": "세계에서 가장 사랑받는 소설",
       "title": "어린왕자와 함께하는 영어 공부",
       "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요. A1부터 C2까지 다양한 난이도로 제공됩니다.",
       "displayOrder": 1,
@@ -2941,7 +2941,7 @@ Authorization: Bearer {AccessToken}
       "contentAuthor": "TechCrunch",
       "contentCoverImageUrl": "https://path/to/article-cover.jpg",
       "contentReadingTime": 8,
-      "subTitle": "기술과 역사의 만남",
+      "subtitle": "기술과 역사의 만남",
       "title": "바이킹 왕의 놀라운 유산",
       "description": "당신의 휴대폰에 숨겨진 놀라운 역사적 비밀을 알아보세요.",
       "displayOrder": 2,
@@ -2991,7 +2991,7 @@ X-API-Key: {TempApiKey}
   "countryCode": "KR",
   "contentId": "60d0fe4f5311236168a109cb",
   "contentType": "BOOK",
-  "subTitle": "세계에서 가장 사랑받는 소설",
+  "subtitle": "세계에서 가장 사랑받는 소설",
   "title": "어린왕자와 함께하는 영어 공부",
   "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요. A1부터 C2까지 다양한 난이도로 제공됩니다.",
   "displayOrder": 1,
@@ -3002,13 +3002,14 @@ X-API-Key: {TempApiKey}
 - `countryCode`: 국가 코드 (필수) - `KR`, `US`, `JP` 등
 - `contentId`: 연결할 콘텐츠의 ID (필수)
 - `contentType`: 콘텐츠 타입 (필수) - `BOOK` 또는 `ARTICLE`
-- `subTitle`: 배너 부제목 (선택사항)
+- `subtitle`: 배너 부제목 (선택사항)
 - `title`: 배너 제목 (필수)
 - `description`: 배너 설명 (필수)
 - `displayOrder`: 표시 순서 (선택사항, 기본값: 9)
 - `isActive`: 활성화 여부 (선택사항, 기본값: true)
 
 #### **Success Response (201 Created)**
+
 ```json
 {
   "id": "60d0fe4f5311236168a109ca",
@@ -3019,7 +3020,7 @@ X-API-Key: {TempApiKey}
   "contentAuthor": "Antoine de Saint-Exupéry",
   "contentCoverImageUrl": "https://path/to/cover.jpg",
   "contentReadingTime": 120,
-  "subTitle": "세계에서 가장 사랑받는 소설",
+  "subtitle": "세계에서 가장 사랑받는 소설",
   "title": "어린왕자와 함께하는 영어 공부",
   "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요. A1부터 C2까지 다양한 난이도로 제공됩니다.",
   "displayOrder": 1,
@@ -3067,6 +3068,7 @@ X-API-Key: {TempApiKey}
 | `limit`       | Integer | 아니요 (기본값: `10`, 최댓값: `100`) | 페이지 당 항목 수 |
 
 #### **Success Response (200 OK)**
+
 ```json
 {
   "data": [
@@ -3079,7 +3081,7 @@ X-API-Key: {TempApiKey}
       "contentAuthor": "Antoine de Saint-Exupéry",
       "contentCoverImageUrl": "https://path/to/cover.jpg",
       "contentReadingTime": 120,
-      "subTitle": "세계에서 가장 사랑받는 소설",
+      "subtitle": "세계에서 가장 사랑받는 소설",
       "title": "어린왕자와 함께하는 영어 공부",
       "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요.",
       "displayOrder": 1,
@@ -3123,6 +3125,7 @@ X-API-Key: {TempApiKey}
 | `bannerId`   | String | 조회할 배너의 ID |
 
 #### **Success Response (200 OK)**
+
 ```json
 {
   "id": "60d0fe4f5311236168a109ca",
@@ -3133,7 +3136,7 @@ X-API-Key: {TempApiKey}
   "contentAuthor": "Antoine de Saint-Exupéry",
   "contentCoverImageUrl": "https://path/to/cover.jpg",
   "contentReadingTime": 120,
-  "subTitle": "세계에서 가장 사랑받는 소설",
+  "subtitle": "세계에서 가장 사랑받는 소설",
   "title": "어린왕자와 함께하는 영어 공부",
   "description": "프랑스 문학의 걸작을 쉬운 영어로 만나보세요.",
   "displayOrder": 1,
@@ -3169,7 +3172,7 @@ X-API-Key: {TempApiKey}
 ```json
 {
   "title": "업데이트된 배너 제목",
-  "subTitle": "업데이트된 부제목",
+  "subtitle": "업데이트된 부제목",
   "description": "업데이트된 설명",
   "displayOrder": 2,
   "isActive": false
@@ -3181,6 +3184,7 @@ X-API-Key: {TempApiKey}
 - `isActive`: 활성화 여부
 
 #### **Success Response (200 OK)**
+
 ```json
 {
   "id": "60d0fe4f5311236168a109ca",
@@ -3191,7 +3195,7 @@ X-API-Key: {TempApiKey}
   "contentAuthor": "Antoine de Saint-Exupéry",
   "contentCoverImageUrl": "https://path/to/cover.jpg",
   "contentReadingTime": 120,
-  "subTitle": "업데이트된 부제목",
+  "subtitle": "업데이트된 부제목",
   "title": "업데이트된 배너 제목",
   "description": "업데이트된 설명",
   "displayOrder": 2,

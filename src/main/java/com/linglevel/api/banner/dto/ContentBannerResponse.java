@@ -38,7 +38,7 @@ public class ContentBannerResponse {
     private Integer contentReadingTime;
 
     @Schema(description = "배너 부제목", example = "세계에서 가장 사랑받는 소설")
-    private String subTitle;
+    private String subtitle;
 
     @Schema(description = "배너 제목", example = "어린왕자와 함께하는 영어 공부")
     private String title;
