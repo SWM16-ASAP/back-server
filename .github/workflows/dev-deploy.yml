@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/content-banner ]
+    branches: [ develop, feat/img-perfomance-opt ]
 
 jobs:
   build:
