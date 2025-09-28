@@ -10,6 +10,7 @@ import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
 import com.linglevel.api.s3.service.S3UrlService;
+import com.linglevel.api.s3.service.ImageResizeService;
 import com.linglevel.api.s3.strategy.ArticlePathStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -35,6 +37,7 @@ public class ArticleService {
     private final S3AiService s3AiService;
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
+    private final ImageResizeService imageResizeService;
     private final ArticlePathStrategy articlePathStrategy;
 
     public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request) {
@@ -70,6 +73,22 @@ public class ArticleService {
         
         String coverImageUrl = s3UrlService.getCoverImageUrl(savedArticle.getId(), articlePathStrategy);
         savedArticle.setCoverImageUrl(coverImageUrl);
+
+        if (StringUtils.hasText(coverImageUrl)) {
+            try {
+                log.info("Auto-processing cover image for imported article: {}", savedArticle.getId());
+
+                String originalCoverS3Key = articlePathStrategy.generateCoverImagePath(savedArticle.getId());
+                String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
+
+                savedArticle.setCoverImageUrl(smallImageUrl);
+                log.info("Successfully auto-processed cover image: {} → {}", savedArticle.getId(), smallImageUrl);
+
+            } catch (Exception e) {
+                log.warn("Failed to auto-process cover image for article: {}, keeping original URL", savedArticle.getId(), e);
+            }
+        }
+
         articleRepository.save(savedArticle);
         
         articleImportService.createChunksFromLeveledResults(importData, savedArticle.getId());

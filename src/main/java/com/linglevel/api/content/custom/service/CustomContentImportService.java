@@ -8,6 +8,7 @@ import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.entity.CustomContentChunk;
 import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
+import com.linglevel.api.s3.service.ImageResizeService;
 import com.linglevel.api.s3.service.S3UrlService;
 import com.linglevel.api.s3.strategy.CustomContentPathStrategy;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class CustomContentImportService {
     private final CustomContentRepository customContentRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
     private final S3UrlService s3UrlService;
+    private final ImageResizeService imageResizeService;
     private final CustomContentPathStrategy customContentPathStrategy;
 
     @Transactional
@@ -47,7 +49,28 @@ public class CustomContentImportService {
                 .originDomain(contentRequest.getOriginDomain())
                 .build();
 
-        return customContentRepository.save(customContent);
+        CustomContent savedContent = customContentRepository.save(customContent);
+
+        if (StringUtils.hasText(aiResult.getCoverImageUrl())) {
+            try {
+                log.info("Auto-processing cover image for new custom content: {}", savedContent.getId());
+
+                String originalCoverS3Key = customContentPathStrategy.generateCoverImagePath(savedContent.getId());
+                String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
+
+                savedContent.setCoverImageUrl(smallImageUrl);
+                savedContent = customContentRepository.save(savedContent);
+
+                log.info("Successfully auto-processed cover image: {} → {}",
+                        savedContent.getId(), smallImageUrl);
+
+            } catch (Exception e) {
+                log.warn("Failed to auto-process cover image for custom content: {}, keeping original URL",
+                        savedContent.getId(), e);
+            }
+        }
+
+        return savedContent;
     }
 
     @Transactional

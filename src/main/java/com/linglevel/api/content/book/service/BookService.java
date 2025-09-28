@@ -11,6 +11,7 @@ import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
 import com.linglevel.api.s3.service.S3UrlService;
+import com.linglevel.api.s3.service.ImageResizeService;
 import com.linglevel.api.s3.strategy.BookPathStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,7 +37,8 @@ public class BookService {
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
     private final BookPathStrategy bookPathStrategy;
-    
+    private final ImageResizeService imageResizeService;
+
     private final BookReadingTimeService bookReadingTimeService;
     private final BookImportService bookImportService;
 
@@ -51,6 +54,22 @@ public class BookService {
 
         String coverImageUrl = s3UrlService.getCoverImageUrl(savedBook.getId(), bookPathStrategy);
         savedBook.setCoverImageUrl(coverImageUrl);
+
+        if (StringUtils.hasText(coverImageUrl)) {
+            try {
+                log.info("Auto-processing cover image for imported book: {}", savedBook.getId());
+
+                String originalCoverS3Key = bookPathStrategy.generateCoverImagePath(savedBook.getId());
+                String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
+
+                savedBook.setCoverImageUrl(smallImageUrl);
+                log.info("Successfully auto-processed cover image: {} → {}", savedBook.getId(), smallImageUrl);
+
+            } catch (Exception e) {
+                log.warn("Failed to auto-process cover image for book: {}, keeping original URL", savedBook.getId(), e);
+            }
+        }
+
         bookRepository.save(savedBook);
         
         List<Chapter> savedChapters = bookImportService.createChaptersFromMetadata(importData, savedBook.getId());
