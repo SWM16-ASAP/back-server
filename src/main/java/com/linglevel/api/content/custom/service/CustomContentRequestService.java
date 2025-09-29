@@ -137,10 +137,9 @@ public class CustomContentRequestService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
         
-        int limit = Math.min(request.getLimit(), 100);
         Pageable pageable = PageRequest.of(
-                request.getPage() - 1, 
-                limit,
+                request.getPage() - 1,
+                request.getLimit(),
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
 

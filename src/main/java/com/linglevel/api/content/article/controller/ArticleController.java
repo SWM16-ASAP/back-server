@@ -23,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/articles")
@@ -76,7 +77,7 @@ public class ArticleController {
     public ResponseEntity<PageResponse<ArticleChunkResponse>> getArticleChunks(
             @Parameter(description = "기사 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String articleId,
-            @ParameterObject @ModelAttribute GetArticleChunksRequest request) {
+            @ParameterObject @Valid @ModelAttribute GetArticleChunksRequest request) {
         
         PageResponse<ArticleChunkResponse> response = articleChunkService.getArticleChunks(articleId, request);
         return ResponseEntity.ok(response);

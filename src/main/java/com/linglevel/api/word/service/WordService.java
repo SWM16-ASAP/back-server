@@ -24,7 +24,6 @@ public class WordService {
     private final WordBookmarkRepository wordBookmarkRepository;
 
     public Page<WordResponse> getWords(String userId, int page, int limit, String search) {
-        limit = Math.min(limit, 100);
         Pageable pageable = PageRequest.of(page - 1, limit);
         Page<Word> words;
 
