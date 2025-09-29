@@ -63,6 +63,13 @@ public class ProgressService {
         bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
         bookProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
 
+        // 완료 조건 자동 체크 (currentReadChapterNumber >= chapterCount)
+        if (bookService.existsById(bookId)) {
+            var book = bookService.findById(bookId);
+            boolean isCompleted = chapter.getChapterNumber() >= book.getChapterCount();
+            bookProgress.setIsCompleted(isCompleted);
+        }
+
         bookProgressRepository.save(bookProgress);
 
         return convertToProgressResponse(bookProgress);
@@ -110,6 +117,7 @@ public class ProgressService {
                 .chunkId(progress.getChunkId())
                 .currentReadChapterNumber(progress.getCurrentReadChapterNumber())
                 .currentReadChunkNumber(progress.getCurrentReadChunkNumber())
+                .isCompleted(progress.getIsCompleted())
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

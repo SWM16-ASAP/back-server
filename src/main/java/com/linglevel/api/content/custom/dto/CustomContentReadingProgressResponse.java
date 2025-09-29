@@ -29,6 +29,9 @@ public class CustomContentReadingProgressResponse {
     @Schema(description = "현재 읽은 청크 번호", example = "3")
     private Integer currentReadChunkNumber;
 
+    @Schema(description = "완료 여부", example = "false")
+    private Boolean isCompleted;
+
     @Schema(description = "업데이트 일시", example = "2024-01-15T10:30:00")
     private LocalDateTime updatedAt;
 }

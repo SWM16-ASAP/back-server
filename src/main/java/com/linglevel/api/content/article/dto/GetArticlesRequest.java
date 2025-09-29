@@ -16,6 +16,9 @@ public class GetArticlesRequest {
     
     @Parameter(description = "키워드 검색", example = "viking")
     private String keyword;
+
+    @Parameter(description = "진도별 필터링", example = "in_progress")
+    private String progress;
     
     @Parameter(description = "페이지 번호", example = "1")
     private Integer page = 1;

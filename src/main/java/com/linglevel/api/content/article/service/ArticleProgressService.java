@@ -54,7 +54,11 @@ public class ArticleProgressService {
         articleProgress.setArticleId(articleId);
         articleProgress.setChunkId(request.getChunkId());
         articleProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
-        // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
+
+        // 완료 조건 자동 체크
+        var article = articleService.findById(articleId);
+        boolean isCompleted = chunk.getChunkNumber() >= article.getChunkCount();
+        articleProgress.setIsCompleted(isCompleted);
 
         articleProgressRepository.save(articleProgress);
 
@@ -101,6 +105,7 @@ public class ArticleProgressService {
                 .articleId(progress.getArticleId())
                 .chunkId(progress.getChunkId())
                 .currentReadChunkNumber(progress.getCurrentReadChunkNumber())
+                .isCompleted(progress.getIsCompleted())
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

@@ -26,9 +26,14 @@ public class GetBooksRequest {
             example = "philosophy,children")
     private String tags;
     
-    @Schema(description = "검색 키워드 (제목 또는 작가명)", 
+    @Schema(description = "검색 키워드 (제목 또는 작가명)",
             example = "prince")
     private String keyword;
+
+    @Schema(description = "진도별 필터링",
+            example = "in_progress",
+            allowableValues = {"not_started", "in_progress", "completed"})
+    private String progress;
     
     @Schema(description = "페이지 번호",
             example = "1",

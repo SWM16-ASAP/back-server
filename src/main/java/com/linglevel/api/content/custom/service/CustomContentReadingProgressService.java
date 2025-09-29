@@ -2,8 +2,10 @@ package com.linglevel.api.content.custom.service;
 
 import com.linglevel.api.content.custom.dto.CustomContentReadingProgressResponse;
 import com.linglevel.api.content.custom.dto.CustomContentReadingProgressUpdateRequest;
+import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.entity.CustomContentChunk;
 import com.linglevel.api.content.custom.entity.CustomContentProgress;
+import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
@@ -24,6 +26,7 @@ public class CustomContentReadingProgressService {
     private final CustomContentService customContentService;
     private final CustomContentChunkService customContentChunkService;
     private final CustomContentProgressRepository customContentProgressRepository;
+    private final CustomContentRepository customContentRepository;
     private final UserRepository userRepository;
 
     @Transactional
@@ -54,6 +57,13 @@ public class CustomContentReadingProgressService {
         customProgress.setCustomId(customId);
         customProgress.setChunkId(request.getChunkId());
         customProgress.setCurrentReadChunkNumber(chunk.getChunkNum()); // CustomContentChunk는 chunkNum 필드 사용
+
+        // 완료 조건 자동 체크
+        CustomContent customContent = customContentRepository.findById(customId)
+                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
+        boolean isCompleted = chunk.getChunkNum() >= customContent.getChunkCount();
+        customProgress.setIsCompleted(isCompleted);
+
         // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
 
         customContentProgressRepository.save(customProgress);
@@ -101,6 +111,7 @@ public class CustomContentReadingProgressService {
                 .customId(progress.getCustomId())
                 .chunkId(progress.getChunkId())
                 .currentReadChunkNumber(progress.getCurrentReadChunkNumber())
+                .isCompleted(progress.getIsCompleted())
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

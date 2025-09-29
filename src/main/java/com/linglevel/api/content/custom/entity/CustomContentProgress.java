@@ -29,6 +29,8 @@ public class CustomContentProgress {
 
     private Integer currentReadChunkNumber;
 
+    private Boolean isCompleted = false;
+
     @LastModifiedDate
     private LocalDateTime updatedAt;
 }

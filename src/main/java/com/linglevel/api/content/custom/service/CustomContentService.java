@@ -10,6 +10,8 @@ import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
+import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
+import com.linglevel.api.content.custom.entity.CustomContentProgress;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +35,7 @@ public class CustomContentService {
 
     private final CustomContentRepository customContentRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
+    private final CustomContentProgressRepository customContentProgressRepository;
     private final UserRepository userRepository;
     private final MongoTemplate mongoTemplate;
 
@@ -75,9 +79,17 @@ public class CustomContentService {
         List<CustomContent> contents = mongoTemplate.find(query, CustomContent.class);
 
         Page<CustomContent> page = new PageImpl<>(contents, pageable, total);
-        Page<CustomContentResponse> responsePage = page.map(this::mapToResponse);
+        List<CustomContentResponse> responses = contents.stream()
+                .map(content -> mapToResponse(content, user.getId()))
+                .collect(Collectors.toList());
 
-        return new PageResponse<>(responsePage.getContent(), responsePage);
+        // 진도별 필터링
+        if (StringUtils.hasText(request.getProgress())) {
+            responses = filterByProgress(responses, request.getProgress());
+        }
+
+        Page<CustomContentResponse> responsePage = new PageImpl<>(responses, pageable, total);
+        return new PageResponse<>(responses, responsePage);
     }
 
     public CustomContentResponse getCustomContent(String username, String customContentId) {
@@ -88,7 +100,7 @@ public class CustomContentService {
         CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, user.getId())
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-        return mapToResponse(content);
+        return mapToResponse(content, user.getId());
     }
 
     @Transactional
@@ -108,7 +120,7 @@ public class CustomContentService {
         }
 
         CustomContent updatedContent = customContentRepository.save(content);
-        return mapToResponse(updatedContent);
+        return mapToResponse(updatedContent, user.getId());
     }
 
     @Transactional
@@ -137,7 +149,50 @@ public class CustomContentService {
         }
     }
 
+    private List<CustomContentResponse> filterByProgress(List<CustomContentResponse> responses, String progressFilter) {
+        return responses.stream()
+            .filter(content -> switch (progressFilter.toLowerCase()) {
+                case "not_started" -> content.getProgressPercentage() == 0.0;
+                case "in_progress" -> content.getProgressPercentage() > 0.0 && !content.getIsCompleted();
+                case "completed" -> content.getIsCompleted();
+                default -> true;
+            })
+            .collect(Collectors.toList());
+    }
+
+    private String getUserId(String username) {
+        if (username == null) return null;
+        return userRepository.findByUsername(username)
+            .map(User::getId)
+            .orElse(null);
+    }
+
     private CustomContentResponse mapToResponse(CustomContent content) {
+        return mapToResponse(content, null);
+    }
+
+    private CustomContentResponse mapToResponse(CustomContent content, String userId) {
+        // 진도 정보 조회
+        int currentReadChunkNumber = 0;
+        double progressPercentage = 0.0;
+        boolean isCompleted = false;
+
+        if (userId != null) {
+            CustomContentProgress progress = customContentProgressRepository
+                .findByUserIdAndCustomId(userId, content.getId())
+                .orElse(null);
+
+            if (progress != null) {
+                currentReadChunkNumber = progress.getCurrentReadChunkNumber() != null
+                    ? progress.getCurrentReadChunkNumber() : 0;
+
+                if (content.getChunkCount() != null && content.getChunkCount() > 0) {
+                    progressPercentage = (double) currentReadChunkNumber / content.getChunkCount() * 100.0;
+                }
+
+                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+            }
+        }
         CustomContentResponse response = new CustomContentResponse();
         response.setId(content.getId());
         response.setTitle(content.getTitle());
@@ -146,6 +201,9 @@ public class CustomContentService {
         response.setDifficultyLevel(content.getDifficultyLevel());
         response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
         response.setChunkCount(content.getChunkCount());
+        response.setCurrentReadChunkNumber(currentReadChunkNumber);
+        response.setProgressPercentage(progressPercentage);
+        response.setIsCompleted(isCompleted);
         response.setReadingTime(content.getReadingTime());
         response.setAverageRating(content.getAverageRating() != null ? content.getAverageRating().floatValue() : 0.0d);
         response.setReviewCount(content.getReviewCount());

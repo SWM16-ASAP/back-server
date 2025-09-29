@@ -6,6 +6,11 @@ import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.repository.ChapterRepository;
+import com.linglevel.api.content.book.repository.BookProgressRepository;
+import com.linglevel.api.content.book.repository.ChunkRepository;
+import com.linglevel.api.content.book.entity.BookProgress;
+import com.linglevel.api.user.entity.User;
+import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.common.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +29,12 @@ import java.util.stream.Collectors;
 public class ChapterService {
 
     private final ChapterRepository chapterRepository;
+    private final BookProgressRepository bookProgressRepository;
+    private final ChunkRepository chunkRepository;
+    private final UserRepository userRepository;
     private final BookService bookService;
 
-    public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request) {
+    public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request, String username) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
@@ -39,14 +47,16 @@ public class ChapterService {
 
         Page<Chapter> chapterPage = chapterRepository.findByBookId(bookId, pageable);
         
+        String userId = getUserId(username);
+
         List<ChapterResponse> chapterResponses = chapterPage.getContent().stream()
-            .map(this::convertToChapterResponse)
+            .map(chapter -> convertToChapterResponse(chapter, bookId, userId))
             .collect(Collectors.toList());
 
         return new PageResponse<>(chapterResponses, chapterPage);
     }
 
-    public ChapterResponse getChapter(String bookId, String chapterId) {
+    public ChapterResponse getChapter(String bookId, String chapterId, String username) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
@@ -58,7 +68,8 @@ public class ChapterService {
             throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
         }
 
-        return convertToChapterResponse(chapter);
+        String userId = getUserId(username);
+        return convertToChapterResponse(chapter, bookId, userId);
     }
 
     public boolean existsById(String chapterId) {
@@ -75,7 +86,47 @@ public class ChapterService {
             .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
     }
 
-    private ChapterResponse convertToChapterResponse(Chapter chapter) {
+    private String getUserId(String username) {
+        if (username == null) return null;
+        return userRepository.findByUsername(username)
+            .map(User::getId)
+            .orElse(null);
+    }
+
+    private ChapterResponse convertToChapterResponse(Chapter chapter, String bookId, String userId) {
+        // 기본값 설정
+        int currentReadChunkNumber = 0;
+        double progressPercentage = 0.0;
+
+        if (userId != null) {
+            BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
+                .orElse(null);
+
+            if (bookProgress != null) {
+                int userCurrentChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
+                    ? bookProgress.getCurrentReadChapterNumber() : 0;
+                int userCurrentChunkNumber = bookProgress.getCurrentReadChunkNumber() != null
+                    ? bookProgress.getCurrentReadChunkNumber() : 0;
+
+                // 챕터 진도 계산 로직
+                if (chapter.getChapterNumber() < userCurrentChapterNumber) {
+                    // 현재 읽고 있는 챕터 이전의 챕터들: 100% 완료
+                    currentReadChunkNumber = chapter.getChunkCount();
+                    progressPercentage = 100.0;
+                } else if (chapter.getChapterNumber().equals(userCurrentChapterNumber)) {
+                    // 현재 읽고 있는 챕터: 청크 기준 진행률 계산
+                    currentReadChunkNumber = userCurrentChunkNumber;
+                    if (chapter.getChunkCount() != null && chapter.getChunkCount() > 0) {
+                        progressPercentage = (double) userCurrentChunkNumber / chapter.getChunkCount() * 100.0;
+                    }
+                } else {
+                    // 현재 읽고 있는 챕터 이후의 챕터들: 0% 진행
+                    currentReadChunkNumber = 0;
+                    progressPercentage = 0.0;
+                }
+            }
+        }
+
         return ChapterResponse.builder()
             .id(chapter.getId())
             .chapterNumber(chapter.getChapterNumber())
@@ -83,8 +134,8 @@ public class ChapterService {
             .chapterImageUrl(chapter.getChapterImageUrl())
             .description(chapter.getDescription())
             .chunkCount(chapter.getChunkCount())
-            .currentReadChunkNumber(0) // TODO: 실제 진도 계산
-            .progressPercentage(0.0) // TODO: 실제 진도 계산
+            .currentReadChunkNumber(currentReadChunkNumber)
+            .progressPercentage(progressPercentage)
             .readingTime(chapter.getReadingTime())
             .build();
     }
