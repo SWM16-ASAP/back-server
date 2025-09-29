@@ -1,6 +1,7 @@
 package com.linglevel.api.content.custom.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.linglevel.api.content.common.ProgressStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,9 +20,8 @@ public class GetCustomContentsRequest {
     @Schema(description = "검색할 콘텐츠 제목 또는 작가 이름", example = "prince")
     private String keyword;
 
-    @Schema(description = "진도별 필터링", example = "in_progress",
-            allowableValues = {"not_started", "in_progress", "completed"})
-    private String progress;
+    @Schema(description = "진도별 필터링", example = "IN_PROGRESS")
+    private ProgressStatus progress;
 
     @Schema(description = "페이지 번호", example = "1", defaultValue = "1")
     private Integer page = 1;

@@ -12,6 +12,7 @@ import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
 import com.linglevel.api.content.custom.entity.CustomContentProgress;
+import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -84,7 +85,7 @@ public class CustomContentService {
                 .collect(Collectors.toList());
 
         // 진도별 필터링
-        if (StringUtils.hasText(request.getProgress())) {
+        if (request.getProgress() != null) {
             responses = filterByProgress(responses, request.getProgress());
         }
 
@@ -149,13 +150,16 @@ public class CustomContentService {
         }
     }
 
-    private List<CustomContentResponse> filterByProgress(List<CustomContentResponse> responses, String progressFilter) {
+    private List<CustomContentResponse> filterByProgress(List<CustomContentResponse> responses, ProgressStatus progressFilter) {
+        if (progressFilter == null) {
+            return responses; // No filter, return all
+        }
+
         return responses.stream()
-            .filter(content -> switch (progressFilter.toLowerCase()) {
-                case "not_started" -> content.getProgressPercentage() == 0.0;
-                case "in_progress" -> content.getProgressPercentage() > 0.0 && !content.getIsCompleted();
-                case "completed" -> content.getIsCompleted();
-                default -> true;
+            .filter(content -> switch (progressFilter) {
+                case NOT_STARTED -> content.getProgressPercentage() == 0.0;
+                case IN_PROGRESS -> content.getProgressPercentage() > 0.0 && !content.getIsCompleted();
+                case COMPLETED -> content.getIsCompleted();
             })
             .collect(Collectors.toList());
     }

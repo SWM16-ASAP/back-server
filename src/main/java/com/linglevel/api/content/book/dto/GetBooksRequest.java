@@ -3,6 +3,7 @@ package com.linglevel.api.content.book.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
+import com.linglevel.api.content.common.ProgressStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,10 +31,8 @@ public class GetBooksRequest {
             example = "prince")
     private String keyword;
 
-    @Schema(description = "진도별 필터링",
-            example = "in_progress",
-            allowableValues = {"not_started", "in_progress", "completed"})
-    private String progress;
+    @Schema(description = "진도별 필터링", example = "IN_PROGRESS")
+    private ProgressStatus progress;
     
     @Schema(description = "페이지 번호",
             example = "1",

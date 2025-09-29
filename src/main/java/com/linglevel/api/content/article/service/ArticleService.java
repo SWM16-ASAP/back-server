@@ -2,6 +2,7 @@ package com.linglevel.api.content.article.service;
 
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.common.DifficultyLevel;
+import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
@@ -198,13 +199,16 @@ public class ArticleService {
             .orElse(null);
     }
 
-    private List<ArticleResponse> filterByProgress(List<ArticleResponse> responses, String progressFilter) {
+    private List<ArticleResponse> filterByProgress(List<ArticleResponse> responses, ProgressStatus progressFilter) {
+        if (progressFilter == null) {
+            return responses; // No filter, return all
+        }
+
         return responses.stream()
-            .filter(article -> switch (progressFilter.toLowerCase()) {
-                case "not_started" -> article.getProgressPercentage() == 0.0;
-                case "in_progress" -> article.getProgressPercentage() > 0.0 && !article.getIsCompleted();
-                case "completed" -> article.getIsCompleted();
-                default -> true;
+            .filter(article -> switch (progressFilter) {
+                case NOT_STARTED -> article.getProgressPercentage() == 0.0;
+                case IN_PROGRESS -> article.getProgressPercentage() > 0.0 && !article.getIsCompleted();
+                case COMPLETED -> article.getIsCompleted();
             })
             .collect(Collectors.toList());
     }

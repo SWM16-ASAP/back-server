@@ -4,6 +4,7 @@ import com.linglevel.api.content.book.dto.*;
 import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.common.DifficultyLevel;
+import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookRepository;
@@ -169,14 +170,17 @@ public class BookService {
         };
     }
 
-    private List<BookResponse> filterByProgress(List<BookResponse> bookResponses, String progressFilter) {
+    private List<BookResponse> filterByProgress(List<BookResponse> bookResponses, ProgressStatus progressFilter) {
+        if (progressFilter == null) {
+            return bookResponses; // No filter, return all
+        }
+
         return bookResponses.stream()
             .filter(book -> {
-                return switch (progressFilter.toLowerCase()) {
-                    case "not_started" -> book.getProgressPercentage() == 0.0;
-                    case "in_progress" -> book.getProgressPercentage() > 0.0 && !book.getIsCompleted();
-                    case "completed" -> book.getIsCompleted();
-                    default -> true;
+                return switch (progressFilter) {
+                    case NOT_STARTED -> book.getProgressPercentage() == 0.0;
+                    case IN_PROGRESS -> book.getProgressPercentage() > 0.0 && !book.getIsCompleted();
+                    case COMPLETED -> book.getIsCompleted();
                 };
             })
             .collect(Collectors.toList());
