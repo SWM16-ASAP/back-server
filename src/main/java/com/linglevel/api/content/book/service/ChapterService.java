@@ -12,6 +12,7 @@ import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.ProgressStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -53,6 +54,10 @@ public class ChapterService {
             .map(chapter -> convertToChapterResponse(chapter, bookId, userId))
             .collect(Collectors.toList());
 
+        if (request.getProgress() != null && userId != null) {
+            chapterResponses = filterByProgress(chapterResponses, request.getProgress());
+        }
+
         return new PageResponse<>(chapterResponses, chapterPage);
     }
 
@@ -93,10 +98,26 @@ public class ChapterService {
             .orElse(null);
     }
 
+    private List<ChapterResponse> filterByProgress(List<ChapterResponse> chapterResponses, ProgressStatus progressFilter) {
+        if (progressFilter == null) {
+            return chapterResponses;
+        }
+
+        return chapterResponses.stream()
+            .filter(chapter -> {
+                return switch (progressFilter) {
+                    case NOT_STARTED -> chapter.getProgressPercentage() == 0.0;
+                    case IN_PROGRESS -> chapter.getProgressPercentage() > 0.0 && !chapter.getIsCompleted();
+                    case COMPLETED -> chapter.getIsCompleted();
+                };
+            })
+            .collect(Collectors.toList());
+    }
+
     private ChapterResponse convertToChapterResponse(Chapter chapter, String bookId, String userId) {
-        // 기본값 설정
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
+        boolean isCompleted = false;
 
         if (userId != null) {
             BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
@@ -108,21 +129,20 @@ public class ChapterService {
                 int userCurrentChunkNumber = bookProgress.getCurrentReadChunkNumber() != null
                     ? bookProgress.getCurrentReadChunkNumber() : 0;
 
-                // 챕터 진도 계산 로직
                 if (chapter.getChapterNumber() < userCurrentChapterNumber) {
-                    // 현재 읽고 있는 챕터 이전의 챕터들: 100% 완료
                     currentReadChunkNumber = chapter.getChunkCount();
                     progressPercentage = 100.0;
+                    isCompleted = true;
                 } else if (chapter.getChapterNumber().equals(userCurrentChapterNumber)) {
-                    // 현재 읽고 있는 챕터: 청크 기준 진행률 계산
                     currentReadChunkNumber = userCurrentChunkNumber;
                     if (chapter.getChunkCount() != null && chapter.getChunkCount() > 0) {
                         progressPercentage = (double) userCurrentChunkNumber / chapter.getChunkCount() * 100.0;
                     }
+                    isCompleted = currentReadChunkNumber >= chapter.getChunkCount();
                 } else {
-                    // 현재 읽고 있는 챕터 이후의 챕터들: 0% 진행
                     currentReadChunkNumber = 0;
                     progressPercentage = 0.0;
+                    isCompleted = false;
                 }
             }
         }
@@ -136,7 +156,8 @@ public class ChapterService {
             .chunkCount(chapter.getChunkCount())
             .currentReadChunkNumber(currentReadChunkNumber)
             .progressPercentage(progressPercentage)
+            .isCompleted(isCompleted)
             .readingTime(chapter.getReadingTime())
             .build();
     }
-} 
+}

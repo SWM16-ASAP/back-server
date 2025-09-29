@@ -370,6 +370,7 @@ X-API-Key: {TempApiKey}
 
 | 파라미터 | 타입    | 필수 | 설명                      |
 | :------- | :------ | :--- | :------------------------ |
+| `progress` | String  | 아니요                       | 읽기 진도별 필터링. `not_started` (시작 안 함), `in_progress` (읽는 중), `completed` (완료) 중 하나. |
 | `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
 | `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `200`) | 페이지 당 항목 수                |
 
@@ -386,6 +387,7 @@ X-API-Key: {TempApiKey}
       "chunkCount": 10, // 챕터 내부 전체 청크
       "currentReadChunkNumber": 8, // 현재 읽은 청크 번호
       "progressPercentage": 80.0, // 진행률 (8/10 * 100)
+      "isCompleted": false, // 완료 여부 (currentReadChunkNumber >= chunkCount일 때 true)
       "readingTime": 15
     },
     {
@@ -397,6 +399,7 @@ X-API-Key: {TempApiKey}
       "chunkCount": 20,
       "currentReadChunkNumber": 0, // 아직 읽지 않음
       "progressPercentage": 0.0, // 진행률
+      "isCompleted": false, // 완료 여부 (currentReadChunkNumber >= chunkCount일 때 true)
       "readingTime": 20
     }
   ],
@@ -423,6 +426,33 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=2
 **3. 페이지 크기 조정**
 ```
 GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
+```
+
+**4. 진도별 필터링**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?progress=not_started
+```
+
+**5. 읽는 중인 챕터 조회**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?progress=in_progress
+```
+
+**6. 완료한 챕터 조회**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?progress=completed
+```
+
+**7. 복합 조건 (진도 + 페이지네이션)**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?progress=in_progress&page=2&limit=5
+```
+
+#### **Error Response (400 Bad Request) - 잘못된 progress 파라미터**
+```json
+{
+  "message": "Invalid progress parameter. Must be one of: not_started, in_progress, completed."
+}
 ```
 
 #### **Error Response (404 Not Found)**
@@ -454,6 +484,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
   "chunkCount": 10,
   "currentReadChunkNumber": 8,
   "progressPercentage": 80.0,
+  "isCompleted": false,
   "readingTime": 15
 }
 ```

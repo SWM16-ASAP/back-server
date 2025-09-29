@@ -1,5 +1,6 @@
 package com.linglevel.api.content.book.dto;
 
+import com.linglevel.api.content.common.ProgressStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
@@ -14,6 +15,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "챕터 목록 조회 요청")
 public class GetChaptersRequest {
+
+    @Schema(description = "진도별 필터링", example = "IN_PROGRESS")
+    private ProgressStatus progress;
     
     @Schema(description = "페이지 번호",
             example = "1",
