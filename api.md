@@ -564,7 +564,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 ### `PUT /books/{bookId}/progress`
 
-사용자의 읽기 진도를 업데이트합니다. 특정 챕터의 특정 청크까지 읽었음을 기록합니다.
+사용자의 읽기 진도를 업데이트합니다. chunkId를 통해 해당 chunk가 속한 chapter를 자동으로 역추산하여 진도를 기록합니다.
 
 #### **Request Headers**
 ```
@@ -581,7 +581,6 @@ Authorization: Bearer {AccessToken}
 
 ```json
 {
-  "chapterId": "60d0fe4f5311236168a109cb",
   "chunkId": "60d0fe4f5311236168c172db"
 }
 ```
@@ -590,8 +589,9 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "id": "60d0fe4f5311236168a109d1",
-  "bookId": "60d0fe4f5311236168a109cb", 
-  "chapterId": "60d0fe4f5311236168a109cb",
+  "userId": "60d0fe4f5311236168a109ca",
+  "bookId": "60d0fe4f5311236168a109cb",
+  "chapterId": "60d0fe4f5311236168a109cc",
   "chunkId": "60d0fe4f5311236168c172db",
   "currentReadChapterNumber": 1,
   "currentReadChunkNumber": 5,
@@ -609,7 +609,7 @@ Authorization: Bearer {AccessToken}
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "message": "Chapter not found in this book."
+  "message": "Chunk not found in this book."
 }
 ```
 
@@ -1297,6 +1297,96 @@ X-API-Key: {TempApiKey}
 ```json
 {
   "message": "Chunk not found."
+}
+```
+
+### `PUT /articles/{articleId}/progress`
+
+사용자의 아티클 읽기 진도를 업데이트합니다. chunkId를 통해 특정 청크까지 읽었음을 기록합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `articleId` | String | 읽고 있는 아티클의 고유 ID |
+
+#### **Request Body**
+
+```json
+{
+  "chunkId": "60d0fe4f5311236168c172db"
+}
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109d1",
+  "userId": "60d0fe4f5311236168a109ca",
+  "articleId": "60d0fe4f5311236168a109cb",
+  "chunkId": "60d0fe4f5311236168c172db",
+  "currentReadChunkNumber": 5,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Chunk not found in this article."
+}
+```
+
+### `GET /articles/{articleId}/progress`
+
+사용자의 특정 아티클에 대한 읽기 진도를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `articleId` | String | 조회할 아티클의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109d1",
+  "userId": "60d0fe4f5311236168a109ca",
+  "articleId": "60d0fe4f5311236168a109cb",
+  "chunkId": "60d0fe4f53112389248a182db",
+  "currentReadChunkNumber": 5,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Progress not found for this article."
 }
 ```
 
@@ -2250,6 +2340,96 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "message": "Invalid or expired token."
+}
+```
+
+### `PUT /custom-contents/{customId}/progress`
+
+사용자의 커스텀 콘텐츠 읽기 진도를 업데이트합니다. chunkId를 통해 특정 청크까지 읽었음을 기록합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `customId` | String | 읽고 있는 커스텀 콘텐츠의 고유 ID |
+
+#### **Request Body**
+
+```json
+{
+  "chunkId": "60d0fe4f5311236168c172db"
+}
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109d1",
+  "userId": "60d0fe4f5311236168a109ca",
+  "customId": "60d0fe4f5311236168a109cb",
+  "chunkId": "60d0fe4f5311236168c172db",
+  "currentReadChunkNumber": 3,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Chunk not found in this custom content."
+}
+```
+
+### `GET /custom-contents/{customId}/progress`
+
+사용자의 특정 커스텀 콘텐츠에 대한 읽기 진도를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `customId` | String | 조회할 커스텀 콘텐츠의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109d1",
+  "userId": "60d0fe4f5311236168a109ca",
+  "customId": "60d0fe4f5311236168a109cb",
+  "chunkId": "60d0fe4f53112389248a182db",
+  "currentReadChunkNumber": 3,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Progress not found for this custom content."
 }
 ```
 
