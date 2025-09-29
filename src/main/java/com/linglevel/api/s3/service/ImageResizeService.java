@@ -9,10 +9,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
+import com.sksamuel.scrimage.ImmutableImage;
+import com.sksamuel.scrimage.webp.WebpWriter;
+
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -87,41 +86,24 @@ public class ImageResizeService {
     }
 
     private byte[] resizeToThumbnail(InputStream imageStream) throws IOException {
-        BufferedImage originalImage = ImageIO.read(imageStream);
-        if (originalImage == null) {
-            throw new IOException("Unable to read image from stream");
+        try {
+            ImmutableImage originalImage = ImmutableImage.loader().fromStream(imageStream);
+
+            ImmutableImage resizedImage = originalImage.scaleTo(THUMBNAIL_SIZE, THUMBNAIL_SIZE)
+                    .cover(THUMBNAIL_SIZE, THUMBNAIL_SIZE);
+
+            byte[] webpBytes = resizedImage.bytes(WebpWriter.DEFAULT.withQ(85));
+
+            log.info("Successfully converted to WebP using Scrimage, size: {} bytes", webpBytes.length);
+
+            return webpBytes;
+
+        } catch (Exception e) {
+            log.error("Failed to convert image to WebP using Scrimage: {}", e.getMessage(), e);
+            throw new IOException("WebP conversion failed", e);
         }
-
-        BufferedImage resizedImage = resizeWithCrop(originalImage, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        ImageIO.write(resizedImage, "webp", outputStream);
-
-        return outputStream.toByteArray();
     }
 
-    private BufferedImage resizeWithCrop(BufferedImage originalImage, int targetWidth, int targetHeight) {
-        int originalWidth = originalImage.getWidth();
-        int originalHeight = originalImage.getHeight();
-
-        double scaleX = (double) targetWidth / originalWidth;
-        double scaleY = (double) targetHeight / originalHeight;
-        double scale = Math.max(scaleX, scaleY);
-
-        int scaledWidth = (int) (originalWidth * scale);
-        int scaledHeight = (int) (originalHeight * scale);
-
-        BufferedImage scaledImage = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2d = scaledImage.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.drawImage(originalImage, 0, 0, scaledWidth, scaledHeight, null);
-        g2d.dispose();
-
-        int x = (scaledWidth - targetWidth) / 2;
-        int y = (scaledHeight - targetHeight) / 2;
-
-        return scaledImage.getSubimage(x, y, targetWidth, targetHeight);
-    }
 
     private void uploadThumbnailToS3(String s3Key, byte[] imageBytes) {
         try {
