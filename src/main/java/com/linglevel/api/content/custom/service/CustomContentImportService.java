@@ -119,7 +119,7 @@ public class CustomContentImportService {
         
         if (Boolean.TRUE.equals(chunkData.getIsImage())) {
             builder.type(ChunkType.IMAGE);
-            String imageUrl = s3UrlService.buildImageUrl(customContentId, chunkData.getChunkText(), customContentPathStrategy) + "?w=256&h=256";
+            String imageUrl = s3UrlService.buildImageUrl(customContentId, chunkData.getChunkText(), customContentPathStrategy);
             builder.chunkText(imageUrl);
             builder.description(chunkData.getDescription());
         } else {
