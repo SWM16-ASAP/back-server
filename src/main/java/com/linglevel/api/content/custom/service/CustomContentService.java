@@ -157,4 +157,8 @@ public class CustomContentService {
         response.setUpdatedAt(content.getUpdatedAt());
         return response;
     }
+
+    public boolean existsById(String customContentId) {
+        return customContentRepository.existsById(customContentId);
+    }
 }

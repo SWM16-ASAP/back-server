@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -43,8 +44,10 @@ public class BooksProgressController {
     public ResponseEntity<ProgressResponse> updateProgress(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
-            @RequestBody ProgressUpdateRequest request) {
-        ProgressResponse response = progressService.updateProgress(bookId, request);
+            @Valid @RequestBody ProgressUpdateRequest request,
+            Authentication authentication) {
+        String username = authentication.getName();
+        ProgressResponse response = progressService.updateProgress(bookId, request, username);
         return ResponseEntity.ok(response);
     }
 
@@ -57,23 +60,11 @@ public class BooksProgressController {
     @GetMapping("/{bookId}/progress")
     public ResponseEntity<ProgressResponse> getProgress(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bookId) {
-        ProgressResponse response = progressService.getProgress(bookId);
+            @PathVariable String bookId,
+            Authentication authentication) {
+        String username = authentication.getName();
+        ProgressResponse response = progressService.getProgress(bookId, username);
         return ResponseEntity.ok(response);
-    }
-
-    @Operation(summary = "전체 책 읽기 진도 조회", description = "현재 사용자의 모든 책에 대한 읽기 진도를 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "401", description = "인증 필요",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/progress")
-    public ResponseEntity<PageResponse<BooksProgressResponse>> getAllProgress(
-            @ParameterObject @Valid @ModelAttribute GetBooksProgressRequest request) {
-        // PageResponse<BooksProgressResponse> response = progressService.getAllProgress(request);
-        // TODO: 추후 구현
-        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @ExceptionHandler(BooksException.class)

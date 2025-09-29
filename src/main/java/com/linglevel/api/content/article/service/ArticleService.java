@@ -191,4 +191,8 @@ public class ArticleService {
         response.setCreatedAt(article.getCreatedAt());
         return response;
     }
+
+    public boolean existsById(String articleId) {
+        return articleRepository.existsById(articleId);
+    }
 }

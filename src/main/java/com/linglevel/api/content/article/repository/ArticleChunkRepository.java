@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface ArticleChunkRepository extends MongoRepository<ArticleChunk, String> {
     Page<ArticleChunk> findByArticleIdAndDifficultyLevelOrderByChunkNumber(String articleId, DifficultyLevel difficultyLevel, Pageable pageable);
     Optional<ArticleChunk> findByArticleIdAndId(String articleId, String chunkId);
+    Optional<ArticleChunk> findFirstByArticleIdOrderByChunkNumber(String articleId);
 }

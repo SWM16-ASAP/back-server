@@ -30,4 +30,6 @@ public interface CustomContentChunkRepository extends MongoRepository<CustomCont
     Optional<CustomContentChunk> findByIdAndCustomContentIdAndIsDeletedFalse(String id, String customContentId);
     
     long countByCustomContentIdAndIsDeletedFalse(String customContentId);
+
+    Optional<CustomContentChunk> findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId);
 }

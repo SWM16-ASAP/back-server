@@ -1,4 +1,4 @@
-package com.linglevel.api.content.book.entity;
+package com.linglevel.api.content.custom.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -14,20 +15,17 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "bookProgress")
-public class BookProgress {
+@Document(collection = "customProgress")
+@CompoundIndex(name = "idx_user_custom_progress", def = "{'userId': 1, 'customId': 1}", unique = true)
+public class CustomContentProgress {
     @Id
     private String id;
 
     private String userId;
 
-    private String bookId;
-
-    private String chapterId;
+    private String customId;
 
     private String chunkId;
-
-    private Integer currentReadChapterNumber;
 
     private Integer currentReadChunkNumber;
 

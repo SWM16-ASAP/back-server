@@ -8,6 +8,10 @@ import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
+import com.linglevel.api.user.entity.User;
+import com.linglevel.api.user.exception.UsersErrorCode;
+import com.linglevel.api.user.exception.UsersException;
+import com.linglevel.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,23 +26,31 @@ public class ProgressService {
     private final ChapterService chapterService;
     private final ChunkService chunkService;
     private final BookProgressRepository bookProgressRepository;
+    private final UserRepository userRepository;
 
     @Transactional
-    public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request) {
+    public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String username) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
-        Chapter chapter = chapterService.findById(request.getChapterId());
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
         Chunk chunk = chunkService.findById(request.getChunkId());
-        String userId = "mock"; // TODO: 실제 유저 아이디 기록
+        Chapter chapter = chapterService.findById(chunk.getChapterId());
+
+        if (!chapter.getBookId().equals(bookId)) {
+            throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND_IN_BOOK);
+        }
+
+        String userId = user.getId();
 
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElse(new BookProgress());
 
         bookProgress.setUserId(userId);
         bookProgress.setBookId(bookId);
-        bookProgress.setChapterId(request.getChapterId());
+        bookProgress.setChapterId(chapter.getId()); // 역추산된 chapter ID
         bookProgress.setChunkId(request.getChunkId());
         bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
         bookProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
@@ -49,13 +61,16 @@ public class ProgressService {
     }
 
     @Transactional
-    public ProgressResponse getProgress(String bookId) {
+    public ProgressResponse getProgress(String bookId, String username) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
-        // TODO: 실제 유저 아이디 기록
-        String userId = "mock";
+        // 사용자 조회
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
+
+        String userId = user.getId();
 
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElseGet(() -> initializeProgress(userId, bookId));
@@ -66,13 +81,14 @@ public class ProgressService {
     private BookProgress initializeProgress(String userId, String bookId) {
         Chapter firstChapter = chapterService.findFirstByBookId(bookId);
         Chunk firstChunk = chunkService.findFirstByChapterId(firstChapter.getId());
-        BookProgress newProgress = new BookProgress(null,
-                userId,
-                bookId,
-                firstChapter.getId(),
-                firstChunk.getId(),
-                firstChapter.getChapterNumber(),
-                firstChunk.getChunkNumber());
+
+        BookProgress newProgress = new BookProgress();
+        newProgress.setUserId(userId);
+        newProgress.setBookId(bookId);
+        newProgress.setChapterId(firstChapter.getId());
+        newProgress.setChunkId(firstChunk.getId());
+        newProgress.setCurrentReadChapterNumber(firstChapter.getChapterNumber());
+        newProgress.setCurrentReadChunkNumber(firstChunk.getChunkNumber());
 
         return bookProgressRepository.save(newProgress);
     }
@@ -80,11 +96,13 @@ public class ProgressService {
     private ProgressResponse convertToProgressResponse(BookProgress progress) {
         return ProgressResponse.builder()
                 .id(progress.getId())
+                .userId(progress.getUserId())
                 .bookId(progress.getBookId())
                 .chapterId(progress.getChapterId())
                 .chunkId(progress.getChunkId())
                 .currentReadChapterNumber(progress.getCurrentReadChapterNumber())
                 .currentReadChunkNumber(progress.getCurrentReadChunkNumber())
+                .updatedAt(progress.getUpdatedAt())
                 .build();
     }
 } 
