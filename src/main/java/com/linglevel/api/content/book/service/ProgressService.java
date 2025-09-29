@@ -34,9 +34,17 @@ public class ProgressService {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
+        // 사용자 조회
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
+
+        // chunkId로부터 chunk 정보 조회
         Chunk chunk = chunkService.findById(request.getChunkId());
+
+        // chunk로부터 chapter 역추산
+        if (chunk.getChapterId() == null) {
+            throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
+        }
         Chapter chapter = chapterService.findById(chunk.getChapterId());
 
         if (!chapter.getBookId().equals(bookId)) {
@@ -60,7 +68,7 @@ public class ProgressService {
         return convertToProgressResponse(bookProgress);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public ProgressResponse getProgress(String bookId, String username) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);

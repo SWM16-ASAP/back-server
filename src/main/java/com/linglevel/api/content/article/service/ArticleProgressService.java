@@ -16,8 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -43,7 +41,7 @@ public class ArticleProgressService {
         ArticleChunk chunk = articleChunkService.findById(request.getChunkId());
 
         // chunk가 해당 article에 속하는지 검증
-        if (!chunk.getArticleId().equals(articleId)) {
+        if (chunk.getArticleId() == null || !chunk.getArticleId().equals(articleId)) {
             throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND_IN_ARTICLE);
         }
 
@@ -56,7 +54,7 @@ public class ArticleProgressService {
         articleProgress.setArticleId(articleId);
         articleProgress.setChunkId(request.getChunkId());
         articleProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
-        articleProgress.setUpdatedAt(LocalDateTime.now());
+        // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
 
         articleProgressRepository.save(articleProgress);
 
@@ -91,7 +89,7 @@ public class ArticleProgressService {
         newProgress.setArticleId(articleId);
         newProgress.setChunkId(firstChunk.getId());
         newProgress.setCurrentReadChunkNumber(firstChunk.getChunkNumber());
-        newProgress.setUpdatedAt(LocalDateTime.now());
+        // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
 
         return articleProgressRepository.save(newProgress);
     }

@@ -16,8 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -43,7 +41,7 @@ public class CustomContentReadingProgressService {
         CustomContentChunk chunk = customContentChunkService.findById(request.getChunkId());
 
         // chunk가 해당 custom content에 속하는지 검증
-        if (!chunk.getCustomContentId().equals(customId)) {
+        if (chunk.getCustomContentId() == null || !chunk.getCustomContentId().equals(customId)) {
             throw new CustomContentException(CustomContentErrorCode.CHUNK_NOT_FOUND_IN_CUSTOM_CONTENT);
         }
 
@@ -56,7 +54,7 @@ public class CustomContentReadingProgressService {
         customProgress.setCustomId(customId);
         customProgress.setChunkId(request.getChunkId());
         customProgress.setCurrentReadChunkNumber(chunk.getChunkNum()); // CustomContentChunk는 chunkNum 필드 사용
-        customProgress.setUpdatedAt(LocalDateTime.now());
+        // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
 
         customContentProgressRepository.save(customProgress);
 
@@ -91,7 +89,7 @@ public class CustomContentReadingProgressService {
         newProgress.setCustomId(customId);
         newProgress.setChunkId(firstChunk.getId());
         newProgress.setCurrentReadChunkNumber(firstChunk.getChunkNum());
-        newProgress.setUpdatedAt(LocalDateTime.now());
+        // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
 
         return customContentProgressRepository.save(newProgress);
     }
