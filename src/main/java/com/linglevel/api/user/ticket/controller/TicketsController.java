@@ -21,6 +21,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/tickets")
@@ -56,7 +57,7 @@ public class TicketsController {
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     public ResponseEntity<PageResponse<TicketTransactionResponse>> getTicketTransactions(
-            @ParameterObject @ModelAttribute GetTicketTransactionsRequest request,
+            @ParameterObject @Valid @ModelAttribute GetTicketTransactionsRequest request,
             Authentication authentication) {
         String username = authentication.getName();
         User user = userRepository.findByUsername(username).orElseThrow();

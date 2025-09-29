@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -53,11 +55,13 @@ public class CrawlingController {
     @GetMapping("/crawling-dsl/domains")
     public ResponseEntity<PageResponse<DomainsResponse>> getDomains(
             @Parameter(description = "조회할 페이지 번호", example = "1")
+            @Min(value = 1, message = "페이지 번호는 1 이상이어야 합니다.")
             @RequestParam(defaultValue = "1") int page,
-            @Parameter(description = "페이지 당 항목 수 (최대 100)", example = "10")
+            @Parameter(description = "페이지 당 항목 수 (최대 200)", example = "10")
+            @Min(value = 1, message = "페이지 당 항목 수는 1 이상이어야 합니다.")
+            @Max(value = 200, message = "페이지 당 항목 수는 200 이하여야 합니다.")
             @RequestParam(defaultValue = "10") int limit) {
         
-        if (limit > 100) limit = 100;
         
         Page<DomainsResponse> domains = crawlingService.getDomains(page, limit);
         return ResponseEntity.ok(new PageResponse<>(domains.getContent(), domains));

@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/books")
@@ -69,7 +70,7 @@ public class BooksProgressController {
     })
     @GetMapping("/progress")
     public ResponseEntity<PageResponse<BooksProgressResponse>> getAllProgress(
-            @ParameterObject @ModelAttribute GetBooksProgressRequest request) {
+            @ParameterObject @Valid @ModelAttribute GetBooksProgressRequest request) {
         // PageResponse<BooksProgressResponse> response = progressService.getAllProgress(request);
         // TODO: 추후 구현
         throw new UnsupportedOperationException("Not implemented yet");

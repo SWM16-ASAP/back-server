@@ -32,8 +32,8 @@ public class ChapterService {
         }
 
         Pageable pageable = PageRequest.of(
-            request.getPage() - 1, 
-            Math.min(request.getLimit(), 100),
+            request.getPage() - 1,
+            request.getLimit(),
             Sort.by("chapterNumber").ascending()
         );
 
