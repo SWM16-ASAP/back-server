@@ -27,14 +27,4 @@ public enum ProgressStatus {
         }
         throw new IllegalArgumentException("Invalid progress status code: " + code);
     }
-
-    public static ProgressStatus fromProgressData(double progressPercentage, boolean isCompleted) {
-        if (isCompleted) {
-            return COMPLETED;
-        } else if (progressPercentage > 0.0) {
-            return IN_PROGRESS;
-        } else {
-            return NOT_STARTED;
-        }
-    }
 }
