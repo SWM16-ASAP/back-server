@@ -22,6 +22,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -44,9 +45,10 @@ public class ArticleController {
     })
     @GetMapping
     public ResponseEntity<PageResponse<ArticleResponse>> getArticles(
-            @ParameterObject @ModelAttribute GetArticlesRequest request) {
-        
-        PageResponse<ArticleResponse> response = articleService.getArticles(request);
+            @ParameterObject @ModelAttribute GetArticlesRequest request,
+            Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : null;
+        PageResponse<ArticleResponse> response = articleService.getArticles(request, username);
         return ResponseEntity.ok(response);
     }
 
@@ -59,9 +61,10 @@ public class ArticleController {
     @GetMapping("/{articleId}")
     public ResponseEntity<ArticleResponse> getArticle(
             @Parameter(description = "기사 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String articleId) {
-        
-        ArticleResponse response = articleService.getArticle(articleId);
+            @PathVariable String articleId,
+            Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : null;
+        ArticleResponse response = articleService.getArticle(articleId, username);
         return ResponseEntity.ok(response);
     }
 

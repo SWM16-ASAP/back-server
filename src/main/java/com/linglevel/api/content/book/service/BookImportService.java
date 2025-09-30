@@ -87,7 +87,7 @@ public class BookImportService {
         
         if (Boolean.TRUE.equals(chunkData.getIsImage())) {
             chunk.setType(ChunkType.IMAGE);
-            String imageUrl = s3UrlService.buildImageUrl(bookId, chunkData.getChunkText(), bookPathStrategy) + "?w=256&h=256";
+            String imageUrl = s3UrlService.buildImageUrl(bookId, chunkData.getChunkText(), bookPathStrategy);
             chunk.setContent(imageUrl);
             chunk.setDescription(chunkData.getDescription());
         } else {

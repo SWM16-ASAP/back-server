@@ -76,6 +76,16 @@ public class ArticleChunkService {
         }
     }
 
+    public ArticleChunk findById(String chunkId) {
+        return articleChunkRepository.findById(chunkId)
+                .orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
+    }
+
+    public ArticleChunk findFirstByArticleId(String articleId) {
+        return articleChunkRepository.findFirstByArticleIdOrderByChunkNumber(articleId)
+                .orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
+    }
+
     private ArticleChunkResponse convertToArticleChunkResponse(ArticleChunk chunk) {
         return ArticleChunkResponse.from(chunk);
     }

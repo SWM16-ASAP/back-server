@@ -143,6 +143,7 @@ Authorization: Bearer {AccessToken}
 | `sort_by` | String  | 아니요 (기본값: `created_at`) | `view_count` (조회수순), `average_rating` (평점순), `created_at` (최신순) 중 하나. |
 | `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: "philosophy,children"). 제공 시 해당 태그가 포함된 책만 조회. |
 | `keyword` | String  | 아니요                       | 검색할 책 제목 또는 작가 이름 (부분 일치 검색). 제공 시 키워드가 포함된 책만 조회. |
+| `progress` | String  | 아니요                       | 읽기 진도별 필터링. `not_started` (시작 안 함), `in_progress` (읽는 중), `completed` (완료) 중 하나. |
 | `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호.                                                |
 | `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `200`)          | 페이지 당 항목 수.                                                 |
 
@@ -159,6 +160,7 @@ Authorization: Bearer {AccessToken}
       "chapterCount": 27, // 책 챕터 수
       "currentReadChapterNumber": 10, // 현재 읽은 챕터 번호 (완료된 챕터를 기준으로 하며, 기본값은 0)
       "progressPercentage": 37.0, // 진행률 (10/27 * 100)
+      "isCompleted": false, // 완료 여부 (currentReadChapterNumber >= chapterCount일 때 true)
       "readingTime": 120, // 읽기 시간 (분 단위)
       "averageRating": 4.8, // 리뷰 평점
       "reviewCount": 1500, // 리뷰어 수
@@ -208,6 +210,26 @@ GET /api/v1/books?tags=philosophy&sort_by=average_rating
 GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 ```
 
+**7. 진도별 필터링**
+```
+GET /api/v1/books?progress=not_started
+```
+
+**8. 읽는 중인 책 조회**
+```
+GET /api/v1/books?progress=in_progress
+```
+
+**9. 완료한 책 조회**
+```
+GET /api/v1/books?progress=completed
+```
+
+**10. 복합 조건 (진도 + 정렬)**
+```
+GET /api/v1/books?progress=in_progress&sort_by=created_at
+```
+
 #### **Error Response (400 Bad Request)**
 ```json
 {
@@ -219,6 +241,13 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
 ```json
 {
   "message": "Invalid tags format. Tags should be comma-separated strings."
+}
+```
+
+#### **Error Response (400 Bad Request) - 잘못된 progress 파라미터**
+```json
+{
+  "message": "Invalid progress parameter. Must be one of: not_started, in_progress, completed."
 }
 ```
 
@@ -243,6 +272,7 @@ GET /api/v1/books?keyword=prince&tags=children&sort_by=view_count
   "chapterCount": 27,
   "currentReadChapterNumber": 10,
   "progressPercentage": 37.0,
+  "isCompleted": false,
   "readingTime": 120,
   "averageRating": 4.8,
   "reviewCount": 1500,
@@ -340,6 +370,7 @@ X-API-Key: {TempApiKey}
 
 | 파라미터 | 타입    | 필수 | 설명                      |
 | :------- | :------ | :--- | :------------------------ |
+| `progress` | String  | 아니요                       | 읽기 진도별 필터링. `not_started` (시작 안 함), `in_progress` (읽는 중), `completed` (완료) 중 하나. |
 | `page`   | Integer | 아니요 (기본값: `1`)          | 조회할 페이지 번호                |
 | `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `200`) | 페이지 당 항목 수                |
 
@@ -356,6 +387,7 @@ X-API-Key: {TempApiKey}
       "chunkCount": 10, // 챕터 내부 전체 청크
       "currentReadChunkNumber": 8, // 현재 읽은 청크 번호
       "progressPercentage": 80.0, // 진행률 (8/10 * 100)
+      "isCompleted": false, // 완료 여부 (currentReadChunkNumber >= chunkCount일 때 true)
       "readingTime": 15
     },
     {
@@ -367,6 +399,7 @@ X-API-Key: {TempApiKey}
       "chunkCount": 20,
       "currentReadChunkNumber": 0, // 아직 읽지 않음
       "progressPercentage": 0.0, // 진행률
+      "isCompleted": false, // 완료 여부 (currentReadChunkNumber >= chunkCount일 때 true)
       "readingTime": 20
     }
   ],
@@ -393,6 +426,33 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=2
 **3. 페이지 크기 조정**
 ```
 GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
+```
+
+**4. 진도별 필터링**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?progress=not_started
+```
+
+**5. 읽는 중인 챕터 조회**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?progress=in_progress
+```
+
+**6. 완료한 챕터 조회**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?progress=completed
+```
+
+**7. 복합 조건 (진도 + 페이지네이션)**
+```
+GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?progress=in_progress&page=2&limit=5
+```
+
+#### **Error Response (400 Bad Request) - 잘못된 progress 파라미터**
+```json
+{
+  "message": "Invalid progress parameter. Must be one of: not_started, in_progress, completed."
+}
 ```
 
 #### **Error Response (404 Not Found)**
@@ -424,6 +484,7 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
   "chunkCount": 10,
   "currentReadChunkNumber": 8,
   "progressPercentage": 80.0,
+  "isCompleted": false,
   "readingTime": 15
 }
 ```
@@ -562,9 +623,39 @@ GET /api/v1/books/60d0fe4f5311236168a109ca/chapters?page=1&limit=20
 
 ## 📈 읽기 진도 (Reading Progress)
 
+### **완료 조건 (Completion Criteria)**
+
+각 콘텐츠 타입별 완료 조건은 다음과 같습니다:
+
+- **Books**: `currentReadChapterNumber >= chapterCount` (마지막 챕터까지 읽었을 때)
+- **Articles**: `currentReadChunkNumber >= chunkCount` (마지막 청크까지 읽었을 때)
+- **Custom Contents**: `currentReadChunkNumber >= chunkCount` (마지막 청크까지 읽었을 때)
+
+완료 조건을 만족하면 `isCompleted: true`, `progressPercentage: 100.0`이 됩니다.
+
+#### **완료 예시**
+
+```json
+// Books - 27챕터 중 27챕터 완료
+{
+  "chapterCount": 27,
+  "currentReadChapterNumber": 27,
+  "progressPercentage": 100.0,
+  "isCompleted": true
+}
+
+// Articles - 15청크 중 15청크 완료
+{
+  "chunkCount": 15,
+  "currentReadChunkNumber": 15,
+  "progressPercentage": 100.0,
+  "isCompleted": true
+}
+```
+
 ### `PUT /books/{bookId}/progress`
 
-사용자의 읽기 진도를 업데이트합니다. 특정 챕터의 특정 청크까지 읽었음을 기록합니다.
+사용자의 읽기 진도를 업데이트합니다. chunkId를 통해 해당 chunk가 속한 chapter를 자동으로 역추산하여 진도를 기록합니다.
 
 #### **Request Headers**
 ```
@@ -581,7 +672,6 @@ Authorization: Bearer {AccessToken}
 
 ```json
 {
-  "chapterId": "60d0fe4f5311236168a109cb",
   "chunkId": "60d0fe4f5311236168c172db"
 }
 ```
@@ -590,11 +680,13 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "id": "60d0fe4f5311236168a109d1",
-  "bookId": "60d0fe4f5311236168a109cb", 
-  "chapterId": "60d0fe4f5311236168a109cb",
+  "userId": "60d0fe4f5311236168a109ca",
+  "bookId": "60d0fe4f5311236168a109cb",
+  "chapterId": "60d0fe4f5311236168a109cc",
   "chunkId": "60d0fe4f5311236168c172db",
   "currentReadChapterNumber": 1,
   "currentReadChunkNumber": 5,
+  "isCompleted": false,
   "updatedAt": "2024-01-15T10:30:00"
 }
 ```
@@ -609,7 +701,7 @@ Authorization: Bearer {AccessToken}
 #### **Error Response (404 Not Found)**
 ```json
 {
-  "message": "Chapter not found in this book."
+  "message": "Chunk not found in this book."
 }
 ```
 
@@ -644,6 +736,7 @@ Authorization: Bearer {AccessToken}
   "chunkId": "60d0fe4f53112389248a182db",
   "currentReadChapterNumber": 1,
   "currentReadChunkNumber": 5,
+  "isCompleted": false,
   "updatedAt": "2024-01-15T10:30:00"
 }
 ```
@@ -1044,6 +1137,7 @@ Authorization: Bearer {AccessToken}
 | `sort_by` | String  | 아니요 (기본값: `created_at`) | `view_count` (조회수순), `average_rating` (평점순), `created_at` (최신순) 중 하나. |
 | `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: "technology,business"). 제공 시 해당 태그가 포함된 기사만 조회.   |
 | `keyword` | String  | 아니요                       | 검색할 기사 제목 또는 작가 이름 (부분 일치 검색). 제공 시 키워드가 포함된 기사만 조회.                  |
+| `progress` | String  | 아니요                       | 읽기 진도별 필터링. `not_started` (시작 안 함), `in_progress` (읽는 중), `completed` (완료) 중 하나. |
 | `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호.                                                           |
 | `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `200`)          | 페이지 당 항목 수.                                                           |
 
@@ -1058,6 +1152,9 @@ Authorization: Bearer {AccessToken}
       "coverImageUrl": "https://path/to/cover.jpg",
       "difficultyLevel": "C1",
       "chunkCount": 15,
+      "currentReadChunkNumber": 7,
+      "progressPercentage": 46.7,
+      "isCompleted": false, // 완료 여부 (currentReadChunkNumber >= chunkCount일 때 true)
       "readingTime": 8,
       "averageRating": 4.5,
       "reviewCount": 230,
@@ -1096,10 +1193,37 @@ GET /api/v1/articles?tags=technology,business
 GET /api/v1/articles?keyword=viking
 ```
 
+**5. 진도별 필터링**
+```
+GET /api/v1/articles?progress=not_started
+```
+
+**6. 읽는 중인 기사 조회**
+```
+GET /api/v1/articles?progress=in_progress
+```
+
+**7. 완료한 기사 조회**
+```
+GET /api/v1/articles?progress=completed
+```
+
+**8. 복합 조건 (진도 + 정렬)**
+```
+GET /api/v1/articles?progress=in_progress&sort_by=created_at
+```
+
 #### **Error Response (400 Bad Request)**
 ```json
 {
   "message": "Invalid sort_by parameter. Must be one of: view_count, average_rating, created_at."
+}
+```
+
+#### **Error Response (400 Bad Request) - 잘못된 progress 파라미터**
+```json
+{
+  "message": "Invalid progress parameter. Must be one of: not_started, in_progress, completed."
 }
 ```
 
@@ -1122,6 +1246,9 @@ GET /api/v1/articles?keyword=viking
   "coverImageUrl": "https://path/to/cover.jpg",
   "difficultyLevel": "C1",
   "chunkCount": 15,
+  "currentReadChunkNumber": 7,
+  "progressPercentage": 46.7,
+  "isCompleted": false,
   "readingTime": 8,
   "averageRating": 4.5,
   "reviewCount": 230,
@@ -1297,6 +1424,98 @@ X-API-Key: {TempApiKey}
 ```json
 {
   "message": "Chunk not found."
+}
+```
+
+### `PUT /articles/{articleId}/progress`
+
+사용자의 아티클 읽기 진도를 업데이트합니다. chunkId를 통해 특정 청크까지 읽었음을 기록합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `articleId` | String | 읽고 있는 아티클의 고유 ID |
+
+#### **Request Body**
+
+```json
+{
+  "chunkId": "60d0fe4f5311236168c172db"
+}
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109d1",
+  "userId": "60d0fe4f5311236168a109ca",
+  "articleId": "60d0fe4f5311236168a109cb",
+  "chunkId": "60d0fe4f5311236168c172db",
+  "currentReadChunkNumber": 5,
+  "isCompleted": false,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Chunk not found in this article."
+}
+```
+
+### `GET /articles/{articleId}/progress`
+
+사용자의 특정 아티클에 대한 읽기 진도를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `articleId` | String | 조회할 아티클의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109d1",
+  "userId": "60d0fe4f5311236168a109ca",
+  "articleId": "60d0fe4f5311236168a109cb",
+  "chunkId": "60d0fe4f53112389248a182db",
+  "currentReadChunkNumber": 5,
+  "isCompleted": false,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Article not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Progress not found for this article."
 }
 ```
 
@@ -1928,6 +2147,7 @@ Authorization: Bearer {AccessToken}
 | `sort_by` | String  | 아니요 (기본값: `created_at`) | `view_count` (조회수순), `average_rating` (평점순), `created_at` (최신순) 중 하나 |
 | `tags`    | String  | 아니요                       | 검색할 태그들 (쉼표로 구분, 예: \"technology,beginner\"). 제공 시 해당 태그가 포함된 콘텐츠만 조회 |
 | `keyword` | String  | 아니요                       | 검색할 콘텐츠 제목 또는 작가 이름 (부분 일치 검색) |
+| `progress` | String  | 아니요                       | 읽기 진도별 필터링. `not_started` (시작 안 함), `in_progress` (읽는 중), `completed` (완료) 중 하나 |
 | `page`    | Integer | 아니요 (기본값: `1`)           | 조회할 페이지 번호 |
 | `limit`   | Integer | 아니요 (기본값: `10`, 최댓값: `200`)          | 페이지 당 항목 수 |
 
@@ -1943,6 +2163,9 @@ Authorization: Bearer {AccessToken}
       "difficultyLevel": "A1",
       "targetDifficultyLevels": ["A1", "B1"],
       "chunkCount": 12,
+      "currentReadChunkNumber": 8,
+      "progressPercentage": 66.7,
+      "isCompleted": false, // 완료 여부 (currentReadChunkNumber >= chunkCount일 때 true)
       "readingTime": 8,
       "averageRating": 4.2,
       "reviewCount": 15,
@@ -1979,6 +2202,26 @@ GET /api/v1/custom-contents?sort_by=view_count
 GET /api/v1/custom-contents?tags=technology,beginner
 ```
 
+**4. 진도별 필터링**
+```
+GET /api/v1/custom-contents?progress=not_started
+```
+
+**5. 읽는 중인 콘텐츠 조회**
+```
+GET /api/v1/custom-contents?progress=in_progress
+```
+
+**6. 완료한 콘텐츠 조회**
+```
+GET /api/v1/custom-contents?progress=completed
+```
+
+**7. 복합 조건 (진도 + 정렬)**
+```
+GET /api/v1/custom-contents?progress=in_progress&sort_by=created_at
+```
+
 ### `GET /custom-contents/{customContentId}`
 
 특정 커스텀 콘텐츠의 상세 정보를 조회합니다.
@@ -2004,6 +2247,9 @@ Authorization: Bearer {AccessToken}
   "difficultyLevel": "A1",
   "targetDifficultyLevels": ["A1", "B1"],
   "chunkCount": 12,
+  "currentReadChunkNumber": 8,
+  "progressPercentage": 66.7,
+  "isCompleted": false,
   "readingTime": 8,
   "averageRating": 4.2,
   "reviewCount": 15,
@@ -2020,6 +2266,13 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "message": "Custom content not found."
+}
+```
+
+#### **Error Response (400 Bad Request) - 잘못된 progress 파라미터**
+```json
+{
+  "message": "Invalid progress parameter. Must be one of: not_started, in_progress, completed."
 }
 ```
 
@@ -2250,6 +2503,98 @@ Authorization: Bearer {AccessToken}
 ```json
 {
   "message": "Invalid or expired token."
+}
+```
+
+### `PUT /custom-contents/{customId}/progress`
+
+사용자의 커스텀 콘텐츠 읽기 진도를 업데이트합니다. chunkId를 통해 특정 청크까지 읽었음을 기록합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `customId` | String | 읽고 있는 커스텀 콘텐츠의 고유 ID |
+
+#### **Request Body**
+
+```json
+{
+  "chunkId": "60d0fe4f5311236168c172db"
+}
+```
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109d1",
+  "userId": "60d0fe4f5311236168a109ca",
+  "customId": "60d0fe4f5311236168a109cb",
+  "chunkId": "60d0fe4f5311236168c172db",
+  "currentReadChunkNumber": 3,
+  "isCompleted": false,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Chunk not found in this custom content."
+}
+```
+
+### `GET /custom-contents/{customId}/progress`
+
+사용자의 특정 커스텀 콘텐츠에 대한 읽기 진도를 조회합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Path Parameters**
+
+| 파라미터  | 타입     | 설명             |
+| :-------- | :------- | :--------------- |
+| `customId` | String | 조회할 커스텀 콘텐츠의 고유 ID |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "id": "60d0fe4f5311236168a109d1",
+  "userId": "60d0fe4f5311236168a109ca",
+  "customId": "60d0fe4f5311236168a109cb",
+  "chunkId": "60d0fe4f53112389248a182db",
+  "currentReadChunkNumber": 3,
+  "isCompleted": false,
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Custom content not found."
+}
+```
+
+#### **Error Response (404 Not Found)**
+```json
+{
+  "message": "Progress not found for this custom content."
 }
 ```
 
