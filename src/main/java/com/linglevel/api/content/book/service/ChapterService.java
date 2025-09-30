@@ -107,8 +107,8 @@ public class ChapterService {
             .filter(chapter -> {
                 return switch (progressFilter) {
                     case NOT_STARTED -> chapter.getProgressPercentage() == 0.0;
-                    case IN_PROGRESS -> chapter.getProgressPercentage() > 0.0 && !chapter.getIsCompleted();
-                    case COMPLETED -> chapter.getIsCompleted();
+                    case IN_PROGRESS -> chapter.getProgressPercentage() > 0.0 && chapter.getProgressPercentage() < 100.0;
+                    case COMPLETED -> chapter.getProgressPercentage() == 100.0;
                 };
             })
             .collect(Collectors.toList());
@@ -117,36 +117,31 @@ public class ChapterService {
     private ChapterResponse convertToChapterResponse(Chapter chapter, String bookId, String userId) {
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
-        boolean isCompleted = false;
 
         if (userId != null) {
             BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElse(null);
 
             if (bookProgress != null) {
-                Integer maxChapterNumber = bookProgress.getMaxReadChapterNumber() != null
-                    ? bookProgress.getMaxReadChapterNumber() : 0;
-                Integer maxChunkNumber = bookProgress.getMaxReadChunkNumber() != null
-                    ? bookProgress.getMaxReadChunkNumber() : 0;
+                Integer currentChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
+                    ? bookProgress.getCurrentReadChapterNumber() : 0;
+                Integer currentChunkNumber = bookProgress.getCurrentReadChunkNumber() != null
+                    ? bookProgress.getCurrentReadChunkNumber() : 0;
 
-                if (chapter.getChapterNumber() < maxChapterNumber) {
-                    // 이미 지나간 챕터 → 완료
+                if (chapter.getChapterNumber() < currentChapterNumber) {
+                    // 현재 읽고 있는 챕터보다 이전 → 100% (이미 지나감)
                     currentReadChunkNumber = chapter.getChunkCount();
                     progressPercentage = 100.0;
-                    isCompleted = true;
-                } else if (chapter.getChapterNumber().equals(maxChapterNumber)) {
-                    // 현재 읽고 있는 max 챕터
-                    currentReadChunkNumber = maxChunkNumber;
+                } else if (chapter.getChapterNumber().equals(currentChapterNumber)) {
+                    // 현재 읽고 있는 챕터 → 백분율 계산
+                    currentReadChunkNumber = currentChunkNumber;
                     if (chapter.getChunkCount() != null && chapter.getChunkCount() > 0) {
-                        progressPercentage = (double) maxChunkNumber / chapter.getChunkCount() * 100.0;
+                        progressPercentage = (double) currentChunkNumber / chapter.getChunkCount() * 100.0;
                     }
-                    // max 청크가 해당 챕터의 마지막 청크인 경우 완료
-                    isCompleted = maxChunkNumber >= chapter.getChunkCount();
                 } else {
-                    // 아직 안 읽은 챕터 → 미완료
+                    // 아직 안 읽은 챕터 → 0%
                     currentReadChunkNumber = 0;
                     progressPercentage = 0.0;
-                    isCompleted = false;
                 }
             }
         }
@@ -160,7 +155,6 @@ public class ChapterService {
             .chunkCount(chapter.getChunkCount())
             .currentReadChunkNumber(currentReadChunkNumber)
             .progressPercentage(progressPercentage)
-            .isCompleted(isCompleted)
             .readingTime(chapter.getReadingTime())
             .build();
     }
