@@ -69,12 +69,8 @@ public class ProgressService {
         bookProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
 
         // max 진도 업데이트 (current가 max보다 크면 max도 업데이트)
-        if (bookProgress.getMaxReadChapterNumber() == null ||
-            chapter.getChapterNumber() > bookProgress.getMaxReadChapterNumber()) {
+        if (shouldUpdateMaxProgress(bookProgress, chapter.getChapterNumber(), chunk.getChunkNumber())) {
             bookProgress.setMaxReadChapterNumber(chapter.getChapterNumber());
-        }
-        if (bookProgress.getMaxReadChunkNumber() == null ||
-            chunk.getChunkNumber() > bookProgress.getMaxReadChunkNumber()) {
             bookProgress.setMaxReadChunkNumber(chunk.getChunkNumber());
         }
 
@@ -138,6 +134,14 @@ public class ProgressService {
                 .orElseThrow(() -> new BooksException(BooksErrorCode.PROGRESS_NOT_FOUND));
 
         bookProgressRepository.delete(bookProgress);
+    }
+
+    private boolean shouldUpdateMaxProgress(BookProgress progress, Integer chapterNum, Integer chunkNum) {
+        Integer maxChapter = progress.getMaxReadChapterNumber();
+        Integer maxChunk = progress.getMaxReadChunkNumber();
+
+        return maxChapter == null || chapterNum > maxChapter
+            || (chapterNum.equals(maxChapter) && chunkNum > maxChunk);
     }
 
     private ProgressResponse convertToProgressResponse(BookProgress progress) {
