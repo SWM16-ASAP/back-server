@@ -36,9 +36,6 @@ public class ChapterResponse {
     @Schema(description = "진행률", example = "80.0")
     private Double progressPercentage;
 
-    @Schema(description = "완료 여부", example = "false")
-    private Boolean isCompleted;
-    
     @Schema(description = "읽기 시간(분)", example = "15")
     private Integer readingTime;
 } 
