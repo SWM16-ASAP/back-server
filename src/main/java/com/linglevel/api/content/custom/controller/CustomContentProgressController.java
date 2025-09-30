@@ -63,22 +63,6 @@ public class CustomContentProgressController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "커스텀 콘텐츠 읽기 진도 초기화", description = "사용자의 현재 읽기 진도를 0으로 초기화합니다. 최대 진도 기록은 유지됩니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "초기화 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "커스텀 콘텐츠 또는 진도 기록을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping("/{customId}/progress/reset")
-    public ResponseEntity<CustomContentReadingProgressResponse> resetProgress(
-            @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String customId,
-            Authentication authentication) {
-        String username = authentication.getName();
-        CustomContentReadingProgressResponse response = customContentReadingProgressService.resetProgress(customId, username);
-        return ResponseEntity.ok(response);
-    }
-
     @Operation(summary = "커스텀 콘텐츠 읽기 진도 삭제", description = "사용자의 읽기 진도 기록을 완전히 삭제합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "삭제 성공"),

@@ -126,33 +126,6 @@ public class ProgressService {
     }
 
     @Transactional
-    public ProgressResponse resetProgress(String bookId, String username) {
-        if (!bookService.existsById(bookId)) {
-            throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
-        }
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(user.getId(), bookId)
-                .orElseThrow(() -> new BooksException(BooksErrorCode.PROGRESS_NOT_FOUND));
-
-        // 첫 번째 챕터/청크로 초기화 (max는 유지)
-        Chapter firstChapter = chapterService.findFirstByBookId(bookId);
-        Chunk firstChunk = chunkService.findFirstByChapterId(firstChapter.getId());
-
-        bookProgress.setChapterId(firstChapter.getId());
-        bookProgress.setChunkId(firstChunk.getId());
-        bookProgress.setCurrentReadChapterNumber(firstChapter.getChapterNumber());
-        bookProgress.setCurrentReadChunkNumber(firstChunk.getChunkNumber());
-        bookProgress.setIsCompleted(false);
-
-        bookProgressRepository.save(bookProgress);
-
-        return convertToProgressResponse(bookProgress);
-    }
-
-    @Transactional
     public void deleteProgress(String bookId, String username) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);

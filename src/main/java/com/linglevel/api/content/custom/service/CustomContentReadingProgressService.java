@@ -117,30 +117,6 @@ public class CustomContentReadingProgressService {
     }
 
     @Transactional
-    public CustomContentReadingProgressResponse resetProgress(String customId, String username) {
-        if (!customContentService.existsById(customId)) {
-            throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
-        }
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(user.getId(), customId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.PROGRESS_NOT_FOUND));
-
-        // 첫 번째 청크로 초기화 (max는 유지)
-        CustomContentChunk firstChunk = customContentChunkService.findFirstByCustomContentId(customId);
-
-        customProgress.setChunkId(firstChunk.getId());
-        customProgress.setCurrentReadChunkNumber(firstChunk.getChunkNum());
-        customProgress.setIsCompleted(false);
-
-        customContentProgressRepository.save(customProgress);
-
-        return convertToCustomContentReadingProgressResponse(customProgress);
-    }
-
-    @Transactional
     public void deleteProgress(String customId, String username) {
         if (!customContentService.existsById(customId)) {
             throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);

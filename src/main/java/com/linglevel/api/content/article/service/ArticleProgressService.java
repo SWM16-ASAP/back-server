@@ -111,30 +111,6 @@ public class ArticleProgressService {
     }
 
     @Transactional
-    public ArticleProgressResponse resetProgress(String articleId, String username) {
-        if (!articleService.existsById(articleId)) {
-            throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
-        }
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(user.getId(), articleId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.PROGRESS_NOT_FOUND));
-
-        // 첫 번째 청크로 초기화 (max는 유지)
-        ArticleChunk firstChunk = articleChunkService.findFirstByArticleId(articleId);
-
-        articleProgress.setChunkId(firstChunk.getId());
-        articleProgress.setCurrentReadChunkNumber(firstChunk.getChunkNumber());
-        articleProgress.setIsCompleted(false);
-
-        articleProgressRepository.save(articleProgress);
-
-        return convertToArticleProgressResponse(articleProgress);
-    }
-
-    @Transactional
     public void deleteProgress(String articleId, String username) {
         if (!articleService.existsById(articleId)) {
             throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);

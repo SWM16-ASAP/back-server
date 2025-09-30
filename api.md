@@ -755,56 +755,6 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
-### `POST /books/{bookId}/progress/reset`
-
-사용자의 특정 책에 대한 읽기 진도를 초기화합니다. 처음부터 다시 읽기를 원할 때 사용합니다.
-
-#### **Request Headers**
-```
-Authorization: Bearer {AccessToken}
-```
-
-#### **Path Parameters**
-
-| 파라미터  | 타입     | 설명             |
-| :-------- | :------- | :--------------- |
-| `bookId` | String | 초기화할 책의 고유 ID |
-
-#### **Success Response (200 OK)**
-```json
-{
-  "message": "Progress reset successfully.",
-  "id": "60d0fe4f5311236168a109d1",
-  "bookId": "60d0fe4f5311236168a109cb",
-  "currentReadChapterNumber": 0,
-  "currentReadChunkNumber": 0,
-  "maxReadChapterNumber": 3,
-  "maxReadChunkNumber": 8,
-  "isCompleted": false,
-  "updatedAt": "2024-01-15T10:30:00"
-}
-```
-
-**동작:**
-- `currentReadChapterNumber`와 `currentReadChunkNumber`를 0으로 초기화
-- `maxReadChapterNumber`와 `maxReadChunkNumber`는 유지 (학습 기록 보존)
-- `isCompleted`는 false로 설정
-- 처음부터 다시 읽을 수 있지만, 최대 진행 기록은 보존됩니다
-
-#### **Error Response (404 Not Found)**
-```json
-{
-  "message": "Book not found."
-}
-```
-
-#### **Error Response (404 Not Found)**
-```json
-{
-  "message": "Progress not found for this book."
-}
-```
-
 ### `DELETE /books/{bookId}/progress`
 
 사용자의 특정 책에 대한 읽기 진도를 완전히 삭제합니다. 진행기록 자체를 제거하고 싶을 때 사용합니다.
@@ -831,10 +781,6 @@ Authorization: Bearer {AccessToken}
 - 데이터베이스에서 진행기록 레코드를 완전히 삭제
 - current와 max 필드를 포함한 모든 진행 데이터가 삭제됨
 - 이후 해당 책을 읽으면 새로운 진행기록이 생성됨
-
-**Reset vs Delete:**
-- **Reset**: current를 0으로 초기화하지만 max는 유지 (학습 기록 보존)
-- **Delete**: 진행기록을 완전히 삭제 (모든 기록 제거)
 
 #### **Error Response (404 Not Found)**
 ```json
@@ -1627,54 +1573,6 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
-### `POST /articles/{articleId}/progress/reset`
-
-사용자의 특정 기사에 대한 읽기 진도를 초기화합니다. 처음부터 다시 읽기를 원할 때 사용합니다.
-
-#### **Request Headers**
-```
-Authorization: Bearer {AccessToken}
-```
-
-#### **Path Parameters**
-
-| 파라미터  | 타입     | 설명             |
-| :-------- | :------- | :--------------- |
-| `articleId` | String | 초기화할 기사의 고유 ID |
-
-#### **Success Response (200 OK)**
-```json
-{
-  "message": "Progress reset successfully.",
-  "id": "60d0fe4f5311236168a109d1",
-  "articleId": "60d0fe4f5311236168a109cb",
-  "currentReadChunkNumber": 0,
-  "maxReadChunkNumber": 8,
-  "isCompleted": false,
-  "updatedAt": "2024-01-15T10:30:00"
-}
-```
-
-**동작:**
-- `currentReadChunkNumber`를 0으로 초기화
-- `maxReadChunkNumber`는 유지 (학습 기록 보존)
-- `isCompleted`는 false로 설정
-- 처음부터 다시 읽을 수 있지만, 최대 진행 기록은 보존됩니다
-
-#### **Error Response (404 Not Found)**
-```json
-{
-  "message": "Article not found."
-}
-```
-
-#### **Error Response (404 Not Found)**
-```json
-{
-  "message": "Progress not found for this article."
-}
-```
-
 ### `DELETE /articles/{articleId}/progress`
 
 사용자의 특정 기사에 대한 읽기 진도를 완전히 삭제합니다. 진행기록 자체를 제거하고 싶을 때 사용합니다.
@@ -1701,10 +1599,6 @@ Authorization: Bearer {AccessToken}
 - 데이터베이스에서 진행기록 레코드를 완전히 삭제
 - current와 max 필드를 포함한 모든 진행 데이터가 삭제됨
 - 이후 해당 기사를 읽으면 새로운 진행기록이 생성됨
-
-**Reset vs Delete:**
-- **Reset**: current를 0으로 초기화하지만 max는 유지 (학습 기록 보존)
-- **Delete**: 진행기록을 완전히 삭제 (모든 기록 제거)
 
 #### **Error Response (404 Not Found)**
 ```json
@@ -2805,54 +2699,6 @@ Authorization: Bearer {AccessToken}
 }
 ```
 
-### `POST /custom-contents/{customId}/progress/reset`
-
-사용자의 특정 커스텀 콘텐츠에 대한 읽기 진도를 초기화합니다. 처음부터 다시 읽기를 원할 때 사용합니다.
-
-#### **Request Headers**
-```
-Authorization: Bearer {AccessToken}
-```
-
-#### **Path Parameters**
-
-| 파라미터  | 타입     | 설명             |
-| :-------- | :------- | :--------------- |
-| `customId` | String | 초기화할 커스텀 콘텐츠의 고유 ID |
-
-#### **Success Response (200 OK)**
-```json
-{
-  "message": "Progress reset successfully.",
-  "id": "60d0fe4f5311236168a109d1",
-  "customId": "60d0fe4f5311236168a109cb",
-  "currentReadChunkNumber": 0,
-  "maxReadChunkNumber": 5,
-  "isCompleted": false,
-  "updatedAt": "2024-01-15T10:30:00"
-}
-```
-
-**동작:**
-- `currentReadChunkNumber`를 0으로 초기화
-- `maxReadChunkNumber`는 유지 (학습 기록 보존)
-- `isCompleted`는 false로 설정
-- 처음부터 다시 읽을 수 있지만, 최대 진행 기록은 보존됩니다
-
-#### **Error Response (404 Not Found)**
-```json
-{
-  "message": "Custom content not found."
-}
-```
-
-#### **Error Response (404 Not Found)**
-```json
-{
-  "message": "Progress not found for this custom content."
-}
-```
-
 ### `DELETE /custom-contents/{customId}/progress`
 
 사용자의 특정 커스텀 콘텐츠에 대한 읽기 진도를 완전히 삭제합니다. 진행기록 자체를 제거하고 싶을 때 사용합니다.
@@ -2879,10 +2725,6 @@ Authorization: Bearer {AccessToken}
 - 데이터베이스에서 진행기록 레코드를 완전히 삭제
 - current와 max 필드를 포함한 모든 진행 데이터가 삭제됨
 - 이후 해당 콘텐츠를 읽으면 새로운 진행기록이 생성됨
-
-**Reset vs Delete:**
-- **Reset**: current를 0으로 초기화하지만 max는 유지 (학습 기록 보존)
-- **Delete**: 진행기록을 완전히 삭제 (모든 기록 제거)
 
 #### **Error Response (404 Not Found)**
 ```json
