@@ -16,7 +16,10 @@ import java.time.LocalDateTime;
 public class ProgressResponse {
     @Schema(description = "진도 ID", example = "60d0fe4f5311236168a109d1")
     private String id;
-    
+
+    @Schema(description = "사용자 ID", example = "60d0fe4f5311236168a109ca")
+    private String userId;
+
     @Schema(description = "책 ID", example = "60d0fe4f5311236168a109cb")
     private String bookId;
     
@@ -28,10 +31,19 @@ public class ProgressResponse {
     
     @Schema(description = "현재 읽은 챕터 번호", example = "1")
     private Integer currentReadChapterNumber;
-    
+
     @Schema(description = "현재 읽은 청크 번호", example = "5")
     private Integer currentReadChunkNumber;
-    
+
+    @Schema(description = "최대 읽은 챕터 번호", example = "3")
+    private Integer maxReadChapterNumber;
+
+    @Schema(description = "최대 읽은 청크 번호", example = "8")
+    private Integer maxReadChunkNumber;
+
+    @Schema(description = "완료 여부", example = "false")
+    private Boolean isCompleted;
+
     @Schema(description = "업데이트 일시", example = "2024-01-15T10:30:00")
     private LocalDateTime updatedAt;
 } 

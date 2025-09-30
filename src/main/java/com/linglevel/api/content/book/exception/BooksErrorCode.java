@@ -11,11 +11,13 @@ public enum BooksErrorCode {
     CHAPTER_NOT_FOUND(HttpStatus.NOT_FOUND, "Chapter not found."),
     CHAPTER_NOT_FOUND_IN_BOOK(HttpStatus.NOT_FOUND, "Chapter not found in this book."),
     CHUNK_NOT_FOUND(HttpStatus.NOT_FOUND, "Chunk not found."),
+    CHUNK_NOT_FOUND_IN_BOOK(HttpStatus.NOT_FOUND, "Chunk not found in this book."),
     INVALID_DIFFICULTY_LEVEL(HttpStatus.BAD_REQUEST, "Invalid difficulty level."),
     INVALID_SORT_BY(HttpStatus.BAD_REQUEST, "Invalid sort_by parameter. Must be one of: view_count, average_rating, created_at."),
     INVALID_TAGS_FORMAT(HttpStatus.BAD_REQUEST, "Invalid tags format. Tags should be comma-separated strings."),
     INVALID_CHUNK_NUMBER(HttpStatus.BAD_REQUEST, "Invalid chunkNumber. Must be a positive integer."),
     INVALID_PAGINATION(HttpStatus.BAD_REQUEST, "Invalid pagination parameters."),
+    PROGRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "Progress not found."),
     BOOK_IMPORT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to import book from S3."),
     BOOK_DELETION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete book and related data.");
     

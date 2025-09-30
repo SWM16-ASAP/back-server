@@ -38,15 +38,16 @@ public class CustomContentRequestService {
 
     public CreateContentRequestResponse createContentRequest(String username, CreateContentRequestRequest request) {
         log.info("Creating content request for user: {}", username);
-        
-        // URL 유효성 검증 (LINK 타입인 경우)
+
+        // URL 유효성 검증 (LINK 타입인 경우) 및 도메인 추출
+        String extractedDomain = null;
         if (request.getContentType() == com.linglevel.api.content.custom.entity.ContentType.LINK) {
-            validateUrlForCrawling(request.getOriginUrl());
+            extractedDomain = validateUrlForCrawling(request.getOriginUrl());
         }
-        
+
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
-        
+
         // 🎫 티켓 소비 (1개 티켓 필요)
         try {
             ticketService.spendTicket(user.getId(), 1, "Custom content creation");
@@ -55,7 +56,7 @@ public class CustomContentRequestService {
             log.info("Failed to spend ticket for user: {}", user.getId(), e);
             throw new CustomContentException(CustomContentErrorCode.INSUFFICIENT_TICKETS);
         }
-        
+
         ContentRequest contentRequest = ContentRequest.builder()
                 .userId(user.getId())
                 .title(request.getTitle())
@@ -63,6 +64,7 @@ public class CustomContentRequestService {
                 .originalText(request.getOriginalContent())
                 .targetDifficultyLevels(request.getTargetDifficultyLevels())
                 .originUrl(request.getOriginUrl())
+                .originDomain(extractedDomain)
                 .originAuthor(request.getOriginAuthor())
                 .status(ContentRequestStatus.PENDING)
                 .progress(0)
@@ -81,23 +83,26 @@ public class CustomContentRequestService {
                 .build();
     }
 
-    private void validateUrlForCrawling(String originUrl) {
+    private String validateUrlForCrawling(String originUrl) {
         if (originUrl == null || originUrl.trim().isEmpty()) {
             throw new CustomContentException(CustomContentErrorCode.URL_REQUIRED);
         }
-        
+
         try {
             // URL 형식 및 크롤링 가능 여부 검증
             if (!crawlingService.isValidUrl(originUrl)) {
                 throw new CustomContentException(CustomContentErrorCode.INVALID_URL_FORMAT);
             }
-            
+
             // DSL 존재 여부 확인 (크롤링 가능한 도메인인지 검증)
             var lookupResult = crawlingService.lookupDsl(originUrl, true);
             if (!lookupResult.isValid()) {
                 throw new CustomContentException(CustomContentErrorCode.URL_NOT_SUPPORTED);
             }
-            
+
+            // 도메인 반환
+            return lookupResult.getDomain();
+
         } catch (com.linglevel.api.crawling.exception.CrawlingException e) {
             // CrawlingException을 CustomContentException으로 변환
             throw new CustomContentException(CustomContentErrorCode.INVALID_REQUEST, e.getMessage());
@@ -137,10 +142,9 @@ public class CustomContentRequestService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
         
-        int limit = Math.min(request.getLimit(), 100);
         Pageable pageable = PageRequest.of(
-                request.getPage() - 1, 
-                limit,
+                request.getPage() - 1,
+                request.getLimit(),
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
 

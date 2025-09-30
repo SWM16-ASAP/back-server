@@ -11,5 +11,6 @@ import java.util.Optional;
 public interface BookProgressRepository extends MongoRepository<BookProgress, String> {
     Optional<BookProgress> findByUserIdAndBookId(String UserId, String bookId);
     Page<BookProgress> findAllByUserId(String userId, Pageable pageable);
+    List<BookProgress> findAllByUserId(String userId);
     List<BookProgress> findByBookId(String bookId);
 }

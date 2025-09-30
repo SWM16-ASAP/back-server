@@ -14,7 +14,6 @@ import lombok.NoArgsConstructor;
 public class UpdateDslResponse {
     
     @Schema(description = "업데이트된 DSL ID", example = "60d0fe4f5311236168a109ca")
-    @JsonProperty("_id")
     private String id;
     
     @Schema(description = "도메인명", example = "coupang.com")

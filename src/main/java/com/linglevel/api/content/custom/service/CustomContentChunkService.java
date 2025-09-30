@@ -78,6 +78,16 @@ public class CustomContentChunkService {
         }
     }
 
+    public CustomContentChunk findById(String chunkId) {
+        return customContentChunkRepository.findById(chunkId)
+                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));
+    }
+
+    public CustomContentChunk findFirstByCustomContentId(String customContentId) {
+        return customContentChunkRepository.findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(customContentId)
+                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));
+    }
+
     private CustomContentChunkResponse convertToCustomContentChunkResponse(CustomContentChunk chunk) {
         return CustomContentChunkResponse.from(chunk);
     }

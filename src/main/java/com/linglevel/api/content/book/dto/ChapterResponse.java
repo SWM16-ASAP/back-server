@@ -35,7 +35,7 @@ public class ChapterResponse {
     
     @Schema(description = "진행률", example = "80.0")
     private Double progressPercentage;
-    
+
     @Schema(description = "읽기 시간(분)", example = "15")
     private Integer readingTime;
 } 

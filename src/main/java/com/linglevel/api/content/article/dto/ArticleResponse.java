@@ -30,6 +30,15 @@ public class ArticleResponse {
     
     @Schema(description = "청크 개수", example = "15")
     private Integer chunkCount;
+
+    @Schema(description = "현재 읽은 청크 번호", example = "7")
+    private Integer currentReadChunkNumber;
+
+    @Schema(description = "진행률", example = "46.7")
+    private Double progressPercentage;
+
+    @Schema(description = "완료 여부", example = "false")
+    private Boolean isCompleted;
     
     @Schema(description = "읽기 시간(분)", example = "8")
     private Integer readingTime;

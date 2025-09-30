@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
@@ -42,7 +43,7 @@ public class WordsController {
     })
     @GetMapping
     public ResponseEntity<PageResponse<WordResponse>> getWords(
-            @ParameterObject @ModelAttribute GetWordsRequest request,
+            @ParameterObject @Valid @ModelAttribute GetWordsRequest request,
             Authentication authentication) {
         String username = authentication.getName();
         User user = userRepository.findByUsername(username).orElseThrow();

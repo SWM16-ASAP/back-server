@@ -23,6 +23,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/bookmarks")
@@ -42,7 +43,7 @@ public class BookmarksController {
     })
     @GetMapping("/words")
     public ResponseEntity<PageResponse<BookmarkedWordResponse>> getBookmarkedWords(
-            @ParameterObject @ModelAttribute GetBookmarkedWordsRequest request,
+            @ParameterObject @Valid @ModelAttribute GetBookmarkedWordsRequest request,
             Authentication authentication) {
         String username = authentication.getName();
         User user = userRepository.findByUsername(username).orElseThrow();

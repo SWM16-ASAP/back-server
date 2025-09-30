@@ -2,14 +2,21 @@ package com.linglevel.api.content.article.service;
 
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.common.DifficultyLevel;
+import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleRepository;
+import com.linglevel.api.content.article.repository.ArticleProgressRepository;
+import com.linglevel.api.content.article.entity.ArticleProgress;
+import com.linglevel.api.user.entity.User;
+import com.linglevel.api.user.repository.UserRepository;
+import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
 import com.linglevel.api.s3.service.S3UrlService;
+import com.linglevel.api.s3.service.ImageResizeService;
 import com.linglevel.api.s3.strategy.ArticlePathStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -30,31 +38,43 @@ import java.util.List;
 public class ArticleService {
 
     private final ArticleRepository articleRepository;
+    private final ArticleProgressRepository articleProgressRepository;
+    private final UserRepository userRepository;
     private final ArticleImportService articleImportService;
     private final ArticleReadingTimeService articleReadingTimeService;
     private final S3AiService s3AiService;
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
+    private final ImageResizeService imageResizeService;
     private final ArticlePathStrategy articlePathStrategy;
 
-    public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request) {
+    public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request, String username) {
         validateGetArticlesRequest(request);
         
         Pageable pageable = createPageable(request);
         Page<Article> articlePage = findArticles(request, pageable);
         
+        // 사용자 ID 조회
+        String userId = getUserId(username);
+
         List<ArticleResponse> articleResponses = articlePage.getContent().stream()
-                .map(this::convertToArticleResponse)
-                .toList();
+                .map(article -> convertToArticleResponse(article, userId))
+                .collect(Collectors.toList());
+
+        // 진도별 필터링
+        if (request.getProgress() != null && userId != null) {
+            articleResponses = filterByProgress(articleResponses, request.getProgress());
+        }
         
         return PageResponse.of(articlePage, articleResponses);
     }
 
-    public ArticleResponse getArticle(String articleId) {
+    public ArticleResponse getArticle(String articleId, String username) {
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
         
-        return convertToArticleResponse(article);
+        String userId = getUserId(username);
+        return convertToArticleResponse(article, userId);
     }
 
     @Transactional
@@ -70,6 +90,22 @@ public class ArticleService {
         
         String coverImageUrl = s3UrlService.getCoverImageUrl(savedArticle.getId(), articlePathStrategy);
         savedArticle.setCoverImageUrl(coverImageUrl);
+
+        if (StringUtils.hasText(coverImageUrl)) {
+            try {
+                log.info("Auto-processing cover image for imported article: {}", savedArticle.getId());
+
+                String originalCoverS3Key = articlePathStrategy.generateCoverImagePath(savedArticle.getId());
+                String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
+
+                savedArticle.setCoverImageUrl(smallImageUrl);
+                log.info("Successfully auto-processed cover image: {} → {}", savedArticle.getId(), smallImageUrl);
+
+            } catch (Exception e) {
+                log.warn("Failed to auto-process cover image for article: {}, keeping original URL", savedArticle.getId(), e);
+            }
+        }
+
         articleRepository.save(savedArticle);
         
         articleImportService.createChunksFromLeveledResults(importData, savedArticle.getId());
@@ -156,7 +192,51 @@ public class ArticleService {
         return article;
     }
 
-    private ArticleResponse convertToArticleResponse(Article article) {
+    private String getUserId(String username) {
+        if (username == null) return null;
+        return userRepository.findByUsername(username)
+            .map(User::getId)
+            .orElse(null);
+    }
+
+    private List<ArticleResponse> filterByProgress(List<ArticleResponse> responses, ProgressStatus progressFilter) {
+        if (progressFilter == null) {
+            return responses; // No filter, return all
+        }
+
+        return responses.stream()
+            .filter(article -> switch (progressFilter) {
+                case NOT_STARTED -> article.getProgressPercentage() == 0.0;
+                case IN_PROGRESS -> article.getProgressPercentage() > 0.0 && !article.getIsCompleted();
+                case COMPLETED -> article.getIsCompleted();
+            })
+            .collect(Collectors.toList());
+    }
+
+    private ArticleResponse convertToArticleResponse(Article article, String userId) {
+        // 진도 정보 조회
+        int currentReadChunkNumber = 0;
+        double progressPercentage = 0.0;
+        boolean isCompleted = false;
+
+        if (userId != null) {
+            ArticleProgress progress = articleProgressRepository
+                .findByUserIdAndArticleId(userId, article.getId())
+                .orElse(null);
+
+            if (progress != null) {
+                currentReadChunkNumber = progress.getCurrentReadChunkNumber() != null
+                    ? progress.getCurrentReadChunkNumber() : 0;
+
+                if (article.getChunkCount() != null && article.getChunkCount() > 0) {
+                    progressPercentage = (double) currentReadChunkNumber / article.getChunkCount() * 100.0;
+                }
+
+                // DB에 저장된 완료 여부 사용
+                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+            }
+        }
+
         ArticleResponse response = new ArticleResponse();
         response.setId(article.getId());
         response.setTitle(article.getTitle());
@@ -164,6 +244,9 @@ public class ArticleService {
         response.setCoverImageUrl(article.getCoverImageUrl());
         response.setDifficultyLevel(article.getDifficultyLevel());
         response.setChunkCount(article.getChunkCount());
+        response.setCurrentReadChunkNumber(currentReadChunkNumber);
+        response.setProgressPercentage(progressPercentage);
+        response.setIsCompleted(isCompleted);
         response.setReadingTime(article.getReadingTime());
         response.setAverageRating(article.getAverageRating());
         response.setReviewCount(article.getReviewCount());
@@ -171,5 +254,14 @@ public class ArticleService {
         response.setTags(article.getTags());
         response.setCreatedAt(article.getCreatedAt());
         return response;
+    }
+
+    public boolean existsById(String articleId) {
+        return articleRepository.existsById(articleId);
+    }
+
+    public Article findById(String articleId) {
+        return articleRepository.findById(articleId)
+                .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
     }
 }

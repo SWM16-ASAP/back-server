@@ -23,7 +23,9 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 
 
@@ -47,8 +49,10 @@ public class BooksController {
     })
     @GetMapping
     public ResponseEntity<PageResponse<BookResponse>> getBooks(
-            @ParameterObject @ModelAttribute GetBooksRequest request) {
-        PageResponse<BookResponse> response = bookService.getBooks(request);
+            @ParameterObject @Valid @ModelAttribute GetBooksRequest request,
+            Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : null;
+        PageResponse<BookResponse> response = bookService.getBooks(request, username);
         return ResponseEntity.ok(response);
     }
 
@@ -61,8 +65,10 @@ public class BooksController {
     @GetMapping("/{bookId}")
     public ResponseEntity<BookResponse> getBook(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bookId) {
-        BookResponse response = bookService.getBook(bookId);
+            @PathVariable String bookId,
+            Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : null;
+        BookResponse response = bookService.getBook(bookId, username);
         return ResponseEntity.ok(response);
     }
 
@@ -76,8 +82,10 @@ public class BooksController {
     public ResponseEntity<PageResponse<ChapterResponse>> getChapters(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
-            @ParameterObject @ModelAttribute GetChaptersRequest request) {
-        PageResponse<ChapterResponse> response = chapterService.getChapters(bookId, request);
+            @ParameterObject @Valid @ModelAttribute GetChaptersRequest request,
+            Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : null;
+        PageResponse<ChapterResponse> response = chapterService.getChapters(bookId, request, username);
         return ResponseEntity.ok(response);
     }
 
@@ -92,8 +100,10 @@ public class BooksController {
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapterId) {
-        ChapterResponse response = chapterService.getChapter(bookId, chapterId);
+            @PathVariable String chapterId,
+            Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : null;
+        ChapterResponse response = chapterService.getChapter(bookId, chapterId, username);
         return ResponseEntity.ok(response);
     }
 
@@ -111,7 +121,7 @@ public class BooksController {
             @PathVariable String bookId,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
             @PathVariable String chapterId,
-            @ParameterObject @ModelAttribute GetChunksRequest request) {
+            @ParameterObject @Valid @ModelAttribute GetChunksRequest request) {
         PageResponse<ChunkResponse> response = chunkService.getChunks(bookId, chapterId, request);
         return ResponseEntity.ok(response);
     }

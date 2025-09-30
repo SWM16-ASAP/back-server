@@ -2,7 +2,7 @@ name: Run Test Code
 
 on:
   pull_request:
-    branches: [ develop, main, fix/mongodb-test-properties ]
+    branches: [ develop, main ]
 
 jobs:
   test:
