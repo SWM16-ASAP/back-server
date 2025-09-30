@@ -16,6 +16,8 @@ import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.entity.CustomContentProgress;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
+import com.linglevel.api.user.entity.User;
+import com.linglevel.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -37,10 +39,16 @@ public class ContentService {
     private final BookProgressRepository bookProgressRepository;
     private final ArticleProgressRepository articleProgressRepository;
     private final CustomContentProgressRepository customContentProgressRepository;
+    private final UserRepository userRepository;
 
     private record GenericProgress(String contentId, ContentType contentType, LocalDateTime lastStudiedAt, boolean isCompleted, Object originalProgress) {}
 
-    public PageResponse<RecentContentResponse> getRecentContents(String userId, GetRecentContentsRequest request) {
+    public PageResponse<RecentContentResponse> getRecentContents(String username, GetRecentContentsRequest request) {
+        // username을 userId로 변환
+        String userId = getUserId(username);
+        if (userId == null) {
+            return new PageResponse<>(List.of(), request.getPage(), 0, 0, false, false);
+        }
 
         List<BookProgress> bookProgresses = bookProgressRepository.findAllByUserId(userId);
         List<ArticleProgress> articleProgresses = articleProgressRepository.findAllByUserId(userId);
@@ -139,5 +147,12 @@ public class ContentService {
         }
         double percentage = ((double) current / total) * 100.0;
         return Math.round(percentage * 10.0) / 10.0; // Round to one decimal place
+    }
+
+    private String getUserId(String username) {
+        if (username == null) return null;
+        return userRepository.findByUsername(username)
+                .map(User::getId)
+                .orElse(null);
     }
 }
