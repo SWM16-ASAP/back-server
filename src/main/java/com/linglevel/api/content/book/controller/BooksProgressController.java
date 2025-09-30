@@ -67,6 +67,38 @@ public class BooksProgressController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "읽기 진도 초기화", description = "사용자의 현재 읽기 진도를 0으로 초기화합니다. 최대 진도 기록은 유지됩니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "초기화 성공", useReturnTypeSchema = true),
+            @ApiResponse(responseCode = "404", description = "책 또는 진도 기록을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @PostMapping("/{bookId}/progress/reset")
+    public ResponseEntity<ProgressResponse> resetProgress(
+            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
+            @PathVariable String bookId,
+            Authentication authentication) {
+        String username = authentication.getName();
+        ProgressResponse response = progressService.resetProgress(bookId, username);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "읽기 진도 삭제", description = "사용자의 읽기 진도 기록을 완전히 삭제합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "삭제 성공"),
+            @ApiResponse(responseCode = "404", description = "책 또는 진도 기록을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @DeleteMapping("/{bookId}/progress")
+    public ResponseEntity<Void> deleteProgress(
+            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
+            @PathVariable String bookId,
+            Authentication authentication) {
+        String username = authentication.getName();
+        progressService.deleteProgress(bookId, username);
+        return ResponseEntity.noContent().build();
+    }
+
     @ExceptionHandler(BooksException.class)
     public ResponseEntity<ExceptionResponse> handleBooksException(BooksException e) {
         log.info("Books Progress Exception: {}", e.getMessage());

@@ -13,6 +13,7 @@ public enum ArticleErrorCode {
     INVALID_SORT_BY(HttpStatus.BAD_REQUEST, "Invalid sort_by parameter. Must be one of: view_count, average_rating, created_at."),
     INVALID_TAGS_FORMAT(HttpStatus.BAD_REQUEST, "Invalid tags format. Tags should be comma-separated strings."),
     INVALID_DIFFICULTY_LEVEL(HttpStatus.BAD_REQUEST, "Invalid difficulty level."),
+    PROGRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "Progress not found."),
     ARTICLE_DELETION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete article and related data.");
 
     private final HttpStatus status;
