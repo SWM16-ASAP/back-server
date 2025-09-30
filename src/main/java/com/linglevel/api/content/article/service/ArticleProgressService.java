@@ -66,10 +66,10 @@ public class ArticleProgressService {
             articleProgress.setMaxReadChunkNumber(chunk.getChunkNumber());
         }
 
-        // 완료 조건 자동 체크
+        // 완료 조건 자동 체크 (한번 true가 되면 계속 유지)
         var article = articleService.findById(articleId);
         boolean isCompleted = chunk.getChunkNumber() >= article.getChunkCount();
-        articleProgress.setIsCompleted(isCompleted);
+        articleProgress.setIsCompleted(articleProgress.getIsCompleted() != null && articleProgress.getIsCompleted() || isCompleted);
 
         articleProgressRepository.save(articleProgress);
 

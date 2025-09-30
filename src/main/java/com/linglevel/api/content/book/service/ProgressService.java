@@ -78,11 +78,11 @@ public class ProgressService {
             bookProgress.setMaxReadChunkNumber(chunk.getChunkNumber());
         }
 
-        // 완료 조건 자동 체크 (currentReadChapterNumber >= chapterCount)
+        // 완료 조건 자동 체크 (한번 true가 되면 계속 유지)
         if (bookService.existsById(bookId)) {
             var book = bookService.findById(bookId);
             boolean isCompleted = chapter.getChapterNumber() >= book.getChapterCount();
-            bookProgress.setIsCompleted(isCompleted);
+            bookProgress.setIsCompleted(bookProgress.getIsCompleted() != null && bookProgress.getIsCompleted() || isCompleted);
         }
 
         bookProgressRepository.save(bookProgress);

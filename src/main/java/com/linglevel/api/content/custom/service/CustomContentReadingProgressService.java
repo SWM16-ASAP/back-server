@@ -69,11 +69,11 @@ public class CustomContentReadingProgressService {
             customProgress.setMaxReadChunkNumber(chunk.getChunkNum());
         }
 
-        // 완료 조건 자동 체크
+        // 완료 조건 자동 체크 (한번 true가 되면 계속 유지)
         CustomContent customContent = customContentRepository.findById(customId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
         boolean isCompleted = chunk.getChunkNum() >= customContent.getChunkCount();
-        customProgress.setIsCompleted(isCompleted);
+        customProgress.setIsCompleted(customProgress.getIsCompleted() != null && customProgress.getIsCompleted() || isCompleted);
 
         // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
 
