@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/max-progress ]
+    branches: [ develop, feat/recently-contents ]
 
 jobs:
   build:
