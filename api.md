@@ -3767,3 +3767,137 @@ X-API-Key: {TempApiKey}
   "message": "Invalid API key."
 }
 ```
+
+---
+
+## 📚 최근 공부 콘텐츠 (Recent Study Contents)
+
+### `GET /contents/recent`
+
+사용자가 최근에 공부한 콘텐츠 목록을 조회합니다. Book, Article, Custom Content 중 Progress가 존재하는 모든 콘텐츠를 통합하여 최근 학습 시간순(updatedAt)으로 반환합니다.
+
+#### **Request Headers**
+```
+Authorization: Bearer {AccessToken}
+```
+
+#### **Query Parameters**
+
+| 파라미터 | 타입    | 필수 | 설명                      |
+| :------- | :------ | :--- | :------------------------ |
+| `status` | String  | 아니요 | `in_progress` (읽는 중), `completed` (완료) 중 하나. 미제공 시 모든 상태 반환 |
+| `page`   | Integer | 아니요 (기본값: `1`) | 조회할 페이지 번호 |
+| `limit`  | Integer | 아니요 (기본값: `10`, 최댓값: `200`) | 페이지 당 항목 수 |
+
+#### **Success Response (200 OK)**
+```json
+{
+  "contents": [
+    {
+      "contentId": "book-123",
+      "contentType": "BOOK",
+      "title": "The Little Prince",
+      "author": "Antoine de Saint-Exupéry",
+      "coverImageUrl": "https://path/to/cover.jpg",
+      "difficultyLevel": "A1",
+      "tags": ["philosophy", "children"],
+      "readingTime": 120,
+      "chapterCount": 27,
+      "currentReadChapterNumber": 10,
+      "chunkCount": null,
+      "currentReadChunkNumber": null,
+      "progressPercentage": 37.0,
+      "isCompleted": false,
+      "originUrl": null,
+      "originDomain": null,
+      "lastStudiedAt": "2025-09-30T15:30:00"
+    },
+    {
+      "contentId": "custom-789",
+      "contentType": "CUSTOM_CONTENT",
+      "title": "My Custom Article",
+      "author": "",
+      "coverImageUrl": "https://path/to/custom-cover.jpg",
+      "difficultyLevel": "B2",
+      "tags": ["tech", "ai"],
+      "readingTime": 8,
+      "chapterCount": null,
+      "currentReadChapterNumber": null,
+      "chunkCount": 15,
+      "currentReadChunkNumber": 5,
+      "progressPercentage": 33.3,
+      "isCompleted": false,
+      "originUrl": "https://techcrunch.com/some-article",
+      "originDomain": "techcrunch.com",
+      "lastStudiedAt": "2025-09-29T18:00:00"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 5,
+  "totalCount": 45,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
+
+**응답 필드 설명:**
+- `contentId`: 콘텐츠 고유 ID
+- `contentType`: 콘텐츠 타입 (`BOOK`, `ARTICLE`, `CUSTOM_CONTENT`)
+- `chapterCount`, `currentReadChapterNumber`: `BOOK` 타입일 때만 값 존재, 나머지는 `null`
+- `chunkCount`, `currentReadChunkNumber`: `ARTICLE`, `CUSTOM_CONTENT` 타입일 때만 값 존재, 나머지는 `null`
+- `originUrl`, `originDomain`: `CUSTOM_CONTENT` 타입일 때만 값 존재, 나머지는 `null`
+- `lastStudiedAt`: `Progress`의 `updatedAt` (마지막 학습 시간)
+
+#### **API 사용 예시**
+
+**1. 기본 조회 (최근 10개)**
+```
+GET /api/v1/contents/recent
+```
+
+**2. 읽는 중인 콘텐츠만 조회**
+```
+GET /api/v1/contents/recent?status=in_progress
+```
+
+**3. 완료한 콘텐츠만 조회**
+```
+GET /api/v1/contents/recent?status=completed
+```
+
+**4. 20개씩 조회**
+```
+GET /api/v1/contents/recent?limit=20
+```
+
+**5. 특정 페이지 조회**
+```
+GET /api/v1/contents/recent?page=2
+```
+
+**6. 복합 조건 (읽는 중 + 20개 + 2페이지)**
+```
+GET /api/v1/contents/recent?status=in_progress&limit=20&page=2
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "Invalid status parameter. Must be one of: in_progress, completed."
+}
+```
+
+#### **Error Response (400 Bad Request) - 잘못된 limit**
+```json
+{
+  "message": "Limit must be between 1 and 200."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid or expired token."
+}
+```
+
