@@ -23,6 +23,7 @@ public enum CustomContentErrorCode {
     CUSTOM_CONTENT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 커스텀 콘텐츠에 대한 접근 권한이 없습니다."),
     CUSTOM_CONTENT_CHUNK_NOT_FOUND(HttpStatus.NOT_FOUND, "커스텀 콘텐츠 청크를 찾을 수 없습니다."),
     CHUNK_NOT_FOUND_IN_CUSTOM_CONTENT(HttpStatus.NOT_FOUND, "Chunk not found in this custom content."),
+    PROGRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "진도 기록을 찾을 수 없습니다."),
     
     // 인증/인가 관련 (4xx)
     USER_NOT_FOUND(HttpStatus.UNAUTHORIZED, "인증된 사용자 정보를 찾을 수 없습니다."),

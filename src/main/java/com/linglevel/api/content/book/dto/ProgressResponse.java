@@ -31,9 +31,15 @@ public class ProgressResponse {
     
     @Schema(description = "현재 읽은 챕터 번호", example = "1")
     private Integer currentReadChapterNumber;
-    
+
     @Schema(description = "현재 읽은 청크 번호", example = "5")
     private Integer currentReadChunkNumber;
+
+    @Schema(description = "최대 읽은 챕터 번호", example = "3")
+    private Integer maxReadChapterNumber;
+
+    @Schema(description = "최대 읽은 청크 번호", example = "8")
+    private Integer maxReadChunkNumber;
 
     @Schema(description = "완료 여부", example = "false")
     private Boolean isCompleted;

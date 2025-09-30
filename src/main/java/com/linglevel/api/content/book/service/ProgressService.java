@@ -56,6 +56,11 @@ public class ProgressService {
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElse(new BookProgress());
 
+        // Null 체크
+        if (chapter.getChapterNumber() == null || chunk.getChunkNumber() == null) {
+            throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
+        }
+
         bookProgress.setUserId(userId);
         bookProgress.setBookId(bookId);
         bookProgress.setChapterId(chapter.getId()); // 역추산된 chapter ID
@@ -63,11 +68,17 @@ public class ProgressService {
         bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
         bookProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
 
-        // 완료 조건 자동 체크 (currentReadChapterNumber >= chapterCount)
+        // max 진도 업데이트 (current가 max보다 크면 max도 업데이트)
+        if (shouldUpdateMaxProgress(bookProgress, chapter.getChapterNumber(), chunk.getChunkNumber())) {
+            bookProgress.setMaxReadChapterNumber(chapter.getChapterNumber());
+            bookProgress.setMaxReadChunkNumber(chunk.getChunkNumber());
+        }
+
+        // 완료 조건 자동 체크 (한번 true가 되면 계속 유지)
         if (bookService.existsById(bookId)) {
             var book = bookService.findById(bookId);
             boolean isCompleted = chapter.getChapterNumber() >= book.getChapterCount();
-            bookProgress.setIsCompleted(isCompleted);
+            bookProgress.setIsCompleted(bookProgress.getIsCompleted() != null && bookProgress.getIsCompleted() || isCompleted);
         }
 
         bookProgressRepository.save(bookProgress);
@@ -104,8 +115,33 @@ public class ProgressService {
         newProgress.setChunkId(firstChunk.getId());
         newProgress.setCurrentReadChapterNumber(firstChapter.getChapterNumber());
         newProgress.setCurrentReadChunkNumber(firstChunk.getChunkNumber());
+        newProgress.setMaxReadChapterNumber(firstChapter.getChapterNumber());
+        newProgress.setMaxReadChunkNumber(firstChunk.getChunkNumber());
 
         return bookProgressRepository.save(newProgress);
+    }
+
+    @Transactional
+    public void deleteProgress(String bookId, String username) {
+        if (!bookService.existsById(bookId)) {
+            throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
+        }
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
+
+        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(user.getId(), bookId)
+                .orElseThrow(() -> new BooksException(BooksErrorCode.PROGRESS_NOT_FOUND));
+
+        bookProgressRepository.delete(bookProgress);
+    }
+
+    private boolean shouldUpdateMaxProgress(BookProgress progress, Integer chapterNum, Integer chunkNum) {
+        Integer maxChapter = progress.getMaxReadChapterNumber();
+        Integer maxChunk = progress.getMaxReadChunkNumber();
+
+        return maxChapter == null || chapterNum > maxChapter
+            || (chapterNum.equals(maxChapter) && chunkNum > maxChunk);
     }
 
     private ProgressResponse convertToProgressResponse(BookProgress progress) {
@@ -117,6 +153,8 @@ public class ProgressService {
                 .chunkId(progress.getChunkId())
                 .currentReadChapterNumber(progress.getCurrentReadChapterNumber())
                 .currentReadChunkNumber(progress.getCurrentReadChunkNumber())
+                .maxReadChapterNumber(progress.getMaxReadChapterNumber())
+                .maxReadChunkNumber(progress.getMaxReadChunkNumber())
                 .isCompleted(progress.getIsCompleted())
                 .updatedAt(progress.getUpdatedAt())
                 .build();

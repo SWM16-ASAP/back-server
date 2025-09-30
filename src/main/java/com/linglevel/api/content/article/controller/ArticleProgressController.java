@@ -63,6 +63,22 @@ public class ArticleProgressController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "아티클 읽기 진도 삭제", description = "사용자의 읽기 진도 기록을 완전히 삭제합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "삭제 성공"),
+            @ApiResponse(responseCode = "404", description = "아티클 또는 진도 기록을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @DeleteMapping("/{articleId}/progress")
+    public ResponseEntity<Void> deleteProgress(
+            @Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca")
+            @PathVariable String articleId,
+            Authentication authentication) {
+        String username = authentication.getName();
+        articleProgressService.deleteProgress(articleId, username);
+        return ResponseEntity.noContent().build();
+    }
+
     @ExceptionHandler(ArticleException.class)
     public ResponseEntity<ExceptionResponse> handleArticleException(ArticleException e) {
         log.info("Article Progress Exception: {}", e.getMessage());

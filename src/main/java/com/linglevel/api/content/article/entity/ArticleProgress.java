@@ -29,6 +29,8 @@ public class ArticleProgress {
 
     private Integer currentReadChunkNumber;
 
+    private Integer maxReadChunkNumber;
+
     private Boolean isCompleted = false;
 
     @LastModifiedDate

@@ -63,6 +63,22 @@ public class CustomContentProgressController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "커스텀 콘텐츠 읽기 진도 삭제", description = "사용자의 읽기 진도 기록을 완전히 삭제합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "삭제 성공"),
+            @ApiResponse(responseCode = "404", description = "커스텀 콘텐츠 또는 진도 기록을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @DeleteMapping("/{customId}/progress")
+    public ResponseEntity<Void> deleteProgress(
+            @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
+            @PathVariable String customId,
+            Authentication authentication) {
+        String username = authentication.getName();
+        customContentReadingProgressService.deleteProgress(customId, username);
+        return ResponseEntity.noContent().build();
+    }
+
     @ExceptionHandler(CustomContentException.class)
     public ResponseEntity<ExceptionResponse> handleCustomContentException(CustomContentException e) {
         log.info("Custom Content Progress Exception: {}", e.getMessage());

@@ -50,15 +50,26 @@ public class ArticleProgressService {
         ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
                 .orElse(new ArticleProgress());
 
+        // Null 체크
+        if (chunk.getChunkNumber() == null) {
+            throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
+        }
+
         articleProgress.setUserId(userId);
         articleProgress.setArticleId(articleId);
         articleProgress.setChunkId(request.getChunkId());
         articleProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
 
-        // 완료 조건 자동 체크
+        // max 진도 업데이트 (current가 max보다 크면 max도 업데이트)
+        if (articleProgress.getMaxReadChunkNumber() == null ||
+            chunk.getChunkNumber() > articleProgress.getMaxReadChunkNumber()) {
+            articleProgress.setMaxReadChunkNumber(chunk.getChunkNumber());
+        }
+
+        // 완료 조건 자동 체크 (한번 true가 되면 계속 유지)
         var article = articleService.findById(articleId);
         boolean isCompleted = chunk.getChunkNumber() >= article.getChunkCount();
-        articleProgress.setIsCompleted(isCompleted);
+        articleProgress.setIsCompleted(articleProgress.getIsCompleted() != null && articleProgress.getIsCompleted() || isCompleted);
 
         articleProgressRepository.save(articleProgress);
 
@@ -93,9 +104,25 @@ public class ArticleProgressService {
         newProgress.setArticleId(articleId);
         newProgress.setChunkId(firstChunk.getId());
         newProgress.setCurrentReadChunkNumber(firstChunk.getChunkNumber());
+        newProgress.setMaxReadChunkNumber(firstChunk.getChunkNumber());
         // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
 
         return articleProgressRepository.save(newProgress);
+    }
+
+    @Transactional
+    public void deleteProgress(String articleId, String username) {
+        if (!articleService.existsById(articleId)) {
+            throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
+        }
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
+
+        ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(user.getId(), articleId)
+                .orElseThrow(() -> new ArticleException(ArticleErrorCode.PROGRESS_NOT_FOUND));
+
+        articleProgressRepository.delete(articleProgress);
     }
 
     private ArticleProgressResponse convertToArticleProgressResponse(ArticleProgress progress) {
@@ -105,6 +132,7 @@ public class ArticleProgressService {
                 .articleId(progress.getArticleId())
                 .chunkId(progress.getChunkId())
                 .currentReadChunkNumber(progress.getCurrentReadChunkNumber())
+                .maxReadChunkNumber(progress.getMaxReadChunkNumber())
                 .isCompleted(progress.getIsCompleted())
                 .updatedAt(progress.getUpdatedAt())
                 .build();

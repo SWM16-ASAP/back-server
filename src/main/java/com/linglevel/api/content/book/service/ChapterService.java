@@ -124,22 +124,26 @@ public class ChapterService {
                 .orElse(null);
 
             if (bookProgress != null) {
-                int userCurrentChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
-                    ? bookProgress.getCurrentReadChapterNumber() : 0;
-                int userCurrentChunkNumber = bookProgress.getCurrentReadChunkNumber() != null
-                    ? bookProgress.getCurrentReadChunkNumber() : 0;
+                Integer maxChapterNumber = bookProgress.getMaxReadChapterNumber() != null
+                    ? bookProgress.getMaxReadChapterNumber() : 0;
+                Integer maxChunkNumber = bookProgress.getMaxReadChunkNumber() != null
+                    ? bookProgress.getMaxReadChunkNumber() : 0;
 
-                if (chapter.getChapterNumber() < userCurrentChapterNumber) {
+                if (chapter.getChapterNumber() < maxChapterNumber) {
+                    // 이미 지나간 챕터 → 완료
                     currentReadChunkNumber = chapter.getChunkCount();
                     progressPercentage = 100.0;
                     isCompleted = true;
-                } else if (chapter.getChapterNumber().equals(userCurrentChapterNumber)) {
-                    currentReadChunkNumber = userCurrentChunkNumber;
+                } else if (chapter.getChapterNumber().equals(maxChapterNumber)) {
+                    // 현재 읽고 있는 max 챕터
+                    currentReadChunkNumber = maxChunkNumber;
                     if (chapter.getChunkCount() != null && chapter.getChunkCount() > 0) {
-                        progressPercentage = (double) userCurrentChunkNumber / chapter.getChunkCount() * 100.0;
+                        progressPercentage = (double) maxChunkNumber / chapter.getChunkCount() * 100.0;
                     }
-                    isCompleted = currentReadChunkNumber >= chapter.getChunkCount();
+                    // max 청크가 해당 챕터의 마지막 청크인 경우 완료
+                    isCompleted = maxChunkNumber >= chapter.getChunkCount();
                 } else {
+                    // 아직 안 읽은 챕터 → 미완료
                     currentReadChunkNumber = 0;
                     progressPercentage = 0.0;
                     isCompleted = false;

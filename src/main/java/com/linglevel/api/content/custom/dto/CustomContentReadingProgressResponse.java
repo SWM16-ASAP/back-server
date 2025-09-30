@@ -29,6 +29,9 @@ public class CustomContentReadingProgressResponse {
     @Schema(description = "현재 읽은 청크 번호", example = "3")
     private Integer currentReadChunkNumber;
 
+    @Schema(description = "최대 읽은 청크 번호", example = "5")
+    private Integer maxReadChunkNumber;
+
     @Schema(description = "완료 여부", example = "false")
     private Boolean isCompleted;
 
