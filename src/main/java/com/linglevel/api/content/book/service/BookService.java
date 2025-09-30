@@ -206,14 +206,8 @@ public class BookService {
                     progressPercentage = (double) currentReadChapterNumber / book.getChapterCount() * 100.0;
                 }
 
-                // 완료 여부 확인 (currentReadChapterNumber >= chapterCount)
-                isCompleted = currentReadChapterNumber >= book.getChapterCount();
-
-                // Progress 엔티티의 isCompleted 필드 업데이트 (필요시)
-                if (progress.getIsCompleted() != isCompleted) {
-                    progress.setIsCompleted(isCompleted);
-                    bookProgressRepository.save(progress);
-                }
+                // DB에 저장된 완료 여부 사용
+                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
             }
         }
         return BookResponse.builder()

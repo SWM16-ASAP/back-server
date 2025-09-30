@@ -232,7 +232,8 @@ public class ArticleService {
                     progressPercentage = (double) currentReadChunkNumber / article.getChunkCount() * 100.0;
                 }
 
-                isCompleted = currentReadChunkNumber >= article.getChunkCount();
+                // DB에 저장된 완료 여부 사용
+                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
             }
         }
 
