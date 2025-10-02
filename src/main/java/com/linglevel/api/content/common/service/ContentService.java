@@ -43,13 +43,7 @@ public class ContentService {
 
     private record GenericProgress(String contentId, ContentType contentType, LocalDateTime lastStudiedAt, boolean isCompleted, Object originalProgress) {}
 
-    public PageResponse<RecentContentResponse> getRecentContents(String username, GetRecentContentsRequest request) {
-        // username을 userId로 변환
-        String userId = getUserId(username);
-        if (userId == null) {
-            return new PageResponse<>(List.of(), request.getPage(), 0, 0, false, false);
-        }
-
+    public PageResponse<RecentContentResponse> getRecentContents(String userId, GetRecentContentsRequest request) {
         List<BookProgress> bookProgresses = bookProgressRepository.findAllByUserId(userId);
         List<ArticleProgress> articleProgresses = articleProgressRepository.findAllByUserId(userId);
         List<CustomContentProgress> customProgresses = customContentProgressRepository.findAllByUserId(userId);
@@ -149,10 +143,4 @@ public class ContentService {
         return Math.round(percentage * 10.0) / 10.0; // Round to one decimal place
     }
 
-    private String getUserId(String username) {
-        if (username == null) return null;
-        return userRepository.findByUsername(username)
-                .map(User::getId)
-                .orElse(null);
-    }
 }

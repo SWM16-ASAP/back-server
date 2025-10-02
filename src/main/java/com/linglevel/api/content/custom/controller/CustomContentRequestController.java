@@ -19,7 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import com.linglevel.api.auth.jwt.JwtClaims;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -48,10 +49,9 @@ public class CustomContentRequestController {
     public ResponseEntity<CreateContentRequestResponse> createContentRequest(
             @Parameter(description = "콘텐츠 처리 요청 생성", required = true) 
             @Valid @RequestBody CreateContentRequestRequest request,
-            Authentication authentication) {
+            @AuthenticationPrincipal JwtClaims claims) {
         
-        String username = authentication.getName();
-        CreateContentRequestResponse response = customContentRequestService.createContentRequest(username, request);
+        CreateContentRequestResponse response = customContentRequestService.createContentRequest(claims.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -67,10 +67,9 @@ public class CustomContentRequestController {
     @GetMapping
     public ResponseEntity<PageResponse<ContentRequestResponse>> getContentRequests(
             @ParameterObject @ModelAttribute GetContentRequestsRequest request,
-            Authentication authentication) {
+            @AuthenticationPrincipal JwtClaims claims) {
         
-        String username = authentication.getName();
-        PageResponse<ContentRequestResponse> response = customContentRequestService.getContentRequests(username, request);
+        PageResponse<ContentRequestResponse> response = customContentRequestService.getContentRequests(claims.getId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -91,10 +90,9 @@ public class CustomContentRequestController {
     public ResponseEntity<ContentRequestResponse> getContentRequest(
             @Parameter(description = "요청 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String requestId,
-            Authentication authentication) {
+            @AuthenticationPrincipal JwtClaims claims) {
         
-        String username = authentication.getName();
-        ContentRequestResponse response = customContentRequestService.getContentRequest(username, requestId);
+        ContentRequestResponse response = customContentRequestService.getContentRequest(claims.getId(), requestId);
         return ResponseEntity.ok(response);
     }
 

@@ -7,14 +7,11 @@ import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
-import com.linglevel.api.content.book.repository.BookRepository;
 import com.linglevel.api.content.book.repository.ChapterRepository;
-import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.entity.UserRole;
-import com.linglevel.api.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,19 +38,10 @@ class ChapterServiceTest {
     private ChapterRepository chapterRepository;
 
     @Mock
-    private BookRepository bookRepository;
-
-    @Mock
     private BookProgressRepository bookProgressRepository;
 
     @Mock
-    private UserRepository userRepository;
-
-    @Mock
     private BookService bookService;
-
-    @Mock
-    private ChunkRepository chunkRepository;
 
     @InjectMocks
     private ChapterService chapterService;
@@ -79,7 +67,6 @@ class ChapterServiceTest {
         testBook.setChapterCount(10);
         testBook.setCreatedAt(LocalDateTime.now());
 
-        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
         when(bookService.existsById(anyString())).thenReturn(true);
     }
 
@@ -114,7 +101,7 @@ class ChapterServiceTest {
         when(chapterRepository.findChaptersWithFilters(anyString(), any(), anyString(), any()))
             .thenReturn(chapterPage);
 
-        PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request, testUser.getUsername());
+        PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request, testUser.getId());
 
         assertThat(response.getData()).hasSize(3);
         assertThat(response.getTotalCount()).isEqualTo(5);
@@ -152,7 +139,7 @@ class ChapterServiceTest {
         when(chapterRepository.findChaptersWithFilters(anyString(), any(), anyString(), any()))
             .thenReturn(chapterPage);
 
-        PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request, testUser.getUsername());
+        PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request, testUser.getId());
 
         assertThat(response.getData()).hasSize(1);
         assertThat(response.getTotalCount()).isEqualTo(1);
@@ -190,7 +177,7 @@ class ChapterServiceTest {
         when(chapterRepository.findChaptersWithFilters(anyString(), any(), anyString(), any()))
             .thenReturn(chapterPage);
 
-        PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request, testUser.getUsername());
+        PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request, testUser.getId());
 
         assertThat(response.getData()).hasSize(2);
         assertThat(response.getTotalCount()).isEqualTo(4);
@@ -218,7 +205,7 @@ class ChapterServiceTest {
         when(chapterRepository.findChaptersWithFilters(anyString(), any(), anyString(), any()))
             .thenReturn(chapterPage);
 
-        PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request, testUser.getUsername());
+        PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request, testUser.getId());
 
         assertThat(response.getData()).hasSize(5);
         assertThat(response.getTotalCount()).isEqualTo(10);

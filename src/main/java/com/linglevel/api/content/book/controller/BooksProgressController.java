@@ -19,7 +19,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import com.linglevel.api.auth.jwt.JwtClaims;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -45,9 +46,8 @@ public class BooksProgressController {
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
             @Valid @RequestBody ProgressUpdateRequest request,
-            Authentication authentication) {
-        String username = authentication.getName();
-        ProgressResponse response = progressService.updateProgress(bookId, request, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        ProgressResponse response = progressService.updateProgress(bookId, request, claims.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -61,9 +61,8 @@ public class BooksProgressController {
     public ResponseEntity<ProgressResponse> getProgress(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
-            Authentication authentication) {
-        String username = authentication.getName();
-        ProgressResponse response = progressService.getProgress(bookId, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        ProgressResponse response = progressService.getProgress(bookId, claims.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -77,9 +76,8 @@ public class BooksProgressController {
     public ResponseEntity<Void> deleteProgress(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
-            Authentication authentication) {
-        String username = authentication.getName();
-        progressService.deleteProgress(bookId, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        progressService.deleteProgress(bookId, claims.getId());
         return ResponseEntity.noContent().build();
     }
 

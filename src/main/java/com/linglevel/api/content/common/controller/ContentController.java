@@ -1,5 +1,6 @@
 package com.linglevel.api.content.common.controller;
 
+import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.common.dto.GetRecentContentsRequest;
@@ -38,9 +39,9 @@ public class ContentController {
     })
     @GetMapping("/recent")
     public ResponseEntity<PageResponse<RecentContentResponse>> getRecentContents(
-            @AuthenticationPrincipal String username,
+            @AuthenticationPrincipal JwtClaims claims,
             @ParameterObject @ModelAttribute GetRecentContentsRequest request) {
-        PageResponse<RecentContentResponse> response = contentService.getRecentContents(username, request);
+        PageResponse<RecentContentResponse> response = contentService.getRecentContents(claims.getId(), request);
         return ResponseEntity.ok(response);
     }
 }

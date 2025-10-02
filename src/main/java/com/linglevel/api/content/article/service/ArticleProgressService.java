@@ -24,18 +24,13 @@ public class ArticleProgressService {
     private final ArticleService articleService;
     private final ArticleChunkService articleChunkService;
     private final ArticleProgressRepository articleProgressRepository;
-    private final UserRepository userRepository;
 
     @Transactional
-    public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request, String username) {
+    public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request, String userId) {
         // 아티클 존재 여부 확인
         if (!articleService.existsById(articleId)) {
             throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
         }
-
-        // 사용자 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
 
         // chunkId로부터 chunk 정보 조회
         ArticleChunk chunk = articleChunkService.findById(request.getChunkId());
@@ -44,8 +39,6 @@ public class ArticleProgressService {
         if (chunk.getArticleId() == null || !chunk.getArticleId().equals(articleId)) {
             throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND_IN_ARTICLE);
         }
-
-        String userId = user.getId();
 
         ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
                 .orElse(new ArticleProgress());
@@ -77,17 +70,11 @@ public class ArticleProgressService {
     }
 
     @Transactional(readOnly = true)
-    public ArticleProgressResponse getProgress(String articleId, String username) {
+    public ArticleProgressResponse getProgress(String articleId, String userId) {
         // 아티클 존재 여부 확인
         if (!articleService.existsById(articleId)) {
             throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
         }
-
-        // 사용자 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        String userId = user.getId();
 
         ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
                 .orElseGet(() -> initializeProgress(userId, articleId));
@@ -111,15 +98,12 @@ public class ArticleProgressService {
     }
 
     @Transactional
-    public void deleteProgress(String articleId, String username) {
+    public void deleteProgress(String articleId, String userId) {
         if (!articleService.existsById(articleId)) {
             throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
         }
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(user.getId(), articleId)
+        ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
                 .orElseThrow(() -> new ArticleException(ArticleErrorCode.PROGRESS_NOT_FOUND));
 
         articleProgressRepository.delete(articleProgress);

@@ -11,7 +11,6 @@ import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.entity.UserRole;
-import com.linglevel.api.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,9 +39,6 @@ class BookServiceTest {
     @Mock
     private BookProgressRepository bookProgressRepository;
 
-    @Mock
-    private UserRepository userRepository;
-
     @InjectMocks
     private BookService bookService;
 
@@ -57,8 +53,6 @@ class BookServiceTest {
         testUser.setRole(UserRole.USER);
         testUser.setDeleted(false);
         testUser.setCreatedAt(LocalDateTime.now());
-
-        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
     }
 
     @Test
@@ -80,7 +74,7 @@ class BookServiceTest {
 
         mockBookProgress(books, false);
 
-        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getUsername());
+        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
         assertThat(response.getData()).hasSize(5);
         assertThat(response.getTotalCount()).isEqualTo(10);
@@ -121,7 +115,7 @@ class BookServiceTest {
                 .thenReturn(Optional.of(progress));
         }
 
-        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getUsername());
+        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
         assertThat(response.getData()).hasSize(5);
         assertThat(response.getTotalCount()).isEqualTo(10);
@@ -156,7 +150,7 @@ class BookServiceTest {
         when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any()))
             .thenReturn(bookPage);
 
-        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getUsername());
+        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
         assertThat(response.getData()).hasSize(5);
         assertThat(response.getTotalCount()).isEqualTo(10);
@@ -185,7 +179,7 @@ class BookServiceTest {
         when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any()))
             .thenReturn(bookPage);
 
-        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getUsername());
+        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
         assertThat(response.getData()).hasSize(10);
         assertThat(response.getTotalCount()).isEqualTo(15);
@@ -211,7 +205,7 @@ class BookServiceTest {
         when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any()))
             .thenReturn(bookPage);
 
-        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getUsername());
+        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
         assertThat(response.getData()).hasSize(10);
         assertThat(response.getTotalCount()).isEqualTo(12);
@@ -250,7 +244,7 @@ class BookServiceTest {
                 .thenReturn(Optional.of(progress));
         }
 
-        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getUsername());
+        PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
         assertThat(response.getData()).hasSize(5);
         assertThat(response.getTotalCount()).isEqualTo(10);

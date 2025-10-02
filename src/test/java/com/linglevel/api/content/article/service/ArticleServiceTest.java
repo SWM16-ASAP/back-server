@@ -58,9 +58,6 @@ class ArticleServiceTest {
         testUser.setRole(UserRole.USER);
         testUser.setDeleted(false);
         testUser.setCreatedAt(LocalDateTime.now());
-
-        // UserRepository mock 설정
-        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
     }
 
     @Test
@@ -86,7 +83,7 @@ class ArticleServiceTest {
         mockArticleProgress(articles, false);
 
         // When
-        PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getUsername());
+        PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId());
 
         // Then: 정확히 5개 반환, 총 10개
         assertThat(response.getData()).hasSize(5);
@@ -119,7 +116,7 @@ class ArticleServiceTest {
             .thenReturn(articlePage);
 
         // When
-        PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getUsername());
+        PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId());
 
         // Then: 정확히 10개 반환, 총 15개
         assertThat(response.getData()).hasSize(10);
@@ -149,7 +146,7 @@ class ArticleServiceTest {
             .thenReturn(articlePage);
 
         // When
-        PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getUsername());
+        PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId());
 
         // Then: 정확히 10개 반환, 총 12개
         assertThat(response.getData()).hasSize(10);
@@ -183,7 +180,7 @@ class ArticleServiceTest {
         mockArticleProgress(articles, false);
 
         // When
-        PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getUsername());
+        PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId());
 
         // Then: technology 태그 + 진행중인 아티클만 반환
         assertThat(response.getData()).hasSize(5);

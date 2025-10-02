@@ -27,8 +27,8 @@ public class SuggestionsService {
         this.userRepository = userRepository;
     }
 
-    public SuggestionResponse saveSuggestion(SuggestionRequest request, String username) {
-        User user = userRepository.findByUsername(username).orElse(null);
+    public SuggestionResponse saveSuggestion(SuggestionRequest request, String userId) {
+        User user = userRepository.findById(userId).orElse(null);
 
         String userInfo;
         if (user != null) {

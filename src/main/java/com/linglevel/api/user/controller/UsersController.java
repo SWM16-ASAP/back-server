@@ -13,7 +13,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import com.linglevel.api.auth.jwt.JwtClaims;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,9 +36,8 @@ public class UsersController {
         @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    public ResponseEntity<MessageResponse> deleteUser(Authentication authentication) {
-        String username = authentication.getName();
-        usersService.deleteUser(username);
+    public ResponseEntity<MessageResponse> deleteUser(@AuthenticationPrincipal JwtClaims claims) {
+        usersService.deleteUser(claims.getId());
         return ResponseEntity.ok(new MessageResponse("User account deleted successfully."));
     }
 

@@ -1,5 +1,6 @@
 package com.linglevel.api.bookmark.controller;
 
+import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.bookmark.dto.BookmarkToggleResponse;
 import com.linglevel.api.bookmark.dto.BookmarkedWordResponse;
 import com.linglevel.api.bookmark.dto.GetBookmarkedWordsRequest;
@@ -8,8 +9,6 @@ import com.linglevel.api.bookmark.service.BookmarkService;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.dto.PageResponse;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -21,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -33,7 +32,6 @@ import jakarta.validation.Valid;
 public class BookmarksController {
 
     private final BookmarkService bookmarkService;
-    private final UserRepository userRepository;
 
     @Operation(summary = "북마크된 단어 목록 조회", description = "현재 사용자가 북마크한 단어 목록을 조회합니다.")
     @ApiResponses(value = {
@@ -44,10 +42,8 @@ public class BookmarksController {
     @GetMapping("/words")
     public ResponseEntity<PageResponse<BookmarkedWordResponse>> getBookmarkedWords(
             @ParameterObject @Valid @ModelAttribute GetBookmarkedWordsRequest request,
-            Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
-        var bookmarkedWords = bookmarkService.getBookmarkedWords(user.getId(), request.getPage(), request.getLimit(), request.getSearch());
+            @AuthenticationPrincipal JwtClaims claims) {
+        var bookmarkedWords = bookmarkService.getBookmarkedWords(claims.getId(), request.getPage(), request.getLimit(), request.getSearch());
         return ResponseEntity.ok(new PageResponse<>(bookmarkedWords.getContent(), bookmarkedWords));
     }
 
@@ -66,10 +62,8 @@ public class BookmarksController {
     public ResponseEntity<MessageResponse> addWordBookmark(
             @Parameter(description = "북마크할 단어", example = "magnificent")
             @PathVariable String word,
-            Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
-        bookmarkService.addWordBookmark(user.getId(), word);
+            @AuthenticationPrincipal JwtClaims claims) {
+        bookmarkService.addWordBookmark(claims.getId(), word);
         return ResponseEntity.ok(new MessageResponse("Word bookmarked successfully."));
     }
 
@@ -86,10 +80,8 @@ public class BookmarksController {
     public ResponseEntity<MessageResponse> removeWordBookmark(
             @Parameter(description = "북마크 해제할 단어", example = "magnificent")
             @PathVariable String word,
-            Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
-        bookmarkService.removeWordBookmark(user.getId(), word);
+            @AuthenticationPrincipal JwtClaims claims) {
+        bookmarkService.removeWordBookmark(claims.getId(), word);
         return ResponseEntity.ok(new MessageResponse("Word bookmark removed successfully."));
     }
 
@@ -103,10 +95,8 @@ public class BookmarksController {
     public ResponseEntity<BookmarkToggleResponse> toggleWordBookmark(
             @Parameter(description = "토글할 단어", example = "magnificent")
             @PathVariable String word,
-            Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
-        boolean bookmarked = bookmarkService.toggleWordBookmark(user.getId(), word);
+            @AuthenticationPrincipal JwtClaims claims) {
+        boolean bookmarked = bookmarkService.toggleWordBookmark(claims.getId(), word);
         return ResponseEntity.ok(new BookmarkToggleResponse(bookmarked));
     }
 

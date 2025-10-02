@@ -37,12 +37,9 @@ public class JwtFilter extends OncePerRequestFilter {
                 throw new AuthException(AuthErrorCode.EXPIRED_ACCESS_TOKEN);
             }
 
-            // TODO: 성능 최적화를 위해 Principal로 username(String) 대신 JwtClaims 객체 전체를 저장하는 것을 고려해야 합니다.
-            // 이렇게 하면 컨트롤러 레벨에서 DB 조회 없이 사용자 ID, 역할 등 추가 정보에 접근할 수 있습니다.
-            // 예: new UsernamePasswordAuthenticationToken(claims, null, authorities);
-            // 변경 시 컨트롤러의 @AuthenticationPrincipal 타입도 JwtClaims으로 수정해야 합니다.
+            // Principal로 JwtClaims 객체 전체를 저장하여 컨트롤러에서 DB 조회 없이 사용자 정보에 접근 가능
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                    claims.getUsername(),
+                    claims,
                     null,
                     List.of(new SimpleGrantedAuthority(claims.getRole().getSecurityRole()))
             );

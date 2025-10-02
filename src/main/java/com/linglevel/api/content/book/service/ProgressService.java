@@ -11,7 +11,7 @@ import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.exception.UsersErrorCode;
 import com.linglevel.api.user.exception.UsersException;
-import com.linglevel.api.user.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,17 +26,13 @@ public class ProgressService {
     private final ChapterService chapterService;
     private final ChunkService chunkService;
     private final BookProgressRepository bookProgressRepository;
-    private final UserRepository userRepository;
+
 
     @Transactional
-    public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String username) {
+    public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
-
-        // 사용자 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
 
         // chunkId로부터 chunk 정보 조회
         Chunk chunk = chunkService.findById(request.getChunkId());
@@ -50,8 +46,6 @@ public class ProgressService {
         if (!chapter.getBookId().equals(bookId)) {
             throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND_IN_BOOK);
         }
-
-        String userId = user.getId();
 
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElse(new BookProgress());
@@ -89,16 +83,10 @@ public class ProgressService {
     }
 
     @Transactional(readOnly = true)
-    public ProgressResponse getProgress(String bookId, String username) {
+    public ProgressResponse getProgress(String bookId, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
-
-        // 사용자 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        String userId = user.getId();
 
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElseGet(() -> initializeProgress(userId, bookId));
@@ -124,15 +112,12 @@ public class ProgressService {
     }
 
     @Transactional
-    public void deleteProgress(String bookId, String username) {
+    public void deleteProgress(String bookId, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(user.getId(), bookId)
+        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElseThrow(() -> new BooksException(BooksErrorCode.PROGRESS_NOT_FOUND));
 
         bookProgressRepository.delete(bookProgress);

@@ -1,6 +1,7 @@
 package com.linglevel.api.content.custom.controller;
 
 
+import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.dto.PageResponse;
@@ -46,10 +47,10 @@ public class CustomContentController {
     })
     @GetMapping
     public ResponseEntity<PageResponse<CustomContentResponse>> getCustomContents(
-            @AuthenticationPrincipal String username,
+            @AuthenticationPrincipal JwtClaims claims,
             @ParameterObject @ModelAttribute GetCustomContentsRequest request) {
 
-        PageResponse<CustomContentResponse> response = customContentService.getCustomContents(username, request);
+        PageResponse<CustomContentResponse> response = customContentService.getCustomContents(claims.getId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -68,11 +69,11 @@ public class CustomContentController {
     })
     @GetMapping("/{customContentId}")
     public ResponseEntity<CustomContentResponse> getCustomContent(
-            @AuthenticationPrincipal String username,
+            @AuthenticationPrincipal JwtClaims claims,
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customContentId) {
 
-        CustomContentResponse response = customContentService.getCustomContent(username, customContentId);
+        CustomContentResponse response = customContentService.getCustomContent(claims.getId(), customContentId);
         return ResponseEntity.ok(response);
     }
 
@@ -91,12 +92,12 @@ public class CustomContentController {
     })
     @PatchMapping("/{customContentId}")
     public ResponseEntity<CustomContentResponse> updateCustomContent(
-            @AuthenticationPrincipal String username,
+            @AuthenticationPrincipal JwtClaims claims,
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customContentId,
             @RequestBody UpdateCustomContentRequest request) {
 
-        CustomContentResponse response = customContentService.updateCustomContent(username, customContentId, request);
+        CustomContentResponse response = customContentService.updateCustomContent(claims.getId(), customContentId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -117,12 +118,12 @@ public class CustomContentController {
     })
     @GetMapping("/{customContentId}/chunks")
     public ResponseEntity<PageResponse<CustomContentChunkResponse>> getCustomContentChunks(
-            @AuthenticationPrincipal String username,
+            @AuthenticationPrincipal JwtClaims claims,
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customContentId,
             @ParameterObject @ModelAttribute GetCustomContentChunksRequest request) {
 
-        PageResponse<CustomContentChunkResponse> response = customContentChunkService.getCustomContentChunks(username, customContentId, request);
+        PageResponse<CustomContentChunkResponse> response = customContentChunkService.getCustomContentChunks(claims.getId(), customContentId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -141,13 +142,13 @@ public class CustomContentController {
     })
     @GetMapping("/{customContentId}/chunks/{chunkId}")
     public ResponseEntity<CustomContentChunkResponse> getCustomContentChunk(
-            @AuthenticationPrincipal String username,
+            @AuthenticationPrincipal JwtClaims claims,
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customContentId,
             @Parameter(description = "청크 ID", example = "60d0fe4f5311236168a109cd")
             @PathVariable String chunkId) {
 
-        CustomContentChunkResponse response = customContentChunkService.getCustomContentChunk(username, customContentId, chunkId);
+        CustomContentChunkResponse response = customContentChunkService.getCustomContentChunk(claims.getId(), customContentId, chunkId);
         return ResponseEntity.ok(response);
     }
 
@@ -166,11 +167,11 @@ public class CustomContentController {
     })
     @DeleteMapping("/{customContentId}")
     public ResponseEntity<MessageResponse> deleteCustomContent(
-            @AuthenticationPrincipal String username,
+            @AuthenticationPrincipal JwtClaims claims,
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customContentId) {
 
-        customContentService.deleteCustomContent(username, customContentId);
+        customContentService.deleteCustomContent(claims.getId(), customContentId);
         return ResponseEntity.ok(new MessageResponse("Custom content deleted successfully."));
     }
 

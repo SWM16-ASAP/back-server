@@ -40,10 +40,8 @@ public class CustomContentService {
     private final UserRepository userRepository;
     private final MongoTemplate mongoTemplate;
 
-    public PageResponse<CustomContentResponse> getCustomContents(String username, GetCustomContentsRequest request) {
-        log.info("Getting custom contents for user: {} with request: {}", username, request);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public PageResponse<CustomContentResponse> getCustomContents(String userId, GetCustomContentsRequest request) {
+        log.info("Getting custom contents for user: {} with request: {}", userId, request);
 
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt"); // 기본값: 최신순
         if (StringUtils.hasText(request.getSortBy())) {
@@ -60,33 +58,29 @@ public class CustomContentService {
         Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
 
         // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
-        Page<CustomContent> page = customContentRepository.findCustomContentsWithFilters(user.getId(), request, pageable);
+        Page<CustomContent> page = customContentRepository.findCustomContentsWithFilters(userId, request, pageable);
 
         List<CustomContentResponse> responses = page.getContent().stream()
-                .map(content -> mapToResponse(content, user.getId()))
+                .map(content -> mapToResponse(content, userId))
                 .collect(Collectors.toList());
 
         return new PageResponse<>(responses, page);
     }
 
-    public CustomContentResponse getCustomContent(String username, String customContentId) {
-        log.info("Getting custom content {} for user: {}", customContentId, username);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public CustomContentResponse getCustomContent(String userId, String customContentId) {
+        log.info("Getting custom content {} for user: {}", customContentId, userId);
 
-        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, user.getId())
+        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-        return mapToResponse(content, user.getId());
+        return mapToResponse(content, userId);
     }
 
     @Transactional
-    public CustomContentResponse updateCustomContent(String username, String customContentId, UpdateCustomContentRequest request) {
-        log.info("Updating custom content {} for user: {}", customContentId, username);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public CustomContentResponse updateCustomContent(String userId, String customContentId, UpdateCustomContentRequest request) {
+        log.info("Updating custom content {} for user: {}", customContentId, userId);
 
-        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, user.getId())
+        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
         if (request.getTitle() != null) {
@@ -97,16 +91,14 @@ public class CustomContentService {
         }
 
         CustomContent updatedContent = customContentRepository.save(content);
-        return mapToResponse(updatedContent, user.getId());
+        return mapToResponse(updatedContent, userId);
     }
 
     @Transactional
-    public void deleteCustomContent(String username, String customContentId) {
-        log.info("Deleting custom content {} for user: {}", customContentId, username);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public void deleteCustomContent(String userId, String customContentId) {
+        log.info("Deleting custom content {} for user: {}", customContentId, userId);
 
-        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, user.getId())
+        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
         // Soft delete the main content
@@ -124,13 +116,6 @@ public class CustomContentService {
             customContentChunkRepository.saveAll(chunks);
             log.info("Soft deleted {} related chunks for custom content: {}", chunks.size(), customContentId);
         }
-    }
-
-    private String getUserId(String username) {
-        if (username == null) return null;
-        return userRepository.findByUsername(username)
-            .map(User::getId)
-            .orElse(null);
     }
 
     private CustomContentResponse mapToResponse(CustomContent content) {
