@@ -123,19 +123,15 @@ public class BookService {
             sort
         );
 
-        Page<Book> bookPage = bookRepository.findAll(pageable);
-
         // 사용자 ID 조회
         final String userId = getUserId(username);
+
+        // QueryDSL Custom Repository를 사용하여 필터링 + 페이지네이션 통합 처리
+        Page<Book> bookPage = bookRepository.findBooksWithFilters(request, userId, pageable);
 
         List<BookResponse> bookResponses = bookPage.getContent().stream()
             .map(book -> convertToBookResponse(book, userId))
             .collect(Collectors.toList());
-
-        // 진도별 필터링 적용
-        if (request.getProgress() != null && userId != null) {
-            bookResponses = filterByProgress(bookResponses, request.getProgress());
-        }
 
         return new PageResponse<>(bookResponses, bookPage);
     }
