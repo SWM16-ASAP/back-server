@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface ChapterRepository extends MongoRepository<Chapter, String> {
+public interface ChapterRepository extends MongoRepository<Chapter, String>, ChapterRepositoryCustom {
     Page<Chapter> findByBookId(String chapterId, Pageable pageable);
     
     List<Chapter> findByBookIdOrderByChapterNumber(String bookId);
