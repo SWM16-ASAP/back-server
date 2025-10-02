@@ -59,38 +59,14 @@ public class CustomContentService {
 
         Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
 
-        Query query = new Query().with(pageable);
-        query.addCriteria(Criteria.where("userId").is(user.getId()));
-        query.addCriteria(Criteria.where("isDeleted").is(false));
+        // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
+        Page<CustomContent> page = customContentRepository.findCustomContentsWithFilters(user.getId(), request, pageable);
 
-        if (StringUtils.hasText(request.getKeyword())) {
-            Criteria keywordCriteria = new Criteria().orOperator(
-                    Criteria.where("title").regex(request.getKeyword(), "i"),
-                    Criteria.where("author").regex(request.getKeyword(), "i")
-            );
-            query.addCriteria(keywordCriteria);
-        }
-
-        if (StringUtils.hasText(request.getTags())) {
-            String[] tags = request.getTags().split(",");
-            query.addCriteria(Criteria.where("tags").all((Object[]) tags));
-        }
-
-        long total = mongoTemplate.count(query.limit(-1).skip(-1), CustomContent.class);
-        List<CustomContent> contents = mongoTemplate.find(query, CustomContent.class);
-
-        Page<CustomContent> page = new PageImpl<>(contents, pageable, total);
-        List<CustomContentResponse> responses = contents.stream()
+        List<CustomContentResponse> responses = page.getContent().stream()
                 .map(content -> mapToResponse(content, user.getId()))
                 .collect(Collectors.toList());
 
-        // 진도별 필터링
-        if (request.getProgress() != null) {
-            responses = filterByProgress(responses, request.getProgress());
-        }
-
-        Page<CustomContentResponse> responsePage = new PageImpl<>(responses, pageable, total);
-        return new PageResponse<>(responses, responsePage);
+        return new PageResponse<>(responses, page);
     }
 
     public CustomContentResponse getCustomContent(String username, String customContentId) {
@@ -148,20 +124,6 @@ public class CustomContentService {
             customContentChunkRepository.saveAll(chunks);
             log.info("Soft deleted {} related chunks for custom content: {}", chunks.size(), customContentId);
         }
-    }
-
-    private List<CustomContentResponse> filterByProgress(List<CustomContentResponse> responses, ProgressStatus progressFilter) {
-        if (progressFilter == null) {
-            return responses; // No filter, return all
-        }
-
-        return responses.stream()
-            .filter(content -> switch (progressFilter) {
-                case NOT_STARTED -> content.getProgressPercentage() == 0.0;
-                case IN_PROGRESS -> content.getProgressPercentage() > 0.0 && !content.getIsCompleted();
-                case COMPLETED -> content.getIsCompleted();
-            })
-            .collect(Collectors.toList());
     }
 
     private String getUserId(String username) {

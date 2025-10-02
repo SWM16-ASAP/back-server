@@ -46,17 +46,14 @@ public class ChapterService {
             Sort.by("chapterNumber").ascending()
         );
 
-        Page<Chapter> chapterPage = chapterRepository.findByBookId(bookId, pageable);
-        
         String userId = getUserId(username);
+
+        // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
+        Page<Chapter> chapterPage = chapterRepository.findChaptersWithFilters(bookId, request, userId, pageable);
 
         List<ChapterResponse> chapterResponses = chapterPage.getContent().stream()
             .map(chapter -> convertToChapterResponse(chapter, bookId, userId))
             .collect(Collectors.toList());
-
-        if (request.getProgress() != null && userId != null) {
-            chapterResponses = filterByProgress(chapterResponses, request.getProgress());
-        }
 
         return new PageResponse<>(chapterResponses, chapterPage);
     }
@@ -96,22 +93,6 @@ public class ChapterService {
         return userRepository.findByUsername(username)
             .map(User::getId)
             .orElse(null);
-    }
-
-    private List<ChapterResponse> filterByProgress(List<ChapterResponse> chapterResponses, ProgressStatus progressFilter) {
-        if (progressFilter == null) {
-            return chapterResponses;
-        }
-
-        return chapterResponses.stream()
-            .filter(chapter -> {
-                return switch (progressFilter) {
-                    case NOT_STARTED -> chapter.getProgressPercentage() == 0.0;
-                    case IN_PROGRESS -> chapter.getProgressPercentage() > 0.0 && chapter.getProgressPercentage() < 100.0;
-                    case COMPLETED -> chapter.getProgressPercentage() == 100.0;
-                };
-            })
-            .collect(Collectors.toList());
     }
 
     private ChapterResponse convertToChapterResponse(Chapter chapter, String bookId, String userId) {

@@ -50,22 +50,19 @@ public class ArticleService {
 
     public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request, String username) {
         validateGetArticlesRequest(request);
-        
+
         Pageable pageable = createPageable(request);
-        Page<Article> articlePage = findArticles(request, pageable);
-        
+
         // 사용자 ID 조회
         String userId = getUserId(username);
+
+        // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
+        Page<Article> articlePage = articleRepository.findArticlesWithFilters(request, userId, pageable);
 
         List<ArticleResponse> articleResponses = articlePage.getContent().stream()
                 .map(article -> convertToArticleResponse(article, userId))
                 .collect(Collectors.toList());
 
-        // 진도별 필터링
-        if (request.getProgress() != null && userId != null) {
-            articleResponses = filterByProgress(articleResponses, request.getProgress());
-        }
-        
         return PageResponse.of(articlePage, articleResponses);
     }
 
@@ -150,23 +147,6 @@ public class ArticleService {
         };
     }
 
-    private Page<Article> findArticles(GetArticlesRequest request, Pageable pageable) {
-        boolean hasTags = request.getTags() != null && !request.getTags().trim().isEmpty();
-        boolean hasKeyword = request.getKeyword() != null && !request.getKeyword().trim().isEmpty();
-        
-        if (hasTags && hasKeyword) {
-            List<String> tagList = Arrays.asList(request.getTags().split(","));
-            return articleRepository.findByTagsInAndTitleOrAuthorContaining(tagList, request.getKeyword(), pageable);
-        } else if (hasTags) {
-            List<String> tagList = Arrays.asList(request.getTags().split(","));
-            return articleRepository.findByTagsIn(tagList, pageable);
-        } else if (hasKeyword) {
-            return articleRepository.findByTitleOrAuthorContaining(request.getKeyword(), pageable);
-        } else {
-            return articleRepository.findAll(pageable);
-        }
-    }
-
     private Article createArticle(ArticleImportData importData, String requestId) {
         Article article = new Article();
         article.setTitle(importData.getTitle());
@@ -197,20 +177,6 @@ public class ArticleService {
         return userRepository.findByUsername(username)
             .map(User::getId)
             .orElse(null);
-    }
-
-    private List<ArticleResponse> filterByProgress(List<ArticleResponse> responses, ProgressStatus progressFilter) {
-        if (progressFilter == null) {
-            return responses; // No filter, return all
-        }
-
-        return responses.stream()
-            .filter(article -> switch (progressFilter) {
-                case NOT_STARTED -> article.getProgressPercentage() == 0.0;
-                case IN_PROGRESS -> article.getProgressPercentage() > 0.0 && !article.getIsCompleted();
-                case COMPLETED -> article.getIsCompleted();
-            })
-            .collect(Collectors.toList());
     }
 
     private ArticleResponse convertToArticleResponse(Article article, String userId) {

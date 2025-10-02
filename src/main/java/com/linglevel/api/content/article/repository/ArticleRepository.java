@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.repository.Query;
 
 import java.util.List;
 
-public interface ArticleRepository extends MongoRepository<Article, String> {
+public interface ArticleRepository extends MongoRepository<Article, String>, ArticleRepositoryCustom {
     
     // 제목 또는 작가로 키워드 검색
     @Query("{'$or': [{'title': {'$regex': ?0, '$options': 'i'}}, {'author': {'$regex': ?0, '$options': 'i'}}]}")
