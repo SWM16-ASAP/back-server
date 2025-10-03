@@ -15,7 +15,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import com.linglevel.api.auth.jwt.JwtClaims;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -41,9 +42,8 @@ public class CustomContentProgressController {
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customId,
             @Valid @RequestBody CustomContentReadingProgressUpdateRequest request,
-            Authentication authentication) {
-        String username = authentication.getName();
-        CustomContentReadingProgressResponse response = customContentReadingProgressService.updateProgress(customId, request, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        CustomContentReadingProgressResponse response = customContentReadingProgressService.updateProgress(customId, request, claims.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -57,9 +57,8 @@ public class CustomContentProgressController {
     public ResponseEntity<CustomContentReadingProgressResponse> getProgress(
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customId,
-            Authentication authentication) {
-        String username = authentication.getName();
-        CustomContentReadingProgressResponse response = customContentReadingProgressService.getProgress(customId, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        CustomContentReadingProgressResponse response = customContentReadingProgressService.getProgress(customId, claims.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -73,9 +72,8 @@ public class CustomContentProgressController {
     public ResponseEntity<Void> deleteProgress(
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customId,
-            Authentication authentication) {
-        String username = authentication.getName();
-        customContentReadingProgressService.deleteProgress(customId, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        customContentReadingProgressService.deleteProgress(customId, claims.getId());
         return ResponseEntity.noContent().build();
     }
 

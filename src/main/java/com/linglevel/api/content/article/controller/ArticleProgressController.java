@@ -15,7 +15,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import com.linglevel.api.auth.jwt.JwtClaims;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -41,9 +42,8 @@ public class ArticleProgressController {
             @Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String articleId,
             @Valid @RequestBody ArticleProgressUpdateRequest request,
-            Authentication authentication) {
-        String username = authentication.getName();
-        ArticleProgressResponse response = articleProgressService.updateProgress(articleId, request, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        ArticleProgressResponse response = articleProgressService.updateProgress(articleId, request, claims.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -57,9 +57,8 @@ public class ArticleProgressController {
     public ResponseEntity<ArticleProgressResponse> getProgress(
             @Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String articleId,
-            Authentication authentication) {
-        String username = authentication.getName();
-        ArticleProgressResponse response = articleProgressService.getProgress(articleId, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        ArticleProgressResponse response = articleProgressService.getProgress(articleId, claims.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -73,9 +72,8 @@ public class ArticleProgressController {
     public ResponseEntity<Void> deleteProgress(
             @Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String articleId,
-            Authentication authentication) {
-        String username = authentication.getName();
-        articleProgressService.deleteProgress(articleId, username);
+            @AuthenticationPrincipal JwtClaims claims) {
+        articleProgressService.deleteProgress(articleId, claims.getId());
         return ResponseEntity.noContent().build();
     }
 

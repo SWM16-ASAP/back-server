@@ -19,8 +19,8 @@ public class UsersService {
     private final UserRepository userRepository;
     
     @Transactional
-    public void deleteUser(String username) {
-        User user = userRepository.findByUsername(username)
+    public void deleteUser(String userId) {
+        User user = userRepository.findById(userId)
             .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
         
         if (user.getDeleted()) {
@@ -29,9 +29,10 @@ public class UsersService {
 
         user.setDeleted(true);
         user.setDeletedAt(LocalDateTime.now());
-        user.setUsername("deleted_" + user.getDeletedAt() + "_" + username);
+        String originalUsername = user.getUsername();
+        user.setUsername("deleted_" + user.getDeletedAt() + "_" + originalUsername);
         
         userRepository.save(user);
-        log.info("User deleted successfully: {}", username);
+        log.info("User deleted successfully: {}", originalUsername);
     }
 }

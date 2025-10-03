@@ -9,8 +9,6 @@ import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.book.entity.BookProgress;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.common.ProgressStatus;
 import lombok.RequiredArgsConstructor;
@@ -32,10 +30,10 @@ public class ChapterService {
     private final ChapterRepository chapterRepository;
     private final BookProgressRepository bookProgressRepository;
     private final ChunkRepository chunkRepository;
-    private final UserRepository userRepository;
+
     private final BookService bookService;
 
-    public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request, String username) {
+    public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
@@ -45,8 +43,6 @@ public class ChapterService {
             request.getLimit(),
             Sort.by("chapterNumber").ascending()
         );
-
-        String userId = getUserId(username);
 
         // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
         Page<Chapter> chapterPage = chapterRepository.findChaptersWithFilters(bookId, request, userId, pageable);
@@ -58,7 +54,7 @@ public class ChapterService {
         return new PageResponse<>(chapterResponses, chapterPage);
     }
 
-    public ChapterResponse getChapter(String bookId, String chapterId, String username) {
+    public ChapterResponse getChapter(String bookId, String chapterId, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
@@ -70,7 +66,6 @@ public class ChapterService {
             throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
         }
 
-        String userId = getUserId(username);
         return convertToChapterResponse(chapter, bookId, userId);
     }
 
@@ -88,12 +83,7 @@ public class ChapterService {
             .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
     }
 
-    private String getUserId(String username) {
-        if (username == null) return null;
-        return userRepository.findByUsername(username)
-            .map(User::getId)
-            .orElse(null);
-    }
+
 
     private ChapterResponse convertToChapterResponse(Chapter chapter, String bookId, String userId) {
         int currentReadChunkNumber = 0;

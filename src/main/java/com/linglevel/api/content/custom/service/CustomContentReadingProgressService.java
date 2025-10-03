@@ -12,7 +12,7 @@ import com.linglevel.api.content.custom.repository.CustomContentProgressReposito
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.exception.UsersErrorCode;
 import com.linglevel.api.user.exception.UsersException;
-import com.linglevel.api.user.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,18 +27,14 @@ public class CustomContentReadingProgressService {
     private final CustomContentChunkService customContentChunkService;
     private final CustomContentProgressRepository customContentProgressRepository;
     private final CustomContentRepository customContentRepository;
-    private final UserRepository userRepository;
+
 
     @Transactional
-    public CustomContentReadingProgressResponse updateProgress(String customId, CustomContentReadingProgressUpdateRequest request, String username) {
+    public CustomContentReadingProgressResponse updateProgress(String customId, CustomContentReadingProgressUpdateRequest request, String userId) {
         // 커스텀 콘텐츠 존재 여부 확인
         if (!customContentService.existsById(customId)) {
             throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
         }
-
-        // 사용자 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
 
         // chunkId로부터 chunk 정보 조회
         CustomContentChunk chunk = customContentChunkService.findById(request.getChunkId());
@@ -47,8 +43,6 @@ public class CustomContentReadingProgressService {
         if (chunk.getCustomContentId() == null || !chunk.getCustomContentId().equals(customId)) {
             throw new CustomContentException(CustomContentErrorCode.CHUNK_NOT_FOUND_IN_CUSTOM_CONTENT);
         }
-
-        String userId = user.getId();
 
         CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
                 .orElse(new CustomContentProgress());
@@ -83,17 +77,11 @@ public class CustomContentReadingProgressService {
     }
 
     @Transactional(readOnly = true)
-    public CustomContentReadingProgressResponse getProgress(String customId, String username) {
+    public CustomContentReadingProgressResponse getProgress(String customId, String userId) {
         // 커스텀 콘텐츠 존재 여부 확인
         if (!customContentService.existsById(customId)) {
             throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
         }
-
-        // 사용자 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        String userId = user.getId();
 
         CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
                 .orElseGet(() -> initializeProgress(userId, customId));
@@ -117,15 +105,12 @@ public class CustomContentReadingProgressService {
     }
 
     @Transactional
-    public void deleteProgress(String customId, String username) {
+    public void deleteProgress(String customId, String userId) {
         if (!customContentService.existsById(customId)) {
             throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
         }
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(user.getId(), customId)
+        CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.PROGRESS_NOT_FOUND));
 
         customContentProgressRepository.delete(customProgress);

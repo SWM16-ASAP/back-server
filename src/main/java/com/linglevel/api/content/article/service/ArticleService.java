@@ -10,8 +10,6 @@ import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.entity.ArticleProgress;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
 import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
@@ -39,7 +37,6 @@ public class ArticleService {
 
     private final ArticleRepository articleRepository;
     private final ArticleProgressRepository articleProgressRepository;
-    private final UserRepository userRepository;
     private final ArticleImportService articleImportService;
     private final ArticleReadingTimeService articleReadingTimeService;
     private final S3AiService s3AiService;
@@ -48,13 +45,10 @@ public class ArticleService {
     private final ImageResizeService imageResizeService;
     private final ArticlePathStrategy articlePathStrategy;
 
-    public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request, String username) {
+    public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request, String userId) {
         validateGetArticlesRequest(request);
 
         Pageable pageable = createPageable(request);
-
-        // 사용자 ID 조회
-        String userId = getUserId(username);
 
         // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
         Page<Article> articlePage = articleRepository.findArticlesWithFilters(request, userId, pageable);
@@ -66,11 +60,10 @@ public class ArticleService {
         return PageResponse.of(articlePage, articleResponses);
     }
 
-    public ArticleResponse getArticle(String articleId, String username) {
+    public ArticleResponse getArticle(String articleId, String userId) {
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
-        
-        String userId = getUserId(username);
+
         return convertToArticleResponse(article, userId);
     }
 
@@ -172,12 +165,6 @@ public class ArticleService {
         return article;
     }
 
-    private String getUserId(String username) {
-        if (username == null) return null;
-        return userRepository.findByUsername(username)
-            .map(User::getId)
-            .orElse(null);
-    }
 
     private ArticleResponse convertToArticleResponse(Article article, String userId) {
         // 진도 정보 조회

@@ -12,7 +12,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import com.linglevel.api.auth.jwt.JwtClaims;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,9 +35,8 @@ public class SuggestionsController {
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping
-    public ResponseEntity<SuggestionResponse> submitSuggestion(@RequestBody SuggestionRequest request, Authentication authentication) {
-        String username = authentication.getName();
-        SuggestionResponse response = suggestionsService.saveSuggestion(request, username);
+    public ResponseEntity<SuggestionResponse> submitSuggestion(@RequestBody SuggestionRequest request, @AuthenticationPrincipal JwtClaims claims) {
+        SuggestionResponse response = suggestionsService.saveSuggestion(request, claims.getId());
         return ResponseEntity.ok(response);
     }
 }
