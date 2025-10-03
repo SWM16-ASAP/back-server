@@ -1834,7 +1834,7 @@ X-API-Key: {TempApiKey}
 
 ### `POST /admin/notifications/send`
 
-어드민 권한으로 사용자에게 FCM 푸시 알림을 전송합니다.
+어드민 권한으로 특정 사용자들에게 FCM 푸시 알림을 전송합니다.
 
 #### **Request Headers**
 ```
@@ -1848,7 +1848,119 @@ X-API-Key: {TempApiKey}
   "targets": ["userId1", "userId2"],
   "title": "새로운 책이 추가되었습니다!",
   "body": "The Little Prince가 업데이트되었습니다. 지금 읽어보세요.",
-  "data": { 
+  "data": {
+    "deeplink": "/books/60d0fe4f5311236168a109ca",
+    "action": "open_book"
+  }
+}
+```
+
+- `targets`: 알림을 받을 사용자 ID 배열 (필수)
+- `title`: 알림 제목 (필수)
+- `body`: 알림 내용 (필수)
+- `data`: 커스텀 데이터 객체 (선택)
+  - `deeplink`: 앱 내 특정 화면으로 이동할 경로
+  - `action`: 수행할 액션 유형
+
+### `POST /admin/notifications/broadcast`
+
+어드민 권한으로 전체 사용자에게 FCM 푸시 알림을 브로드캐스트합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "title": "새로운 기능이 출시되었습니다!",
+  "body": "지금 바로 확인해보세요.",
+  "data": {
+    "deeplink": "/announcements/123",
+    "action": "open_announcement"
+  }
+}
+```
+
+- `title`: 알림 제목 (필수)
+- `body`: 알림 내용 (필수)
+- `data`: 커스텀 데이터 객체 (선택)
+  - `deeplink`: 앱 내 특정 화면으로 이동할 경로
+  - `action`: 수행할 액션 유형
+
+#### **Success Response (200 OK)**
+```json
+{
+  "message": "Broadcast notification sent successfully.",
+  "totalUsers": 1500,
+  "sentCount": 2850,
+  "failedCount": 150,
+  "details": {
+    "successfulUsers": 1450,
+    "failedUsers": 50,
+    "totalTokens": 3000
+  }
+}
+```
+
+- `totalUsers`: 알림을 전송한 총 사용자 수
+- `sentCount`: 성공적으로 전송된 디바이스(토큰) 수
+- `failedCount`: 전송 실패한 디바이스(토큰) 수
+- `details`: 전송 결과 상세 정보
+  - `successfulUsers`: 최소 1개 이상의 디바이스에 성공적으로 전송된 사용자 수
+  - `failedUsers`: 모든 디바이스에 전송 실패한 사용자 수
+  - `totalTokens`: 전송 시도한 총 토큰 수
+
+#### **Success Response (200 OK) - 등록된 FCM 토큰이 없는 경우**
+```json
+{
+  "message": "No FCM tokens found for broadcast.",
+  "totalUsers": 0,
+  "sentCount": 0,
+  "failedCount": 0,
+  "details": {
+    "successfulUsers": 0,
+    "failedUsers": 0,
+    "totalTokens": 0
+  }
+}
+```
+
+#### **Error Response (400 Bad Request)**
+```json
+{
+  "message": "title and body are required."
+}
+```
+
+#### **Error Response (401 Unauthorized)**
+```json
+{
+  "message": "Invalid API key."
+}
+```
+
+---
+
+### `POST /admin/notifications/send`
+
+어드민 권한으로 특정 사용자들에게 FCM 푸시 알림을 전송합니다.
+
+#### **Request Headers**
+```
+X-API-Key: {TempApiKey}
+```
+
+#### **Request Body**
+
+```json
+{
+  "targets": ["userId1", "userId2"],
+  "title": "새로운 책이 추가되었습니다!",
+  "body": "The Little Prince가 업데이트되었습니다. 지금 읽어보세요.",
+  "data": {
     "deeplink": "/books/60d0fe4f5311236168a109ca",
     "action": "open_book"
   }
