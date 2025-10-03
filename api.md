@@ -3459,12 +3459,14 @@ Authorization: Bearer {AccessToken}
 {
   "fcmToken": "string",
   "deviceId": "string",
-  "platform": "string"
+  "platform": "string",
+  "countryCode": "string"
 }
 ```
-- `fcmToken`: Firebase Cloud Messaging 토큰
-- `deviceId`: 디바이스 고유 식별자
-- `platform`: 플랫폼 종류 ("ANDROID", "IOS", "WEB")
+- `fcmToken`: Firebase Cloud Messaging 토큰 (필수)
+- `deviceId`: 디바이스 고유 식별자 (필수)
+- `platform`: 플랫폼 종류 ("ANDROID", "IOS", "WEB") (필수)
+- `countryCode`: 디바이스 국가 코드 (선택사항, 기본값: "US") - "KR", "US", "JP" 중 하나
 
 #### **Success Response (200 OK)**
 ```json

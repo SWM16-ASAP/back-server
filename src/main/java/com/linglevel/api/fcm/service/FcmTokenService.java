@@ -10,6 +10,7 @@ import com.linglevel.api.fcm.entity.FcmToken;
 import com.linglevel.api.fcm.exception.FcmErrorCode;
 import com.linglevel.api.fcm.exception.FcmException;
 import com.linglevel.api.fcm.repository.FcmTokenRepository;
+import com.linglevel.api.i18n.CountryCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -53,7 +54,10 @@ public class FcmTokenService {
             if (!validateFcmToken(request.getFcmToken())) {
                 throw new FcmException(FcmErrorCode.INVALID_FCM_TOKEN_FORMAT);
             }
-            
+
+            // countryCode가 제공되지 않으면 기본값 US 사용
+            CountryCode countryCode = request.getCountryCode() != null ? request.getCountryCode() : CountryCode.US;
+
             Optional<FcmToken> existingToken = fcmTokenRepository.findByUserIdAndDeviceId(userId, request.getDeviceId());
             
             if (existingToken.isPresent()) {
@@ -61,6 +65,7 @@ public class FcmTokenService {
                 FcmToken token = existingToken.get();
                 token.setFcmToken(request.getFcmToken());
                 token.setPlatform(request.getPlatform());
+                token.setCountryCode(countryCode);
                 token.setAppVersion(request.getAppVersion());
                 token.setOsVersion(request.getOsVersion());
                 token.setUpdatedAt(LocalDateTime.now());
@@ -80,6 +85,7 @@ public class FcmTokenService {
                         .deviceId(request.getDeviceId())
                         .fcmToken(request.getFcmToken())
                         .platform(request.getPlatform())
+                        .countryCode(countryCode)
                         .appVersion(request.getAppVersion())
                         .osVersion(request.getOsVersion())
                         .createdAt(LocalDateTime.now())

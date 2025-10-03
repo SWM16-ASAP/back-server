@@ -1,5 +1,6 @@
 package com.linglevel.api.fcm.entity;
 
+import com.linglevel.api.i18n.CountryCode;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -33,9 +34,11 @@ public class FcmToken {
     
     @NotNull
     private FcmPlatform platform;
-    
+
+    private CountryCode countryCode;
+
     private String appVersion;
-    
+
     private String osVersion;
     
     @CreatedDate
