@@ -123,9 +123,6 @@ public class AdminController {
     public ResponseEntity<NotificationSendResponse> sendNotification(
             @Parameter(description = "알림 전송 요청", required = true) @Valid @RequestBody NotificationSendRequest request) {
 
-        log.info("Admin sending notification - targets: {}, title: {}",
-                request.getTargets() != null ? request.getTargets().size() : 0, request.getTitle());
-
         NotificationSendResponse response = notificationService.sendNotificationFromRequest(request);
         return ResponseEntity.ok(response);
     }
