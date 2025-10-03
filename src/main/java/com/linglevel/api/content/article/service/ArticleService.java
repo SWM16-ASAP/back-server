@@ -10,8 +10,6 @@ import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.entity.ArticleProgress;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
 import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
@@ -39,7 +37,6 @@ public class ArticleService {
 
     private final ArticleRepository articleRepository;
     private final ArticleProgressRepository articleProgressRepository;
-    private final UserRepository userRepository;
     private final ArticleImportService articleImportService;
     private final ArticleReadingTimeService articleReadingTimeService;
     private final S3AiService s3AiService;

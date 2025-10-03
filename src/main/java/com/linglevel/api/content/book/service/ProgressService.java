@@ -8,10 +8,6 @@ import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.exception.UsersErrorCode;
-import com.linglevel.api.user.exception.UsersException;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

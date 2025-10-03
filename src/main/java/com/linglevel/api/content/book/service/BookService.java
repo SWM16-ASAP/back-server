@@ -10,8 +10,6 @@ import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookRepository;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.entity.BookProgress;
-import com.linglevel.api.user.entity.User;
-
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;

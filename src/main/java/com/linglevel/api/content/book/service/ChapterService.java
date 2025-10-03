@@ -9,8 +9,6 @@ import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.book.entity.BookProgress;
-import com.linglevel.api.user.entity.User;
-
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.common.ProgressStatus;
 import lombok.RequiredArgsConstructor;
