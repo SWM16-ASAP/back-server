@@ -26,9 +26,13 @@ configurations {
 
 repositories {
 	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+	maven { url 'https://repo.spring.io/snapshot' }
 }
 
 dependencies {
+	implementation platform("org.springframework.ai:spring-ai-bom:1.0.0-M6")
+
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
@@ -42,6 +46,10 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	implementation 'com.sksamuel.scrimage:scrimage-core:4.3.5'
 	implementation 'com.sksamuel.scrimage:scrimage-webp:4.3.5'
+
+	// Spring AI Bedrock
+	implementation 'org.springframework.ai:spring-ai-bedrock-converse-spring-boot-starter'
+
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
@@ -55,4 +63,11 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	
+	// // 테스트 로그를 터미널에 출력
+	testLogging {
+		events "passed", "skipped", "failed", "standardOut", "standardError"
+		showStandardStreams = true
+		exceptionFormat = "full"
+	}
 }
