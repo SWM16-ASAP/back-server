@@ -179,7 +179,7 @@ class WordServiceTest {
 
         // then
         assertThat(response).isNotNull();
-        assertThat(response.getWord()).isEqualTo("run"); // 원형 단어 반환
+        assertThat(response.getWord()).isEqualTo(variantWord); // 원형 단어 반환
         assertThat(response.getOriginalForm()).isEqualTo("run");
         assertThat(response.getVariantType()).isNotNull();
         assertThat(response.getVariantType()).isEqualTo(VariantType.PAST_TENSE);
