@@ -33,20 +33,6 @@ public class WordsController {
 
     private final WordService wordService;
 
-    @Operation(summary = "단어 목록 조회", description = "전체 단어 목록을 페이지네이션으로 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping
-    public ResponseEntity<PageResponse<WordResponse>> getWords(
-            @ParameterObject @Valid @ModelAttribute GetWordsRequest request,
-            @AuthenticationPrincipal JwtClaims claims) {
-        var words = wordService.getWords(claims.getId(), request.getPage(), request.getLimit(), request.getSearch());
-        return ResponseEntity.ok(new PageResponse<>(words.getContent(), words));
-    }
-
     @Operation(summary = "단일 단어 조회", description = "특정 단어의 상세 정보를 조회합니다. 현재 사용자의 북마크 상태도 함께 반환됩니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),

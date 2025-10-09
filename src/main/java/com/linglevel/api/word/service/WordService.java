@@ -34,28 +34,6 @@ public class WordService {
     private final WordVariantRepository wordVariantRepository;
     private final WordAiService wordAiService;
 
-    public Page<WordResponse> getWords(String userId, int page, int limit, String search) {
-        Pageable pageable = PageRequest.of(page - 1, limit);
-        Page<Word> words;
-
-        if (search != null && !search.trim().isEmpty()) {
-            words = wordRepository.findByWordContainingIgnoreCase(search.trim(), pageable);
-        } else {
-            words = wordRepository.findAll(pageable);
-        }
-
-        List<String> wordStrings = words.getContent().stream()
-                .map(Word::getWord)
-                .collect(Collectors.toList());
-
-        List<String> bookmarkedWords = wordBookmarkRepository.findByUserIdAndWordIn(userId, wordStrings, Pageable.unpaged())
-                .getContent().stream()
-                .map(bookmark -> bookmark.getWord())
-                .collect(Collectors.toList());
-
-        return words.map(word -> convertToResponse(word, bookmarkedWords.contains(word.getWord())));
-    }
-
     public WordResponse getOrCreateWord(String userId, String word) {
         WordVariant wordVariant = getOrCreateWordEntity(word);
         boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, word);
@@ -210,10 +188,6 @@ public class WordService {
                 .originalForm(originalForm)
                 .variantType(type)
                 .build();
-    }
-
-    private WordResponse convertToResponse(Word word, boolean isBookmarked) {
-        return convertToResponse(word, isBookmarked, null, null);
     }
 
     private WordResponse convertToResponse(Word word, boolean isBookmarked, VariantType variantType, String originalForm) {
