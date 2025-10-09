@@ -158,24 +158,35 @@ public class WordService {
 
         // N+1 문제 해결: 한 번에 조회 후 필터링
         if (!variants.isEmpty()) {
-            List<String> variantWords = variants.stream()
+            // 중복 제거: 같은 단어가 여러 번 추가되는 것 방지 (예: past와 pastParticiple이 같은 경우)
+            List<WordVariant> uniqueVariants = variants.stream()
+                    .collect(Collectors.toMap(
+                            WordVariant::getWord,
+                            variant -> variant,
+                            (existing, replacement) -> existing // 중복 시 첫 번째 것 유지
+                    ))
+                    .values()
+                    .stream()
+                    .collect(Collectors.toList());
+
+            List<String> variantWords = uniqueVariants.stream()
                     .map(WordVariant::getWord)
                     .collect(Collectors.toList());
-            
+
             // 이미 존재하는 variant들을 한 번의 쿼리로 조회
             List<WordVariant> existingVariants = wordVariantRepository.findByWordIn(variantWords);
             List<String> existingWords = existingVariants.stream()
                     .map(WordVariant::getWord)
                     .collect(Collectors.toList());
-            
+
             // 새로운 variant만 필터링하여 배치 저장
-            List<WordVariant> newVariants = variants.stream()
+            List<WordVariant> newVariants = uniqueVariants.stream()
                     .filter(variant -> !existingWords.contains(variant.getWord()))
                     .collect(Collectors.toList());
-            
+
             if (!newVariants.isEmpty()) {
                 wordVariantRepository.saveAll(newVariants);
-                newVariants.forEach(variant -> 
+                newVariants.forEach(variant ->
                     log.info("Saved variant: {} -> {} ({})", variant.getWord(), variant.getOriginalForm(), variant.getVariantType())
                 );
             }
