@@ -56,15 +56,15 @@ public class BookmarkService {
     @Transactional
     public void addWordBookmark(String userId, String wordStr) {
         // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
-        wordService.getOrCreateWordEntity(wordStr);
+        String originalForm = wordService.getOrCreateWordEntity(wordStr).getOriginalForm();
 
-        if (wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
+        if (wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_ALREADY_BOOKMARKED);
         }
 
         WordBookmark bookmark = WordBookmark.builder()
                 .userId(userId)
-                .word(wordStr)
+                .word(originalForm)
                 .bookmarkedAt(LocalDateTime.now())
                 .build();
         
@@ -73,33 +73,37 @@ public class BookmarkService {
     
     @Transactional
     public void removeWordBookmark(String userId, String wordStr) {
-        if (!wordRepository.existsByWord(wordStr)) {
+        String originalForm = wordService.getOrCreateWordEntity(wordStr).getOriginalForm();
+
+        if (!wordRepository.existsByWord(originalForm)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND);
         }
 
-        if (!wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
+        if (!wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_BOOKMARK_NOT_FOUND);
         }
 
-        wordBookmarkRepository.deleteByUserIdAndWord(userId, wordStr);
+        wordBookmarkRepository.deleteByUserIdAndWord(userId, originalForm);
     }
     
     @Transactional
     public boolean toggleWordBookmark(String userId, String wordStr) {
-        // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
-        wordService.getOrCreateWordEntity(wordStr);
+        String originalForm = wordService.getOrCreateWordEntity(wordStr).getOriginalForm();
 
-        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr);
+        // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
+        wordService.getOrCreateWordEntity(originalForm);
+
+        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm);
         
         if (isBookmarked) {
             // 북마크 해제
-            wordBookmarkRepository.deleteByUserIdAndWord(userId, wordStr);
+            wordBookmarkRepository.deleteByUserIdAndWord(userId, originalForm);
             return false;
         } else {
             // 북마크 추가
             WordBookmark bookmark = WordBookmark.builder()
                     .userId(userId)
-                    .word(wordStr)
+                    .word(originalForm)
                     .bookmarkedAt(LocalDateTime.now())
                     .build();
             wordBookmarkRepository.save(bookmark);
