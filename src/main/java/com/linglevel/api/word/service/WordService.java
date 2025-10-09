@@ -42,7 +42,7 @@ public class WordService {
         Word originalWord = wordRepository.findByWord(wordVariant.getOriginalForm())
                 .orElseThrow(() -> new WordsException(WordsErrorCode.WORD_NOT_FOUND));
 
-        return convertToResponse(originalWord, isBookmarked, wordVariant.getVariantType(), wordVariant.getOriginalForm());
+        return convertToResponse(originalWord, isBookmarked, wordVariant.getVariantType(), word, wordVariant.getOriginalForm());
     }
 
     @Transactional
@@ -190,10 +190,10 @@ public class WordService {
                 .build();
     }
 
-    private WordResponse convertToResponse(Word word, boolean isBookmarked, VariantType variantType, String originalForm) {
+    private WordResponse convertToResponse(Word word, boolean isBookmarked, VariantType variantType, String searchedWord, String originalForm) {
         return WordResponse.builder()
                 .id(word.getId())
-                .word(word.getWord())
+                .word(searchedWord)
                 .originalForm(originalForm)
                 .variantType(variantType)
                 .partOfSpeech(word.getPartOfSpeech())
