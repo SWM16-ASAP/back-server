@@ -160,7 +160,6 @@ class WordServiceTest {
         when(wordRepository.save(any(Word.class))).thenReturn(savedWord);
         when(wordBookmarkRepository.existsByUserIdAndWord(userId, newWord)).thenReturn(false);
         when(wordVariantRepository.findByWordIn(anyList())).thenReturn(List.of());
-        when(wordVariantRepository.findByWord(newWord)).thenReturn(Optional.empty());
 
         // when
         WordSearchResponse response = wordService.getOrCreateWords(userId, newWord, LanguageCode.KO);
@@ -190,7 +189,7 @@ class WordServiceTest {
 
         when(wordVariantRepository.findAllByWord(variantWord)).thenReturn(List.of(wordVariant));
         when(wordRepository.findByWordAndTargetLanguageCode("run", LanguageCode.KO)).thenReturn(Optional.of(sampleWord));
-        when(wordBookmarkRepository.existsByUserIdAndWord(userId, variantWord)).thenReturn(false);
+        when(wordBookmarkRepository.existsByUserIdAndWord(userId, "run")).thenReturn(false);
 
         // when
         WordSearchResponse response = wordService.getOrCreateWords(userId, variantWord, LanguageCode.KO);
