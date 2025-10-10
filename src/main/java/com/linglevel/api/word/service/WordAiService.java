@@ -36,6 +36,8 @@ public class WordAiService {
             Analyze the word: {word}
             Target translation language: {targetLanguage}
 
+            **CRITICAL RULE: If the input word '{word}' is nonsensical, gibberish, a typo, or a word that cannot be meaningfully analyzed, you MUST return an empty JSON array: []**
+
             IMPORTANT: Check if this word is a HOMOGRAPH (same spelling but multiple completely different origins/meanings).
             Examples of homographs:
             - "saw": 1) past tense of "see" (보다) AND 2) noun "saw" (톱, 도구)
@@ -55,8 +57,8 @@ public class WordAiService {
                * For nouns: singular form (e.g., "saw" for "saws")
                * If input is already the base form, return the same word
             4. variantType: ORIGINAL_FORM, PAST_TENSE, PAST_PARTICIPLE, PRESENT_PARTICIPLE, THIRD_PERSON, COMPARATIVE, SUPERLATIVE, PLURAL, or UNDEFINED
-            5. summary: List of 3 most frequently used meanings in target language (e.g., ["보다", "알다", "이해하다"])
-            6. meanings: Array of meaning objects, each containing:
+            5. summary: List of UP TO 3 most common key meanings in target language. Order them by frequency of use. (e.g., ["달리다", "운영하다", "작동하다"])
+            6. meanings: Array of UP TO 15 meaning objects, ordered from most common to least common. It's crucial to only include meanings that are genuinely used. Omit very rare or obscure meanings. Each object should contain:
                * partOfSpeech: "verb", "noun", "adjective", "adverb", etc.
                * meaning: Detailed explanation in target language
                * example: English sentence using the originalForm wrapped in angle brackets <originalForm>
@@ -132,10 +134,6 @@ public class WordAiService {
             log.info("AI Response for word '{}' (target: {}): {}", word, targetLanguage, response);
 
             WordAnalysisResult[] results = outputConverter.convert(response);
-
-            if (results == null || results.length == 0) {
-                throw new IllegalStateException("AI returned empty result for word: " + word);
-            }
 
             // Validation 수행
             for (WordAnalysisResult result : results) {

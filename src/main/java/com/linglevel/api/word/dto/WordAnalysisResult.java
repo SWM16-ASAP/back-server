@@ -37,12 +37,11 @@ public class WordAnalysisResult {
     @JsonProperty("targetLanguageCode")
     private LanguageCode targetLanguageCode;
 
-    @NotEmpty(message = "summary는 최소 1개 이상이어야 합니다")
-    @Size(max = 3, message = "summary는 최대 3개까지만 허용됩니다")
+    @Size(max = 3, message = "summary는 최대 3개까지 가능합니다")
     @JsonProperty("summary")
     private List<String> summary;
 
-    @NotEmpty(message = "meanings는 최소 1개 이상이어야 합니다")
+    @Size(max = 15, message = "meanings는 최대 15개까지 가능합니다")
     @Valid
     @JsonProperty("meanings")
     private List<Meaning> meanings;
