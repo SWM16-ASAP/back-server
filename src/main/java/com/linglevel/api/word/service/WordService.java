@@ -59,7 +59,7 @@ public class WordService {
                 return wordRepository.save(newWord);
             });
 
-            boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, word);
+            boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordVariant.getOriginalForm());
 
             WordResponse response = convertToResponse(
                 originalWord,
