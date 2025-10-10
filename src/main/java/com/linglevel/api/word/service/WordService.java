@@ -123,7 +123,8 @@ public class WordService {
         });
 
         // 2. 입력 단어를 WordVariant에 저장 (언어 중립적, 중복 체크)
-        Optional<WordVariant> existingVariant = wordVariantRepository.findByWord(word);
+        // 중요: word와 originalForm 둘 다 체크해야 함 (homograph 대응)
+        Optional<WordVariant> existingVariant = wordVariantRepository.findByWordAndOriginalForm(word, originalForm);
         if (existingVariant.isPresent()) {
             log.info("Variant already exists: {} -> {}", word, originalForm);
             return existingVariant.get();
@@ -259,6 +260,81 @@ public class WordService {
                 .meanings(word.getMeanings())  // Meaning을 그대로 사용
                 .relatedForms(word.getRelatedForms())
                 .bookmarked(isBookmarked)
+                .build();
+    }
+
+    /**
+     * 관리자 전용: 단어를 AI로 강제 재분석
+     *
+     * @param word 재분석할 단어
+     * @param targetLanguage 번역 대상 언어
+     * @param overwrite true: 기존 데이터 삭제 후 재생성, false: 기존 유지 + 새로운 의미 추가
+     * @return WordSearchResponse
+     */
+    @Transactional
+    public WordSearchResponse forceReanalyzeWord(String word, LanguageCode targetLanguage, boolean overwrite) {
+        log.info("Force re-analyzing word '{}' with targetLanguage={}, overwrite={}",
+                word, targetLanguage, overwrite);
+
+        if (overwrite) {
+            // overwrite=true: 기존 WordVariant와 관련된 Word도 모두 삭제
+            List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
+            if (!existingVariants.isEmpty()) {
+                // 관련된 원형 단어들의 Word 엔티티 삭제
+                for (WordVariant variant : existingVariants) {
+                    String originalForm = variant.getOriginalForm();
+                    wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
+                            originalForm, LanguageCode.EN, targetLanguage
+                    ).ifPresent(wordToDelete -> {
+                        wordRepository.delete(wordToDelete);
+                        log.info("Deleted Word: {} ({} -> {})", originalForm, LanguageCode.EN, targetLanguage);
+                    });
+                }
+
+                // WordVariant 삭제
+                wordVariantRepository.deleteAll(existingVariants);
+                log.info("Deleted {} existing WordVariants for word '{}'", existingVariants.size(), word);
+            }
+        }
+
+        // AI로 재분석
+        log.info("Calling AI to re-analyze word '{}'...", word);
+        List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
+
+        if (analysisResults.isEmpty()) {
+            throw new WordsException(WordsErrorCode.WORD_NOT_FOUND);
+        }
+
+        // 분석 결과를 DB에 저장 (overwrite=false면 중복 체크로 인해 새로운 것만 추가됨)
+        List<WordVariant> savedVariants = new ArrayList<>();
+        for (WordAnalysisResult analysisResult : analysisResults) {
+            WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
+            savedVariants.add(savedVariant);
+        }
+
+        log.info("Force re-analysis completed. Saved {} variants", savedVariants.size());
+
+        // 결과를 WordSearchResponse로 변환하여 반환
+        // userId는 null로 전달 (어드민 API이므로 북마크 체크 불필요)
+        List<WordResponse> results = new ArrayList<>();
+        for (WordVariant wordVariant : savedVariants) {
+            Word originalWord = wordRepository.findByWordAndTargetLanguageCode(
+                    wordVariant.getOriginalForm(),
+                    targetLanguage
+            ).orElseThrow(() -> new WordsException(WordsErrorCode.WORD_NOT_FOUND));
+
+            WordResponse response = convertToResponse(
+                    originalWord,
+                    false, // 어드민 API이므로 북마크 체크하지 않음
+                    wordVariant.getVariantType(),
+                    wordVariant.getOriginalForm()
+            );
+            results.add(response);
+        }
+
+        return WordSearchResponse.builder()
+                .searchedWord(word)
+                .results(results)
                 .build();
     }
 }
