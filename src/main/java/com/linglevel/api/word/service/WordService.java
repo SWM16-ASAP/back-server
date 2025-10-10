@@ -1,10 +1,8 @@
 package com.linglevel.api.word.service;
 
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
-import com.linglevel.api.word.dto.Definition;
-import com.linglevel.api.word.dto.VariantType;
-import com.linglevel.api.word.dto.WordAnalysisResult;
-import com.linglevel.api.word.dto.WordResponse;
+import com.linglevel.api.i18n.LanguageCode;
+import com.linglevel.api.word.dto.*;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.exception.WordsErrorCode;
@@ -13,9 +11,6 @@ import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,58 +29,106 @@ public class WordService {
     private final WordVariantRepository wordVariantRepository;
     private final WordAiService wordAiService;
 
-    public WordResponse getOrCreateWord(String userId, String word) {
-        WordVariant wordVariant = getOrCreateWordEntity(word);
-        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, word);
+    public WordSearchResponse getOrCreateWords(String userId, String word, LanguageCode targetLanguage) {
+        List<WordVariant> wordVariants = getOrCreateWordEntities(word, targetLanguage);
 
-        // 원형 단어 가져오기
-        Word originalWord = wordRepository.findByWord(wordVariant.getOriginalForm())
-                .orElseThrow(() -> new WordsException(WordsErrorCode.WORD_NOT_FOUND));
+        // 각 원형에 대한 WordResponse 생성
+        List<WordResponse> results = new ArrayList<>();
 
-        return convertToResponse(originalWord, isBookmarked, wordVariant.getVariantType(), word, wordVariant.getOriginalForm());
+        for (WordVariant wordVariant : wordVariants) {
+            // 원형 단어를 targetLanguage로 번역된 것 가져오기
+            Word originalWord = wordRepository.findByWordAndTargetLanguageCode(
+                    wordVariant.getOriginalForm(),
+                    targetLanguage
+            ).orElseGet(() -> {
+                // 해당 언어로 번역된 Word가 없으면 AI로 새로 생성
+                log.info("Word '{}' not found for targetLanguage {}, creating new one...",
+                    wordVariant.getOriginalForm(), targetLanguage);
+
+                List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(
+                    wordVariant.getOriginalForm(),
+                    targetLanguage.getCode()
+                );
+
+                if (analysisResults.isEmpty()) {
+                    throw new WordsException(WordsErrorCode.WORD_NOT_FOUND);
+                }
+
+                // Word 생성 및 저장
+                Word newWord = convertAnalysisResultToWord(analysisResults.get(0));
+                return wordRepository.save(newWord);
+            });
+
+            boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, word);
+
+            WordResponse response = convertToResponse(
+                originalWord,
+                isBookmarked,
+                wordVariant.getVariantType(),
+                wordVariant.getOriginalForm()
+            );
+
+            results.add(response);
+        }
+
+        return WordSearchResponse.builder()
+                .searchedWord(word)
+                .results(results)
+                .build();
     }
 
     @Transactional
-    public WordVariant getOrCreateWordEntity(String word) {
-
+    public List<WordVariant> getOrCreateWordEntities(String word, LanguageCode targetLanguage) {
         // 1. WordVariant에서 검색 (변형 형태인지 확인)
-        Optional<WordVariant> variantOpt = wordVariantRepository.findByWord(word);
-        if (variantOpt.isPresent()) {
-            return variantOpt.get();
+        List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
+        if (!existingVariants.isEmpty()) {
+            log.info("Found {} existing variants for word '{}'", existingVariants.size(), word);
+            return existingVariants;
         }
 
         // 2. DB에 없으면 AI 호출 (트랜잭션 밖에서 호출)
         log.info("Word '{}' not found in database. Calling AI to analyze...", word);
-        WordAnalysisResult analysisResult = wordAiService.analyzeWord(word);
+        List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
 
         // 3. 트랜잭션 내에서 DB 저장 처리
-        return saveWordFromAnalysis(word, analysisResult);
+        List<WordVariant> savedVariants = new ArrayList<>();
+        for (WordAnalysisResult analysisResult : analysisResults) {
+            WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
+            savedVariants.add(savedVariant);
+        }
+
+        return savedVariants;
     }
+
 
     @Transactional
     public WordVariant saveWordFromAnalysis(String word, WordAnalysisResult analysisResult) {
-        // 1. 원형 단어가 이미 존재하는지 확인
+        // 1. 원형 단어가 해당 언어 쌍으로 이미 존재하는지 확인
         String originalForm = analysisResult.getOriginalForm();
-        Word originalWord = wordRepository.findByWord(originalForm)
-                .orElseGet(() -> {
-                    // 원형 단어가 없으면 새로 저장
-                    Word newWord = convertAnalysisResultToWord(analysisResult);
-                    Word savedWord = wordRepository.save(newWord);
-                    log.info("Saved new original word: {}", originalForm);
-                    
-                    // 변형 형태들을 WordVariant에 저장
-                    saveWordVariants(savedWord);
-                    
-                    return savedWord;
-                });
+        LanguageCode sourceLanguageCode = analysisResult.getSourceLanguageCode();
+        LanguageCode targetLanguageCode = analysisResult.getTargetLanguageCode();
 
+        wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
+                originalForm, sourceLanguageCode, targetLanguageCode
+        ).orElseGet(() -> {
+            // 해당 언어 쌍으로 번역된 Word가 없으면 새로 저장
+            Word newWord = convertAnalysisResultToWord(analysisResult);
+            Word savedWord = wordRepository.save(newWord);
+            log.info("Saved new word: {} ({} -> {})", originalForm, sourceLanguageCode, targetLanguageCode);
+
+            // 변형 형태들을 WordVariant에 저장 (언어 중립적)
+            saveWordVariants(savedWord);
+
+            return savedWord;
+        });
+
+        // 2. 입력 단어를 WordVariant에 저장 (언어 중립적, 중복 체크)
         Optional<WordVariant> existingVariant = wordVariantRepository.findByWord(word);
         if (existingVariant.isPresent()) {
             log.info("Variant already exists: {} -> {}", word, originalForm);
             return existingVariant.get();
         }
 
-        // 2. 입력 단어를 WordVariant에 저장 (중복 체크)
         VariantType variantType = analysisResult.getVariantType() != null
                 ? analysisResult.getVariantType()
                 : VariantType.ORIGINAL_FORM;
@@ -98,21 +141,20 @@ public class WordService {
     }
 
     private Word convertAnalysisResultToWord(WordAnalysisResult result) {
-        List<Definition> definitions = List.of(
-                Definition.builder()
-                        .meaningsKo(result.getMeaningsKo())
-                        .meaningsJa(result.getMeaningsJa())
-                        .examples(result.getExamples())
-                        .build()
-        );
-
-        return Word.builder()
-                .word(result.getOriginalForm())
-                .partOfSpeech(result.getPartOfSpeech())
+        // RelatedForms 구성
+        RelatedForms relatedForms = RelatedForms.builder()
                 .conjugations(result.getConjugations())
                 .comparatives(result.getComparatives())
                 .plural(result.getPlural())
-                .definitions(definitions)
+                .build();
+
+        return Word.builder()
+                .word(result.getOriginalForm())
+                .sourceLanguageCode(result.getSourceLanguageCode())
+                .targetLanguageCode(result.getTargetLanguageCode())
+                .summary(result.getSummary())
+                .meanings(result.getMeanings())  // AI의 Meaning을 그대로 저장
+                .relatedForms(relatedForms)
                 .build();
     }
 
@@ -120,9 +162,14 @@ public class WordService {
     public void saveWordVariants(Word word) {
         List<WordVariant> variants = new ArrayList<>();
 
+        RelatedForms relatedForms = word.getRelatedForms();
+        if (relatedForms == null) {
+            return;
+        }
+
         // 동사 변형 저장
-        if (word.getConjugations() != null) {
-            var conj = word.getConjugations();
+        if (relatedForms.getConjugations() != null) {
+            var conj = relatedForms.getConjugations();
             if (conj.getPast() != null && !conj.getPast().equals(word.getWord())) {
                 variants.add(createVariant(conj.getPast(), word.getWord(), VariantType.PAST_TENSE));
             }
@@ -138,8 +185,8 @@ public class WordService {
         }
 
         // 형용사/부사 변형 저장
-        if (word.getComparatives() != null) {
-            var comp = word.getComparatives();
+        if (relatedForms.getComparatives() != null) {
+            var comp = relatedForms.getComparatives();
             if (comp.getComparative() != null && !comp.getComparative().equals(word.getWord())) {
                 variants.add(createVariant(comp.getComparative(), word.getWord(), VariantType.COMPARATIVE));
             }
@@ -149,8 +196,8 @@ public class WordService {
         }
 
         // 명사 복수형 저장
-        if (word.getPlural() != null) {
-            var plural = word.getPlural();
+        if (relatedForms.getPlural() != null) {
+            var plural = relatedForms.getPlural();
             if (plural.getPlural() != null && !plural.getPlural().equals(word.getWord())) {
                 variants.add(createVariant(plural.getPlural(), word.getWord(), VariantType.PLURAL));
             }
@@ -201,24 +248,17 @@ public class WordService {
                 .build();
     }
 
-    private WordResponse convertToResponse(Word word, boolean isBookmarked, VariantType variantType, String searchedWord, String originalForm) {
+    private WordResponse convertToResponse(Word word, boolean isBookmarked, VariantType variantType, String originalForm) {
         return WordResponse.builder()
                 .id(word.getId())
-                .word(searchedWord)
                 .originalForm(originalForm)
                 .variantType(variantType)
-                .partOfSpeech(word.getPartOfSpeech())
-                .definitions(word.getDefinitions())
-                .relatedForms(buildRelatedForms(word))
+                .sourceLanguageCode(word.getSourceLanguageCode())
+                .targetLanguageCode(word.getTargetLanguageCode())
+                .summary(word.getSummary())
+                .meanings(word.getMeanings())  // Meaning을 그대로 사용
+                .relatedForms(word.getRelatedForms())
                 .bookmarked(isBookmarked)
-                .build();
-    }
-
-    private com.linglevel.api.word.dto.RelatedForms buildRelatedForms(Word word) {
-        return com.linglevel.api.word.dto.RelatedForms.builder()
-                .conjugations(word.getConjugations())
-                .comparatives(word.getComparatives())
-                .plural(word.getPlural())
                 .build();
     }
 }

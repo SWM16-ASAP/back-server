@@ -2,7 +2,9 @@ package com.linglevel.api.admin.migration;
 
 import com.linglevel.api.bookmark.entity.WordBookmark;
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
+import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordResponse;
+import com.linglevel.api.word.dto.WordSearchResponse;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import com.linglevel.api.word.service.WordService;
@@ -64,7 +66,23 @@ public class BookmarkMigrationController {
 
                 // AI를 통해 단어 새로 생성 및 원형 획득
                 log.info("Restoring and normalizing: {} (userId: {})", currentWord, userId);
-                WordResponse wordResponse = wordService.getOrCreateWord(userId, currentWord);
+                WordSearchResponse searchResponse = wordService.getOrCreateWords(userId, currentWord, LanguageCode.KO);
+
+                if (searchResponse.getResults().isEmpty()) {
+                    log.warn("No results for word: {}", currentWord);
+                    failed++;
+                    continue;
+                }
+
+                // 첫 번째 (가장 일반적인) 원형만 처리
+                List<WordResponse> results = searchResponse.getResults();
+                log.info("Found {} original form(s) for '{}': {}",
+                    results.size(),
+                    currentWord,
+                    results.stream().map(WordResponse::getOriginalForm).toList());
+
+                // 첫 번째 결과만 사용 (가장 일반적인 의미)
+                WordResponse wordResponse = results.get(0);
                 String originalForm = wordResponse.getOriginalForm();
 
                 restoredWords.add(originalForm); // 복원된 원형 단어 추적
@@ -77,9 +95,8 @@ public class BookmarkMigrationController {
 
                 log.info("Normalizing bookmark: {} -> {} (userId: {})", currentWord, originalForm, userId);
 
-                // 원형으로 업데이트 시도
+                // 기존 북마크 업데이트
                 bookmark.setWord(originalForm);
-
                 try {
                     wordBookmarkRepository.save(bookmark);
                     normalized++;
