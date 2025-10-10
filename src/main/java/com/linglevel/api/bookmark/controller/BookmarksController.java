@@ -9,6 +9,8 @@ import com.linglevel.api.bookmark.service.BookmarkService;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.word.exception.WordsException;
+import com.linglevel.api.word.validator.WordValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +34,7 @@ import jakarta.validation.Valid;
 public class BookmarksController {
 
     private final BookmarkService bookmarkService;
+    private final WordValidator wordValidator;
 
     @Operation(summary = "북마크된 단어 목록 조회", description = "현재 사용자가 북마크한 단어 목록을 조회합니다.")
     @ApiResponses(value = {
@@ -63,7 +66,8 @@ public class BookmarksController {
             @Parameter(description = "북마크할 단어", example = "magnificent")
             @PathVariable String word,
             @AuthenticationPrincipal JwtClaims claims) {
-        bookmarkService.addWordBookmark(claims.getId(), word);
+        String validatedWord = wordValidator.validateAndPreprocess(word);
+        bookmarkService.addWordBookmark(claims.getId(), validatedWord);
         return ResponseEntity.ok(new MessageResponse("Word bookmarked successfully."));
     }
 
@@ -81,7 +85,8 @@ public class BookmarksController {
             @Parameter(description = "북마크 해제할 단어", example = "magnificent")
             @PathVariable String word,
             @AuthenticationPrincipal JwtClaims claims) {
-        bookmarkService.removeWordBookmark(claims.getId(), word);
+        String validatedWord = wordValidator.validateAndPreprocess(word);
+        bookmarkService.removeWordBookmark(claims.getId(), validatedWord);
         return ResponseEntity.ok(new MessageResponse("Word bookmark removed successfully."));
     }
 
@@ -96,13 +101,21 @@ public class BookmarksController {
             @Parameter(description = "토글할 단어", example = "magnificent")
             @PathVariable String word,
             @AuthenticationPrincipal JwtClaims claims) {
-        boolean bookmarked = bookmarkService.toggleWordBookmark(claims.getId(), word);
+        String validatedWord = wordValidator.validateAndPreprocess(word);
+        boolean bookmarked = bookmarkService.toggleWordBookmark(claims.getId(), validatedWord);
         return ResponseEntity.ok(new BookmarkToggleResponse(bookmarked));
     }
 
     @ExceptionHandler(BookmarksException.class)
     public ResponseEntity<ExceptionResponse> handleBookmarksException(BookmarksException e) {
         log.info("Bookmarks Exception: {}", e.getMessage());
+        return ResponseEntity.status(e.getStatus())
+                .body(new ExceptionResponse(e));
+    }
+
+    @ExceptionHandler(WordsException.class)
+    public ResponseEntity<ExceptionResponse> handleWordsException(WordsException e) {
+        log.info("Words Exception in Bookmarks: {}", e.getMessage());
         return ResponseEntity.status(e.getStatus())
                 .body(new ExceptionResponse(e));
     }

@@ -6,6 +6,7 @@ import com.linglevel.api.word.dto.WordSearchRequest;
 import com.linglevel.api.word.dto.WordSearchResponse;
 import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.service.WordService;
+import com.linglevel.api.word.validator.WordValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 public class WordsController {
 
     private final WordService wordService;
+    private final WordValidator wordValidator;
 
     @Operation(summary = "단일 단어 조회", description = "특정 단어의 상세 정보를 조회합니다. Homograph인 경우 여러 결과를 반환합니다. 현재 사용자의 북마크 상태도 함께 반환됩니다.")
     @ApiResponses(value = {
@@ -44,7 +46,8 @@ public class WordsController {
             @PathVariable String word,
             @ParameterObject @Valid @ModelAttribute WordSearchRequest request,
             @AuthenticationPrincipal JwtClaims claims) {
-        WordSearchResponse response = wordService.getOrCreateWords(claims.getId(), word, request.getTargetLanguage());
+        String validatedWord = wordValidator.validateAndPreprocess(word);
+        WordSearchResponse response = wordService.getOrCreateWords(claims.getId(), validatedWord, request.getTargetLanguage());
         return ResponseEntity.ok(response);
     }
 
