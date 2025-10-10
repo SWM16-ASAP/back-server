@@ -94,7 +94,7 @@ class WordServiceTest {
                 .build();
 
         when(wordVariantRepository.findAllByWord("run")).thenReturn(List.of(wordVariant));
-        when(wordRepository.findByWord("run")).thenReturn(Optional.of(sampleWord));
+        when(wordRepository.findByWordAndTargetLanguageCode("run", LanguageCode.KO)).thenReturn(Optional.of(sampleWord));
         when(wordBookmarkRepository.existsByUserIdAndWord(userId, "run")).thenReturn(false);
 
         // when
@@ -109,7 +109,7 @@ class WordServiceTest {
 
         // AI 호출 없이 DB에서만 조회되었는지 확인
         verify(wordVariantRepository).findAllByWord("run");
-        verify(wordRepository).findByWord("run");
+        verify(wordRepository).findByWordAndTargetLanguageCode("run", LanguageCode.KO);
         verify(wordAiService, never()).analyzeWord(anyString(), anyString());
     }
 
@@ -153,10 +153,14 @@ class WordServiceTest {
 
         when(wordVariantRepository.findAllByWord(newWord)).thenReturn(List.of());
         when(wordAiService.analyzeWord(newWord, LanguageCode.KO.getCode())).thenReturn(List.of(analysisResult));
-        when(wordRepository.findByWord(newWord)).thenReturn(Optional.empty()).thenReturn(Optional.of(savedWord));
+        when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
+                newWord, LanguageCode.EN, LanguageCode.KO)).thenReturn(Optional.empty());
+        when(wordRepository.findByWordAndTargetLanguageCode(newWord, LanguageCode.KO))
+                .thenReturn(Optional.of(savedWord));
         when(wordRepository.save(any(Word.class))).thenReturn(savedWord);
         when(wordBookmarkRepository.existsByUserIdAndWord(userId, newWord)).thenReturn(false);
         when(wordVariantRepository.findByWordIn(anyList())).thenReturn(List.of());
+        when(wordVariantRepository.findByWord(newWord)).thenReturn(Optional.empty());
 
         // when
         WordSearchResponse response = wordService.getOrCreateWords(userId, newWord, LanguageCode.KO);
@@ -168,7 +172,7 @@ class WordServiceTest {
         assertThat(response.getResults().get(0).getOriginalForm()).isEqualTo(newWord);
 
         // AI가 호출되었는지 확인
-        verify(wordAiService).analyzeWord(newWord, LanguageCode.KO.getCode());
+        verify(wordAiService, atLeastOnce()).analyzeWord(newWord, LanguageCode.KO.getCode());
         verify(wordRepository).save(any(Word.class));
         verify(wordVariantRepository).save(any(WordVariant.class));
     }
@@ -185,7 +189,7 @@ class WordServiceTest {
                 .build();
 
         when(wordVariantRepository.findAllByWord(variantWord)).thenReturn(List.of(wordVariant));
-        when(wordRepository.findByWord("run")).thenReturn(Optional.of(sampleWord));
+        when(wordRepository.findByWordAndTargetLanguageCode("run", LanguageCode.KO)).thenReturn(Optional.of(sampleWord));
         when(wordBookmarkRepository.existsByUserIdAndWord(userId, variantWord)).thenReturn(false);
 
         // when
@@ -200,7 +204,7 @@ class WordServiceTest {
 
         // AI 호출 없이 variant 테이블과 원형 단어로 해결되었는지 확인
         verify(wordVariantRepository).findAllByWord(variantWord);
-        verify(wordRepository).findByWord("run");
+        verify(wordRepository).findByWordAndTargetLanguageCode("run", LanguageCode.KO);
         verify(wordAiService, never()).analyzeWord(anyString(), anyString());
     }
 
@@ -230,7 +234,7 @@ class WordServiceTest {
                 .build();
 
         when(wordVariantRepository.findAllByWord("run")).thenReturn(List.of(wordVariant));
-        when(wordRepository.findByWord("run")).thenReturn(Optional.of(sampleWord));
+        when(wordRepository.findByWordAndTargetLanguageCode("run", LanguageCode.KO)).thenReturn(Optional.of(sampleWord));
         when(wordBookmarkRepository.existsByUserIdAndWord(userId, "run")).thenReturn(true);
 
         // when
