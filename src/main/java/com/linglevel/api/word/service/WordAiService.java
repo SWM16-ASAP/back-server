@@ -33,52 +33,41 @@ public class WordAiService {
     }
 
     private static final String PROMPT_TEMPLATE = """
-            Analyze the word: {word}
-            Target translation language: {targetLanguage}
+            Word: {word} | Target: {targetLanguage}
 
-            **CRITICAL RULE: If the input word '{word}' is nonsensical, gibberish, a typo, or a word that cannot be meaningfully analyzed, you MUST return an empty JSON array: []**
+            **CRITICAL: If '{word}' is nonsensical/gibberish/typo, return []**
 
-            IMPORTANT: Check if this word is a HOMOGRAPH (same spelling but multiple completely different origins/meanings).
-            Examples of homographs:
-            - "saw": 1) past tense of "see" (보다) AND 2) noun "saw" (톱, 도구)
-            - "rose": 1) past tense of "rise" (오르다) AND 2) noun "rose" (장미)
-            - "left": 1) past tense of "leave" (떠나다) AND 2) adjective "left" (왼쪽의)
+            HOMOGRAPH CHECK: Same spelling, multiple distinct origins?
+            (e.g., "saw"=past of see + noun톱, "left"=past of leave + adj왼쪽, "rose"=past of rise + noun장미)
+            → YES: Return array with separate entry per origin | NO: Single-element array
 
-            If this is a HOMOGRAPH with multiple distinct origins:
-            - Return a JSON ARRAY with separate analysis for EACH original form
-            - Each analysis should be independent with its own originalForm, meanings, relatedForms, etc.
+            STRUCTURE:
+            1. sourceLanguageCode/targetLanguageCode: "EN", "KO", etc.
+            2. originalForm: Base form (verbs→infinitive, adj→positive, nouns→singular)
+            3. variantType: ORIGINAL_FORM|PAST_TENSE|PAST_PARTICIPLE|PRESENT_PARTICIPLE|THIRD_PERSON|COMPARATIVE|SUPERLATIVE|PLURAL|UNDEFINED
+            4. summary: Max 3 common translations (e.g., ["달리다","운영하다"])
+            5. meanings: Max 15 objects (common→rare, omit obscure ones)
+               - partOfSpeech: verb, noun, adjective, adverb, etc.
+               - meaning: Detailed explanation in target language
+               - example: **CRITICAL: Wrap <originalForm> NOT input. Avoid he/she/it+verb (grammar error).**
+                 CORRECT: "I <run>", "You <run>", "They <run>" | WRONG: "She <run>"✗, "I <ran>"✗
+               - exampleTranslation: Translation in target language
+            6. conjugations: (verbs only) present, past, pastParticiple, presentParticiple, thirdPerson
+            7. comparatives: (adj only) positive, comparative, superlative
+            8. plural: (nouns only) singular, plural
 
-            For EACH distinct word origin, provide:
-            1. sourceLanguageCode: The language of the input word (e.g., "EN", "KO", "JA")
-            2. targetLanguageCode: The target translation language code (e.g., "KO", "EN", "JA")
-            3. originalForm: The base/dictionary form following these rules:
-               * For verbs: base form/infinitive (e.g., "run" for "ran")
-               * For adjectives: positive form (e.g., "pretty" for "prettiest")
-               * For nouns: singular form (e.g., "saw" for "saws")
-               * If input is already the base form, return the same word
-            4. variantType: ORIGINAL_FORM, PAST_TENSE, PAST_PARTICIPLE, PRESENT_PARTICIPLE, THIRD_PERSON, COMPARATIVE, SUPERLATIVE, PLURAL, or UNDEFINED
-            5. summary: List of UP TO 3 most common key meanings in target language. Order them by frequency of use. (e.g., ["달리다", "운영하다", "작동하다"])
-            6. meanings: Array of UP TO 15 meaning objects, ordered from most common to least common. It's crucial to only include meanings that are genuinely used. Omit very rare or obscure meanings. Each object should contain:
-               * partOfSpeech: "verb", "noun", "adjective", "adverb", etc.
-               * meaning: Detailed explanation in target language
-               * example: English sentence using the originalForm wrapped in angle brackets <originalForm>
-               * exampleTranslation: Translation of the example in target language
-            7. conjugations: (only for verbs) present, past, pastParticiple, presentParticiple, thirdPerson
-            8. comparatives: (only for adjectives) positive, comparative, superlative
-            9. plural: (only for nouns) singular, plural
-
-            Example for homograph "saw":
+            EXAMPLE - "saw" homograph:
             [
               {{
                 "originalForm": "see",
                 "variantType": "PAST_TENSE",
                 "sourceLanguageCode": "EN",
                 "targetLanguageCode": "KO",
-                "summary": ["보다", "알다", "이해하다"],
+                "summary": ["보다", "알다"],
                 "meanings": [
                   {{
                     "partOfSpeech": "verb",
-                    "meaning": "보다, 시각적으로 인지하다",
+                    "meaning": "시각적으로 인지하다",
                     "example": "I <see> him every day.",
                     "exampleTranslation": "나는 매일 그를 봅니다."
                   }}
@@ -92,13 +81,13 @@ public class WordAiService {
                 "variantType": "ORIGINAL_FORM",
                 "sourceLanguageCode": "EN",
                 "targetLanguageCode": "KO",
-                "summary": ["톱", "톱질하다"],
+                "summary": ["톱"],
                 "meanings": [
                   {{
                     "partOfSpeech": "noun",
-                    "meaning": "톱 (나무나 금속을 자르는 도구)",
+                    "meaning": "톱 (자르는 도구)",
                     "example": "I need a <saw>.",
-                    "exampleTranslation": "나는 톱이 필요합니다."
+                    "exampleTranslation": "톱이 필요합니다."
                   }}
                 ],
                 "conjugations": null,
@@ -106,8 +95,6 @@ public class WordAiService {
                 "plural": {{"singular": "saw", "plural": "saws"}}
               }}
             ]
-
-            If NOT a homograph, return a single-element array.
 
             {format}
             """;
