@@ -54,14 +54,13 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                 );
 
-        http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
-
         if (testAuthFilter != null) {
             http.addFilterBefore(testAuthFilter, UsernamePasswordAuthenticationFilter.class);
         }
 
         http.addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(rateLimitFilter, JwtFilter.class);
         return http.build();
     }
 
