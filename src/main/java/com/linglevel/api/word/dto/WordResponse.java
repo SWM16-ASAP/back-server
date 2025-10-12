@@ -21,8 +21,8 @@ public class WordResponse {
     @Schema(description = "원형", example = "see")
     private String originalForm;
 
-    @Schema(description = "변형 형태 타입")
-    private VariantType variantType;
+    @Schema(description = "변형 형태 타입 (배열)")
+    private List<VariantType> variantTypes;
 
     @Schema(description = "원본 언어 코드", example = "en")
     private LanguageCode sourceLanguageCode;

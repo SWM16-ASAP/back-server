@@ -64,7 +64,7 @@ public class WordService {
             WordResponse response = convertToResponse(
                 originalWord,
                 isBookmarked,
-                wordVariant.getVariantType(),
+                wordVariant.getVariantTypes(),
                 wordVariant.getOriginalForm()
             );
 
@@ -130,13 +130,13 @@ public class WordService {
             return existingVariant.get();
         }
 
-        VariantType variantType = analysisResult.getVariantType() != null
-                ? analysisResult.getVariantType()
-                : VariantType.ORIGINAL_FORM;
+        List<VariantType> variantTypes = analysisResult.getVariantTypes() != null && !analysisResult.getVariantTypes().isEmpty()
+                ? analysisResult.getVariantTypes()
+                : List.of(VariantType.ORIGINAL_FORM);
 
-        WordVariant inputVariant = createVariant(word, originalForm, variantType);
+        WordVariant inputVariant = createVariant(word, originalForm, variantTypes);
         wordVariantRepository.save(inputVariant);
-        log.info("Saved input variant: {} -> {} ({})", word, originalForm, variantType);
+        log.info("Saved input variant: {} -> {} ({})", word, originalForm, variantTypes);
 
         return inputVariant;
     }
@@ -172,16 +172,16 @@ public class WordService {
         if (relatedForms.getConjugations() != null) {
             var conj = relatedForms.getConjugations();
             if (conj.getPast() != null && !conj.getPast().equals(word.getWord())) {
-                variants.add(createVariant(conj.getPast(), word.getWord(), VariantType.PAST_TENSE));
+                variants.add(createVariant(conj.getPast(), word.getWord(), List.of(VariantType.PAST_TENSE)));
             }
             if (conj.getPastParticiple() != null && !conj.getPastParticiple().equals(word.getWord())) {
-                variants.add(createVariant(conj.getPastParticiple(), word.getWord(), VariantType.PAST_PARTICIPLE));
+                variants.add(createVariant(conj.getPastParticiple(), word.getWord(), List.of(VariantType.PAST_PARTICIPLE)));
             }
             if (conj.getPresentParticiple() != null && !conj.getPresentParticiple().equals(word.getWord())) {
-                variants.add(createVariant(conj.getPresentParticiple(), word.getWord(), VariantType.PRESENT_PARTICIPLE));
+                variants.add(createVariant(conj.getPresentParticiple(), word.getWord(), List.of(VariantType.PRESENT_PARTICIPLE)));
             }
             if (conj.getThirdPerson() != null && !conj.getThirdPerson().equals(word.getWord())) {
-                variants.add(createVariant(conj.getThirdPerson(), word.getWord(), VariantType.THIRD_PERSON));
+                variants.add(createVariant(conj.getThirdPerson(), word.getWord(), List.of(VariantType.THIRD_PERSON)));
             }
         }
 
@@ -189,10 +189,10 @@ public class WordService {
         if (relatedForms.getComparatives() != null) {
             var comp = relatedForms.getComparatives();
             if (comp.getComparative() != null && !comp.getComparative().equals(word.getWord())) {
-                variants.add(createVariant(comp.getComparative(), word.getWord(), VariantType.COMPARATIVE));
+                variants.add(createVariant(comp.getComparative(), word.getWord(), List.of(VariantType.COMPARATIVE)));
             }
             if (comp.getSuperlative() != null && !comp.getSuperlative().equals(word.getWord())) {
-                variants.add(createVariant(comp.getSuperlative(), word.getWord(), VariantType.SUPERLATIVE));
+                variants.add(createVariant(comp.getSuperlative(), word.getWord(), List.of(VariantType.SUPERLATIVE)));
             }
         }
 
@@ -200,7 +200,7 @@ public class WordService {
         if (relatedForms.getPlural() != null) {
             var plural = relatedForms.getPlural();
             if (plural.getPlural() != null && !plural.getPlural().equals(word.getWord())) {
-                variants.add(createVariant(plural.getPlural(), word.getWord(), VariantType.PLURAL));
+                variants.add(createVariant(plural.getPlural(), word.getWord(), List.of(VariantType.PLURAL)));
             }
         }
 
@@ -235,25 +235,25 @@ public class WordService {
             if (!newVariants.isEmpty()) {
                 wordVariantRepository.saveAll(newVariants);
                 newVariants.forEach(variant ->
-                    log.info("Saved variant: {} -> {} ({})", variant.getWord(), variant.getOriginalForm(), variant.getVariantType())
+                    log.info("Saved variant: {} -> {} ({})", variant.getWord(), variant.getOriginalForm(), variant.getVariantTypes())
                 );
             }
         }
     }
 
-    private WordVariant createVariant(String variantWord, String originalForm, VariantType type) {
+    private WordVariant createVariant(String variantWord, String originalForm, List<VariantType> types) {
         return WordVariant.builder()
                 .word(variantWord)
                 .originalForm(originalForm)
-                .variantType(type)
+                .variantTypes(types)
                 .build();
     }
 
-    private WordResponse convertToResponse(Word word, boolean isBookmarked, VariantType variantType, String originalForm) {
+    private WordResponse convertToResponse(Word word, boolean isBookmarked, List<VariantType> variantTypes, String originalForm) {
         return WordResponse.builder()
                 .id(word.getId())
                 .originalForm(originalForm)
-                .variantType(variantType)
+                .variantTypes(variantTypes)
                 .sourceLanguageCode(word.getSourceLanguageCode())
                 .targetLanguageCode(word.getTargetLanguageCode())
                 .summary(word.getSummary())
@@ -326,7 +326,7 @@ public class WordService {
             WordResponse response = convertToResponse(
                     originalWord,
                     false, // 어드민 API이므로 북마크 체크하지 않음
-                    wordVariant.getVariantType(),
+                    wordVariant.getVariantTypes(),
                     wordVariant.getOriginalForm()
             );
             results.add(response);

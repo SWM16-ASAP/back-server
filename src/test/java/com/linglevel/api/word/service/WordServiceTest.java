@@ -90,7 +90,7 @@ class WordServiceTest {
         WordVariant wordVariant = WordVariant.builder()
                 .word("run")
                 .originalForm("run")
-                .variantType(VariantType.ORIGINAL_FORM)
+                .variantTypes(List.of(VariantType.ORIGINAL_FORM))
                 .build();
 
         when(wordVariantRepository.findAllByWord("run")).thenReturn(List.of(wordVariant));
@@ -121,7 +121,7 @@ class WordServiceTest {
 
         WordAnalysisResult analysisResult = WordAnalysisResult.builder()
                 .originalForm(newWord)
-                .variantType(VariantType.ORIGINAL_FORM)
+                .variantTypes(List.of(VariantType.ORIGINAL_FORM))
                 .sourceLanguageCode(LanguageCode.EN)
                 .targetLanguageCode(LanguageCode.KO)
                 .summary(List.of("훌륭한", "장엄한", "멋진"))
@@ -184,7 +184,7 @@ class WordServiceTest {
         WordVariant wordVariant = WordVariant.builder()
                 .word(variantWord)
                 .originalForm("run")
-                .variantType(VariantType.PAST_TENSE)
+                .variantTypes(List.of(VariantType.PAST_TENSE))
                 .build();
 
         when(wordVariantRepository.findAllByWord(variantWord)).thenReturn(List.of(wordVariant));
@@ -199,7 +199,7 @@ class WordServiceTest {
         assertThat(response.getSearchedWord()).isEqualTo(variantWord);
         assertThat(response.getResults()).hasSize(1);
         assertThat(response.getResults().get(0).getOriginalForm()).isEqualTo("run");
-        assertThat(response.getResults().get(0).getVariantType()).isEqualTo(VariantType.PAST_TENSE);
+        assertThat(response.getResults().get(0).getVariantTypes()).contains(VariantType.PAST_TENSE);
 
         // AI 호출 없이 variant 테이블과 원형 단어로 해결되었는지 확인
         verify(wordVariantRepository).findAllByWord(variantWord);
@@ -229,7 +229,7 @@ class WordServiceTest {
         WordVariant wordVariant = WordVariant.builder()
                 .word("run")
                 .originalForm("run")
-                .variantType(VariantType.ORIGINAL_FORM)
+                .variantTypes(List.of(VariantType.ORIGINAL_FORM))
                 .build();
 
         when(wordVariantRepository.findAllByWord("run")).thenReturn(List.of(wordVariant));

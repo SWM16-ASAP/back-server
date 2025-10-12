@@ -7,6 +7,8 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.List;
+
 @Getter
 @Setter
 @Builder
@@ -23,5 +25,5 @@ public class WordVariant {
 
     private String originalForm;
 
-    private VariantType variantType;
+    private List<VariantType> variantTypes;
 }

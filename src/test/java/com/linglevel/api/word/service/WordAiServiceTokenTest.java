@@ -15,7 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * WordAiService 토큰 크기 측정 테스트
+ * WordAiService 토큰 크기 및 비용 측정 테스트
  *
  * 주의:
  * - 실제 AI API를 호출하므로 비용이 발생합니다
@@ -25,6 +25,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 실행 방법:
  * 1. @Disabled 주석 제거
  * 2. ./gradlew test --tests WordAiServiceTokenTest
+ *
+ * 참고:
+ * - WordAiService에서 자동으로 토큰 사용량과 비용을 로깅합니다
+ * - 입력: $0.00017 per 1K tokens, 출력: $0.000085 per 1K tokens
+ * - 환율: 1 USD = 1430 KRW
  */
 @SpringBootTest
 @ActiveProfiles("local")

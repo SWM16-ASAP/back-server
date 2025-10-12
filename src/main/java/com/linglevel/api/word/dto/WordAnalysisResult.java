@@ -26,8 +26,9 @@ public class WordAnalysisResult {
     @JsonProperty("originalForm")
     private String originalForm;
 
-    @JsonProperty("variantType")
-    private VariantType variantType;
+    @NotEmpty(message = "variantTypes는 최소 1개 이상이어야 합니다")
+    @JsonProperty("variantTypes")
+    private List<VariantType> variantTypes;
 
     @NotNull(message = "sourceLanguageCode는 필수입니다")
     @JsonProperty("sourceLanguageCode")

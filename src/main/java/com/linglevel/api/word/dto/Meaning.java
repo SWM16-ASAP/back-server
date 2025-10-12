@@ -23,10 +23,10 @@ public class Meaning {
     private String meaning;
 
     @NotBlank(message = "예문은 필수입니다")
-    @Schema(description = "예문", example = "I <see> him at the store yesterday.")
+    @Schema(description = "예문", example = "I see him at the store every day.")
     private String example;
 
     @NotBlank(message = "예문 번역은 필수입니다")
-    @Schema(description = "예문 번역", example = "나는 어제 가게에서 그를 봤습니다.")
+    @Schema(description = "예문 번역", example = "나는 매일 가게에서 그를 봅니다.")
     private String exampleTranslation;
 }

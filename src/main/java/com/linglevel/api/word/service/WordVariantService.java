@@ -69,11 +69,11 @@ public class WordVariantService {
         WordVariant newVariant = WordVariant.builder()
                 .word(word)
                 .originalForm(result.getOriginalForm())
-                .variantType(result.getVariantType())
+                .variantTypes(result.getVariantTypes())
                 .build();
 
         WordVariant savedVariant = wordVariantRepository.save(newVariant);
-        log.info("Saved new WordVariant: {} -> {} ({})", word, result.getOriginalForm(), result.getVariantType());
+        log.info("Saved new WordVariant: {} -> {} ({})", word, result.getOriginalForm(), result.getVariantTypes());
 
         return savedVariant;
     }

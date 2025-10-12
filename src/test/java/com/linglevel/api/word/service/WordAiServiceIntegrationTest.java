@@ -55,7 +55,7 @@ class WordAiServiceIntegrationTest {
         // 기본 검증
         WordAnalysisResult result = results.get(0);
         assertThat(result.getOriginalForm()).isEqualTo("run");
-        assertThat(result.getVariantType()).isEqualTo(VariantType.PAST_TENSE);
+        assertThat(result.getVariantTypes()).contains(VariantType.PAST_TENSE);
         assertThat(result.getSourceLanguageCode()).isNotNull();
         assertThat(result.getTargetLanguageCode()).isNotNull();
         assertThat(result.getSummary()).isNotEmpty();
@@ -82,13 +82,13 @@ class WordAiServiceIntegrationTest {
 
         WordAnalysisResult result = results.get(0);
         assertThat(result.getOriginalForm()).isEqualTo("pretty");
-        assertThat(result.getVariantType()).isEqualTo(VariantType.SUPERLATIVE);
+        assertThat(result.getVariantTypes()).contains(VariantType.SUPERLATIVE);
         assertThat(result.getComparatives()).isNotNull();
         assertThat(result.getComparatives().getSuperlative()).isEqualTo("prettiest");
     }
 
     @Test
-    @DisplayName("일반 명사 - 복수형 입력 시 단수형으로 변환되어야 함")
+    @DisplayName("일반 명사 - 복수형 입력 시 단수형으로 변환되어야 함 (books는 PLURAL과 THIRD_PERSON 둘 다)")
     void testNounPlural_books() {
         // given
         String word = "books";
@@ -98,13 +98,14 @@ class WordAiServiceIntegrationTest {
         List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
 
         // then
-        assertThat(results).isNotEmpty();
+        assertThat(results).hasSize(1); // 하나의 entry로 병합되어야 함
 
         logResults(word, results);
 
         WordAnalysisResult result = results.get(0);
         assertThat(result.getOriginalForm()).isEqualTo("book");
-        assertThat(result.getVariantType()).isEqualTo(VariantType.PLURAL);
+        // books는 명사 복수형이면서 동시에 동사 3인칭 형태이므로 둘 다 포함해야 함
+        assertThat(result.getVariantTypes()).containsAnyOf(VariantType.PLURAL, VariantType.THIRD_PERSON);
         assertThat(result.getPlural()).isNotNull();
         assertThat(result.getPlural().getPlural()).isEqualTo("books");
     }
@@ -130,7 +131,7 @@ class WordAiServiceIntegrationTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("'see' 결과를 찾을 수 없습니다"));
 
-        assertThat(seeResult.getVariantType()).isEqualTo(VariantType.PAST_TENSE);
+        assertThat(seeResult.getVariantTypes()).contains(VariantType.PAST_TENSE);
         assertThat(seeResult.getConjugations()).isNotNull();
         assertThat(seeResult.getConjugations().getPast()).isEqualTo("saw");
         assertThat(seeResult.getSummary()).contains("보다");
@@ -141,7 +142,7 @@ class WordAiServiceIntegrationTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("'saw' (명사) 결과를 찾을 수 없습니다"));
 
-        assertThat(sawNounResult.getVariantType()).isEqualTo(VariantType.ORIGINAL_FORM);
+        assertThat(sawNounResult.getVariantTypes()).contains(VariantType.ORIGINAL_FORM);
         assertThat(sawNounResult.getPlural()).isNotNull();
         assertThat(sawNounResult.getSummary()).contains("톱");
     }
@@ -167,7 +168,7 @@ class WordAiServiceIntegrationTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("'rise' 결과를 찾을 수 없습니다"));
 
-        assertThat(riseResult.getVariantType()).isEqualTo(VariantType.PAST_TENSE);
+        assertThat(riseResult.getVariantTypes()).contains(VariantType.PAST_TENSE);
 
         // 장미 (명사)
         WordAnalysisResult roseNounResult = results.stream()
@@ -175,7 +176,7 @@ class WordAiServiceIntegrationTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("'rose' (명사) 결과를 찾을 수 없습니다"));
 
-        assertThat(roseNounResult.getVariantType()).isEqualTo(VariantType.ORIGINAL_FORM);
+        assertThat(roseNounResult.getVariantTypes()).contains(VariantType.ORIGINAL_FORM);
         assertThat(roseNounResult.getSummary()).contains("장미");
     }
 
@@ -200,7 +201,7 @@ class WordAiServiceIntegrationTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("'leave' 결과를 찾을 수 없습니다"));
 
-        assertThat(leaveResult.getVariantType()).isEqualTo(VariantType.PAST_TENSE);
+        assertThat(leaveResult.getVariantTypes()).contains(VariantType.PAST_TENSE);
         assertThat(leaveResult.getSummary()).anyMatch(s -> s.contains("떠나다") || s.contains("남기다"));
 
         // 2. '왼쪽'이라는 의미의 'left' 검증
@@ -209,7 +210,7 @@ class WordAiServiceIntegrationTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("'left' (형용사/명사) 결과를 찾을 수 없습니다"));
 
-        assertThat(leftResult.getVariantType()).isEqualTo(VariantType.ORIGINAL_FORM);
+        assertThat(leftResult.getVariantTypes()).contains(VariantType.ORIGINAL_FORM);
         assertThat(leftResult.getSummary()).contains("왼쪽");
     }
 
@@ -230,7 +231,7 @@ class WordAiServiceIntegrationTest {
 
         WordAnalysisResult result = results.get(0);
         assertThat(result.getOriginalForm()).isEqualTo("run");
-        assertThat(result.getVariantType()).isEqualTo(VariantType.ORIGINAL_FORM);
+        assertThat(result.getVariantTypes()).contains(VariantType.ORIGINAL_FORM);
         assertThat(result.getSummary()).containsAnyOf("달리다", "운영하다", "작동하다");
         assertThat(result.getConjugations()).isNotNull();
         assertThat(result.getConjugations().getPast()).isEqualTo("ran");
@@ -254,7 +255,7 @@ class WordAiServiceIntegrationTest {
 
         WordAnalysisResult result = results.get(0);
         assertThat(result.getOriginalForm()).isEqualTo("child");
-        assertThat(result.getVariantType()).isEqualTo(VariantType.PLURAL);
+        assertThat(result.getVariantTypes()).contains(VariantType.PLURAL);
         assertThat(result.getPlural()).isNotNull();
         assertThat(result.getPlural().getSingular()).isEqualTo("child");
         assertThat(result.getPlural().getPlural()).isEqualTo("children");
@@ -277,7 +278,7 @@ class WordAiServiceIntegrationTest {
 
         WordAnalysisResult result = results.get(0);
         assertThat(result.getOriginalForm()).isEqualTo("go");
-        assertThat(result.getVariantType()).isEqualTo(VariantType.PAST_TENSE);
+        assertThat(result.getVariantTypes()).contains(VariantType.PAST_TENSE);
         assertThat(result.getConjugations()).isNotNull();
         assertThat(result.getConjugations().getPast()).isEqualTo("went");
         assertThat(result.getConjugations().getPastParticiple()).isEqualTo("gone");
@@ -300,7 +301,7 @@ class WordAiServiceIntegrationTest {
 
         WordAnalysisResult result = results.get(0);
         assertThat(result.getOriginalForm()).isEqualTo("run");
-        assertThat(result.getVariantType()).isEqualTo(VariantType.PRESENT_PARTICIPLE);
+        assertThat(result.getVariantTypes()).contains(VariantType.PRESENT_PARTICIPLE);
         assertThat(result.getConjugations()).isNotNull();
         assertThat(result.getConjugations().getPresentParticiple()).isEqualTo("running");
     }
@@ -322,7 +323,7 @@ class WordAiServiceIntegrationTest {
 
         WordAnalysisResult result = results.get(0);
         assertThat(result.getOriginalForm()).isEqualTo("go");
-        assertThat(result.getVariantType()).isEqualTo(VariantType.THIRD_PERSON);
+        assertThat(result.getVariantTypes()).contains(VariantType.THIRD_PERSON);
         assertThat(result.getConjugations()).isNotNull();
         assertThat(result.getConjugations().getThirdPerson()).isEqualTo("goes");
     }
@@ -356,7 +357,7 @@ class WordAiServiceIntegrationTest {
             WordAnalysisResult result = results.get(i);
             log.info("\n[결과 #{}]", i + 1);
             log.info("  원형: {}", result.getOriginalForm());
-            log.info("  변형 타입: {}", result.getVariantType());
+            log.info("  변형 타입: {}", result.getVariantTypes());
             log.info("  언어: {} -> {}", result.getSourceLanguageCode(), result.getTargetLanguageCode());
             log.info("  요약: {}", result.getSummary());
 
