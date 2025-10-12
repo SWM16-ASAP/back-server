@@ -5,10 +5,10 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum CountryCode {
-    KR("KR", "South Korea"),
-    US("US", "United States"),
-    JP("JP", "Japan");
+public enum LanguageCode {
+    KO("KO", "Korean"),
+    EN("EN", "English"),
+    JA("JA", "Japanese");
 
     private final String code;
     private final String description;

@@ -7,7 +7,7 @@ import com.linglevel.api.bookmark.exception.BookmarksException;
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.repository.WordRepository;
-import com.linglevel.api.word.service.WordService;
+import com.linglevel.api.word.service.WordVariantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -30,7 +30,7 @@ public class BookmarkService {
 
     private final WordBookmarkRepository wordBookmarkRepository;
     private final WordRepository wordRepository;
-    private final WordService wordService;
+    private final WordVariantService wordVariantService;
 
     public Page<BookmarkedWordResponse> getBookmarkedWords(String userId, int page, int limit, String search) {
         Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "bookmarkedAt"));
@@ -55,51 +55,54 @@ public class BookmarkService {
     
     @Transactional
     public void addWordBookmark(String userId, String wordStr) {
-        // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
-        wordService.getOrCreateWordEntity(wordStr);
+        // 단어의 원형 찾기 (언어 중립적)
+        String originalForm = wordVariantService.getOriginalForm(wordStr);
 
-        if (wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
+        if (wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_ALREADY_BOOKMARKED);
         }
 
         WordBookmark bookmark = WordBookmark.builder()
                 .userId(userId)
-                .word(wordStr)
+                .word(originalForm)
                 .bookmarkedAt(LocalDateTime.now())
                 .build();
-        
+
         wordBookmarkRepository.save(bookmark);
     }
     
     @Transactional
     public void removeWordBookmark(String userId, String wordStr) {
-        if (!wordRepository.existsByWord(wordStr)) {
+        // 단어의 원형 찾기 (언어 중립적)
+        String originalForm = wordVariantService.getOriginalForm(wordStr);
+
+        if (!wordVariantService.exists(originalForm)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND);
         }
 
-        if (!wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
+        if (!wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_BOOKMARK_NOT_FOUND);
         }
 
-        wordBookmarkRepository.deleteByUserIdAndWord(userId, wordStr);
+        wordBookmarkRepository.deleteByUserIdAndWord(userId, originalForm);
     }
     
     @Transactional
     public boolean toggleWordBookmark(String userId, String wordStr) {
-        // 단어 존재 확인, 없으면 WordService를 통해 자동 생성
-        wordService.getOrCreateWordEntity(wordStr);
+        // 단어의 원형 찾기 (언어 중립적)
+        String originalForm = wordVariantService.getOriginalForm(wordStr);
 
-        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr);
-        
+        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm);
+
         if (isBookmarked) {
             // 북마크 해제
-            wordBookmarkRepository.deleteByUserIdAndWord(userId, wordStr);
+            wordBookmarkRepository.deleteByUserIdAndWord(userId, originalForm);
             return false;
         } else {
             // 북마크 추가
             WordBookmark bookmark = WordBookmark.builder()
                     .userId(userId)
-                    .word(wordStr)
+                    .word(originalForm)
                     .bookmarkedAt(LocalDateTime.now())
                     .build();
             wordBookmarkRepository.save(bookmark);
