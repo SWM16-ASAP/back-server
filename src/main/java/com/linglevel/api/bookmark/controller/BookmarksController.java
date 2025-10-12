@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit.KeyType;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +63,7 @@ public class BookmarksController {
             @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
+    @RateLimit(capacity = 30, refillMinutes = 1, keyType = KeyType.USER)
     @PostMapping("/words/{word}")
     public ResponseEntity<MessageResponse> addWordBookmark(
             @Parameter(description = "북마크할 단어", example = "magnificent")
@@ -96,6 +99,7 @@ public class BookmarksController {
             @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
+    @RateLimit(capacity = 30, refillMinutes = 1, keyType = KeyType.USER)
     @PutMapping("/words/{word}/toggle")
     public ResponseEntity<BookmarkToggleResponse> toggleWordBookmark(
             @Parameter(description = "토글할 단어", example = "magnificent")
