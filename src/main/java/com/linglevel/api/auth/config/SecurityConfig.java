@@ -4,7 +4,7 @@ import com.linglevel.api.auth.filter.AdminAuthenticationFilter;
 import com.linglevel.api.auth.filter.TestAuthFilter;
 import com.linglevel.api.auth.handler.CustomAuthenticationEntryPoint;
 import com.linglevel.api.auth.jwt.JwtFilter;
-import com.linglevel.api.common.filter.RateLimitFilter;
+import com.linglevel.api.common.ratelimit.filter.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;

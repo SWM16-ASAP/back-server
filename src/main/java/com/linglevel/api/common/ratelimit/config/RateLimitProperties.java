@@ -1,4 +1,4 @@
-package com.linglevel.api.common.config;
+package com.linglevel.api.common.ratelimit.config;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -2,7 +2,10 @@ package com.linglevel.api.common.filter;
 
 import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.AbstractRedisTest;
-import com.linglevel.api.common.config.RateLimitProperties;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit;
+import com.linglevel.api.common.ratelimit.config.RateLimitProperties;
+import com.linglevel.api.common.ratelimit.filter.RateLimitFilter;
+import com.linglevel.api.common.ratelimit.filter.RateLimitResolver;
 import com.linglevel.api.user.entity.UserRole;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
 import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
@@ -38,6 +41,7 @@ class RateLimitFilterTest extends AbstractRedisTest {
     private ProxyManager<String> proxyManager;
     private RedisClient redisClient;
     private StatefulRedisConnection<String, byte[]> redisConnection;
+    private RateLimitResolver rateLimitResolver;
 
     private HttpServletRequest request;
     private HttpServletResponse response;
@@ -76,8 +80,12 @@ class RateLimitFilterTest extends AbstractRedisTest {
         refill.setDuration(duration);
         properties.setRefill(refill);
 
+        // RateLimitResolver mock 생성
+        rateLimitResolver = mock(RateLimitResolver.class);
+        when(rateLimitResolver.resolveRateLimit(any())).thenReturn(null); // No annotation (default)
+
         // RateLimitFilter 생성
-        rateLimitFilter = new RateLimitFilter(proxyManager, properties);
+        rateLimitFilter = new RateLimitFilter(proxyManager, properties, rateLimitResolver);
 
         // Redis 플러시
         redisConnection.sync().flushall();
@@ -264,5 +272,123 @@ class RateLimitFilterTest extends AbstractRedisTest {
         verify(response, atLeastOnce()).setStatus(429);
         String responseBody = stringWriter.toString();
         assertTrue(responseBody.contains("Too many requests"));
+    }
+
+    // ========== Annotation-based Rate Limiting Tests ==========
+
+    @Test
+    void testCustomIpBasedRateLimitWithAnnotation() throws Exception {
+        // Given: Mock annotation with 5 requests per minute, IP-based
+        RateLimit annotation = mock(RateLimit.class);
+        when(annotation.capacity()).thenReturn(5);
+        when(annotation.refillMinutes()).thenReturn(1L);
+        when(annotation.keyType()).thenReturn(RateLimit.KeyType.IP);
+        when(rateLimitResolver.resolveRateLimit(any())).thenReturn(annotation);
+
+        // When: Make 5 requests (should all succeed)
+        for (int i = 0; i < 5; i++) {
+            rateLimitFilter.doFilter(request, response, filterChain);
+        }
+
+        // Then: 6th request should be rate limited
+        rateLimitFilter.doFilter(request, response, filterChain);
+
+        verify(response, atLeastOnce()).setStatus(429);
+        String responseBody = stringWriter.toString();
+        assertTrue(responseBody.contains("Too many requests"));
+    }
+
+    @Test
+    void testCustomUserBasedRateLimitWithAnnotation() throws Exception {
+        // Given: Mock annotation with 10 requests per minute, USER-based
+        RateLimit annotation = mock(RateLimit.class);
+        when(annotation.capacity()).thenReturn(10);
+        when(annotation.refillMinutes()).thenReturn(1L);
+        when(annotation.keyType()).thenReturn(RateLimit.KeyType.USER);
+        when(rateLimitResolver.resolveRateLimit(any())).thenReturn(annotation);
+
+        // Authenticate user
+        JwtClaims user = createTestUser("test-user-123", "test@example.com", "Test User");
+        authenticateUser(user);
+
+        // When: Make 10 requests (should all succeed)
+        for (int i = 0; i < 10; i++) {
+            rateLimitFilter.doFilter(request, response, filterChain);
+        }
+
+        // Then: 11th request should be rate limited
+        rateLimitFilter.doFilter(request, response, filterChain);
+
+        verify(response, atLeastOnce()).setStatus(429);
+        String responseBody = stringWriter.toString();
+        assertTrue(responseBody.contains("Too many requests"));
+    }
+
+    @Test
+    void testCustomAutoRateLimitWithAuthentication() throws Exception {
+        // Given: Mock annotation with 15 requests per minute, AUTO (with authenticated user)
+        RateLimit annotation = mock(RateLimit.class);
+        when(annotation.capacity()).thenReturn(15);
+        when(annotation.refillMinutes()).thenReturn(1L);
+        when(annotation.keyType()).thenReturn(RateLimit.KeyType.AUTO);
+        when(rateLimitResolver.resolveRateLimit(any())).thenReturn(annotation);
+
+        // Authenticate user
+        JwtClaims user = createTestUser("auto-user-123", "auto@example.com", "Auto User");
+        authenticateUser(user);
+
+        // When: Make 15 requests (should all succeed)
+        for (int i = 0; i < 15; i++) {
+            rateLimitFilter.doFilter(request, response, filterChain);
+        }
+
+        // Then: 16th request should be rate limited
+        rateLimitFilter.doFilter(request, response, filterChain);
+
+        verify(response, atLeastOnce()).setStatus(429);
+    }
+
+    @Test
+    void testAnnotationOverridesGlobalConfig() throws Exception {
+        // Given: Annotation with stricter limit (3 requests) than global (100 requests)
+        RateLimit annotation = mock(RateLimit.class);
+        when(annotation.capacity()).thenReturn(3);
+        when(annotation.refillMinutes()).thenReturn(1L);
+        when(annotation.keyType()).thenReturn(RateLimit.KeyType.IP);
+        when(rateLimitResolver.resolveRateLimit(any())).thenReturn(annotation);
+
+        // When: Make 3 requests (should succeed)
+        for (int i = 0; i < 3; i++) {
+            rateLimitFilter.doFilter(request, response, filterChain);
+        }
+
+        // Then: 4th request should be rate limited (not 101st, proving annotation overrides global)
+        rateLimitFilter.doFilter(request, response, filterChain);
+
+        verify(response, atLeastOnce()).setStatus(429);
+        String responseBody = stringWriter.toString();
+        assertTrue(responseBody.contains("Too many requests"));
+    }
+
+    @Test
+    void testUserBasedKeyTypeWithoutAuthenticationFallsBackToIp() throws Exception {
+        // Given: USER key type but no authentication
+        RateLimit annotation = mock(RateLimit.class);
+        when(annotation.capacity()).thenReturn(5);
+        when(annotation.refillMinutes()).thenReturn(1L);
+        when(annotation.keyType()).thenReturn(RateLimit.KeyType.USER);
+        when(rateLimitResolver.resolveRateLimit(any())).thenReturn(annotation);
+
+        SecurityContextHolder.clearContext(); // Ensure no authentication
+
+        // When: Make 5 requests (should succeed using IP fallback)
+        for (int i = 0; i < 5; i++) {
+            rateLimitFilter.doFilter(request, response, filterChain);
+        }
+
+        // Then: 6th request should be rate limited
+        rateLimitFilter.doFilter(request, response, filterChain);
+
+        verify(response, atLeastOnce()).setStatus(429);
     }
 }
