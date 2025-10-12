@@ -3,10 +3,12 @@ package com.linglevel.api.word.service;
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.*;
+import com.linglevel.api.word.entity.InvalidWord;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
+import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +30,7 @@ public class WordService {
     private final WordRepository wordRepository;
     private final WordBookmarkRepository wordBookmarkRepository;
     private final WordVariantRepository wordVariantRepository;
+    private final InvalidWordRepository invalidWordRepository;
     private final WordAiService wordAiService;
 
     public WordSearchResponse getOrCreateWords(String userId, String word, LanguageCode targetLanguage) {
@@ -51,7 +55,10 @@ public class WordService {
                 );
 
                 if (analysisResults.isEmpty()) {
-                    throw new WordsException(WordsErrorCode.WORD_NOT_FOUND);
+                    // AI가 원형을 분석하지 못한 경우 (거의 발생하지 않아야 함)
+                    log.warn("AI could not analyze the original form '{}' for word '{}'",
+                        wordVariant.getOriginalForm(), word);
+                    throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
                 }
 
                 // Word 생성 및 저장
@@ -86,11 +93,24 @@ public class WordService {
             return existingVariants;
         }
 
-        // 2. DB에 없으면 AI 호출 (트랜잭션 밖에서 호출)
+        // 2. InvalidWord 캐시 확인 - AI 재호출 방지
+        if (invalidWordRepository.existsByWord(word)) {
+            log.info("Word '{}' found in invalid word cache. Skipping AI call.", word);
+            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
+        }
+
+        // 3. DB에 없으면 AI 호출
         log.info("Word '{}' not found in database. Calling AI to analyze...", word);
         List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
 
-        // 3. 트랜잭션 내에서 DB 저장 처리
+        // 4. AI 분석 결과가 비어있으면 InvalidWord로 캐싱
+        if (analysisResults.isEmpty()) {
+            log.info("AI returned empty result for '{}'. Caching as invalid word.", word);
+            saveInvalidWord(word);
+            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
+        }
+
+        // 5. 트랜잭션 내에서 DB 저장 처리
         List<WordVariant> savedVariants = new ArrayList<>();
         for (WordAnalysisResult analysisResult : analysisResults) {
             WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
@@ -259,6 +279,35 @@ public class WordService {
                 .build();
     }
 
+    /**
+     * 유효하지 않은 단어를 캐시에 저장 (AI 재호출 방지)
+     */
+    @Transactional
+    public void saveInvalidWord(String word) {
+        Optional<InvalidWord> existingInvalidWord = invalidWordRepository.findByWord(word);
+
+        if (existingInvalidWord.isPresent()) {
+            // 이미 존재하면 시도 횟수만 증가
+            InvalidWord invalidWord = existingInvalidWord.get();
+            invalidWord.setAttemptCount(invalidWord.getAttemptCount() + 1);
+            invalidWordRepository.save(invalidWord);
+            log.info("Updated invalid word '{}' attempt count: {}", word, invalidWord.getAttemptCount());
+        } else {
+            // 새로 저장
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime expiresAt = now.plusDays(30); // 30일 후 만료
+
+            InvalidWord invalidWord = InvalidWord.builder()
+                    .word(word)
+                    .attemptedAt(now)
+                    .attemptCount(1)
+                    .expiresAt(expiresAt) // 30일 후 자동 삭제
+                    .build();
+            invalidWordRepository.save(invalidWord);
+            log.info("Cached invalid word '{}' (will expire at {})", word, expiresAt);
+        }
+    }
+
     private WordResponse convertToResponse(Word word, boolean isBookmarked, List<VariantType> variantTypes, String originalForm) {
         return WordResponse.builder()
                 .id(word.getId())
@@ -312,7 +361,8 @@ public class WordService {
         List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
 
         if (analysisResults.isEmpty()) {
-            throw new WordsException(WordsErrorCode.WORD_NOT_FOUND);
+            log.warn("AI returned empty result for '{}' during force re-analysis.", word);
+            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
         }
 
         // 분석 결과를 DB에 저장 (overwrite=false면 중복 체크로 인해 새로운 것만 추가됨)

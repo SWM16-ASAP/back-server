@@ -61,9 +61,9 @@ public class WordVariantService {
         List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, LanguageCode.KO.getCode());
 
         if (analysisResults.isEmpty()) {
-            throw new WordsException(WordsErrorCode.WORD_NOT_FOUND);
+            log.warn("AI could not find original form for word '{}'", word);
+            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
         }
-
         // 3. 첫 번째 결과로 WordVariant 생성 및 저장
         WordAnalysisResult result = analysisResults.get(0);
         WordVariant newVariant = WordVariant.builder()

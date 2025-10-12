@@ -5,6 +5,7 @@ import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.*;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
+import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,9 @@ class WordServiceTest {
 
     @Mock
     private WordAiService wordAiService;
+
+    @Mock
+    private InvalidWordRepository invalidWordRepository;
 
     @InjectMocks
     private WordService wordService;
