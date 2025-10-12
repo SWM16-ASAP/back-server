@@ -47,6 +47,7 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	implementation 'com.sksamuel.scrimage:scrimage-core:4.3.5'
 	implementation 'com.sksamuel.scrimage:scrimage-webp:4.3.5'
+	implementation 'com.github.vladimir-bukhtoyarov:bucket4j-core:8.0.1'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
