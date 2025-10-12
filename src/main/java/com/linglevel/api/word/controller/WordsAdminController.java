@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit.KeyType;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -49,6 +51,7 @@ public class WordsAdminController {
             @ApiResponse(responseCode = "401", description = "인증 실패 (관리자 권한 필요)",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
+    @RateLimit(capacity = 5, refillMinutes = 10, keyType = KeyType.IP)
     @PostMapping("/{word}/force-analyze")
     public ResponseEntity<WordSearchResponse> forceAnalyzeWord(
             @Parameter(description = "재분석할 단어", example = "saw")

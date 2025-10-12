@@ -20,7 +20,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit.KeyType;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/words")
@@ -40,6 +42,7 @@ public class WordsController {
             @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
+    @RateLimit(capacity = 30, refillMinutes = 1, keyType = KeyType.USER)
     @GetMapping("/{word}")
     public ResponseEntity<WordSearchResponse> getWord(
             @Parameter(description = "조회할 단어", example = "saw")
