@@ -110,6 +110,24 @@ public class BookmarksController {
         return ResponseEntity.ok(new BookmarkToggleResponse(bookmarked));
     }
 
+    @Operation(summary = "단어 ID로 북마크 토글", description = "특정 단어 ID의 북마크 상태를 토글합니다. 북마크되어 있으면 제거하고, 북마크되어 있지 않으면 추가합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "토글 성공", useReturnTypeSchema = true),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+            @ApiResponse(responseCode = "404", description = "단어를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @RateLimit(capacity = 30, refillMinutes = 1, keyType = KeyType.USER)
+    @PutMapping("/by-id/{wordId}/toggle")
+    public ResponseEntity<BookmarkToggleResponse> toggleWordBookmarkById(
+            @Parameter(description = "토글할 단어의 ID", example = "60d0fe4f5311236168a109ca")
+            @PathVariable String wordId,
+            @AuthenticationPrincipal JwtClaims claims) {
+        boolean bookmarked = bookmarkService.toggleWordBookmarkById(claims.getId(), wordId);
+        return ResponseEntity.ok(new BookmarkToggleResponse(bookmarked));
+    }
+
     @ExceptionHandler(BookmarksException.class)
     public ResponseEntity<ExceptionResponse> handleBookmarksException(BookmarksException e) {
         log.info("Bookmarks Exception: {}", e.getMessage());

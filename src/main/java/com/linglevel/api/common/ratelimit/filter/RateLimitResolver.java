@@ -3,6 +3,7 @@ package com.linglevel.api.common.ratelimit.filter;
 import com.linglevel.api.common.ratelimit.annotation.RateLimit;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerExecutionChain;
@@ -17,7 +18,7 @@ public class RateLimitResolver {
 
     private final RequestMappingHandlerMapping handlerMapping;
 
-    public RateLimitResolver(RequestMappingHandlerMapping handlerMapping) {
+    public RateLimitResolver(@Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping) {
         this.handlerMapping = handlerMapping;
     }
 
