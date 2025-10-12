@@ -60,13 +60,7 @@ public class BookmarkService {
     
     @Transactional
     public void addWordBookmark(String userId, String wordStr) {
-        // WordVariant와 Word를 모두 생성 (기본 언어 KO 사용)
-        // getOrCreateWords를 호출하여 Word까지 확실하게 생성
         var wordSearchResponse = wordService.getOrCreateWords(userId, wordStr, LanguageCode.KO);
-
-        if (wordSearchResponse.getResults().isEmpty()) {
-            throw new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND);
-        }
 
         // 첫 번째 원형 사용 (대부분의 경우 하나만 반환됨)
         String originalForm = wordSearchResponse.getResults().get(0).getOriginalForm();
@@ -104,10 +98,6 @@ public class BookmarkService {
     @Transactional
     public boolean toggleWordBookmark(String userId, String wordStr) {
         var wordSearchResponse = wordService.getOrCreateWords(userId, wordStr, LanguageCode.KO);
-
-        if (wordSearchResponse.getResults().isEmpty()) {
-            throw new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND);
-        }
 
         // 첫 번째 원형 사용 (대부분의 경우 하나만 반환됨)
         String originalForm = wordSearchResponse.getResults().get(0).getOriginalForm();
