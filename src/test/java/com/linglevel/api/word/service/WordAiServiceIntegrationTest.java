@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("local")
 @Slf4j
-// @Disabled("실제 AI API를 호출하므로 필요할 때만 실행 (비용 발생)")
+@Disabled("실제 AI API를 호출하므로 필요할 때만 실행 (비용 발생)")
 class WordAiServiceIntegrationTest {
 
     @Autowired
