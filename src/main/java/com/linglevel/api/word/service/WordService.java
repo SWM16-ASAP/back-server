@@ -3,10 +3,12 @@ package com.linglevel.api.word.service;
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.*;
+import com.linglevel.api.word.entity.InvalidWord;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
+import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +30,7 @@ public class WordService {
     private final WordRepository wordRepository;
     private final WordBookmarkRepository wordBookmarkRepository;
     private final WordVariantRepository wordVariantRepository;
+    private final InvalidWordRepository invalidWordRepository;
     private final WordAiService wordAiService;
 
     public WordSearchResponse getOrCreateWords(String userId, String word, LanguageCode targetLanguage) {
@@ -86,11 +90,24 @@ public class WordService {
             return existingVariants;
         }
 
-        // 2. DB에 없으면 AI 호출 (트랜잭션 밖에서 호출)
+        // 2. InvalidWord 캐시 확인 - AI 재호출 방지
+        if (invalidWordRepository.existsByWord(word)) {
+            log.info("Word '{}' found in invalid word cache. Skipping AI call.", word);
+            return List.of(); // 빈 리스트 반환 → WORD_NOT_FOUND 에러 발생
+        }
+
+        // 3. DB에 없으면 AI 호출
         log.info("Word '{}' not found in database. Calling AI to analyze...", word);
         List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
 
-        // 3. 트랜잭션 내에서 DB 저장 처리
+        // 4. AI 분석 결과가 비어있으면 InvalidWord로 캐싱
+        if (analysisResults.isEmpty()) {
+            log.info("AI returned empty result for '{}'. Caching as invalid word.", word);
+            saveInvalidWord(word);
+            return List.of();
+        }
+
+        // 5. 트랜잭션 내에서 DB 저장 처리
         List<WordVariant> savedVariants = new ArrayList<>();
         for (WordAnalysisResult analysisResult : analysisResults) {
             WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
@@ -257,6 +274,35 @@ public class WordService {
                 .originalForm(originalForm)
                 .variantTypes(types)
                 .build();
+    }
+
+    /**
+     * 유효하지 않은 단어를 캐시에 저장 (AI 재호출 방지)
+     */
+    @Transactional
+    public void saveInvalidWord(String word) {
+        Optional<InvalidWord> existingInvalidWord = invalidWordRepository.findByWord(word);
+
+        if (existingInvalidWord.isPresent()) {
+            // 이미 존재하면 시도 횟수만 증가
+            InvalidWord invalidWord = existingInvalidWord.get();
+            invalidWord.setAttemptCount(invalidWord.getAttemptCount() + 1);
+            invalidWordRepository.save(invalidWord);
+            log.info("Updated invalid word '{}' attempt count: {}", word, invalidWord.getAttemptCount());
+        } else {
+            // 새로 저장
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime expiresAt = now.plusDays(30); // 30일 후 만료
+
+            InvalidWord invalidWord = InvalidWord.builder()
+                    .word(word)
+                    .attemptedAt(now)
+                    .attemptCount(1)
+                    .expiresAt(expiresAt) // 30일 후 자동 삭제
+                    .build();
+            invalidWordRepository.save(invalidWord);
+            log.info("Cached invalid word '{}' (will expire at {})", word, expiresAt);
+        }
     }
 
     private WordResponse convertToResponse(Word word, boolean isBookmarked, List<VariantType> variantTypes, String originalForm) {

@@ -5,8 +5,11 @@ import com.linglevel.api.bookmark.entity.WordBookmark;
 import com.linglevel.api.bookmark.exception.BookmarksErrorCode;
 import com.linglevel.api.bookmark.exception.BookmarksException;
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
+import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.entity.Word;
+import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.repository.WordRepository;
+import com.linglevel.api.word.service.WordService;
 import com.linglevel.api.word.service.WordVariantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,19 +35,20 @@ public class BookmarkService {
     private final WordBookmarkRepository wordBookmarkRepository;
     private final WordRepository wordRepository;
     private final WordVariantService wordVariantService;
+    private final WordService wordService;
 
     public Page<BookmarkedWordResponse> getBookmarkedWords(String userId, int page, int limit, String search) {
         Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "bookmarkedAt"));
         
         if (search != null && !search.trim().isEmpty()) {
             // 검색어가 있는 경우: 단어를 먼저 검색한 후 북마크 필터링
-            List<Word> matchingWords = wordRepository.findByWordContainingIgnoreCase(search.trim(), PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+            List<Word> matchingWords = wordRepository.findByWordContainingIgnoreCase(search.trim(), PageRequest.of(0, 1000)).getContent();
             List<String> words = matchingWords.stream().map(Word::getWord).collect(Collectors.toList());
-            
+
             if (words.isEmpty()) {
                 return new PageImpl<>(new ArrayList<>(), pageable, 0);
             }
-            
+
             Page<WordBookmark> bookmarks = wordBookmarkRepository.findByUserIdAndWordIn(userId, words, pageable);
             return convertToBookmarkedWordResponseDirect(bookmarks);
         } else {
@@ -55,8 +60,16 @@ public class BookmarkService {
     
     @Transactional
     public void addWordBookmark(String userId, String wordStr) {
-        // 단어의 원형 찾기 (언어 중립적)
-        String originalForm = wordVariantService.getOriginalForm(wordStr);
+        // WordVariant와 Word를 모두 생성 (기본 언어 KO 사용)
+        // getOrCreateWords를 호출하여 Word까지 확실하게 생성
+        var wordSearchResponse = wordService.getOrCreateWords(userId, wordStr, LanguageCode.KO);
+
+        if (wordSearchResponse.getResults().isEmpty()) {
+            throw new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND);
+        }
+
+        // 첫 번째 원형 사용 (대부분의 경우 하나만 반환됨)
+        String originalForm = wordSearchResponse.getResults().get(0).getOriginalForm();
 
         if (wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm)) {
             throw new BookmarksException(BookmarksErrorCode.WORD_ALREADY_BOOKMARKED);
@@ -69,6 +82,7 @@ public class BookmarkService {
                 .build();
 
         wordBookmarkRepository.save(bookmark);
+        log.info("Bookmark added: userId={}, word={}", userId, originalForm);
     }
     
     @Transactional
@@ -89,14 +103,21 @@ public class BookmarkService {
     
     @Transactional
     public boolean toggleWordBookmark(String userId, String wordStr) {
-        // 단어의 원형 찾기 (언어 중립적)
-        String originalForm = wordVariantService.getOriginalForm(wordStr);
+        var wordSearchResponse = wordService.getOrCreateWords(userId, wordStr, LanguageCode.KO);
+
+        if (wordSearchResponse.getResults().isEmpty()) {
+            throw new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND);
+        }
+
+        // 첫 번째 원형 사용 (대부분의 경우 하나만 반환됨)
+        String originalForm = wordSearchResponse.getResults().get(0).getOriginalForm();
 
         boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm);
 
         if (isBookmarked) {
             // 북마크 해제
             wordBookmarkRepository.deleteByUserIdAndWord(userId, originalForm);
+            log.info("Bookmark removed: userId={}, word={}", userId, originalForm);
             return false;
         } else {
             // 북마크 추가
@@ -106,22 +127,36 @@ public class BookmarkService {
                     .bookmarkedAt(LocalDateTime.now())
                     .build();
             wordBookmarkRepository.save(bookmark);
+            log.info("Bookmark added: userId={}, word={}", userId, originalForm);
             return true;
         }
     }
     
     private Page<BookmarkedWordResponse> convertToBookmarkedWordResponseDirect(Page<WordBookmark> bookmarks) {
         List<BookmarkedWordResponse> responses = new ArrayList<>();
-        
+
         for (WordBookmark bookmark : bookmarks.getContent()) {
-             wordRepository.findByWord(bookmark.getWord())
-                    .ifPresent(word -> responses.add(BookmarkedWordResponse.builder()
-                            .id(word.getId())
-                            .word(word.getWord())
-                            .bookmarkedAt(bookmark.getBookmarkedAt())
-                            .build()));
+            // Word를 찾을 수 없어도 북마크 정보는 표시
+            Optional<Word> wordOpt = wordRepository.findByWord(bookmark.getWord());
+
+            if (wordOpt.isPresent()) {
+                Word word = wordOpt.get();
+                responses.add(BookmarkedWordResponse.builder()
+                        .id(word.getId())
+                        .word(word.getWord())
+                        .bookmarkedAt(bookmark.getBookmarkedAt())
+                        .build());
+            } else {
+                // Word가 없어도 북마크 정보만으로 응답 생성
+                log.warn("Word '{}' not found in Word collection for bookmark", bookmark.getWord());
+                responses.add(BookmarkedWordResponse.builder()
+                        .id(bookmark.getId())
+                        .word(bookmark.getWord())
+                        .bookmarkedAt(bookmark.getBookmarkedAt())
+                        .build());
+            }
         }
-        
+
         return new PageImpl<>(responses, bookmarks.getPageable(), bookmarks.getTotalElements());
     }
 }
