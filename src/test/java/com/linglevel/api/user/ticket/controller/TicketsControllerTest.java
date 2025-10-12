@@ -1,7 +1,12 @@
 package com.linglevel.api.user.ticket.controller;
 
+import com.linglevel.api.auth.filter.AdminAuthenticationFilter;
+import com.linglevel.api.auth.handler.CustomAuthenticationEntryPoint;
 import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.auth.jwt.JwtService;
+import com.linglevel.api.common.ratelimit.config.RateLimitProperties;
+import com.linglevel.api.common.ratelimit.filter.RateLimitFilter;
+import com.linglevel.api.common.ratelimit.filter.RateLimitResolver;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.entity.UserRole;
 import com.linglevel.api.user.repository.UserRepository;
@@ -10,6 +15,8 @@ import com.linglevel.api.user.ticket.dto.TicketTransactionResponse;
 import com.linglevel.api.user.ticket.exception.TicketErrorCode;
 import com.linglevel.api.user.ticket.exception.TicketException;
 import com.linglevel.api.user.ticket.service.TicketService;
+import io.github.bucket4j.distributed.proxy.ProxyManager;
+import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +34,7 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -46,8 +54,21 @@ class TicketsControllerTest {
     @MockitoBean
     private UserRepository userRepository;
 
+    // SecurityConfig에 필요한 Mock Bean들
     @MockitoBean
-    private JwtService jwtService; // JwtFilter가 SecurityConfig에 의존하므로 필요
+    private JwtService jwtService;
+    @MockitoBean
+    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+    @MockitoBean
+    private AdminAuthenticationFilter adminAuthenticationFilter;
+    @MockitoBean
+    private RateLimitFilter rateLimitFilter;
+    @MockitoBean
+    private ProxyManager<String> proxyManager;
+    @MockitoBean
+    private RateLimitProperties rateLimitProperties;
+    @MockitoBean
+    private RateLimitResolver rateLimitResolver;
 
     private User testUser;
     private TicketBalanceResponse ticketBalanceResponse;
@@ -72,6 +93,21 @@ class TicketsControllerTest {
                 .description("Test transaction")
                 .createdAt(LocalDateTime.now())
                 .build();
+
+        // Mock filters to pass through the chain
+        try {
+            doAnswer(invocation -> {
+                invocation.getArgument(2, FilterChain.class).doFilter(invocation.getArgument(0), invocation.getArgument(1));
+                return null;
+            }).when(adminAuthenticationFilter).doFilter(any(), any(), any());
+
+            doAnswer(invocation -> {
+                invocation.getArgument(2, FilterChain.class).doFilter(invocation.getArgument(0), invocation.getArgument(1));
+                return null;
+            }).when(rateLimitFilter).doFilter(any(), any(), any());
+        } catch (Exception e) {
+            // This should not happen in a test
+        }
     }
 
     private Authentication getOauthAuthentication() {
