@@ -14,10 +14,7 @@ import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -186,18 +183,21 @@ public class WordAiService {
                 validateResult(result, word);
             }
 
+            // 같은 originalForm을 가진 결과를 병합 (AI가 잘못 분리한 경우 대비)
+            List<WordAnalysisResult> mergedResults = mergeDuplicateOriginalForms(results, word);
+
             // 요약 정보 로깅
-            if (results != null && results.length > 0) {
-                String summary = Arrays.stream(results)
+            if (!mergedResults.isEmpty()) {
+                String summary = mergedResults.stream()
                     .map(r -> r.getOriginalForm() + " (" + String.join(", ", r.getVariantTypes().stream()
                         .map(Enum::name).toArray(String[]::new)) + ")")
                     .collect(Collectors.joining(", "));
-                log.info("✅ AI analysis completed for '{}': {} result(s) - {}", word, results.length, summary);
+                log.info("✅ AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
             } else {
                 log.info("✅ AI analysis completed for '{}': No results (invalid word)", word);
             }
 
-            return Arrays.asList(results);
+            return mergedResults;
         } catch (Exception e) {
             log.error("Failed to analyze word '{}' with AI (target: {})", word, targetLanguage, e);
             throw new RuntimeException("AI word analysis failed for word: " + word, e);
@@ -220,5 +220,81 @@ public class WordAiService {
         }
 
         log.debug("AI response validation passed for word '{}'", word);
+    }
+
+    /**
+     * 같은 originalForm을 가진 결과들을 하나로 병합
+     * AI가 프롬프트를 무시하고 같은 원형에 대해 여러 항목을 반환한 경우 처리
+     */
+    private List<WordAnalysisResult> mergeDuplicateOriginalForms(WordAnalysisResult[] results, String word) {
+        if (results == null || results.length == 0) {
+            return List.of();
+        }
+
+        // originalForm 기준으로 그룹화
+        Map<String, List<WordAnalysisResult>> groupedByOriginalForm = Arrays.stream(results)
+                .collect(Collectors.groupingBy(WordAnalysisResult::getOriginalForm));
+
+        List<WordAnalysisResult> mergedList = new ArrayList<>();
+
+        for (Map.Entry<String, List<WordAnalysisResult>> entry : groupedByOriginalForm.entrySet()) {
+            List<WordAnalysisResult> group = entry.getValue();
+
+            if (group.size() == 1) {
+                // 중복 없음 - 그대로 추가
+                mergedList.add(group.get(0));
+            } else {
+                // 중복 발견 - 병합 필요
+                log.warn("Merging {} duplicate entries for originalForm '{}' (input word: '{}')",
+                        group.size(), entry.getKey(), word);
+
+                WordAnalysisResult merged = mergeResults(group);
+                mergedList.add(merged);
+            }
+        }
+
+        return mergedList;
+    }
+
+    /**
+     * 같은 originalForm을 가진 여러 결과를 하나로 병합
+     */
+    private WordAnalysisResult mergeResults(List<WordAnalysisResult> results) {
+        if (results.isEmpty()) {
+            throw new IllegalArgumentException("Cannot merge empty results");
+        }
+
+        WordAnalysisResult first = results.get(0);
+
+        // variantTypes 병합 (중복 제거)
+        List<com.linglevel.api.word.dto.VariantType> mergedVariantTypes = results.stream()
+                .flatMap(r -> r.getVariantTypes().stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        // meanings 병합 (중복 제거 - partOfSpeech와 meaning이 같은 것은 제외)
+        List<com.linglevel.api.word.dto.Meaning> mergedMeanings = results.stream()
+                .flatMap(r -> r.getMeanings().stream())
+                .collect(Collectors.toMap(
+                        m -> m.getPartOfSpeech() + ":" + m.getMeaning(),
+                        m -> m,
+                        (existing, replacement) -> existing
+                ))
+                .values()
+                .stream()
+                .collect(Collectors.toList());
+
+        // 첫 번째 결과를 기반으로 병합된 결과 생성
+        return WordAnalysisResult.builder()
+                .sourceLanguageCode(first.getSourceLanguageCode())
+                .targetLanguageCode(first.getTargetLanguageCode())
+                .originalForm(first.getOriginalForm())
+                .variantTypes(mergedVariantTypes)
+                .summary(first.getSummary()) // 첫 번째 것 사용
+                .meanings(mergedMeanings)
+                .conjugations(first.getConjugations()) // 첫 번째 것 사용
+                .comparatives(first.getComparatives()) // 첫 번째 것 사용
+                .plural(first.getPlural()) // 첫 번째 것 사용
+                .build();
     }
 }

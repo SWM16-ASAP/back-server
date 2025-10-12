@@ -206,12 +206,22 @@ public class WordService {
 
         // N+1 문제 해결: 한 번에 조회 후 필터링
         if (!variants.isEmpty()) {
-            // 중복 제거: 같은 단어가 여러 번 추가되는 것 방지 (예: past와 pastParticiple이 같은 경우)
+            // 중복 제거 및 variantTypes 병합: 같은 단어가 여러 번 추가되는 경우 variantTypes를 합침
             List<WordVariant> uniqueVariants = variants.stream()
                     .collect(Collectors.toMap(
                             WordVariant::getWord,
                             variant -> variant,
-                            (existing, replacement) -> existing // 중복 시 첫 번째 것 유지
+                            (existing, replacement) -> {
+                                // 같은 단어인 경우 variantTypes를 병합
+                                List<VariantType> mergedTypes = new ArrayList<>(existing.getVariantTypes());
+                                replacement.getVariantTypes().forEach(type -> {
+                                    if (!mergedTypes.contains(type)) {
+                                        mergedTypes.add(type);
+                                    }
+                                });
+                                existing.setVariantTypes(mergedTypes);
+                                return existing;
+                            }
                     ))
                     .values()
                     .stream()
