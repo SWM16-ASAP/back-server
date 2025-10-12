@@ -1,28 +1,28 @@
 package com.linglevel.api.common.filter;
 
+import com.linglevel.api.common.config.RateLimitProperties;
 import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
+import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.Refill;
+import io.github.bucket4j.distributed.proxy.ProxyManager;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class RateLimitFilter implements Filter {
 
-    private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
-
-    // 글로벌 Rate Limit: IP당 분당 100개 요청
-    private static final int CAPACITY = 100;
-    private static final Duration REFILL_DURATION = Duration.ofMinutes(1);
+    private final ProxyManager<String> proxyManager;
+    private final RateLimitProperties rateLimitProperties;
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -32,7 +32,9 @@ public class RateLimitFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String clientIp = getClientIP(httpRequest);
-        Bucket bucket = resolveBucket(clientIp);
+        String bucketKey = "rate_limit:" + clientIp;
+
+        var bucket = proxyManager.builder().build(bucketKey, getBucketConfiguration());
 
         if (bucket.tryConsume(1)) {
             chain.doFilter(request, response);
@@ -44,15 +46,17 @@ public class RateLimitFilter implements Filter {
         }
     }
 
-    private Bucket resolveBucket(String key) {
-        return cache.computeIfAbsent(key, k -> createNewBucket());
-    }
+    private Supplier<BucketConfiguration> getBucketConfiguration() {
+        return () -> {
+            int capacity = rateLimitProperties.getCapacity();
+            long minutes = rateLimitProperties.getRefill().getDuration().getMinutes();
+            Duration refillDuration = Duration.ofMinutes(minutes);
 
-    private Bucket createNewBucket() {
-        Bandwidth limit = Bandwidth.classic(CAPACITY, Refill.intervally(CAPACITY, REFILL_DURATION));
-        return Bucket.builder()
-                .addLimit(limit)
-                .build();
+            Bandwidth limit = Bandwidth.classic(capacity, Refill.intervally(capacity, refillDuration));
+            return BucketConfiguration.builder()
+                    .addLimit(limit)
+                    .build();
+        };
     }
 
     private String getClientIP(HttpServletRequest request) {

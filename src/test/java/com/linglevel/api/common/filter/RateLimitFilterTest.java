@@ -1,12 +1,14 @@
 package com.linglevel.api.common.filter;
 
+import com.linglevel.api.common.AbstractRedisTest;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -14,17 +16,17 @@ import java.io.StringWriter;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-class RateLimitFilterTest {
+@SpringBootTest
+class RateLimitFilterTest extends AbstractRedisTest {
 
+    @Autowired
     private RateLimitFilter rateLimitFilter;
 
-    @Mock
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
     private HttpServletRequest request;
-
-    @Mock
     private HttpServletResponse response;
-
-    @Mock
     private FilterChain filterChain;
 
     private StringWriter stringWriter;
@@ -32,8 +34,12 @@ class RateLimitFilterTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        MockitoAnnotations.openMocks(this);
-        rateLimitFilter = new RateLimitFilter();
+        // Clear Redis before each test
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushAll();
+
+        request = mock(HttpServletRequest.class);
+        response = mock(HttpServletResponse.class);
+        filterChain = mock(FilterChain.class);
 
         stringWriter = new StringWriter();
         printWriter = new PrintWriter(stringWriter);
