@@ -122,6 +122,30 @@ public class BookmarkService {
         }
     }
     
+    @Transactional
+    public boolean toggleWordBookmarkById(String userId, String wordId) {
+        Word word = wordRepository.findById(wordId)
+                .orElseThrow(() -> new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND));
+
+        String originalForm = word.getWord();
+        boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm);
+
+        if (isBookmarked) {
+            wordBookmarkRepository.deleteByUserIdAndWord(userId, originalForm);
+            log.info("Bookmark removed: userId={}, wordId={}", userId, wordId);
+            return false;
+        } else {
+            WordBookmark bookmark = WordBookmark.builder()
+                    .userId(userId)
+                    .word(originalForm)
+                    .bookmarkedAt(LocalDateTime.now())
+                    .build();
+            wordBookmarkRepository.save(bookmark);
+            log.info("Bookmark added: userId={}, wordId={}", userId, wordId);
+            return true;
+        }
+    }
+
     private Page<BookmarkedWordResponse> convertToBookmarkedWordResponseDirect(Page<WordBookmark> bookmarks) {
         List<BookmarkedWordResponse> responses = new ArrayList<>();
 
