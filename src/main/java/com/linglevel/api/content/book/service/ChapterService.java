@@ -100,6 +100,11 @@ public class ChapterService {
                 .orElse(null);
 
             if (bookProgress != null) {
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (bookProgress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = bookProgress.getCurrentDifficultyLevel();
+                }
+                
                 Integer currentChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
                     ? bookProgress.getCurrentReadChapterNumber() : 0;
 
@@ -110,23 +115,20 @@ public class ChapterService {
 
                 if (chapter.getChapterNumber() < currentChapterNumber) {
                     // 현재 읽고 있는 챕터보다 이전 → 100% (이미 지나감)
-                    currentReadChunkNumber = chapter.getChunkCount();
+                    long totalChunksForLevel = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(), currentDifficultyLevel);
+                    currentReadChunkNumber = (int) totalChunksForLevel;
                     progressPercentage = 100.0;
                 } else if (chapter.getChapterNumber().equals(currentChapterNumber)) {
                     // 현재 읽고 있는 챕터 → 백분율 계산
                     currentReadChunkNumber = currentChunkNumber;
-                    if (chapter.getChunkCount() != null && chapter.getChunkCount() > 0) {
-                        progressPercentage = (double) currentChunkNumber / chapter.getChunkCount() * 100.0;
+                    long totalChunksForLevel = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(), currentDifficultyLevel);
+                    if (totalChunksForLevel > 0) {
+                        progressPercentage = (double) currentChunkNumber / totalChunksForLevel * 100.0;
                     }
                 } else {
                     // 아직 안 읽은 챕터 → 0%
                     currentReadChunkNumber = 0;
                     progressPercentage = 0.0;
-                }
-
-                // Progress가 있으면 currentDifficultyLevel 사용
-                if (bookProgress.getCurrentDifficultyLevel() != null) {
-                    currentDifficultyLevel = bookProgress.getCurrentDifficultyLevel();
                 }
             }
         }
@@ -137,7 +139,7 @@ public class ChapterService {
             .title(chapter.getTitle())
             .chapterImageUrl(chapter.getChapterImageUrl())
             .description(chapter.getDescription())
-            .chunkCount(chapter.getChunkCount())
+            .chunkCount((int) chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(), book.getDifficultyLevel()))
             .currentReadChunkNumber(currentReadChunkNumber)
             .progressPercentage(progressPercentage)
             .currentDifficultyLevel(currentDifficultyLevel)

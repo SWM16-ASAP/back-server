@@ -10,6 +10,7 @@ import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
+import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
@@ -38,6 +39,7 @@ public class ArticleService {
 
     private final ArticleRepository articleRepository;
     private final ArticleProgressRepository articleProgressRepository;
+    private final ArticleChunkRepository articleChunkRepository;
     private final ArticleImportService articleImportService;
     private final ArticleReadingTimeService articleReadingTimeService;
     private final ArticleChunkService articleChunkService;
@@ -154,9 +156,6 @@ public class ArticleService {
         String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, articlePathStrategy);
         article.setCoverImageUrl(coverImageUrl);
         
-        int chunkCount = articleImportService.calculateTotalChunkCount(importData);
-        article.setChunkCount(chunkCount);
-        
         article.setReadingTime(0);
         article.setAverageRating(0.0);
         article.setReviewCount(0);
@@ -190,17 +189,20 @@ public class ArticleService {
                     currentReadChunkNumber = 0;
                 }
 
-                if (article.getChunkCount() != null && article.getChunkCount() > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / article.getChunkCount() * 100.0;
-                }
-
-                // DB에 저장된 완료 여부 사용
-                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
-
                 // Progress가 있으면 currentDifficultyLevel 사용
                 if (progress.getCurrentDifficultyLevel() != null) {
                     currentDifficultyLevel = progress.getCurrentDifficultyLevel();
                 }
+
+                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
+                long totalChunksForLevel = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), currentDifficultyLevel);
+
+                if (totalChunksForLevel > 0) {
+                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
+                }
+
+                // DB에 저장된 완료 여부 사용
+                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
             }
         }
 
@@ -210,7 +212,7 @@ public class ArticleService {
         response.setAuthor(article.getAuthor());
         response.setCoverImageUrl(article.getCoverImageUrl());
         response.setDifficultyLevel(article.getDifficultyLevel());
-        response.setChunkCount(article.getChunkCount());
+        response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), article.getDifficultyLevel()));
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
         response.setCurrentDifficultyLevel(currentDifficultyLevel);

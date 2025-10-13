@@ -139,16 +139,20 @@ public class CustomContentService {
                     currentReadChunkNumber = 0;
                 }
 
-                if (content.getChunkCount() != null && content.getChunkCount() > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / content.getChunkCount() * 100.0;
-                }
-
-                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
-
                 // Progress가 있으면 currentDifficultyLevel 사용
                 if (progress.getCurrentDifficultyLevel() != null) {
                     currentDifficultyLevel = progress.getCurrentDifficultyLevel();
                 }
+
+                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
+                long totalChunksForLevel = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel);
+
+                if (totalChunksForLevel > 0) {
+                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
+                }
+
+                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+
             }
         }
         CustomContentResponse response = new CustomContentResponse();
@@ -158,7 +162,7 @@ public class CustomContentService {
         response.setCoverImageUrl(content.getCoverImageUrl());
         response.setDifficultyLevel(content.getDifficultyLevel());
         response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
-        response.setChunkCount(content.getChunkCount());
+        response.setChunkCount((int) customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), content.getDifficultyLevel()));
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
         response.setCurrentDifficultyLevel(currentDifficultyLevel);

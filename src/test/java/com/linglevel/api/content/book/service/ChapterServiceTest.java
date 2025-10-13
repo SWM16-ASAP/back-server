@@ -72,6 +72,8 @@ class ChapterServiceTest {
         testBook.setCreatedAt(LocalDateTime.now());
 
         when(bookService.existsById(anyString())).thenReturn(true);
+        when(bookService.findById(anyString())).thenReturn(testBook);
+        when(chunkRepository.countByChapterIdAndDifficultyLevel(anyString(), any(DifficultyLevel.class))).thenReturn(100L);
     }
 
     @Test
@@ -242,7 +244,6 @@ class ChapterServiceTest {
         chapter.setBookId(bookId);
         chapter.setChapterNumber(chapterNumber);
         chapter.setTitle(title);
-        chapter.setChunkCount(100);
         chapter.setReadingTime(30);
         return chapter;
     }
