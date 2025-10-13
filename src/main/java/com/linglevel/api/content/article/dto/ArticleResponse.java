@@ -37,6 +37,9 @@ public class ArticleResponse {
     @Schema(description = "진행률", example = "46.7")
     private Double progressPercentage;
 
+    @Schema(description = "현재 선택한 난이도", example = "EASY")
+    private DifficultyLevel currentDifficultyLevel;
+
     @Schema(description = "완료 여부", example = "false")
     private Boolean isCompleted;
     

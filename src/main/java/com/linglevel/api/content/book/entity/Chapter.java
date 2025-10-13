@@ -17,8 +17,6 @@ public class Chapter {
     
     private Integer chapterNumber;
     
-    private Integer chunkCount;
-    
     private String title;
     
     private String chapterImageUrl;

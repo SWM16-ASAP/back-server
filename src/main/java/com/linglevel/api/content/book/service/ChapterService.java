@@ -2,7 +2,9 @@ package com.linglevel.api.content.book.service;
 
 import com.linglevel.api.content.book.dto.ChapterResponse;
 import com.linglevel.api.content.book.dto.GetChaptersRequest;
+import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.Chapter;
+import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.repository.ChapterRepository;
@@ -10,6 +12,7 @@ import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +33,6 @@ public class ChapterService {
     private final ChapterRepository chapterRepository;
     private final BookProgressRepository bookProgressRepository;
     private final ChunkRepository chunkRepository;
-
     private final BookService bookService;
 
     public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request, String userId) {
@@ -89,25 +91,39 @@ public class ChapterService {
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
 
+        // Book 조회 (currentDifficultyLevel fallback용)
+        Book book = bookService.findById(bookId);
+        DifficultyLevel currentDifficultyLevel = book.getDifficultyLevel(); // Fallback: Book의 난이도
+
         if (userId != null) {
             BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElse(null);
 
             if (bookProgress != null) {
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (bookProgress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = bookProgress.getCurrentDifficultyLevel();
+                }
+                
                 Integer currentChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
                     ? bookProgress.getCurrentReadChapterNumber() : 0;
-                Integer currentChunkNumber = bookProgress.getCurrentReadChunkNumber() != null
-                    ? bookProgress.getCurrentReadChunkNumber() : 0;
+
+                // [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
+                Integer currentChunkNumber = chunkRepository.findById(bookProgress.getChunkId())
+                    .map(chunk -> chunk.getChunkNumber() != null ? chunk.getChunkNumber() : 0)
+                    .orElse(0);
 
                 if (chapter.getChapterNumber() < currentChapterNumber) {
                     // 현재 읽고 있는 챕터보다 이전 → 100% (이미 지나감)
-                    currentReadChunkNumber = chapter.getChunkCount();
+                    long totalChunksForLevel = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(), currentDifficultyLevel);
+                    currentReadChunkNumber = (int) totalChunksForLevel;
                     progressPercentage = 100.0;
                 } else if (chapter.getChapterNumber().equals(currentChapterNumber)) {
                     // 현재 읽고 있는 챕터 → 백분율 계산
                     currentReadChunkNumber = currentChunkNumber;
-                    if (chapter.getChunkCount() != null && chapter.getChunkCount() > 0) {
-                        progressPercentage = (double) currentChunkNumber / chapter.getChunkCount() * 100.0;
+                    long totalChunksForLevel = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(), currentDifficultyLevel);
+                    if (totalChunksForLevel > 0) {
+                        progressPercentage = (double) currentChunkNumber / totalChunksForLevel * 100.0;
                     }
                 } else {
                     // 아직 안 읽은 챕터 → 0%
@@ -123,9 +139,10 @@ public class ChapterService {
             .title(chapter.getTitle())
             .chapterImageUrl(chapter.getChapterImageUrl())
             .description(chapter.getDescription())
-            .chunkCount(chapter.getChunkCount())
+            .chunkCount((int) chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(), book.getDifficultyLevel()))
             .currentReadChunkNumber(currentReadChunkNumber)
             .progressPercentage(progressPercentage)
+            .currentDifficultyLevel(currentDifficultyLevel)
             .readingTime(chapter.getReadingTime())
             .build();
     }

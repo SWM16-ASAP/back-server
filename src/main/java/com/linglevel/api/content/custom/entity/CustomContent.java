@@ -42,9 +42,6 @@ public class CustomContent {
     private String coverImageUrl;
 
     @NotNull
-    private Integer chunkCount;
-
-    @NotNull
     private DifficultyLevel difficultyLevel;
 
     private List<DifficultyLevel> targetDifficultyLevels;

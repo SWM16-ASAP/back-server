@@ -17,6 +17,9 @@ public interface ChunkRepository extends MongoRepository<Chunk, String> {
     Optional<Chunk> findFirstByChapterIdOrderByChunkNumberAsc(String chapterId);
 
     Optional<Chunk> findById(String chunkId);
-    
+
     List<Chunk> findByChapterIdOrderByChunkNumber(String chapterId);
+
+    // V2 Progress: Count chunks by difficulty level
+    long countByChapterIdAndDifficultyLevel(String chapterId, DifficultyLevel difficultyLevel);
 } 

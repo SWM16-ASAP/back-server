@@ -1,5 +1,6 @@
 package com.linglevel.api.content.book.entity;
 
+import com.linglevel.api.content.common.DifficultyLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,11 +32,14 @@ public class BookProgress {
 
     private Integer currentReadChapterNumber;
 
-    private Integer currentReadChunkNumber;
-
     private Integer maxReadChapterNumber;
 
-    private Integer maxReadChunkNumber;
+    // V2 Progress Fields
+    private Double normalizedProgress;
+
+    private Double maxNormalizedProgress;
+
+    private DifficultyLevel currentDifficultyLevel;
 
     private Boolean isCompleted = false;
 

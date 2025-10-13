@@ -5,10 +5,12 @@ import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
+import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
+import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
@@ -37,8 +39,10 @@ public class ArticleService {
 
     private final ArticleRepository articleRepository;
     private final ArticleProgressRepository articleProgressRepository;
+    private final ArticleChunkRepository articleChunkRepository;
     private final ArticleImportService articleImportService;
     private final ArticleReadingTimeService articleReadingTimeService;
+    private final ArticleChunkService articleChunkService;
     private final S3AiService s3AiService;
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
@@ -152,9 +156,6 @@ public class ArticleService {
         String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, articlePathStrategy);
         article.setCoverImageUrl(coverImageUrl);
         
-        int chunkCount = articleImportService.calculateTotalChunkCount(importData);
-        article.setChunkCount(chunkCount);
-        
         article.setReadingTime(0);
         article.setAverageRating(0.0);
         article.setReviewCount(0);
@@ -171,6 +172,7 @@ public class ArticleService {
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
         boolean isCompleted = false;
+        DifficultyLevel currentDifficultyLevel = article.getDifficultyLevel(); // Fallback: Article의 난이도
 
         if (userId != null) {
             ArticleProgress progress = articleProgressRepository
@@ -178,11 +180,25 @@ public class ArticleService {
                 .orElse(null);
 
             if (progress != null) {
-                currentReadChunkNumber = progress.getCurrentReadChunkNumber() != null
-                    ? progress.getCurrentReadChunkNumber() : 0;
+                // [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
+                try {
+                    ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+                    currentReadChunkNumber = chunk.getChunkNumber() != null ? chunk.getChunkNumber() : 0;
+                } catch (Exception e) {
+                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
+                    currentReadChunkNumber = 0;
+                }
 
-                if (article.getChunkCount() != null && article.getChunkCount() > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / article.getChunkCount() * 100.0;
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (progress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+                }
+
+                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
+                long totalChunksForLevel = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), currentDifficultyLevel);
+
+                if (totalChunksForLevel > 0) {
+                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
                 }
 
                 // DB에 저장된 완료 여부 사용
@@ -196,9 +212,10 @@ public class ArticleService {
         response.setAuthor(article.getAuthor());
         response.setCoverImageUrl(article.getCoverImageUrl());
         response.setDifficultyLevel(article.getDifficultyLevel());
-        response.setChunkCount(article.getChunkCount());
+        response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), article.getDifficultyLevel()));
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
+        response.setCurrentDifficultyLevel(currentDifficultyLevel);
         response.setIsCompleted(isCompleted);
         response.setReadingTime(article.getReadingTime());
         response.setAverageRating(article.getAverageRating());

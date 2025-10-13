@@ -1,5 +1,6 @@
 package com.linglevel.api.content.custom.entity;
 
+import com.linglevel.api.content.common.DifficultyLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,9 +28,12 @@ public class CustomContentProgress {
 
     private String chunkId;
 
-    private Integer currentReadChunkNumber;
+    // V2 Progress Fields
+    private Double normalizedProgress;
 
-    private Integer maxReadChunkNumber;
+    private Double maxNormalizedProgress;
+
+    private DifficultyLevel currentDifficultyLevel;
 
     private Boolean isCompleted = false;
 

@@ -12,8 +12,9 @@ import com.linglevel.api.s3.strategy.BookPathStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,18 +27,15 @@ public class BookImportService {
     private final BookPathStrategy bookPathStrategy;
 
     public List<Chapter> createChaptersFromMetadata(BookImportData importData, String bookId) {
+        AtomicInteger chapterCounter = new AtomicInteger(1);
         List<Chapter> chapters = importData.getChapterMetadata().stream()
                 .map(metadata -> {
                     Chapter chapter = new Chapter();
                     chapter.setBookId(bookId);
-                    chapter.setChapterNumber(metadata.getChapterNum());
+                    chapter.setChapterNumber(chapterCounter.getAndIncrement());
                     chapter.setTitle(metadata.getTitle());
                     chapter.setDescription(metadata.getSummary());
                     chapter.setReadingTime(0);
-                    
-                    int chunkCount = getChunkCountForChapter(importData, metadata.getChapterNum());
-                    chapter.setChunkCount(chunkCount);
-                    
                     return chapter;
                 })
                 .collect(Collectors.toList());
@@ -46,44 +44,33 @@ public class BookImportService {
     }
 
     public void createChunksFromLeveledResults(BookImportData importData, List<Chapter> savedChapters, String databaseBookId) {
-        Map<Integer, Chapter> chapterMap = savedChapters.stream()
-                .collect(Collectors.toMap(Chapter::getChapterNumber, chapter -> chapter));
-        
-        List<Chunk> allChunks = importData.getLeveledResults().stream()
-                .flatMap(textLevelData ->
-                    textLevelData.getChapters().stream()
-                        .flatMap(chapterData ->
-                            chapterData.getChunks().stream()
-                                .map(chunkData -> createChunk(
-                                    chunkData,
-                                    chapterMap.get(chapterData.getChapterNum()),
-                                    textLevelData.getTextLevel(),
-                                    databaseBookId
-                                ))
-                        )
-                )
-                .collect(Collectors.toList());
-        
+        List<Chunk> allChunks = new ArrayList<>();
+
+        for (BookImportData.TextLevelData levelData : importData.getLeveledResults()) {
+            DifficultyLevel difficulty = DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase());
+            List<BookImportData.ChapterData> aiChapters = levelData.getChapters();
+
+            for (int i = 0; i < savedChapters.size(); i++) {
+                if (i >= aiChapters.size()) break; // Safety break if lists are not aligned
+
+                Chapter savedChapter = savedChapters.get(i);
+                BookImportData.ChapterData aiChapterData = aiChapters.get(i);
+
+                int chunkCounter = 1;
+                for (BookImportData.ChunkData chunkData : aiChapterData.getChunks()) {
+                    Chunk chunk = createChunk(chunkData, savedChapter, difficulty, databaseBookId, chunkCounter++);
+                    allChunks.add(chunk);
+                }
+            }
+        }
         chunkRepository.saveAll(allChunks);
     }
-
-    private int getChunkCountForChapter(BookImportData importData, int chapterNum) {
-        return importData.getLeveledResults().stream()
-                .findFirst()
-                .flatMap(firstLevel -> 
-                    firstLevel.getChapters().stream()
-                        .filter(chapterData -> chapterData.getChapterNum() == chapterNum)
-                        .findFirst()
-                        .map(chapterData -> chapterData.getChunks().size())
-                )
-                .orElse(0);
-    }
     
-    private Chunk createChunk(BookImportData.ChunkData chunkData, Chapter chapter, String difficultyLevel, String bookId) {
+    private Chunk createChunk(BookImportData.ChunkData chunkData, Chapter chapter, DifficultyLevel difficulty, String bookId, int chunkNumber) {
         Chunk chunk = new Chunk();
         chunk.setChapterId(chapter.getId());
-        chunk.setChunkNumber(chunkData.getChunkNum());
-        chunk.setDifficultyLevel(DifficultyLevel.valueOf(difficultyLevel.toUpperCase()));
+        chunk.setChunkNumber(chunkNumber);
+        chunk.setDifficultyLevel(difficulty);
         
         if (Boolean.TRUE.equals(chunkData.getIsImage())) {
             chunk.setType(ChunkType.IMAGE);

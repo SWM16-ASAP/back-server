@@ -6,6 +6,7 @@ import com.linglevel.api.content.article.dto.GetArticlesRequest;
 import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
+import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
@@ -39,6 +40,12 @@ class ArticleServiceTest {
 
     @Mock
     private ArticleProgressRepository articleProgressRepository;
+
+    @Mock
+    private ArticleChunkRepository articleChunkRepository;
+
+    @Mock
+    private ArticleChunkService articleChunkService;
 
     @Mock
     private UserRepository userRepository;
@@ -209,7 +216,6 @@ class ArticleServiceTest {
         article.setAuthor(author);
         article.setTags(tags);
         article.setDifficultyLevel(DifficultyLevel.A1);
-        article.setChunkCount(100);
         article.setReadingTime(60);
         article.setAverageRating(4.5);
         article.setReviewCount(100);
@@ -219,6 +225,13 @@ class ArticleServiceTest {
     }
 
     private void mockArticleProgress(List<Article> articles, boolean isCompleted) {
+        com.linglevel.api.content.article.entity.ArticleChunk mockChunk = new com.linglevel.api.content.article.entity.ArticleChunk();
+        mockChunk.setId("test-chunk-id");
+        mockChunk.setChunkNumber(50);
+        when(articleChunkService.findById(anyString())).thenReturn(mockChunk);
+
+        when(articleChunkRepository.countByArticleIdAndDifficultyLevel(anyString(), any(DifficultyLevel.class))).thenReturn(100L);
+
         for (Article article : articles) {
             ArticleProgress progress = createArticleProgress(testUser.getId(), article.getId(), isCompleted);
             when(articleProgressRepository.findByUserIdAndArticleId(testUser.getId(), article.getId()))
@@ -230,8 +243,7 @@ class ArticleServiceTest {
         ArticleProgress progress = new ArticleProgress();
         progress.setUserId(userId);
         progress.setArticleId(articleId);
-        progress.setCurrentReadChunkNumber(isCompleted ? 100 : 50);
-        progress.setMaxReadChunkNumber(isCompleted ? 100 : 50);
+        progress.setChunkId("test-chunk-id");
         progress.setIsCompleted(isCompleted);
         progress.setUpdatedAt(LocalDateTime.now());
         return progress;

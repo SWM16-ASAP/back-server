@@ -35,8 +35,9 @@ public class ArticleImportService {
             if (!levelData.getChapters().isEmpty()) {
                 ArticleImportData.ChapterData chapterData = levelData.getChapters().get(0);
                 
+                int chunkCounter = 1;
                 for (ArticleImportData.ChunkData chunkData : chapterData.getChunks()) {
-                    ArticleChunk chunk = createArticleChunk(chunkData, articleId, difficulty);
+                    ArticleChunk chunk = createArticleChunk(chunkData, articleId, difficulty, chunkCounter++);
                     allChunks.add(chunk);
                 }
             }
@@ -46,10 +47,10 @@ public class ArticleImportService {
         log.info("Successfully created {} chunks for article: {}", savedChunks.size(), articleId);
     }
 
-    private ArticleChunk createArticleChunk(ArticleImportData.ChunkData chunkData, String articleId, DifficultyLevel difficulty) {
+    private ArticleChunk createArticleChunk(ArticleImportData.ChunkData chunkData, String articleId, DifficultyLevel difficulty, int chunkNumber) {
         ArticleChunk chunk = new ArticleChunk();
         chunk.setArticleId(articleId);
-        chunk.setChunkNumber(chunkData.getChunkNum());
+        chunk.setChunkNumber(chunkNumber);
         chunk.setDifficultyLevel(difficulty);
         
         if (Boolean.TRUE.equals(chunkData.getIsImage())) {
@@ -64,19 +65,5 @@ public class ArticleImportService {
         }
         
         return chunk;
-    }
-
-
-    public int calculateTotalChunkCount(ArticleImportData importData) {
-        if (importData.getLeveledResults().isEmpty()) {
-            return 0;
-        }
-
-        ArticleImportData.TextLevelData firstLevel = importData.getLeveledResults().get(0);
-        if (!firstLevel.getChapters().isEmpty()) {
-            return firstLevel.getChapters().get(0).getChunks().size();
-        }
-        
-        return 0;
     }
 }

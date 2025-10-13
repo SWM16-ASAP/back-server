@@ -25,8 +25,6 @@ public class Article {
     
     private DifficultyLevel difficultyLevel;
     
-    private Integer chunkCount;
-    
     private Integer readingTime;
     
     private Double averageRating;

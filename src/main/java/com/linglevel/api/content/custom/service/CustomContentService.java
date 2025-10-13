@@ -37,8 +37,7 @@ public class CustomContentService {
     private final CustomContentRepository customContentRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
     private final CustomContentProgressRepository customContentProgressRepository;
-    private final UserRepository userRepository;
-    private final MongoTemplate mongoTemplate;
+    private final CustomContentChunkService customContentChunkService;
 
     public PageResponse<CustomContentResponse> getCustomContents(String userId, GetCustomContentsRequest request) {
         log.info("Getting custom contents for user: {} with request: {}", userId, request);
@@ -118,15 +117,12 @@ public class CustomContentService {
         }
     }
 
-    private CustomContentResponse mapToResponse(CustomContent content) {
-        return mapToResponse(content, null);
-    }
-
     private CustomContentResponse mapToResponse(CustomContent content, String userId) {
         // 진도 정보 조회
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
         boolean isCompleted = false;
+        com.linglevel.api.content.common.DifficultyLevel currentDifficultyLevel = content.getDifficultyLevel(); // Fallback: CustomContent의 난이도
 
         if (userId != null) {
             CustomContentProgress progress = customContentProgressRepository
@@ -134,14 +130,29 @@ public class CustomContentService {
                 .orElse(null);
 
             if (progress != null) {
-                currentReadChunkNumber = progress.getCurrentReadChunkNumber() != null
-                    ? progress.getCurrentReadChunkNumber() : 0;
+                // [DTO_MAPPING] chunk에서 chunkNum 조회 (안전하게 처리)
+                try {
+                    CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
+                    currentReadChunkNumber = chunk.getChunkNum() != null ? chunk.getChunkNum() : 0;
+                } catch (Exception e) {
+                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
+                    currentReadChunkNumber = 0;
+                }
 
-                if (content.getChunkCount() != null && content.getChunkCount() > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / content.getChunkCount() * 100.0;
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (progress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+                }
+
+                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
+                long totalChunksForLevel = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel);
+
+                if (totalChunksForLevel > 0) {
+                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
                 }
 
                 isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+
             }
         }
         CustomContentResponse response = new CustomContentResponse();
@@ -151,9 +162,10 @@ public class CustomContentService {
         response.setCoverImageUrl(content.getCoverImageUrl());
         response.setDifficultyLevel(content.getDifficultyLevel());
         response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
-        response.setChunkCount(content.getChunkCount());
+        response.setChunkCount((int) customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), content.getDifficultyLevel()));
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
+        response.setCurrentDifficultyLevel(currentDifficultyLevel);
         response.setIsCompleted(isCompleted);
         response.setReadingTime(content.getReadingTime());
         response.setAverageRating(content.getAverageRating() != null ? content.getAverageRating().floatValue() : 0.0d);
