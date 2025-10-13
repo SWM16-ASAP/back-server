@@ -5,6 +5,7 @@ import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
+import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleRepository;
@@ -39,6 +40,7 @@ public class ArticleService {
     private final ArticleProgressRepository articleProgressRepository;
     private final ArticleImportService articleImportService;
     private final ArticleReadingTimeService articleReadingTimeService;
+    private final ArticleChunkService articleChunkService;
     private final S3AiService s3AiService;
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
@@ -178,8 +180,14 @@ public class ArticleService {
                 .orElse(null);
 
             if (progress != null) {
-                currentReadChunkNumber = progress.getCurrentReadChunkNumber() != null
-                    ? progress.getCurrentReadChunkNumber() : 0;
+                // [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
+                try {
+                    ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+                    currentReadChunkNumber = chunk.getChunkNumber() != null ? chunk.getChunkNumber() : 0;
+                } catch (Exception e) {
+                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
+                    currentReadChunkNumber = 0;
+                }
 
                 if (article.getChunkCount() != null && article.getChunkCount() > 0) {
                     progressPercentage = (double) currentReadChunkNumber / article.getChunkCount() * 100.0;

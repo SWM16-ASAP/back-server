@@ -2,9 +2,11 @@ package com.linglevel.api.content.common.service;
 
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.article.entity.Article;
+import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.repository.ArticleRepository;
+import com.linglevel.api.content.article.service.ArticleChunkService;
 import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
@@ -13,9 +15,11 @@ import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.dto.GetRecentContentsRequest;
 import com.linglevel.api.content.common.dto.RecentContentResponse;
 import com.linglevel.api.content.custom.entity.CustomContent;
+import com.linglevel.api.content.custom.entity.CustomContentChunk;
 import com.linglevel.api.content.custom.entity.CustomContentProgress;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
+import com.linglevel.api.content.custom.service.CustomContentChunkService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +43,8 @@ public class ContentService {
     private final BookProgressRepository bookProgressRepository;
     private final ArticleProgressRepository articleProgressRepository;
     private final CustomContentProgressRepository customContentProgressRepository;
+    private final ArticleChunkService articleChunkService;
+    private final CustomContentChunkService customContentChunkService;
     private final UserRepository userRepository;
 
     private record GenericProgress(String contentId, ContentType contentType, LocalDateTime lastStudiedAt, boolean isCompleted, Object originalProgress) {}
@@ -105,22 +111,38 @@ public class ContentService {
                     Article article = articlesMap.get(p.contentId());
                     ArticleProgress progress = (ArticleProgress) p.originalProgress();
                     if (article == null) return null;
+                    // [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
+                    Integer currentChunkNumber = 0;
+                    try {
+                        ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+                        currentChunkNumber = chunk.getChunkNumber();
+                    } catch (Exception e) {
+                        currentChunkNumber = 0;
+                    }
                     return RecentContentResponse.builder()
                             .contentId(article.getId()).contentType(ContentType.ARTICLE).title(article.getTitle()).author(article.getAuthor())
                             .coverImageUrl(article.getCoverImageUrl()).difficultyLevel(article.getDifficultyLevel().name()).tags(article.getTags())
-                            .readingTime(article.getReadingTime()).chunkCount(article.getChunkCount()).currentReadChunkNumber(progress.getCurrentReadChunkNumber())
-                            .progressPercentage(calculatePercentage(progress.getCurrentReadChunkNumber(), article.getChunkCount()))
+                            .readingTime(article.getReadingTime()).chunkCount(article.getChunkCount()).currentReadChunkNumber(currentChunkNumber)
+                            .progressPercentage(calculatePercentage(currentChunkNumber, article.getChunkCount()))
                             .isCompleted(progress.getIsCompleted()).lastStudiedAt(p.lastStudiedAt()).build();
                 }
                 case CUSTOM: {
                     CustomContent custom = customContentsMap.get(p.contentId());
                     CustomContentProgress progress = (CustomContentProgress) p.originalProgress();
                     if (custom == null) return null;
+                    // [DTO_MAPPING] chunk에서 chunkNum 조회 (안전하게 처리)
+                    Integer currentChunkNumber = 0;
+                    try {
+                        CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
+                        currentChunkNumber = chunk.getChunkNum();
+                    } catch (Exception e) {
+                        currentChunkNumber = 0;
+                    }
                     return RecentContentResponse.builder()
                             .contentId(custom.getId()).contentType(ContentType.CUSTOM).title(custom.getTitle()).author(custom.getAuthor())
                             .coverImageUrl(custom.getCoverImageUrl()).difficultyLevel(custom.getDifficultyLevel().name()).tags(custom.getTags())
-                            .readingTime(custom.getReadingTime()).chunkCount(custom.getChunkCount()).currentReadChunkNumber(progress.getCurrentReadChunkNumber())
-                            .progressPercentage(calculatePercentage(progress.getCurrentReadChunkNumber(), custom.getChunkCount()))
+                            .readingTime(custom.getReadingTime()).chunkCount(custom.getChunkCount()).currentReadChunkNumber(currentChunkNumber)
+                            .progressPercentage(calculatePercentage(currentChunkNumber, custom.getChunkCount()))
                             .isCompleted(progress.getIsCompleted()).originUrl(custom.getOriginUrl()).originDomain(custom.getOriginDomain())
                             .lastStudiedAt(p.lastStudiedAt()).build();
                 }

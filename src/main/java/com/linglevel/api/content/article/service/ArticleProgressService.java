@@ -6,7 +6,9 @@ import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
+import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
+import com.linglevel.api.content.common.service.ProgressCalculationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,8 @@ public class ArticleProgressService {
     private final ArticleService articleService;
     private final ArticleChunkService articleChunkService;
     private final ArticleProgressRepository articleProgressRepository;
+    private final ArticleChunkRepository articleChunkRepository;
+    private final ProgressCalculationService progressCalculationService;
 
     @Transactional
     public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request, String userId) {
@@ -47,18 +51,29 @@ public class ArticleProgressService {
         articleProgress.setUserId(userId);
         articleProgress.setArticleId(articleId);
         articleProgress.setChunkId(request.getChunkId());
-        articleProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
 
-        // max 진도 업데이트 (current가 max보다 크면 max도 업데이트)
-        if (articleProgress.getMaxReadChunkNumber() == null ||
-            chunk.getChunkNumber() > articleProgress.getMaxReadChunkNumber()) {
-            articleProgress.setMaxReadChunkNumber(chunk.getChunkNumber());
+        // [V2_CORE] V2 필드: 정규화된 진행률 계산
+        long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
+            articleId, chunk.getDifficultyLevel()
+        );
+        double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
+            chunk.getChunkNumber(), totalChunks
+        );
+
+        articleProgress.setNormalizedProgress(normalizedProgress);
+        articleProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+
+        // maxNormalizedProgress 업데이트 (누적 최대값)
+        if (progressCalculationService.shouldUpdateMaxProgress(
+                articleProgress.getMaxNormalizedProgress(), normalizedProgress)) {
+            articleProgress.setMaxNormalizedProgress(normalizedProgress);
         }
 
-        // 완료 조건 자동 체크 (한번 true가 되면 계속 유지)
-        var article = articleService.findById(articleId);
-        boolean isCompleted = chunk.getChunkNumber() >= article.getChunkCount();
-        articleProgress.setIsCompleted(articleProgress.getIsCompleted() != null && articleProgress.getIsCompleted() || isCompleted);
+        // 완료 조건: maxNormalizedProgress >= 100%
+        boolean isCompleted = progressCalculationService.isCompleted(articleProgress.getMaxNormalizedProgress());
+        articleProgress.setIsCompleted(progressCalculationService.updateCompletedFlag(
+            articleProgress.getIsCompleted(), isCompleted
+        ));
 
         articleProgressRepository.save(articleProgress);
 
@@ -86,9 +101,18 @@ public class ArticleProgressService {
         newProgress.setUserId(userId);
         newProgress.setArticleId(articleId);
         newProgress.setChunkId(firstChunk.getId());
-        newProgress.setCurrentReadChunkNumber(firstChunk.getChunkNumber());
-        newProgress.setMaxReadChunkNumber(firstChunk.getChunkNumber());
-        // updatedAt은 @LastModifiedDate에 의해 자동 설정됨
+
+        // [V2_CORE] V2 필드: 초기 진행률 계산
+        long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
+            articleId, firstChunk.getDifficultyLevel()
+        );
+        double initialProgress = progressCalculationService.calculateNormalizedProgress(
+            firstChunk.getChunkNumber(), totalChunks
+        );
+
+        newProgress.setNormalizedProgress(initialProgress);
+        newProgress.setMaxNormalizedProgress(initialProgress);
+        newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
 
         return articleProgressRepository.save(newProgress);
     }
@@ -106,13 +130,15 @@ public class ArticleProgressService {
     }
 
     private ArticleProgressResponse convertToArticleProgressResponse(ArticleProgress progress) {
+        // [DTO_MAPPING] chunk에서 chunkNumber 조회
+        ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+
         return ArticleProgressResponse.builder()
                 .id(progress.getId())
                 .userId(progress.getUserId())
                 .articleId(progress.getArticleId())
                 .chunkId(progress.getChunkId())
-                .currentReadChunkNumber(progress.getCurrentReadChunkNumber())
-                .maxReadChunkNumber(progress.getMaxReadChunkNumber())
+                .currentReadChunkNumber(chunk.getChunkNumber())
                 .isCompleted(progress.getIsCompleted())
                 .updatedAt(progress.getUpdatedAt())
                 .build();

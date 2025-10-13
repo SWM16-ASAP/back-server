@@ -41,6 +41,9 @@ class ArticleServiceTest {
     private ArticleProgressRepository articleProgressRepository;
 
     @Mock
+    private ArticleChunkService articleChunkService;
+
+    @Mock
     private UserRepository userRepository;
 
     @InjectMocks
@@ -219,6 +222,11 @@ class ArticleServiceTest {
     }
 
     private void mockArticleProgress(List<Article> articles, boolean isCompleted) {
+        com.linglevel.api.content.article.entity.ArticleChunk mockChunk = new com.linglevel.api.content.article.entity.ArticleChunk();
+        mockChunk.setId("test-chunk-id");
+        mockChunk.setChunkNumber(50);
+        when(articleChunkService.findById(anyString())).thenReturn(mockChunk);
+
         for (Article article : articles) {
             ArticleProgress progress = createArticleProgress(testUser.getId(), article.getId(), isCompleted);
             when(articleProgressRepository.findByUserIdAndArticleId(testUser.getId(), article.getId()))
@@ -230,8 +238,7 @@ class ArticleServiceTest {
         ArticleProgress progress = new ArticleProgress();
         progress.setUserId(userId);
         progress.setArticleId(articleId);
-        progress.setCurrentReadChunkNumber(isCompleted ? 100 : 50);
-        progress.setMaxReadChunkNumber(isCompleted ? 100 : 50);
+        progress.setChunkId("test-chunk-id");
         progress.setIsCompleted(isCompleted);
         progress.setUpdatedAt(LocalDateTime.now());
         return progress;

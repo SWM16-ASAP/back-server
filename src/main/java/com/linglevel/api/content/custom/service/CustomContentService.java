@@ -37,8 +37,7 @@ public class CustomContentService {
     private final CustomContentRepository customContentRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
     private final CustomContentProgressRepository customContentProgressRepository;
-    private final UserRepository userRepository;
-    private final MongoTemplate mongoTemplate;
+    private final CustomContentChunkService customContentChunkService;
 
     public PageResponse<CustomContentResponse> getCustomContents(String userId, GetCustomContentsRequest request) {
         log.info("Getting custom contents for user: {} with request: {}", userId, request);
@@ -118,10 +117,6 @@ public class CustomContentService {
         }
     }
 
-    private CustomContentResponse mapToResponse(CustomContent content) {
-        return mapToResponse(content, null);
-    }
-
     private CustomContentResponse mapToResponse(CustomContent content, String userId) {
         // 진도 정보 조회
         int currentReadChunkNumber = 0;
@@ -134,8 +129,14 @@ public class CustomContentService {
                 .orElse(null);
 
             if (progress != null) {
-                currentReadChunkNumber = progress.getCurrentReadChunkNumber() != null
-                    ? progress.getCurrentReadChunkNumber() : 0;
+                // [DTO_MAPPING] chunk에서 chunkNum 조회 (안전하게 처리)
+                try {
+                    CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
+                    currentReadChunkNumber = chunk.getChunkNum() != null ? chunk.getChunkNum() : 0;
+                } catch (Exception e) {
+                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
+                    currentReadChunkNumber = 0;
+                }
 
                 if (content.getChunkCount() != null && content.getChunkCount() > 0) {
                     progressPercentage = (double) currentReadChunkNumber / content.getChunkCount() * 100.0;

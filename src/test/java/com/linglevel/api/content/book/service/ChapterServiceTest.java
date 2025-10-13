@@ -8,6 +8,7 @@ import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChapterRepository;
+import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.user.entity.User;
@@ -39,6 +40,9 @@ class ChapterServiceTest {
 
     @Mock
     private BookProgressRepository bookProgressRepository;
+
+    @Mock
+    private ChunkRepository chunkRepository;
 
     @Mock
     private BookService bookService;
@@ -88,12 +92,16 @@ class ChapterServiceTest {
         BookProgress progress = new BookProgress();
         progress.setUserId(testUser.getId());
         progress.setBookId(testBook.getId());
+        progress.setChunkId("test-chunk-id");
         progress.setCurrentReadChapterNumber(5);
-        progress.setCurrentReadChunkNumber(50);
         progress.setMaxReadChapterNumber(5);
-        progress.setMaxReadChunkNumber(50);
         progress.setIsCompleted(false);
         progress.setUpdatedAt(LocalDateTime.now());
+
+        com.linglevel.api.content.book.entity.Chunk mockChunk = new com.linglevel.api.content.book.entity.Chunk();
+        mockChunk.setId("test-chunk-id");
+        mockChunk.setChunkNumber(50);
+        when(chunkRepository.findById(anyString())).thenReturn(Optional.of(mockChunk));
 
         when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
             .thenReturn(Optional.of(progress));
@@ -126,12 +134,16 @@ class ChapterServiceTest {
         BookProgress progress = new BookProgress();
         progress.setUserId(testUser.getId());
         progress.setBookId(testBook.getId());
+        progress.setChunkId("test-chunk-id");
         progress.setCurrentReadChapterNumber(5);
-        progress.setCurrentReadChunkNumber(50);
         progress.setMaxReadChapterNumber(5);
-        progress.setMaxReadChunkNumber(50);
         progress.setIsCompleted(false);
         progress.setUpdatedAt(LocalDateTime.now());
+
+        com.linglevel.api.content.book.entity.Chunk mockChunk = new com.linglevel.api.content.book.entity.Chunk();
+        mockChunk.setId("test-chunk-id");
+        mockChunk.setChunkNumber(50);
+        when(chunkRepository.findById(anyString())).thenReturn(Optional.of(mockChunk));
 
         when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
             .thenReturn(Optional.of(progress));
@@ -164,12 +176,16 @@ class ChapterServiceTest {
         BookProgress progress = new BookProgress();
         progress.setUserId(testUser.getId());
         progress.setBookId(testBook.getId());
+        progress.setChunkId("test-chunk-id");
         progress.setCurrentReadChapterNumber(5);
-        progress.setCurrentReadChunkNumber(50);
         progress.setMaxReadChapterNumber(5);
-        progress.setMaxReadChunkNumber(50);
         progress.setIsCompleted(false);
         progress.setUpdatedAt(LocalDateTime.now());
+
+        com.linglevel.api.content.book.entity.Chunk mockChunk = new com.linglevel.api.content.book.entity.Chunk();
+        mockChunk.setId("test-chunk-id");
+        mockChunk.setChunkNumber(50);
+        when(chunkRepository.findById(anyString())).thenReturn(Optional.of(mockChunk));
 
         when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
             .thenReturn(Optional.of(progress));

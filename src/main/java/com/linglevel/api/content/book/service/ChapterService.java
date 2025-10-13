@@ -3,6 +3,7 @@ package com.linglevel.api.content.book.service;
 import com.linglevel.api.content.book.dto.ChapterResponse;
 import com.linglevel.api.content.book.dto.GetChaptersRequest;
 import com.linglevel.api.content.book.entity.Chapter;
+import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.repository.ChapterRepository;
@@ -30,7 +31,6 @@ public class ChapterService {
     private final ChapterRepository chapterRepository;
     private final BookProgressRepository bookProgressRepository;
     private final ChunkRepository chunkRepository;
-
     private final BookService bookService;
 
     public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request, String userId) {
@@ -96,8 +96,11 @@ public class ChapterService {
             if (bookProgress != null) {
                 Integer currentChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
                     ? bookProgress.getCurrentReadChapterNumber() : 0;
-                Integer currentChunkNumber = bookProgress.getCurrentReadChunkNumber() != null
-                    ? bookProgress.getCurrentReadChunkNumber() : 0;
+
+                // [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
+                Integer currentChunkNumber = chunkRepository.findById(bookProgress.getChunkId())
+                    .map(chunk -> chunk.getChunkNumber() != null ? chunk.getChunkNumber() : 0)
+                    .orElse(0);
 
                 if (chapter.getChapterNumber() < currentChapterNumber) {
                     // 현재 읽고 있는 챕터보다 이전 → 100% (이미 지나감)
