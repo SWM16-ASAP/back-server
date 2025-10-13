@@ -1,5 +1,6 @@
 package com.linglevel.api.content.book.dto;
 
+import com.linglevel.api.content.common.DifficultyLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,6 +44,15 @@ public class ProgressResponse {
 
     @Schema(description = "완료 여부", example = "false")
     private Boolean isCompleted;
+
+    @Schema(description = "현재 난이도", example = "EASY")
+    private DifficultyLevel currentDifficultyLevel;
+
+    @Schema(description = "정규화된 현재 진행률 (%)", example = "75.5")
+    private Double normalizedProgress;
+
+    @Schema(description = "정규화된 최대 진행률 (%)", example = "85.2")
+    private Double maxNormalizedProgress;
 
     @Schema(description = "업데이트 일시", example = "2024-01-15T10:30:00")
     private LocalDateTime updatedAt;

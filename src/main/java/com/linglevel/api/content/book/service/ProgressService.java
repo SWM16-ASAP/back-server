@@ -172,12 +172,6 @@ public class ProgressService {
             progress.setMaxNormalizedProgress(normalizedProgress);
             progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
-            // 완료 조건 재계산
-            boolean isCompleted = progressCalculationService.isCompleted(normalizedProgress);
-            progress.setIsCompleted(progressCalculationService.updateCompletedFlag(
-                progress.getIsCompleted(), isCompleted
-            ));
-
             bookProgressRepository.save(progress);
             log.info("Lazy migration completed for BookProgress {}", progress.getId());
         }
@@ -192,6 +186,9 @@ public class ProgressService {
                 .currentReadChunkNumber(chunk.getChunkNumber())
                 .maxReadChapterNumber(progress.getMaxReadChapterNumber())
                 .isCompleted(progress.getIsCompleted())
+                .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
+                .normalizedProgress(progress.getNormalizedProgress())
+                .maxNormalizedProgress(progress.getMaxNormalizedProgress())
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

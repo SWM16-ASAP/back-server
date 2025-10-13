@@ -173,6 +173,7 @@ public class ArticleService {
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
         boolean isCompleted = false;
+        DifficultyLevel currentDifficultyLevel = article.getDifficultyLevel(); // Fallback: Article의 난이도
 
         if (userId != null) {
             ArticleProgress progress = articleProgressRepository
@@ -195,6 +196,11 @@ public class ArticleService {
 
                 // DB에 저장된 완료 여부 사용
                 isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (progress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+                }
             }
         }
 
@@ -207,6 +213,7 @@ public class ArticleService {
         response.setChunkCount(article.getChunkCount());
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
+        response.setCurrentDifficultyLevel(currentDifficultyLevel);
         response.setIsCompleted(isCompleted);
         response.setReadingTime(article.getReadingTime());
         response.setAverageRating(article.getAverageRating());

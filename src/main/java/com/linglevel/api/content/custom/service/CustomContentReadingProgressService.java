@@ -174,6 +174,9 @@ public class CustomContentReadingProgressService {
                 .chunkId(progress.getChunkId())
                 .currentReadChunkNumber(chunk.getChunkNum())
                 .isCompleted(progress.getIsCompleted())
+                .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
+                .normalizedProgress(progress.getNormalizedProgress())
+                .maxNormalizedProgress(progress.getMaxNormalizedProgress())
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

@@ -1,5 +1,6 @@
 package com.linglevel.api.content.book.dto;
 
+import com.linglevel.api.content.common.DifficultyLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,6 +36,9 @@ public class ChapterResponse {
     
     @Schema(description = "진행률", example = "80.0")
     private Double progressPercentage;
+
+    @Schema(description = "현재 선택한 난이도", example = "EASY")
+    private DifficultyLevel currentDifficultyLevel;
 
     @Schema(description = "읽기 시간(분)", example = "15")
     private Integer readingTime;

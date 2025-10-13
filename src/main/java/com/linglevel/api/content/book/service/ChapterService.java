@@ -2,6 +2,7 @@ package com.linglevel.api.content.book.service;
 
 import com.linglevel.api.content.book.dto.ChapterResponse;
 import com.linglevel.api.content.book.dto.GetChaptersRequest;
+import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksException;
@@ -11,6 +12,7 @@ import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,6 +91,10 @@ public class ChapterService {
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
 
+        // Book 조회 (currentDifficultyLevel fallback용)
+        Book book = bookService.findById(bookId);
+        DifficultyLevel currentDifficultyLevel = book.getDifficultyLevel(); // Fallback: Book의 난이도
+
         if (userId != null) {
             BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElse(null);
@@ -117,6 +123,11 @@ public class ChapterService {
                     currentReadChunkNumber = 0;
                     progressPercentage = 0.0;
                 }
+
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (bookProgress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = bookProgress.getCurrentDifficultyLevel();
+                }
             }
         }
 
@@ -129,6 +140,7 @@ public class ChapterService {
             .chunkCount(chapter.getChunkCount())
             .currentReadChunkNumber(currentReadChunkNumber)
             .progressPercentage(progressPercentage)
+            .currentDifficultyLevel(currentDifficultyLevel)
             .readingTime(chapter.getReadingTime())
             .build();
     }

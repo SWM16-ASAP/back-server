@@ -122,6 +122,7 @@ public class CustomContentService {
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
         boolean isCompleted = false;
+        com.linglevel.api.content.common.DifficultyLevel currentDifficultyLevel = content.getDifficultyLevel(); // Fallback: CustomContent의 난이도
 
         if (userId != null) {
             CustomContentProgress progress = customContentProgressRepository
@@ -143,6 +144,11 @@ public class CustomContentService {
                 }
 
                 isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (progress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+                }
             }
         }
         CustomContentResponse response = new CustomContentResponse();
@@ -155,6 +161,7 @@ public class CustomContentService {
         response.setChunkCount(content.getChunkCount());
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
+        response.setCurrentDifficultyLevel(currentDifficultyLevel);
         response.setIsCompleted(isCompleted);
         response.setReadingTime(content.getReadingTime());
         response.setAverageRating(content.getAverageRating() != null ? content.getAverageRating().floatValue() : 0.0d);

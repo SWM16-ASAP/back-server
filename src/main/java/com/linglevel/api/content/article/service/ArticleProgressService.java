@@ -167,6 +167,9 @@ public class ArticleProgressService {
                 .chunkId(progress.getChunkId())
                 .currentReadChunkNumber(chunk.getChunkNumber())
                 .isCompleted(progress.getIsCompleted())
+                .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
+                .normalizedProgress(progress.getNormalizedProgress())
+                .maxNormalizedProgress(progress.getMaxNormalizedProgress())
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }
