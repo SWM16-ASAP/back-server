@@ -140,6 +140,33 @@ public class CustomContentReadingProgressService {
         // [DTO_MAPPING] chunk에서 chunkNum 조회
         CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
 
+        // [FALLBACK] V2 필드가 없으면 동적 계산 (기존 데이터 대응)
+        if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
+            log.info("V2 fields missing for CustomContentProgress {}, calculating lazily", progress.getId());
+
+            // 난이도별 전체 청크 수 조회
+            long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+                chunk.getCustomContentId(), chunk.getDifficultyLevel()
+            );
+            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
+                chunk.getChunkNum(), totalChunks
+            );
+
+            // Lazy migration: V2 필드 저장
+            progress.setNormalizedProgress(normalizedProgress);
+            progress.setMaxNormalizedProgress(normalizedProgress);
+            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+
+            // 완료 조건 재계산
+            boolean isCompleted = progressCalculationService.isCompleted(normalizedProgress);
+            progress.setIsCompleted(progressCalculationService.updateCompletedFlag(
+                progress.getIsCompleted(), isCompleted
+            ));
+
+            customContentProgressRepository.save(progress);
+            log.info("Lazy migration completed for CustomContentProgress {}", progress.getId());
+        }
+
         return CustomContentReadingProgressResponse.builder()
                 .id(progress.getId())
                 .userId(progress.getUserId())
