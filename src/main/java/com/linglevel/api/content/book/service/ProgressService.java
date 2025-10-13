@@ -61,11 +61,6 @@ public class ProgressService {
         bookProgress.setChunkId(request.getChunkId());
         bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
 
-        // max 진도 업데이트 (current가 max보다 크면 max도 업데이트)
-        if (shouldUpdateMaxProgress(bookProgress, chapter.getChapterNumber())) {
-            bookProgress.setMaxReadChapterNumber(chapter.getChapterNumber());
-        }
-
         // [V2_CORE] V2 필드: 정규화된 진행률 계산
         long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
             chapter.getId(), chunk.getDifficultyLevel()
@@ -77,17 +72,31 @@ public class ProgressService {
         bookProgress.setNormalizedProgress(normalizedProgress);
         bookProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
-        // maxNormalizedProgress 업데이트 (누적 최대값)
-        if (progressCalculationService.shouldUpdateMaxProgress(
-                bookProgress.getMaxNormalizedProgress(), normalizedProgress)) {
-            bookProgress.setMaxNormalizedProgress(normalizedProgress);
-        }
+        // max 진도 업데이트 로직 변경
+        Integer currentChapterNum = chapter.getChapterNumber();
+        Integer maxChapterNum = bookProgress.getMaxReadChapterNumber();
 
-        // 완료 조건: maxNormalizedProgress >= 100%
-        boolean isCompleted = progressCalculationService.isCompleted(bookProgress.getMaxNormalizedProgress());
-        bookProgress.setIsCompleted(progressCalculationService.updateCompletedFlag(
-            bookProgress.getIsCompleted(), isCompleted
-        ));
+        if (maxChapterNum == null || currentChapterNum > maxChapterNum) {
+            // 새로운 높은 챕터로 이동한 경우, max 값을 현재 값으로 덮어쓴다.
+            bookProgress.setMaxReadChapterNumber(currentChapterNum);
+            bookProgress.setMaxNormalizedProgress(normalizedProgress);
+        } else if (currentChapterNum.equals(maxChapterNum)) {
+            // 가장 높은 챕터 내에서 진행률이 증가한 경우, max 값을 갱신한다.
+            if (progressCalculationService.shouldUpdateMaxProgress(
+                bookProgress.getMaxNormalizedProgress(), normalizedProgress)) {
+                bookProgress.setMaxNormalizedProgress(normalizedProgress);
+            }
+        }
+        // 현재 챕터가 max 챕터보다 낮은 경우는 max 값을 변경하지 않는다.
+
+        // 완료 조건 변경: 마지막 챕터의 진행률이 100%일 때만 완료 처리
+        com.linglevel.api.content.book.entity.Book book = bookService.findById(bookId);
+        boolean isLastChapter = chapter.getChapterNumber().equals(book.getChapterCount());
+        boolean isChapterCompleted = progressCalculationService.isCompleted(normalizedProgress);
+
+        if (isLastChapter && isChapterCompleted) {
+            bookProgress.setIsCompleted(true);
+        }
 
         bookProgressRepository.save(bookProgress);
 
