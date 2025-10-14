@@ -1,5 +1,6 @@
 package com.linglevel.api.content.book.service;
 
+import com.linglevel.api.content.book.dto.ChapterNavigationResponse;
 import com.linglevel.api.content.book.dto.ChapterResponse;
 import com.linglevel.api.content.book.dto.GetChaptersRequest;
 import com.linglevel.api.content.book.entity.Book;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -83,6 +85,34 @@ public class ChapterService {
     public Chapter findFirstByBookId(String bookId) {
         return chapterRepository.findFirstByBookIdOrderByChapterNumberAsc(bookId)
             .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
+    }
+
+    public ChapterNavigationResponse getChapterNavigation(String bookId, String chapterId) {
+        if (!bookService.existsById(bookId)) {
+            throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
+        }
+
+        Chapter currentChapter = chapterRepository.findById(chapterId)
+            .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
+
+        if (!bookId.equals(currentChapter.getBookId())) {
+            throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
+        }
+
+        Optional<Chapter> previousChapter = chapterRepository.findByBookIdAndChapterNumber(
+            bookId, currentChapter.getChapterNumber() - 1);
+
+        Optional<Chapter> nextChapter = chapterRepository.findByBookIdAndChapterNumber(
+            bookId, currentChapter.getChapterNumber() + 1);
+
+        return ChapterNavigationResponse.builder()
+            .currentChapterId(chapterId)
+            .currentChapterNumber(currentChapter.getChapterNumber())
+            .hasPreviousChapter(previousChapter.isPresent())
+            .previousChapterId(previousChapter.map(Chapter::getId).orElse(null))
+            .hasNextChapter(nextChapter.isPresent())
+            .nextChapterId(nextChapter.map(Chapter::getId).orElse(null))
+            .build();
     }
 
 
