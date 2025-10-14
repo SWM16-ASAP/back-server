@@ -2,9 +2,11 @@ package com.linglevel.api.content.common.service;
 
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.article.entity.Article;
+import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.repository.ArticleRepository;
+import com.linglevel.api.content.article.service.ArticleChunkService;
 import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
@@ -12,10 +14,13 @@ import com.linglevel.api.content.book.repository.BookRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.dto.GetRecentContentsRequest;
 import com.linglevel.api.content.common.dto.RecentContentResponse;
+import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.custom.entity.CustomContent;
+import com.linglevel.api.content.custom.entity.CustomContentChunk;
 import com.linglevel.api.content.custom.entity.CustomContentProgress;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
+import com.linglevel.api.content.custom.service.CustomContentChunkService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +34,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.linglevel.api.content.article.repository.ArticleChunkRepository;
+import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
+
 @Service
 @RequiredArgsConstructor
 public class ContentService {
@@ -39,17 +47,14 @@ public class ContentService {
     private final BookProgressRepository bookProgressRepository;
     private final ArticleProgressRepository articleProgressRepository;
     private final CustomContentProgressRepository customContentProgressRepository;
-    private final UserRepository userRepository;
+    private final ArticleChunkService articleChunkService;
+    private final CustomContentChunkService customContentChunkService;
+    private final ArticleChunkRepository articleChunkRepository;
+    private final CustomContentChunkRepository customContentChunkRepository;
 
     private record GenericProgress(String contentId, ContentType contentType, LocalDateTime lastStudiedAt, boolean isCompleted, Object originalProgress) {}
 
-    public PageResponse<RecentContentResponse> getRecentContents(String username, GetRecentContentsRequest request) {
-        // username을 userId로 변환
-        String userId = getUserId(username);
-        if (userId == null) {
-            return new PageResponse<>(List.of(), request.getPage(), 0, 0, false, false);
-        }
-
+    public PageResponse<RecentContentResponse> getRecentContents(String userId, GetRecentContentsRequest request) {
         List<BookProgress> bookProgresses = bookProgressRepository.findAllByUserId(userId);
         List<ArticleProgress> articleProgresses = articleProgressRepository.findAllByUserId(userId);
         List<CustomContentProgress> customProgresses = customContentProgressRepository.findAllByUserId(userId);
@@ -111,22 +116,46 @@ public class ContentService {
                     Article article = articlesMap.get(p.contentId());
                     ArticleProgress progress = (ArticleProgress) p.originalProgress();
                     if (article == null) return null;
+
+                    Integer currentChunkNumber = 0;
+                    try {
+                        ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+                        currentChunkNumber = chunk.getChunkNumber();
+                    } catch (Exception e) {
+                        currentChunkNumber = 0;
+                    }
+
+                    DifficultyLevel difficulty = progress.getCurrentDifficultyLevel() != null ? progress.getCurrentDifficultyLevel() : article.getDifficultyLevel();
+                    long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), difficulty);
+
                     return RecentContentResponse.builder()
                             .contentId(article.getId()).contentType(ContentType.ARTICLE).title(article.getTitle()).author(article.getAuthor())
                             .coverImageUrl(article.getCoverImageUrl()).difficultyLevel(article.getDifficultyLevel().name()).tags(article.getTags())
-                            .readingTime(article.getReadingTime()).chunkCount(article.getChunkCount()).currentReadChunkNumber(progress.getCurrentReadChunkNumber())
-                            .progressPercentage(calculatePercentage(progress.getCurrentReadChunkNumber(), article.getChunkCount()))
+                            .readingTime(article.getReadingTime()).chunkCount((int) totalChunks).currentReadChunkNumber(currentChunkNumber)
+                            .progressPercentage(calculatePercentage(currentChunkNumber, (int) totalChunks))
                             .isCompleted(progress.getIsCompleted()).lastStudiedAt(p.lastStudiedAt()).build();
                 }
                 case CUSTOM: {
                     CustomContent custom = customContentsMap.get(p.contentId());
                     CustomContentProgress progress = (CustomContentProgress) p.originalProgress();
                     if (custom == null) return null;
+
+                    Integer currentChunkNumber = 0;
+                    try {
+                        CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
+                        currentChunkNumber = chunk.getChunkNum();
+                    } catch (Exception e) {
+                        currentChunkNumber = 0;
+                    }
+
+                    DifficultyLevel difficulty = progress.getCurrentDifficultyLevel() != null ? progress.getCurrentDifficultyLevel() : custom.getDifficultyLevel();
+                    long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(custom.getId(), difficulty);
+
                     return RecentContentResponse.builder()
                             .contentId(custom.getId()).contentType(ContentType.CUSTOM).title(custom.getTitle()).author(custom.getAuthor())
                             .coverImageUrl(custom.getCoverImageUrl()).difficultyLevel(custom.getDifficultyLevel().name()).tags(custom.getTags())
-                            .readingTime(custom.getReadingTime()).chunkCount(custom.getChunkCount()).currentReadChunkNumber(progress.getCurrentReadChunkNumber())
-                            .progressPercentage(calculatePercentage(progress.getCurrentReadChunkNumber(), custom.getChunkCount()))
+                            .readingTime(custom.getReadingTime()).chunkCount((int) totalChunks).currentReadChunkNumber(currentChunkNumber)
+                            .progressPercentage(calculatePercentage(currentChunkNumber, (int) totalChunks))
                             .isCompleted(progress.getIsCompleted()).originUrl(custom.getOriginUrl()).originDomain(custom.getOriginDomain())
                             .lastStudiedAt(p.lastStudiedAt()).build();
                 }
@@ -149,10 +178,4 @@ public class ContentService {
         return Math.round(percentage * 10.0) / 10.0; // Round to one decimal place
     }
 
-    private String getUserId(String username) {
-        if (username == null) return null;
-        return userRepository.findByUsername(username)
-                .map(User::getId)
-                .orElse(null);
-    }
 }

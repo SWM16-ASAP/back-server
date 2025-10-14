@@ -2,8 +2,10 @@ package com.linglevel.api.content.custom.service;
 
 import com.linglevel.api.fcm.dto.FcmMessageRequest;
 import com.linglevel.api.fcm.entity.FcmToken;
+import com.linglevel.api.fcm.dto.NotificationMessage;
 import com.linglevel.api.fcm.repository.FcmTokenRepository;
 import com.linglevel.api.fcm.service.FcmMessagingService;
+import com.linglevel.api.i18n.CountryCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,29 +39,41 @@ public class CustomContentNotificationService {
                 additionalData.put("contentId", contentId);
             }
 
-            FcmMessageRequest messageRequest = FcmMessageRequest.builder()
-                    .title("Content Ready")
-                    .body(String.format("'%s' has been successfully processed.", contentTitle))
-                    .type("custom_content_completed")
-                    .userId(userId)
-                    .action("view_content")
-                    .deepLink(contentId != null ? "linglevel:///customContent/" + contentId : "linglevel:///customContent")
-                    .additionalData(additionalData)
-                    .build();
-            
-            for (FcmToken token : userTokens) {
-                try {
-                    fcmMessagingService.sendMessage(token.getFcmToken(), messageRequest);
-                    log.info("Sent completion notification to token: {} for user: {}", 
-                            token.getDeviceId(), userId);
-                } catch (Exception e) {
-                    log.error("Failed to send completion notification to token: {} for user: {}", 
-                            token.getDeviceId(), userId, e);
+            // 토큰을 국가별로 그룹핑
+            Map<CountryCode, List<FcmToken>> tokensByCountry = userTokens.stream()
+                    .collect(Collectors.groupingBy(
+                            token -> token.getCountryCode() != null ? token.getCountryCode() : CountryCode.US
+                    ));
+
+            // 국가별로 다른 메시지 전송
+            tokensByCountry.forEach((countryCode, tokens) -> {
+                String title = NotificationMessage.CONTENT_COMPLETED.getTitle(countryCode);
+                String body = NotificationMessage.CONTENT_COMPLETED.getBody(countryCode, contentTitle);
+
+                FcmMessageRequest messageRequest = FcmMessageRequest.builder()
+                        .title(title)
+                        .body(body)
+                        .type("custom_content_completed")
+                        .userId(userId)
+                        .action("view_content")
+                        .deepLink(contentId != null ? "linglevel:///customContent/" + contentId : "linglevel:///customContent")
+                        .additionalData(additionalData)
+                        .build();
+
+                for (FcmToken token : tokens) {
+                    try {
+                        fcmMessagingService.sendMessage(token.getFcmToken(), messageRequest);
+                        log.info("Sent completion notification (country: {}) to token: {} for user: {}",
+                                countryCode, token.getDeviceId(), userId);
+                    } catch (Exception e) {
+                        log.error("Failed to send completion notification to token: {} for user: {}",
+                                token.getDeviceId(), userId, e);
+                    }
                 }
-            }
-            
+            });
+
         } catch (Exception e) {
-            log.error("Failed to send content completion notification for user: {}, requestId: {}", 
+            log.error("Failed to send content completion notification for user: {}, requestId: {}",
                     userId, requestId, e);
         }
     }
@@ -77,29 +92,41 @@ public class CustomContentNotificationService {
             additionalData.put("contentTitle", contentTitle);
             additionalData.put("errorMessage", errorMessage);
 
-            FcmMessageRequest messageRequest = FcmMessageRequest.builder()
-                    .title("Content Processing Failed")
-                    .body("An error occurred while processing.")
-                    .type("custom_content_failed")
-                    .userId(userId)
-                    .action("view_chat")
-                    .deepLink("linglevel:///import?state=chat")
-                    .additionalData(additionalData)
-                    .build();
-            
-            for (FcmToken token : userTokens) {
-                try {
-                    fcmMessagingService.sendMessage(token.getFcmToken(), messageRequest);
-                    log.info("Sent failure notification to token: {} for user: {}", 
-                            token.getDeviceId(), userId);
-                } catch (Exception e) {
-                    log.error("Failed to send failure notification to token: {} for user: {}", 
-                            token.getDeviceId(), userId, e);
+            // 토큰을 국가별로 그룹핑
+            Map<CountryCode, List<FcmToken>> tokensByCountry = userTokens.stream()
+                    .collect(Collectors.groupingBy(
+                            token -> token.getCountryCode() != null ? token.getCountryCode() : CountryCode.US
+                    ));
+
+            // 국가별로 다른 메시지 전송
+            tokensByCountry.forEach((countryCode, tokens) -> {
+                String title = NotificationMessage.CONTENT_FAILED.getTitle(countryCode);
+                String body = NotificationMessage.CONTENT_FAILED.getBody(countryCode);
+
+                FcmMessageRequest messageRequest = FcmMessageRequest.builder()
+                        .title(title)
+                        .body(body)
+                        .type("custom_content_failed")
+                        .userId(userId)
+                        .action("view_chat")
+                        .deepLink("linglevel:///import?state=chat")
+                        .additionalData(additionalData)
+                        .build();
+
+                for (FcmToken token : tokens) {
+                    try {
+                        fcmMessagingService.sendMessage(token.getFcmToken(), messageRequest);
+                        log.info("Sent failure notification (country: {}) to token: {} for user: {}",
+                                countryCode, token.getDeviceId(), userId);
+                    } catch (Exception e) {
+                        log.error("Failed to send failure notification to token: {} for user: {}",
+                                token.getDeviceId(), userId, e);
+                    }
                 }
-            }
+            });
 
         } catch (Exception e) {
-            log.error("Failed to send content failure notification for user: {}, requestId: {}", 
+            log.error("Failed to send content failure notification for user: {}, requestId: {}",
                     userId, requestId, e);
         }
     }

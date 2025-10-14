@@ -1,9 +1,8 @@
 package com.linglevel.api.user.ticket.controller;
 
+import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.user.ticket.dto.GetTicketTransactionsRequest;
 import com.linglevel.api.user.ticket.dto.TicketBalanceResponse;
 import com.linglevel.api.user.ticket.dto.TicketTransactionResponse;
@@ -19,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -31,7 +30,6 @@ import jakarta.validation.Valid;
 public class TicketsController {
 
     private final TicketService ticketService;
-    private final UserRepository userRepository;
 
     @GetMapping("/balance")
     @Operation(summary = "티켓 잔고 조회", description = "사용자의 현재 티켓 잔고를 조회합니다.")
@@ -40,12 +38,9 @@ public class TicketsController {
         @ApiResponse(responseCode = "401", description = "인증 실패",
             content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
-    public ResponseEntity<TicketBalanceResponse> getTicketBalance(Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
-        
-        TicketBalanceResponse response = ticketService.getTicketBalance(user.getId());
-        
+    public ResponseEntity<TicketBalanceResponse> getTicketBalance(@AuthenticationPrincipal JwtClaims claims) {
+        TicketBalanceResponse response = ticketService.getTicketBalance(claims.getId());
+
         return ResponseEntity.ok(response);
     }
 
@@ -58,21 +53,18 @@ public class TicketsController {
     })
     public ResponseEntity<PageResponse<TicketTransactionResponse>> getTicketTransactions(
             @ParameterObject @Valid @ModelAttribute GetTicketTransactionsRequest request,
-            Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
-        
+            @AuthenticationPrincipal JwtClaims claims) {
         var transactions = ticketService.getTicketTransactions(
-            user.getId(), 
-            request.getPage(), 
+            claims.getId(),
+            request.getPage(),
             request.getLimit()
         );
-        
+
         PageResponse<TicketTransactionResponse> response = new PageResponse<>(
-            transactions.getContent(), 
+            transactions.getContent(),
             transactions
         );
-        
+
         return ResponseEntity.ok(response);
     }
 

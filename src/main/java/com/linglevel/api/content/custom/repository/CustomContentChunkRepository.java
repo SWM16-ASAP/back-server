@@ -32,4 +32,7 @@ public interface CustomContentChunkRepository extends MongoRepository<CustomCont
     long countByCustomContentIdAndIsDeletedFalse(String customContentId);
 
     Optional<CustomContentChunk> findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId);
+
+    // V2 Progress: Count chunks by difficulty level
+    long countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(String customContentId, DifficultyLevel difficultyLevel);
 }

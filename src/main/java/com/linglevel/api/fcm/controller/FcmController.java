@@ -1,10 +1,9 @@
 package com.linglevel.api.fcm.controller;
 
+import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.fcm.dto.*;
 import com.linglevel.api.fcm.exception.FcmException;
 import com.linglevel.api.fcm.service.FcmTokenService;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -29,7 +28,6 @@ import org.springframework.web.bind.annotation.*;
 public class FcmController {
 
     private final FcmTokenService fcmTokenService;
-    private final UserRepository userRepository;
 
     @Operation(summary = "FCM 토큰 등록/업데이트", 
                description = "사용자의 FCM 토큰을 등록하거나 업데이트합니다. 동일한 사용자+디바이스 조합이 이미 존재하는 경우 토큰을 업데이트하고, 존재하지 않는 경우 새로 생성합니다.")
@@ -44,14 +42,11 @@ public class FcmController {
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PutMapping("/token")
-    public ResponseEntity<?> upsertFcmToken(@Valid @RequestBody FcmTokenUpsertRequest request, 
-                                             Authentication authentication) {
-        
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username).orElseThrow();
-        
-        FcmTokenUpsertResult result = fcmTokenService.upsertFcmToken(user.getId(), request);
-        
+    public ResponseEntity<?> upsertFcmToken(@Valid @RequestBody FcmTokenUpsertRequest request,
+                                             @AuthenticationPrincipal JwtClaims claims) {
+
+        FcmTokenUpsertResult result = fcmTokenService.upsertFcmToken(claims.getId(), request);
+
         if (result.isCreated()) {
             FcmTokenCreateResponse response = FcmTokenCreateResponse.builder()
                     .message("FCM token created successfully.")

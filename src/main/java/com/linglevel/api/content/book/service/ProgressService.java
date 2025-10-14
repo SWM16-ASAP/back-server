@@ -8,10 +8,8 @@ import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.exception.UsersErrorCode;
-import com.linglevel.api.user.exception.UsersException;
-import com.linglevel.api.user.repository.UserRepository;
+import com.linglevel.api.content.book.repository.ChunkRepository;
+import com.linglevel.api.content.common.service.ProgressCalculationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,17 +24,15 @@ public class ProgressService {
     private final ChapterService chapterService;
     private final ChunkService chunkService;
     private final BookProgressRepository bookProgressRepository;
-    private final UserRepository userRepository;
+    private final ChunkRepository chunkRepository;
+    private final ProgressCalculationService progressCalculationService;
+
 
     @Transactional
-    public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String username) {
+    public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
-
-        // 사용자 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
 
         // chunkId로부터 chunk 정보 조회
         Chunk chunk = chunkService.findById(request.getChunkId());
@@ -51,8 +47,6 @@ public class ProgressService {
             throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND_IN_BOOK);
         }
 
-        String userId = user.getId();
-
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElse(new BookProgress());
 
@@ -66,21 +60,42 @@ public class ProgressService {
         bookProgress.setChapterId(chapter.getId()); // 역추산된 chapter ID
         bookProgress.setChunkId(request.getChunkId());
         bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
-        bookProgress.setCurrentReadChunkNumber(chunk.getChunkNumber());
 
-        // max 진도 업데이트 (current가 max보다 크면 max도 업데이트)
-        if (shouldUpdateMaxProgress(bookProgress, chapter.getChapterNumber(), chunk.getChunkNumber())) {
-            bookProgress.setMaxReadChapterNumber(chapter.getChapterNumber());
-            bookProgress.setMaxReadChunkNumber(chunk.getChunkNumber());
+        // [V2_CORE] V2 필드: 정규화된 진행률 계산
+        long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
+            chapter.getId(), chunk.getDifficultyLevel()
+        );
+        double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
+            chunk.getChunkNumber(), totalChunks
+        );
+
+        bookProgress.setNormalizedProgress(normalizedProgress);
+        bookProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+
+        // max 진도 업데이트 로직 변경
+        Integer currentChapterNum = chapter.getChapterNumber();
+        Integer maxChapterNum = bookProgress.getMaxReadChapterNumber();
+
+        if (maxChapterNum == null || currentChapterNum > maxChapterNum) {
+            // 새로운 높은 챕터로 이동한 경우, max 값을 현재 값으로 덮어쓴다.
+            bookProgress.setMaxReadChapterNumber(currentChapterNum);
+            bookProgress.setMaxNormalizedProgress(normalizedProgress);
+        } else if (currentChapterNum.equals(maxChapterNum)) {
+            // 가장 높은 챕터 내에서 진행률이 증가한 경우, max 값을 갱신한다.
+            if (progressCalculationService.shouldUpdateMaxProgress(
+                bookProgress.getMaxNormalizedProgress(), normalizedProgress)) {
+                bookProgress.setMaxNormalizedProgress(normalizedProgress);
+            }
         }
+        // 현재 챕터가 max 챕터보다 낮은 경우는 max 값을 변경하지 않는다.
 
-        // 완료 조건: 마지막 챕터의 마지막 청크 이상을 읽으면 완료
-        if (bookService.existsById(bookId)) {
-            var book = bookService.findById(bookId);
-            boolean isLastChapter = chapter.getChapterNumber() >= book.getChapterCount();
-            boolean isLastChunk = chunk.getChunkNumber() >= chapter.getChunkCount();
-            boolean isCompleted = isLastChapter && isLastChunk;
-            bookProgress.setIsCompleted(bookProgress.getIsCompleted() != null && bookProgress.getIsCompleted() || isCompleted);
+        // 완료 조건 변경: 마지막 챕터의 진행률이 100%일 때만 완료 처리
+        com.linglevel.api.content.book.entity.Book book = bookService.findById(bookId);
+        boolean isLastChapter = chapter.getChapterNumber().equals(book.getChapterCount());
+        boolean isChapterCompleted = progressCalculationService.isCompleted(normalizedProgress);
+
+        if (isLastChapter && isChapterCompleted) {
+            bookProgress.setIsCompleted(true);
         }
 
         bookProgressRepository.save(bookProgress);
@@ -89,16 +104,10 @@ public class ProgressService {
     }
 
     @Transactional(readOnly = true)
-    public ProgressResponse getProgress(String bookId, String username) {
+    public ProgressResponse getProgress(String bookId, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
-
-        // 사용자 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        String userId = user.getId();
 
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElseGet(() -> initializeProgress(userId, bookId));
@@ -116,37 +125,66 @@ public class ProgressService {
         newProgress.setChapterId(firstChapter.getId());
         newProgress.setChunkId(firstChunk.getId());
         newProgress.setCurrentReadChapterNumber(firstChapter.getChapterNumber());
-        newProgress.setCurrentReadChunkNumber(firstChunk.getChunkNumber());
         newProgress.setMaxReadChapterNumber(firstChapter.getChapterNumber());
-        newProgress.setMaxReadChunkNumber(firstChunk.getChunkNumber());
+
+        // [V2_CORE] V2 필드: 초기 진행률 계산
+        long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
+            firstChapter.getId(), firstChunk.getDifficultyLevel()
+        );
+        double initialProgress = progressCalculationService.calculateNormalizedProgress(
+            firstChunk.getChunkNumber(), totalChunks
+        );
+
+        newProgress.setNormalizedProgress(initialProgress);
+        newProgress.setMaxNormalizedProgress(initialProgress);
+        newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
 
         return bookProgressRepository.save(newProgress);
     }
 
     @Transactional
-    public void deleteProgress(String bookId, String username) {
+    public void deleteProgress(String bookId, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-
-        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(user.getId(), bookId)
+        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElseThrow(() -> new BooksException(BooksErrorCode.PROGRESS_NOT_FOUND));
 
         bookProgressRepository.delete(bookProgress);
     }
 
-    private boolean shouldUpdateMaxProgress(BookProgress progress, Integer chapterNum, Integer chunkNum) {
+    // [V1_COMPAT] Chapter 기반 max 진도만 관리
+    private boolean shouldUpdateMaxProgress(BookProgress progress, Integer chapterNum) {
         Integer maxChapter = progress.getMaxReadChapterNumber();
-        Integer maxChunk = progress.getMaxReadChunkNumber();
-
-        return maxChapter == null || chapterNum > maxChapter
-            || (chapterNum.equals(maxChapter) && chunkNum > maxChunk);
+        return maxChapter == null || chapterNum > maxChapter;
     }
 
     private ProgressResponse convertToProgressResponse(BookProgress progress) {
+        // [DTO_MAPPING] chunk에서 chunkNumber 조회
+        Chunk chunk = chunkService.findById(progress.getChunkId());
+
+        // [FALLBACK] V2 필드가 없으면 동적 계산 (기존 데이터 대응)
+        if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
+            log.info("V2 fields missing for BookProgress {}, calculating lazily", progress.getId());
+
+            // 난이도별 전체 청크 수 조회
+            long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
+                chunk.getChapterId(), chunk.getDifficultyLevel()
+            );
+            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
+                chunk.getChunkNumber(), totalChunks
+            );
+
+            // Lazy migration: V2 필드 저장
+            progress.setNormalizedProgress(normalizedProgress);
+            progress.setMaxNormalizedProgress(normalizedProgress);
+            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+
+            bookProgressRepository.save(progress);
+            log.info("Lazy migration completed for BookProgress {}", progress.getId());
+        }
+
         return ProgressResponse.builder()
                 .id(progress.getId())
                 .userId(progress.getUserId())
@@ -154,10 +192,12 @@ public class ProgressService {
                 .chapterId(progress.getChapterId())
                 .chunkId(progress.getChunkId())
                 .currentReadChapterNumber(progress.getCurrentReadChapterNumber())
-                .currentReadChunkNumber(progress.getCurrentReadChunkNumber())
+                .currentReadChunkNumber(chunk.getChunkNumber())
                 .maxReadChapterNumber(progress.getMaxReadChapterNumber())
-                .maxReadChunkNumber(progress.getMaxReadChunkNumber())
                 .isCompleted(progress.getIsCompleted())
+                .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
+                .normalizedProgress(progress.getNormalizedProgress())
+                .maxNormalizedProgress(progress.getMaxNormalizedProgress())
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

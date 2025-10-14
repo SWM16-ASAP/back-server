@@ -7,6 +7,7 @@ import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
+import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.common.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,15 +27,16 @@ import java.util.stream.Collectors;
 public class ChunkService {
 
     private final ChunkRepository chunkRepository;
+    private final ChapterRepository chapterRepository;
     private final BookService bookService;
-    private final ChapterService chapterService;
 
     public PageResponse<ChunkResponse> getChunks(String bookId, String chapterId, GetChunksRequest request) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
-        Chapter chapter = chapterService.findById(chapterId);
+        Chapter chapter = chapterRepository.findById(chapterId)
+            .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
         if (!bookId.equals(chapter.getBookId())) {
             throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
         }
@@ -53,6 +55,7 @@ public class ChunkService {
         );
 
         Page<Chunk> chunkPage = chunkRepository.findByChapterIdAndDifficultyLevel(chapterId, difficulty, pageable);
+        log.info("Found chunks count: {}", chunkPage.getTotalElements());
         
         List<ChunkResponse> chunkResponses = chunkPage.getContent().stream()
             .map(this::convertToChunkResponse)
@@ -66,7 +69,8 @@ public class ChunkService {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
-        Chapter chapter = chapterService.findById(chapterId);
+        Chapter chapter = chapterRepository.findById(chapterId)
+            .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
         if (!bookId.equals(chapter.getBookId())) {
             throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
         }

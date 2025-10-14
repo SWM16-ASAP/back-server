@@ -11,7 +11,7 @@ import com.linglevel.api.crawling.service.CrawlingService;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.strategy.CustomContentPathStrategy;
 import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
+
 import com.linglevel.api.user.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,14 +30,14 @@ import java.util.Map;
 public class CustomContentRequestService {
 
     private final ContentRequestRepository contentRequestRepository;
-    private final UserRepository userRepository;
+
     private final S3AiService s3AiService;
     private final CustomContentPathStrategy pathStrategy;
     private final CrawlingService crawlingService;
     private final TicketService ticketService;
 
-    public CreateContentRequestResponse createContentRequest(String username, CreateContentRequestRequest request) {
-        log.info("Creating content request for user: {}", username);
+    public CreateContentRequestResponse createContentRequest(String userId, CreateContentRequestRequest request) {
+        log.info("Creating content request for user: {}", userId);
 
         // URL 유효성 검증 (LINK 타입인 경우) 및 도메인 추출
         String extractedDomain = null;
@@ -45,20 +45,17 @@ public class CustomContentRequestService {
             extractedDomain = validateUrlForCrawling(request.getOriginUrl());
         }
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
-
         // 🎫 티켓 소비 (1개 티켓 필요)
         try {
-            ticketService.spendTicket(user.getId(), 1, "Custom content creation");
-            log.info("Ticket spent for user: {} (Custom content: {})", user.getId(), request.getTitle());
+            ticketService.spendTicket(userId, 1, "Custom content creation");
+            log.info("Ticket spent for user: {} (Custom content: {})", userId, request.getTitle());
         } catch (Exception e) {
-            log.info("Failed to spend ticket for user: {}", user.getId(), e);
+            log.info("Failed to spend ticket for user: {}", userId, e);
             throw new CustomContentException(CustomContentErrorCode.INSUFFICIENT_TICKETS);
         }
 
         ContentRequest contentRequest = ContentRequest.builder()
-                .userId(user.getId())
+                .userId(userId)
                 .title(request.getTitle())
                 .contentType(request.getContentType())
                 .originalText(request.getOriginalContent())
@@ -136,11 +133,8 @@ public class CustomContentRequestService {
         }
     }
 
-    public PageResponse<ContentRequestResponse> getContentRequests(String username, GetContentRequestsRequest request) {
-        log.info("Getting content requests for user: {}", username);
-        
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public PageResponse<ContentRequestResponse> getContentRequests(String userId, GetContentRequestsRequest request) {
+        log.info("Getting content requests for user: {}", userId);
         
         Pageable pageable = PageRequest.of(
                 request.getPage() - 1,
@@ -151,23 +145,20 @@ public class CustomContentRequestService {
         Page<ContentRequest> contentRequests;
         if (request.getStatus() != null) {
             ContentRequestStatus status = ContentRequestStatus.valueOf(request.getStatus().toUpperCase());
-            contentRequests = contentRequestRepository.findByUserIdAndStatus(user.getId(), status, pageable);
+            contentRequests = contentRequestRepository.findByUserIdAndStatus(userId, status, pageable);
         } else {
             contentRequests = contentRequestRepository.findByUserIdAndStatusNot(
-                    user.getId(), ContentRequestStatus.DELETED, pageable);
+                    userId, ContentRequestStatus.DELETED, pageable);
         }
 
         Page<ContentRequestResponse> responsePage = contentRequests.map(this::mapToResponse);
         return new PageResponse<>(responsePage.getContent(), responsePage);
     }
 
-    public ContentRequestResponse getContentRequest(String username, String requestId) {
-        log.info("Getting content request {} for user: {}", requestId, username);
+    public ContentRequestResponse getContentRequest(String userId, String requestId) {
+        log.info("Getting content request {} for user: {}", requestId, userId);
         
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
-        
-        ContentRequest contentRequest = contentRequestRepository.findByIdAndUserId(requestId, user.getId())
+        ContentRequest contentRequest = contentRequestRepository.findByIdAndUserId(requestId, userId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
 
         return mapToResponse(contentRequest);

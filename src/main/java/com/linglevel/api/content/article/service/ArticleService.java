@@ -5,13 +5,13 @@ import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
+import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
+import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.entity.ArticleProgress;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
 import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
@@ -39,41 +39,35 @@ public class ArticleService {
 
     private final ArticleRepository articleRepository;
     private final ArticleProgressRepository articleProgressRepository;
-    private final UserRepository userRepository;
+    private final ArticleChunkRepository articleChunkRepository;
     private final ArticleImportService articleImportService;
     private final ArticleReadingTimeService articleReadingTimeService;
+    private final ArticleChunkService articleChunkService;
     private final S3AiService s3AiService;
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
     private final ImageResizeService imageResizeService;
     private final ArticlePathStrategy articlePathStrategy;
 
-    public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request, String username) {
+    public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request, String userId) {
         validateGetArticlesRequest(request);
-        
+
         Pageable pageable = createPageable(request);
-        Page<Article> articlePage = findArticles(request, pageable);
-        
-        // 사용자 ID 조회
-        String userId = getUserId(username);
+
+        // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
+        Page<Article> articlePage = articleRepository.findArticlesWithFilters(request, userId, pageable);
 
         List<ArticleResponse> articleResponses = articlePage.getContent().stream()
                 .map(article -> convertToArticleResponse(article, userId))
                 .collect(Collectors.toList());
 
-        // 진도별 필터링
-        if (request.getProgress() != null && userId != null) {
-            articleResponses = filterByProgress(articleResponses, request.getProgress());
-        }
-        
         return PageResponse.of(articlePage, articleResponses);
     }
 
-    public ArticleResponse getArticle(String articleId, String username) {
+    public ArticleResponse getArticle(String articleId, String userId) {
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
-        
-        String userId = getUserId(username);
+
         return convertToArticleResponse(article, userId);
     }
 
@@ -150,23 +144,6 @@ public class ArticleService {
         };
     }
 
-    private Page<Article> findArticles(GetArticlesRequest request, Pageable pageable) {
-        boolean hasTags = request.getTags() != null && !request.getTags().trim().isEmpty();
-        boolean hasKeyword = request.getKeyword() != null && !request.getKeyword().trim().isEmpty();
-        
-        if (hasTags && hasKeyword) {
-            List<String> tagList = Arrays.asList(request.getTags().split(","));
-            return articleRepository.findByTagsInAndTitleOrAuthorContaining(tagList, request.getKeyword(), pageable);
-        } else if (hasTags) {
-            List<String> tagList = Arrays.asList(request.getTags().split(","));
-            return articleRepository.findByTagsIn(tagList, pageable);
-        } else if (hasKeyword) {
-            return articleRepository.findByTitleOrAuthorContaining(request.getKeyword(), pageable);
-        } else {
-            return articleRepository.findAll(pageable);
-        }
-    }
-
     private Article createArticle(ArticleImportData importData, String requestId) {
         Article article = new Article();
         article.setTitle(importData.getTitle());
@@ -179,9 +156,6 @@ public class ArticleService {
         String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, articlePathStrategy);
         article.setCoverImageUrl(coverImageUrl);
         
-        int chunkCount = articleImportService.calculateTotalChunkCount(importData);
-        article.setChunkCount(chunkCount);
-        
         article.setReadingTime(0);
         article.setAverageRating(0.0);
         article.setReviewCount(0);
@@ -192,32 +166,13 @@ public class ArticleService {
         return article;
     }
 
-    private String getUserId(String username) {
-        if (username == null) return null;
-        return userRepository.findByUsername(username)
-            .map(User::getId)
-            .orElse(null);
-    }
-
-    private List<ArticleResponse> filterByProgress(List<ArticleResponse> responses, ProgressStatus progressFilter) {
-        if (progressFilter == null) {
-            return responses; // No filter, return all
-        }
-
-        return responses.stream()
-            .filter(article -> switch (progressFilter) {
-                case NOT_STARTED -> article.getProgressPercentage() == 0.0;
-                case IN_PROGRESS -> article.getProgressPercentage() > 0.0 && !article.getIsCompleted();
-                case COMPLETED -> article.getIsCompleted();
-            })
-            .collect(Collectors.toList());
-    }
 
     private ArticleResponse convertToArticleResponse(Article article, String userId) {
         // 진도 정보 조회
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
         boolean isCompleted = false;
+        DifficultyLevel currentDifficultyLevel = article.getDifficultyLevel(); // Fallback: Article의 난이도
 
         if (userId != null) {
             ArticleProgress progress = articleProgressRepository
@@ -225,11 +180,25 @@ public class ArticleService {
                 .orElse(null);
 
             if (progress != null) {
-                currentReadChunkNumber = progress.getCurrentReadChunkNumber() != null
-                    ? progress.getCurrentReadChunkNumber() : 0;
+                // [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
+                try {
+                    ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+                    currentReadChunkNumber = chunk.getChunkNumber() != null ? chunk.getChunkNumber() : 0;
+                } catch (Exception e) {
+                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
+                    currentReadChunkNumber = 0;
+                }
 
-                if (article.getChunkCount() != null && article.getChunkCount() > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / article.getChunkCount() * 100.0;
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (progress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+                }
+
+                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
+                long totalChunksForLevel = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), currentDifficultyLevel);
+
+                if (totalChunksForLevel > 0) {
+                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
                 }
 
                 // DB에 저장된 완료 여부 사용
@@ -243,9 +212,10 @@ public class ArticleService {
         response.setAuthor(article.getAuthor());
         response.setCoverImageUrl(article.getCoverImageUrl());
         response.setDifficultyLevel(article.getDifficultyLevel());
-        response.setChunkCount(article.getChunkCount());
+        response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), article.getDifficultyLevel()));
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
+        response.setCurrentDifficultyLevel(currentDifficultyLevel);
         response.setIsCompleted(isCompleted);
         response.setReadingTime(article.getReadingTime());
         response.setAverageRating(article.getAverageRating());

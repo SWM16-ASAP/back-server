@@ -10,8 +10,6 @@ import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookRepository;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.entity.BookProgress;
-import com.linglevel.api.user.entity.User;
-import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
@@ -39,7 +37,7 @@ public class BookService {
 
     private final BookRepository bookRepository;
     private final BookProgressRepository bookProgressRepository;
-    private final UserRepository userRepository;
+
     private final S3AiService s3AiService;
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
@@ -114,7 +112,7 @@ public class BookService {
         return book;
     }
 
-    public PageResponse<BookResponse> getBooks(GetBooksRequest request, String username) {
+    public PageResponse<BookResponse> getBooks(GetBooksRequest request, String userId) {
         Sort sort = createSort(request.getSortBy());
 
         Pageable pageable = PageRequest.of(
@@ -123,28 +121,20 @@ public class BookService {
             sort
         );
 
-        Page<Book> bookPage = bookRepository.findAll(pageable);
-
-        // 사용자 ID 조회
-        final String userId = getUserId(username);
+        // QueryDSL Custom Repository를 사용하여 필터링 + 페이지네이션 통합 처리
+        Page<Book> bookPage = bookRepository.findBooksWithFilters(request, userId, pageable);
 
         List<BookResponse> bookResponses = bookPage.getContent().stream()
             .map(book -> convertToBookResponse(book, userId))
             .collect(Collectors.toList());
 
-        // 진도별 필터링 적용
-        if (request.getProgress() != null && userId != null) {
-            bookResponses = filterByProgress(bookResponses, request.getProgress());
-        }
-
         return new PageResponse<>(bookResponses, bookPage);
     }
 
-    public BookResponse getBook(String bookId, String username) {
+    public BookResponse getBook(String bookId, String userId) {
         Book book = bookRepository.findById(bookId)
             .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
         
-        String userId = getUserId(username);
         return convertToBookResponse(book, userId);
     }
 
@@ -229,10 +219,5 @@ public class BookService {
             .build();
     }
 
-    private String getUserId(String username) {
-        if (username == null) return null;
-        return userRepository.findByUsername(username)
-            .map(User::getId)
-            .orElse(null);
-    }
+
 }

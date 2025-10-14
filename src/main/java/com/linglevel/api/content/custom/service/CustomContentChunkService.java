@@ -28,13 +28,10 @@ public class CustomContentChunkService {
     private final CustomContentRepository customContentRepository;
     private final UserRepository userRepository;
 
-    public PageResponse<CustomContentChunkResponse> getCustomContentChunks(String username, String customContentId, GetCustomContentChunksRequest request) {
-        log.info("Getting custom content chunks for content {} and user: {}", customContentId, username);
-        
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public PageResponse<CustomContentChunkResponse> getCustomContentChunks(String userId, String customContentId, GetCustomContentChunksRequest request) {
+        log.info("Getting custom content chunks for content {} and user: {}", customContentId, userId);
 
-        validateCustomContentAccess(customContentId, user.getId());
+        validateCustomContentAccess(customContentId, userId);
 
         DifficultyLevel difficulty = request.getDifficultyLevel();
 
@@ -52,13 +49,10 @@ public class CustomContentChunkService {
         return PageResponse.of(chunksPage, chunkResponses);
     }
 
-    public CustomContentChunkResponse getCustomContentChunk(String username, String customContentId, String chunkId) {
-        log.info("Getting custom content chunk {} from content {} for user: {}", chunkId, customContentId, username);
-        
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public CustomContentChunkResponse getCustomContentChunk(String userId, String customContentId, String chunkId) {
+        log.info("Getting custom content chunk {} from content {} for user: {}", chunkId, customContentId, userId);
 
-        validateCustomContentAccess(customContentId, user.getId());
+        validateCustomContentAccess(customContentId, userId);
 
         CustomContentChunk chunk = customContentChunkRepository.findByIdAndCustomContentIdAndIsDeletedFalse(chunkId, customContentId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));

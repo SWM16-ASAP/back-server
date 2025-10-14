@@ -2,6 +2,8 @@ package com.linglevel.api.admin.controller;
 
 import com.linglevel.api.admin.dto.GrantTicketRequest;
 import com.linglevel.api.admin.dto.GrantTicketResponse;
+import com.linglevel.api.admin.dto.NotificationBroadcastRequest;
+import com.linglevel.api.admin.dto.NotificationBroadcastResponse;
 import com.linglevel.api.admin.dto.NotificationSendResponse;
 import com.linglevel.api.admin.dto.NotificationSendRequest;
 import com.linglevel.api.fcm.dto.FcmMessageRequest;
@@ -108,14 +110,19 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "푸시 알림 전송", description = "어드민 권한으로 사용자에게 FCM 푸시 알림을 전송합니다.")
+    @Operation(summary = "브로드캐스트 알림 전송", description = "어드민 권한으로 전체 사용자에게 FCM 푸시 알림을 브로드캐스트합니다.")
+    @PostMapping("/notifications/broadcast")
+    public ResponseEntity<NotificationBroadcastResponse> broadcastNotification(
+            @Parameter(description = "브로드캐스트 알림 전송 요청", required = true) @Valid @RequestBody NotificationBroadcastRequest request) {
+        NotificationBroadcastResponse response = notificationService.sendBroadcastNotification(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "푸시 알림 전송", description = "어드민 권한으로 특정 사용자들에게 FCM 푸시 알림을 전송합니다.")
     @PostMapping("/notifications/send")
     public ResponseEntity<NotificationSendResponse> sendNotification(
             @Parameter(description = "알림 전송 요청", required = true) @Valid @RequestBody NotificationSendRequest request) {
-        
-        log.info("Admin sending notification - targets: {}, title: {}", 
-                request.getTargets() != null ? request.getTargets().size() : 0, request.getTitle());
-        
+
         NotificationSendResponse response = notificationService.sendNotificationFromRequest(request);
         return ResponseEntity.ok(response);
     }

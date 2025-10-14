@@ -4,6 +4,7 @@ import com.linglevel.api.auth.filter.AdminAuthenticationFilter;
 import com.linglevel.api.auth.filter.TestAuthFilter;
 import com.linglevel.api.auth.handler.CustomAuthenticationEntryPoint;
 import com.linglevel.api.auth.jwt.JwtFilter;
+import com.linglevel.api.common.ratelimit.filter.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -28,7 +29,8 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtFilter jwtFilter;
     private final AdminAuthenticationFilter adminAuthenticationFilter;
-    
+    private final RateLimitFilter rateLimitFilter;
+
     @Autowired(required = false)
     private TestAuthFilter testAuthFilter;
 
@@ -55,9 +57,10 @@ public class SecurityConfig {
         if (testAuthFilter != null) {
             http.addFilterBefore(testAuthFilter, UsernamePasswordAuthenticationFilter.class);
         }
-        
+
         http.addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(rateLimitFilter, JwtFilter.class);
         return http.build();
     }
 

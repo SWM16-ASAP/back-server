@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface CustomContentRepository extends MongoRepository<CustomContent, String> {
+public interface CustomContentRepository extends MongoRepository<CustomContent, String>, CustomContentRepositoryCustom {
     
     Page<CustomContent> findByUserIdAndIsDeletedFalse(String userId, Pageable pageable);
     

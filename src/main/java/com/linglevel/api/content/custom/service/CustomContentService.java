@@ -37,13 +37,10 @@ public class CustomContentService {
     private final CustomContentRepository customContentRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
     private final CustomContentProgressRepository customContentProgressRepository;
-    private final UserRepository userRepository;
-    private final MongoTemplate mongoTemplate;
+    private final CustomContentChunkService customContentChunkService;
 
-    public PageResponse<CustomContentResponse> getCustomContents(String username, GetCustomContentsRequest request) {
-        log.info("Getting custom contents for user: {} with request: {}", username, request);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public PageResponse<CustomContentResponse> getCustomContents(String userId, GetCustomContentsRequest request) {
+        log.info("Getting custom contents for user: {} with request: {}", userId, request);
 
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt"); // 기본값: 최신순
         if (StringUtils.hasText(request.getSortBy())) {
@@ -59,58 +56,30 @@ public class CustomContentService {
 
         Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
 
-        Query query = new Query().with(pageable);
-        query.addCriteria(Criteria.where("userId").is(user.getId()));
-        query.addCriteria(Criteria.where("isDeleted").is(false));
+        // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
+        Page<CustomContent> page = customContentRepository.findCustomContentsWithFilters(userId, request, pageable);
 
-        if (StringUtils.hasText(request.getKeyword())) {
-            Criteria keywordCriteria = new Criteria().orOperator(
-                    Criteria.where("title").regex(request.getKeyword(), "i"),
-                    Criteria.where("author").regex(request.getKeyword(), "i")
-            );
-            query.addCriteria(keywordCriteria);
-        }
-
-        if (StringUtils.hasText(request.getTags())) {
-            String[] tags = request.getTags().split(",");
-            query.addCriteria(Criteria.where("tags").all((Object[]) tags));
-        }
-
-        long total = mongoTemplate.count(query.limit(-1).skip(-1), CustomContent.class);
-        List<CustomContent> contents = mongoTemplate.find(query, CustomContent.class);
-
-        Page<CustomContent> page = new PageImpl<>(contents, pageable, total);
-        List<CustomContentResponse> responses = contents.stream()
-                .map(content -> mapToResponse(content, user.getId()))
+        List<CustomContentResponse> responses = page.getContent().stream()
+                .map(content -> mapToResponse(content, userId))
                 .collect(Collectors.toList());
 
-        // 진도별 필터링
-        if (request.getProgress() != null) {
-            responses = filterByProgress(responses, request.getProgress());
-        }
-
-        Page<CustomContentResponse> responsePage = new PageImpl<>(responses, pageable, total);
-        return new PageResponse<>(responses, responsePage);
+        return new PageResponse<>(responses, page);
     }
 
-    public CustomContentResponse getCustomContent(String username, String customContentId) {
-        log.info("Getting custom content {} for user: {}", customContentId, username);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public CustomContentResponse getCustomContent(String userId, String customContentId) {
+        log.info("Getting custom content {} for user: {}", customContentId, userId);
 
-        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, user.getId())
+        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-        return mapToResponse(content, user.getId());
+        return mapToResponse(content, userId);
     }
 
     @Transactional
-    public CustomContentResponse updateCustomContent(String username, String customContentId, UpdateCustomContentRequest request) {
-        log.info("Updating custom content {} for user: {}", customContentId, username);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public CustomContentResponse updateCustomContent(String userId, String customContentId, UpdateCustomContentRequest request) {
+        log.info("Updating custom content {} for user: {}", customContentId, userId);
 
-        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, user.getId())
+        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
         if (request.getTitle() != null) {
@@ -121,16 +90,14 @@ public class CustomContentService {
         }
 
         CustomContent updatedContent = customContentRepository.save(content);
-        return mapToResponse(updatedContent, user.getId());
+        return mapToResponse(updatedContent, userId);
     }
 
     @Transactional
-    public void deleteCustomContent(String username, String customContentId) {
-        log.info("Deleting custom content {} for user: {}", customContentId, username);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.USER_NOT_FOUND));
+    public void deleteCustomContent(String userId, String customContentId) {
+        log.info("Deleting custom content {} for user: {}", customContentId, userId);
 
-        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, user.getId())
+        CustomContent content = customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
         // Soft delete the main content
@@ -150,36 +117,12 @@ public class CustomContentService {
         }
     }
 
-    private List<CustomContentResponse> filterByProgress(List<CustomContentResponse> responses, ProgressStatus progressFilter) {
-        if (progressFilter == null) {
-            return responses; // No filter, return all
-        }
-
-        return responses.stream()
-            .filter(content -> switch (progressFilter) {
-                case NOT_STARTED -> content.getProgressPercentage() == 0.0;
-                case IN_PROGRESS -> content.getProgressPercentage() > 0.0 && !content.getIsCompleted();
-                case COMPLETED -> content.getIsCompleted();
-            })
-            .collect(Collectors.toList());
-    }
-
-    private String getUserId(String username) {
-        if (username == null) return null;
-        return userRepository.findByUsername(username)
-            .map(User::getId)
-            .orElse(null);
-    }
-
-    private CustomContentResponse mapToResponse(CustomContent content) {
-        return mapToResponse(content, null);
-    }
-
     private CustomContentResponse mapToResponse(CustomContent content, String userId) {
         // 진도 정보 조회
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
         boolean isCompleted = false;
+        com.linglevel.api.content.common.DifficultyLevel currentDifficultyLevel = content.getDifficultyLevel(); // Fallback: CustomContent의 난이도
 
         if (userId != null) {
             CustomContentProgress progress = customContentProgressRepository
@@ -187,14 +130,29 @@ public class CustomContentService {
                 .orElse(null);
 
             if (progress != null) {
-                currentReadChunkNumber = progress.getCurrentReadChunkNumber() != null
-                    ? progress.getCurrentReadChunkNumber() : 0;
+                // [DTO_MAPPING] chunk에서 chunkNum 조회 (안전하게 처리)
+                try {
+                    CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
+                    currentReadChunkNumber = chunk.getChunkNum() != null ? chunk.getChunkNum() : 0;
+                } catch (Exception e) {
+                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
+                    currentReadChunkNumber = 0;
+                }
 
-                if (content.getChunkCount() != null && content.getChunkCount() > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / content.getChunkCount() * 100.0;
+                // Progress가 있으면 currentDifficultyLevel 사용
+                if (progress.getCurrentDifficultyLevel() != null) {
+                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+                }
+
+                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
+                long totalChunksForLevel = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel);
+
+                if (totalChunksForLevel > 0) {
+                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
                 }
 
                 isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+
             }
         }
         CustomContentResponse response = new CustomContentResponse();
@@ -204,9 +162,10 @@ public class CustomContentService {
         response.setCoverImageUrl(content.getCoverImageUrl());
         response.setDifficultyLevel(content.getDifficultyLevel());
         response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
-        response.setChunkCount(content.getChunkCount());
+        response.setChunkCount((int) customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), content.getDifficultyLevel()));
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
+        response.setCurrentDifficultyLevel(currentDifficultyLevel);
         response.setIsCompleted(isCompleted);
         response.setReadingTime(content.getReadingTime());
         response.setAverageRating(content.getAverageRating() != null ? content.getAverageRating().floatValue() : 0.0d);

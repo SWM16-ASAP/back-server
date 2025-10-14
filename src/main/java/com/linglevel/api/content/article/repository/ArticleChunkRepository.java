@@ -12,4 +12,7 @@ public interface ArticleChunkRepository extends MongoRepository<ArticleChunk, St
     Page<ArticleChunk> findByArticleIdAndDifficultyLevelOrderByChunkNumber(String articleId, DifficultyLevel difficultyLevel, Pageable pageable);
     Optional<ArticleChunk> findByArticleIdAndId(String articleId, String chunkId);
     Optional<ArticleChunk> findFirstByArticleIdOrderByChunkNumber(String articleId);
+
+    // V2 Progress: Count chunks by difficulty level
+    long countByArticleIdAndDifficultyLevel(String articleId, DifficultyLevel difficultyLevel);
 }
