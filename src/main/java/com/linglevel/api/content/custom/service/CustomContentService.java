@@ -162,7 +162,7 @@ public class CustomContentService {
         response.setCoverImageUrl(content.getCoverImageUrl());
         response.setDifficultyLevel(content.getDifficultyLevel());
         response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
-        response.setChunkCount((int) customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), content.getDifficultyLevel()));
+        response.setChunkCount((int) customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel));
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
         response.setCurrentDifficultyLevel(currentDifficultyLevel);

@@ -212,7 +212,7 @@ public class ArticleService {
         response.setAuthor(article.getAuthor());
         response.setCoverImageUrl(article.getCoverImageUrl());
         response.setDifficultyLevel(article.getDifficultyLevel());
-        response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), article.getDifficultyLevel()));
+        response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), currentDifficultyLevel));
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
         response.setCurrentDifficultyLevel(currentDifficultyLevel);

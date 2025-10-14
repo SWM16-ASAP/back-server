@@ -181,7 +181,7 @@ public class ChapterService {
             }
         }
 
-        long totalChunkCount = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap()).getOrDefault(book.getDifficultyLevel(), 0L);
+        long totalChunkCount = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap()).getOrDefault(currentDifficultyLevel, 0L);
 
         return ChapterResponse.builder()
             .id(chapter.getId())
