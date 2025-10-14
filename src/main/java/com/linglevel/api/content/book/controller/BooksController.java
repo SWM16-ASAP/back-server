@@ -1,6 +1,7 @@
 package com.linglevel.api.content.book.controller;
 
 import com.linglevel.api.content.book.dto.*;
+import com.linglevel.api.content.book.dto.ChapterNavigationResponse;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.service.BookService;
 import com.linglevel.api.content.book.service.ChapterService;
@@ -142,6 +143,22 @@ public class BooksController {
             @Parameter(description = "청크 ID", example = "60d0fe4f5311236168a109cd")
             @PathVariable String chunkId) {
         ChunkResponse response = chunkService.getChunk(bookId, chapterId, chunkId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "챕터 네비게이션 조회", description = "특정 챕터의 이전/다음 챕터 정보를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+            @ApiResponse(responseCode = "404", description = "책 또는 챕터를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @GetMapping("/{bookId}/chapters/{chapterId}/navigation")
+    public ResponseEntity<ChapterNavigationResponse> getChapterNavigation(
+            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
+            @PathVariable String bookId,
+            @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
+            @PathVariable String chapterId) {
+        ChapterNavigationResponse response = chapterService.getChapterNavigation(bookId, chapterId);
         return ResponseEntity.ok(response);
     }
 

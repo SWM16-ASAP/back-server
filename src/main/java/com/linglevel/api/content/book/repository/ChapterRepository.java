@@ -12,6 +12,8 @@ public interface ChapterRepository extends MongoRepository<Chapter, String>, Cha
     Page<Chapter> findByBookId(String chapterId, Pageable pageable);
     
     List<Chapter> findByBookIdOrderByChapterNumber(String bookId);
+
+    Optional<Chapter> findByBookIdAndChapterNumber(String bookId, int chapterNumber);
     
     Optional<Chapter> findFirstByBookIdOrderByChapterNumberAsc(String chapterId);
 
