@@ -25,6 +25,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -71,9 +72,10 @@ class ChapterServiceTest {
         testBook.setChapterCount(10);
         testBook.setCreatedAt(LocalDateTime.now());
 
-        when(bookService.existsById(anyString())).thenReturn(true);
         when(bookService.findById(anyString())).thenReturn(testBook);
-        when(chunkRepository.countByChapterIdAndDifficultyLevel(anyString(), any(DifficultyLevel.class))).thenReturn(100L);
+
+        // Add stubs for the new repository methods called during refactoring
+        when(chunkRepository.findChunkCountsByChapterIds(anyList())).thenReturn(Collections.emptyList());
     }
 
     @Test
