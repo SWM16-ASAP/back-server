@@ -7,4 +7,6 @@ import org.springframework.data.domain.Pageable;
 
 public interface CustomContentRepositoryCustom {
     Page<CustomContent> findCustomContentsWithFilters(String userId, GetCustomContentsRequest request, Pageable pageable);
+
+    void incrementViewCount(String customContentId);
 }

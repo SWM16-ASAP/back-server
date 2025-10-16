@@ -15,4 +15,6 @@ public interface BookRepositoryCustom {
      * @return 필터링된 책 페이지
      */
     Page<Book> findBooksWithFilters(GetBooksRequest request, String userId, Pageable pageable);
+    
+    void incrementViewCount(String bookId);
 }

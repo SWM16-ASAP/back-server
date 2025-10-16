@@ -7,4 +7,6 @@ import org.springframework.data.domain.Pageable;
 
 public interface ArticleRepositoryCustom {
     Page<Article> findArticlesWithFilters(GetArticlesRequest request, String userId, Pageable pageable);
+
+    void incrementViewCount(String articleId);
 }
