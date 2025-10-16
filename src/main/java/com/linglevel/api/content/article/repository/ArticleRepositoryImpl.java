@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
@@ -164,5 +165,12 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
                 .stream()
                 .map(doc -> doc.getString("articleId"))
                 .toList();
+    }
+
+    @Override
+    public void incrementViewCount(String articleId) {
+        Query query = new Query(Criteria.where("id").is(articleId));
+        Update update = new Update().inc("viewCount", 1);
+        mongoTemplate.updateFirst(query, update, Article.class);
     }
 }

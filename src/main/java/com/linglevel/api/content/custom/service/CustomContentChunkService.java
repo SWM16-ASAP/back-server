@@ -33,6 +33,8 @@ public class CustomContentChunkService {
 
         validateCustomContentAccess(customContentId, userId);
 
+        customContentRepository.incrementViewCount(customContentId);
+
         DifficultyLevel difficulty = request.getDifficultyLevel();
 
         validatePaginationRequest(request);

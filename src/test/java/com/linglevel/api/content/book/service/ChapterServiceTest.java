@@ -7,6 +7,7 @@ import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
+import com.linglevel.api.content.book.repository.BookRepository;
 import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.DifficultyLevel;
@@ -47,6 +48,9 @@ class ChapterServiceTest {
 
     @Mock
     private BookService bookService;
+
+    @Mock
+    private BookRepository bookRepository;
 
     @InjectMocks
     private ChapterService chapterService;

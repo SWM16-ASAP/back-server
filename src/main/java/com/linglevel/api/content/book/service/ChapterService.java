@@ -9,6 +9,7 @@ import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
+import com.linglevel.api.content.book.repository.BookRepository;
 import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
@@ -38,9 +39,12 @@ public class ChapterService {
     private final BookProgressRepository bookProgressRepository;
     private final ChunkRepository chunkRepository;
     private final BookService bookService;
+    private final BookRepository bookRepository;
 
     public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request, String userId) {
         Book book = bookService.findById(bookId);
+
+        bookRepository.incrementViewCount(bookId);
 
         Pageable pageable = PageRequest.of(
             request.getPage() - 1,
