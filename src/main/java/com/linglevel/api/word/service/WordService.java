@@ -319,6 +319,7 @@ public class WordService {
                 .meanings(word.getMeanings())  // Meaning을 그대로 사용
                 .relatedForms(word.getRelatedForms())
                 .bookmarked(isBookmarked)
+                .isEssential(word.getIsEssential())
                 .build();
     }
 
