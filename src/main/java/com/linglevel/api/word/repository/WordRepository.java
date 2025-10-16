@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -41,4 +42,24 @@ public interface WordRepository extends MongoRepository<Word, String> {
     Page<Word> findByWordContainingIgnoreCase(String word, Pageable pageable);
 
     boolean existsByWord(String word);
+
+    /**
+     * isEssential 필드로 필터링
+     */
+    List<Word> findAllByIsEssential(Boolean isEssential);
+
+    /**
+     * isEssential 필드로 개수 조회
+     */
+    long countByIsEssential(Boolean isEssential);
+
+    /**
+     * 필수 단어 중 특정 target 언어로 필터링
+     */
+    List<Word> findAllByIsEssentialAndTargetLanguageCode(Boolean isEssential, LanguageCode targetLanguageCode);
+
+    /**
+     * 필수 단어를 페이징으로 조회
+     */
+    Page<Word> findAllByIsEssential(Boolean isEssential, Pageable pageable);
 }
