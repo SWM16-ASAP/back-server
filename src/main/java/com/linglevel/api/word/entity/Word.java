@@ -63,4 +63,7 @@ public class Word {
      * 관련 변형 형태들 (동사 활용형, 비교급, 복수형 등)
      */
     private RelatedForms relatedForms;
+
+    @Builder.Default
+    private Boolean isEssential = false;
 }

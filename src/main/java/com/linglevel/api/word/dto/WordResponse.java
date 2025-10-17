@@ -41,4 +41,7 @@ public class WordResponse {
 
     @Schema(description = "현재 사용자가 해당 단어를 북마크했는지 여부", example = "true")
     private Boolean bookmarked;
+
+    @Schema(description = "필수 단어 여부 (예: Oxford 3000)", example = "true")
+    private Boolean isEssential;
 }
