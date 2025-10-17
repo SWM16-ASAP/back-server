@@ -333,27 +333,45 @@ public class WordService {
      */
     @Transactional
     public WordSearchResponse forceReanalyzeWord(String word, LanguageCode targetLanguage, boolean overwrite) {
-        log.info("Force re-analyzing word '{}' with targetLanguage={}, overwrite={}",
-                word, targetLanguage, overwrite);
+        return forceReanalyzeWord(word, targetLanguage, overwrite, false);
+    }
+
+    /**
+     * 관리자 전용: 단어를 AI로 강제 재분석 (Variant 삭제 옵션 포함)
+     *
+     * @param word 재분석할 단어
+     * @param targetLanguage 번역 대상 언어
+     * @param overwrite true: 기존 데이터 삭제 후 재생성, false: 기존 유지 + 새로운 의미 추가
+     * @param deleteVariants true: Variant도 함께 삭제 (완전 초기화), false: Variant 유지 (기본값)
+     * @return WordSearchResponse
+     */
+    @Transactional
+    public WordSearchResponse forceReanalyzeWord(String word, LanguageCode targetLanguage, boolean overwrite, boolean deleteVariants) {
+        log.info("Force re-analyzing word '{}' with targetLanguage={}, overwrite={}, deleteVariants={}",
+                word, targetLanguage, overwrite, deleteVariants);
 
         if (overwrite) {
-            // overwrite=true: 기존 WordVariant와 관련된 Word도 모두 삭제
             List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
             if (!existingVariants.isEmpty()) {
                 // 관련된 원형 단어들의 Word 엔티티 삭제
                 for (WordVariant variant : existingVariants) {
                     String originalForm = variant.getOriginalForm();
-                    wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
-                            originalForm, LanguageCode.EN, targetLanguage
+                    wordRepository.findByWordAndTargetLanguageCode(
+                            originalForm, targetLanguage
                     ).ifPresent(wordToDelete -> {
                         wordRepository.delete(wordToDelete);
-                        log.info("Deleted Word: {} ({} -> {})", originalForm, LanguageCode.EN, targetLanguage);
+                        log.info("Deleted Word: {} (targetLanguage={})", originalForm, targetLanguage);
                     });
                 }
 
-                // WordVariant 삭제
-                wordVariantRepository.deleteAll(existingVariants);
-                log.info("Deleted {} existing WordVariants for word '{}'", existingVariants.size(), word);
+                if (deleteVariants) {
+                    // Variant도 함께 삭제 (완전 초기화)
+                    wordVariantRepository.deleteAll(existingVariants);
+                    log.info("Deleted {} existing WordVariants for word '{}' (complete reset)", existingVariants.size(), word);
+                } else {
+                    // Variant는 유지 (AI가 기존 관계 + 새로운 homograph 추가 가능)
+                    log.info("Kept {} existing WordVariants for word '{}' (only Word deleted)", existingVariants.size(), word);
+                }
             }
         }
 

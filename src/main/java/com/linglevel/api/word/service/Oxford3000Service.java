@@ -3,7 +3,6 @@ package com.linglevel.api.word.service;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.EssentialWordsStatsResponse;
 import com.linglevel.api.word.dto.Oxford3000InitResponse;
-import com.linglevel.api.word.dto.WordAnalysisResult;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
@@ -19,10 +18,8 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,7 +29,6 @@ public class Oxford3000Service {
 
     private final WordRepository wordRepository;
     private final WordService wordService;
-    private final WordAiService wordAiService;
     private final com.linglevel.api.word.validator.WordValidator wordValidator;
 
     private static final String OXFORD3000_CSV_PATH = "data/oxford3000_final_cleaned.csv";
@@ -157,40 +153,23 @@ public class Oxford3000Service {
         String validatedWord = wordValidator.validateAndPreprocess(word);
         log.debug("Word validated and preprocessed: '{}' -> '{}'", word, validatedWord);
 
-        if (overwrite) {
-            // 덮어쓰기 모드: 기존 WordVariant와 Word 삭제
-            List<com.linglevel.api.word.entity.WordVariant> existingVariants =
-                    wordService.getOrCreateWordEntities(validatedWord, targetLanguage);
-
-            for (com.linglevel.api.word.entity.WordVariant variant : existingVariants) {
-                String originalForm = variant.getOriginalForm();
-                wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
-                        originalForm, LanguageCode.EN, targetLanguage
-                ).ifPresent(wordRepository::delete);
-            }
-        }
-
-        // WordService의 로직 그대로 사용
-        List<com.linglevel.api.word.entity.WordVariant> wordVariants =
-                wordService.getOrCreateWordEntities(validatedWord, targetLanguage);
+        // WordService의 forceReanalyzeWord 사용 (overwrite 로직 포함)
+        com.linglevel.api.word.dto.WordSearchResponse response =
+                wordService.forceReanalyzeWord(validatedWord, targetLanguage, overwrite);
 
         // 생성된 모든 Word에 isEssential=true 설정
-        for (com.linglevel.api.word.entity.WordVariant variant : wordVariants) {
-            String originalForm = variant.getOriginalForm();
-            Optional<Word> savedWord = wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
-                    originalForm, LanguageCode.EN, targetLanguage
-            );
-
-            savedWord.ifPresent(w -> {
-                if (!Boolean.TRUE.equals(w.getIsEssential())) {
-                    w.setIsEssential(true);
-                    wordRepository.save(w);
-                    log.info("Set isEssential=true for Oxford 3000 word: {}", w.getWord());
-                }
-            });
+        for (com.linglevel.api.word.dto.WordResponse wordResponse : response.getResults()) {
+            wordRepository.findById(wordResponse.getId())
+                .ifPresent(w -> {
+                    if (!Boolean.TRUE.equals(w.getIsEssential())) {
+                        w.setIsEssential(true);
+                        wordRepository.save(w);
+                        log.info("Set isEssential=true for Oxford 3000 word: {}", w.getWord());
+                    }
+                });
         }
 
-        return !wordVariants.isEmpty();
+        return !response.getResults().isEmpty();
     }
 
     /**

@@ -41,11 +41,13 @@ public class WordsAdminController {
 
                     **사용 사례:**
                     1. Homograph 대응 (overwrite=false): 'saw'가 'see'의 과거형으로만 저장된 경우, '톱' 의미를 추가
-                    2. 품질 개선 (overwrite=true): 기존 번역/의미의 품질이 낮다는 리포트가 있을 때 완전히 재생성
+                    2. 품질 개선 (overwrite=true, deleteVariants=false): 기존 Variant 관계 유지하면서 Word 재생성
+                    3. 완전 초기화 (overwrite=true, deleteVariants=true): Variant + Word 모두 삭제 후 완전 재생성
 
                     **파라미터:**
                     - overwrite=false (기본): 기존 데이터 유지 + 새로운 의미 추가
-                    - overwrite=true: 기존 데이터 삭제 후 완전히 재생성
+                    - overwrite=true, deleteVariants=false: Variant 유지 + Word 재생성 (homograph 추가 가능)
+                    - overwrite=true, deleteVariants=true: Variant + Word 모두 삭제 후 완전 재생성
                     """
     )
     @ApiResponses(value = {
@@ -63,12 +65,14 @@ public class WordsAdminController {
             @Parameter(description = "번역 대상 언어", example = "KO")
             @RequestParam(defaultValue = "KO") LanguageCode targetLanguage,
             @Parameter(description = "true: 기존 데이터 삭제 후 재생성, false: 기존 데이터 유지 + 새로운 의미 추가")
-            @RequestParam(defaultValue = "false") boolean overwrite) {
+            @RequestParam(defaultValue = "false") boolean overwrite,
+            @Parameter(description = "true: Variant도 함께 삭제 (완전 초기화), false: Variant 유지 (기본값)")
+            @RequestParam(defaultValue = "false") boolean deleteVariants) {
 
-        log.info("Admin force-analyze: word='{}', targetLanguage={}, overwrite={}",
-                word, targetLanguage, overwrite);
+        log.info("Admin force-analyze: word='{}', targetLanguage={}, overwrite={}, deleteVariants={}",
+                word, targetLanguage, overwrite, deleteVariants);
 
-        WordSearchResponse response = wordService.forceReanalyzeWord(word, targetLanguage, overwrite);
+        WordSearchResponse response = wordService.forceReanalyzeWord(word, targetLanguage, overwrite, deleteVariants);
         return ResponseEntity.ok(response);
     }
 
