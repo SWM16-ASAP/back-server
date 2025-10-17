@@ -34,6 +34,8 @@ public class WordAiService {
             Word: {word} | Target: {targetLanguage}
 
             **CRITICAL: If '{word}' is nonsensical/gibberish/typo, return []**
+            **CRITICAL: ALL fields (summary, meaning, example, exampleTranslation) MUST have meaningful content. NEVER leave empty strings.**
+            **If you cannot provide meaningful content, return [] instead.**
 
             HOMOGRAPH CHECK: Same spelling, multiple DISTINCT ORIGINS or DIFFERENT ORIGINAL FORMS?
             (e.g., "saw"=past of "see" + noun "saw"톱, "left"=past of "leave" + adj "left"왼쪽, "rose"=past of "rise" + noun "rose"장미)

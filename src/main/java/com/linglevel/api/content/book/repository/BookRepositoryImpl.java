@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
@@ -165,5 +166,12 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                 .stream()
                 .map(doc -> doc.getString("bookId"))
                 .toList();
+    }
+
+    @Override
+    public void incrementViewCount(String bookId) {
+        Query query = new Query(Criteria.where("id").is(bookId));
+        Update update = new Update().inc("viewCount", 1);
+        mongoTemplate.updateFirst(query, update, Book.class);
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -171,5 +172,12 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
                 .stream()
                 .map(doc -> doc.getString("customId"))
                 .toList();
+    }
+
+    @Override
+    public void incrementViewCount(String customContentId) {
+        Query query = new Query(Criteria.where("id").is(customContentId));
+        Update update = new Update().inc("viewCount", 1);
+        mongoTemplate.updateFirst(query, update, CustomContent.class);
     }
 }

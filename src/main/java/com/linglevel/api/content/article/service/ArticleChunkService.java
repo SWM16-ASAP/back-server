@@ -28,6 +28,8 @@ public class ArticleChunkService {
     public PageResponse<ArticleChunkResponse> getArticleChunks(String articleId, GetArticleChunksRequest request) {
         validateArticleExists(articleId);
 
+        articleRepository.incrementViewCount(articleId);
+
         DifficultyLevel difficulty = request.getDifficultyLevel();
 
         validatePaginationRequest(request);
