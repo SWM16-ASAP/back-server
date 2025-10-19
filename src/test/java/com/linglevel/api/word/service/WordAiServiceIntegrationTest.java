@@ -1,7 +1,9 @@
 package com.linglevel.api.word.service;
 
+import com.linglevel.api.word.dto.PartOfSpeech;
 import com.linglevel.api.word.dto.VariantType;
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.exception.WordsException;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -13,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * WordAiService 통합 테스트 - 실제 AI 모델을 호출하여 프롬프트 엔지니어링 결과를 검증
@@ -329,19 +332,346 @@ class WordAiServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("말이 안되는 단어 입력 시, 빈 리스트를 반환해야 함")
-    void testNonsensicalWord_shouldReturnEmptyList() {
+    @DisplayName("말이 안되는 단어 입력 시, WordsException 예외를 던져야 함")
+    void testNonsensicalWord_shouldThrowException() {
         // given
         String word = "asdfqwer";
+        String targetLanguage = "KO";
+
+        // when & then
+        // AI가 의미 없는 단어에 대해 빈 배열을 반환하면 WordsException을 던짐 (RuntimeException으로 래핑됨)
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            wordAiService.analyzeWord(word, targetLanguage);
+        });
+
+        // RuntimeException의 cause가 WordsException인지 확인
+        assertThat(exception.getCause()).isInstanceOf(WordsException.class);
+    }
+
+    // ===== 실패 사례 기반 추가 테스트 =====
+
+    @Test
+    @DisplayName("대명사 - 'I' (주격 1인칭 대명사)")
+    void testPronoun_I() {
+        // given
+        String word = "I";
         String targetLanguage = "KO";
 
         // when
         List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
 
         // then
-        // AI가 의미 없는 단어에 대해 결과를 생성하지 않아야 함 (빈 리스트)
-        assertThat(results).isNotNull();
-        assertThat(results).isEmpty();
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("I");
+        assertThat(result.getVariantTypes()).contains(VariantType.ORIGINAL_FORM);
+        assertThat(result.getMeanings()).isNotEmpty();
+        assertThat(result.getMeanings().get(0).getPartOfSpeech()).isEqualTo(PartOfSpeech.PRONOUN);
+    }
+
+    @Test
+    @DisplayName("대명사 - 'him' (목적격 3인칭 남성 대명사)")
+    void testPronoun_him() {
+        // given
+        String word = "him";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isIn("he", "him");
+        assertThat(result.getMeanings()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("대명사 - 'them' (목적격 3인칭 복수 대명사)")
+    void testPronoun_them() {
+        // given
+        String word = "them";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isIn("they", "them");
+        assertThat(result.getMeanings()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("부사 - 'absolutely' (-ly 형태 부사)")
+    void testAdverb_absolutely() {
+        // given
+        String word = "absolutely";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("absolutely");
+        assertThat(result.getVariantTypes()).contains(VariantType.ORIGINAL_FORM);
+        assertThat(result.getMeanings()).isNotEmpty();
+        assertThat(result.getMeanings().get(0).getPartOfSpeech()).isEqualTo(PartOfSpeech.ADVERB);
+    }
+
+    @Test
+    @DisplayName("부사 - 'carefully' (형용사에서 파생된 부사)")
+    void testAdverb_carefully() {
+        // given
+        String word = "carefully";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("carefully");
+        assertThat(result.getMeanings()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("부사 - 'quickly'")
+    void testAdverb_quickly() {
+        // given
+        String word = "quickly";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("quickly");
+    }
+
+    @Test
+    @DisplayName("과거분사/형용사 - 'confused' (혼란스러운)")
+    void testParticipleAdjective_confused() {
+        // given
+        String word = "confused";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        // confused는 confuse의 과거/과거분사이면서 동시에 형용사로도 쓰임
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("confuse");
+        assertThat(result.getVariantTypes()).containsAnyOf(VariantType.PAST_TENSE, VariantType.PAST_PARTICIPLE);
+        assertThat(result.getMeanings()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("과거분사/형용사 - 'interested' (관심있는)")
+    void testParticipleAdjective_interested() {
+        // given
+        String word = "interested";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("interest");
+        assertThat(result.getVariantTypes()).containsAnyOf(VariantType.PAST_TENSE, VariantType.PAST_PARTICIPLE);
+    }
+
+    @Test
+    @DisplayName("과거분사/형용사 - 'worried' (걱정하는)")
+    void testParticipleAdjective_worried() {
+        // given
+        String word = "worried";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("worry");
+        assertThat(result.getVariantTypes()).containsAnyOf(VariantType.PAST_TENSE, VariantType.PAST_PARTICIPLE);
+    }
+
+    @Test
+    @DisplayName("숫자 - 'one' (기수)")
+    void testNumber_one() {
+        // given
+        String word = "one";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("one");
+        assertThat(result.getVariantTypes()).contains(VariantType.ORIGINAL_FORM);
+        assertThat(result.getMeanings()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("숫자 - 'eight' (기수)")
+    void testNumber_eight() {
+        // given
+        String word = "eight";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("eight");
+    }
+
+    @Test
+    @DisplayName("서수 - 'eleventh' (11번째)")
+    void testOrdinal_eleventh() {
+        // given
+        String word = "eleventh";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("eleventh");
+    }
+
+    @Test
+    @DisplayName("서수 - 'twentieth' (20번째)")
+    void testOrdinal_twentieth() {
+        // given
+        String word = "twentieth";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("twentieth");
+    }
+
+    @Test
+    @DisplayName("호칭 - 'Mr' (미스터)")
+    void testTitle_Mr() {
+        // given
+        String word = "Mr";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isIn("Mr", "mr", "MR");
+    }
+
+    @Test
+    @DisplayName("호칭 - 'Ms' (미즈)")
+    void testTitle_Ms() {
+        // given
+        String word = "Ms";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isIn("Ms", "ms", "MS");
+    }
+
+    @Test
+    @DisplayName("관계대명사 - 'whom' (목적격 관계대명사)")
+    void testRelativePronoun_whom() {
+        // given
+        String word = "whom";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("whom");
+        assertThat(result.getMeanings()).isNotEmpty();
+        assertThat(result.getMeanings().get(0).getExample()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("의문부사 - 'where' (어디)")
+    void testInterrogativeAdverb_where() {
+        // given
+        String word = "where";
+        String targetLanguage = "KO";
+
+        // when
+        List<WordAnalysisResult> results = wordAiService.analyzeWord(word, targetLanguage);
+
+        // then
+        assertThat(results).isNotEmpty();
+        logResults(word, results);
+
+        WordAnalysisResult result = results.get(0);
+        assertThat(result.getOriginalForm()).isEqualTo("where");
     }
 
     /**
