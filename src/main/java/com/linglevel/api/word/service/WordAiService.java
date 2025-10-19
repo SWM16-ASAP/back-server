@@ -71,16 +71,16 @@ public class WordAiService {
                - Past participles used as adjectives (confused, interested, etc.): variantTypes=[PAST_PARTICIPLE], add BOTH verb and adjective meanings
                - Words without inflection (adverbs, prepositions, etc.): variantTypes=[ORIGINAL_FORM]
 
-               partOfSpeech = Grammatical category (품사)
+            4. partOfSpeech = Grammatical category (품사)
                - Goes INSIDE meanings array (meanings 배열 안에!)
-               - Values: verb, noun, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, article, numeral
+               ✅ VALID VALUES: verb, noun, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, article, numeral
 
                - If input="ran" and originalForm="run", then variantTypes=[PAST_TENSE]
                - If input="books" and originalForm="book", then variantTypes=[PLURAL, THIRD_PERSON] (both noun plural AND verb 3rd person)
-            4. summary: Max 3 common translations of the ORIGINAL FORM
+            5. summary: Max 3 common translations of the ORIGINAL FORM
                - Input "ran" → summary of "run": ["달리다","운영하다"]
                - Input "prettiest" → summary of "pretty": ["예쁜","아름다운"]
-            5. meanings: All meanings describe the ORIGINAL FORM (not the input word)
+            6. meanings: All meanings describe the ORIGINAL FORM (not the input word)
                - Max 15 objects (common→rare, omit obscure ones)
                - partOfSpeech: verb, noun, adjective, adverb, etc.
                - meaning: Detailed explanation in target language
@@ -102,9 +102,9 @@ public class WordAiService {
                  GOOD: "We run a small bakery in downtown." (run as verb, matches partOfSpeech)
                  BAD: "I need to book a flight." (if partOfSpeech is noun - book is verb here!)
                - exampleTranslation: Translation in target language
-            6. conjugations: (verbs only) present, past, pastParticiple, presentParticiple, thirdPerson
-            7. comparatives: (adj only) positive, comparative, superlative
-            8. plural: (nouns only) singular, plural
+            7. conjugations: (verbs only) present, past, pastParticiple, presentParticiple, thirdPerson
+            8. comparatives: (adj only) positive, comparative, superlative
+            9. plural: (nouns only) singular, plural
 
             EXAMPLE - "saw" homograph:
             [
@@ -203,6 +203,9 @@ public class WordAiService {
                 validateResult(result, word);
             }
 
+            // ENUM 필터링 - variantTypes와 partOfSpeech에서 유효하지 않은 값 제거 (AI 실수 방지)
+            results = filterInvalidEnumValues(results, word);
+
             // 같은 originalForm을 가진 결과를 병합 (AI가 잘못 분리한 경우 대비)
             List<WordAnalysisResult> mergedResults = mergeDuplicateOriginalForms(results, word);
 
@@ -276,6 +279,86 @@ public class WordAiService {
         }
 
         return mergedList;
+    }
+
+    /**
+     * variantTypes와 partOfSpeech에서 유효하지 않은 값들을 필터링
+     * AI가 실수로 ENUM에 없는 값을 넣은 경우 제거
+     */
+    private WordAnalysisResult[] filterInvalidEnumValues(WordAnalysisResult[] results, String word) {
+        if (results == null || results.length == 0) {
+            return results;
+        }
+
+        List<WordAnalysisResult> filteredResults = new ArrayList<>();
+
+        for (WordAnalysisResult result : results) {
+            List<com.linglevel.api.word.dto.VariantType> originalVariantTypes = result.getVariantTypes();
+
+            if (originalVariantTypes == null || originalVariantTypes.isEmpty()) {
+                log.warn("Empty variantTypes for word '{}' (originalForm: '{}')", word, result.getOriginalForm());
+                continue;
+            }
+
+            // 1. 유효한 VariantType만 필터링
+            List<com.linglevel.api.word.dto.VariantType> validVariantTypes = originalVariantTypes.stream()
+                    .filter(vt -> vt != null)
+                    .collect(Collectors.toList());
+
+            if (validVariantTypes.isEmpty()) {
+                log.warn("All variantTypes were invalid for word '{}' (originalForm: '{}'), skipping this result",
+                        word, result.getOriginalForm());
+                continue;
+            }
+
+            if (validVariantTypes.size() < originalVariantTypes.size()) {
+                log.warn("Filtered invalid variantTypes for word '{}' (originalForm: '{}'): {} -> {}",
+                        word, result.getOriginalForm(), originalVariantTypes.size(), validVariantTypes.size());
+            }
+
+            // 2. 유효한 PartOfSpeech를 가진 meanings만 필터링
+            List<com.linglevel.api.word.dto.Meaning> originalMeanings = result.getMeanings();
+            List<com.linglevel.api.word.dto.Meaning> validMeanings = new ArrayList<>();
+
+            if (originalMeanings != null) {
+                int invalidCount = 0;
+                for (com.linglevel.api.word.dto.Meaning meaning : originalMeanings) {
+                    if (meaning.getPartOfSpeech() != null) {
+                        validMeanings.add(meaning);
+                    } else {
+                        invalidCount++;
+                    }
+                }
+
+                if (invalidCount > 0) {
+                    log.warn("Filtered {} invalid partOfSpeech(es) for word '{}' (originalForm: '{}'): {} -> {}",
+                            invalidCount, word, result.getOriginalForm(), originalMeanings.size(), validMeanings.size());
+                }
+            }
+
+            if (validMeanings.isEmpty()) {
+                log.warn("All meanings have invalid partOfSpeech for word '{}' (originalForm: '{}'), skipping this result",
+                        word, result.getOriginalForm());
+                continue;
+            }
+
+            // 필터링된 variantTypes와 meanings로 새 결과 생성
+            WordAnalysisResult filteredResult = WordAnalysisResult.builder()
+                    .sourceLanguageCode(result.getSourceLanguageCode())
+                    .targetLanguageCode(result.getTargetLanguageCode())
+                    .originalForm(result.getOriginalForm())
+                    .variantTypes(validVariantTypes)
+                    .summary(result.getSummary())
+                    .meanings(validMeanings)
+                    .conjugations(result.getConjugations())
+                    .comparatives(result.getComparatives())
+                    .plural(result.getPlural())
+                    .build();
+
+            filteredResults.add(filteredResult);
+        }
+
+        return filteredResults.toArray(new WordAnalysisResult[0]);
     }
 
     /**

@@ -46,8 +46,8 @@ public enum PartOfSpeech {
             }
         }
 
-        throw new IllegalArgumentException("Unknown part of speech: " + value +
-            ". Valid values are: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, article, numeral");
+        // AI가 잘못된 값을 반환한 경우 null 반환 (후처리에서 필터링됨)
+        return null;
     }
 
     @Override
