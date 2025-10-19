@@ -24,7 +24,4 @@ public class InvalidWord {
 
     @Builder.Default
     private Integer attemptCount = 1;
-
-    @Indexed(name = "ttl_expires_at", expireAfter = "0s")
-    private LocalDateTime expiresAt;
 }

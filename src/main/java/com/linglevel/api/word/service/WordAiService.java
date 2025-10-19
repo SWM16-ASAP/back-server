@@ -1,6 +1,8 @@
 package com.linglevel.api.word.service;
 
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.exception.WordsErrorCode;
+import com.linglevel.api.word.exception.WordsException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -188,16 +190,18 @@ public class WordAiService {
             // 같은 originalForm을 가진 결과를 병합 (AI가 잘못 분리한 경우 대비)
             List<WordAnalysisResult> mergedResults = mergeDuplicateOriginalForms(results, word);
 
-            // 요약 정보 로깅
-            if (!mergedResults.isEmpty()) {
-                String summary = mergedResults.stream()
-                    .map(r -> r.getOriginalForm() + " (" + String.join(", ", r.getVariantTypes().stream()
-                        .map(Enum::name).toArray(String[]::new)) + ")")
-                    .collect(Collectors.joining(", "));
-                log.info("✅ AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
-            } else {
-                log.info("✅ AI analysis completed for '{}': No results (invalid word)", word);
+            // 빈 결과 검증 - AI가 무의미한 단어라고 판단한 경우
+            if (mergedResults.isEmpty()) {
+                log.info("AI returned empty result for '{}' (meaningless/gibberish word)", word);
+                throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
             }
+
+            // 요약 정보 로깅
+            String summary = mergedResults.stream()
+                .map(r -> r.getOriginalForm() + " (" + String.join(", ", r.getVariantTypes().stream()
+                    .map(Enum::name).toArray(String[]::new)) + ")")
+                .collect(Collectors.joining(", "));
+            log.info("✅ AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
 
             return mergedResults;
         } catch (Exception e) {
