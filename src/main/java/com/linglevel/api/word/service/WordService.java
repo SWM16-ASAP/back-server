@@ -54,14 +54,7 @@ public class WordService {
                     targetLanguage.getCode()
                 );
 
-                if (analysisResults.isEmpty()) {
-                    // AI가 원형을 분석하지 못한 경우 (거의 발생하지 않아야 함)
-                    log.warn("AI could not analyze the original form '{}' for word '{}'",
-                        wordVariant.getOriginalForm(), word);
-                    throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
-                }
-
-                // Word 생성 및 저장
+                // Word 생성 및 저장 (빈 결과는 WordAiService에서 예외 발생)
                 Word newWord = convertAnalysisResultToWord(analysisResults.get(0));
                 return wordRepository.save(newWord);
             });
@@ -93,24 +86,39 @@ public class WordService {
             return existingVariants;
         }
 
-        // 2. InvalidWord 캐시 확인 - AI 재호출 방지
-        if (invalidWordRepository.existsByWord(word)) {
-            log.info("Word '{}' found in invalid word cache. Skipping AI call.", word);
-            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
+        // 2. InvalidWord 캐시 확인 - 3회 유예 후 차단
+        Optional<InvalidWord> cachedInvalidWord = invalidWordRepository.findByWord(word);
+        if (cachedInvalidWord.isPresent()) {
+            InvalidWord invalidWord = cachedInvalidWord.get();
+            if (invalidWord.getAttemptCount() >= 3) {
+                log.info("Word '{}' permanently blocked after {} failed attempts", word, invalidWord.getAttemptCount());
+                throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
+            }
+            log.info("Word '{}' found in cache with {} attempts. Allowing retry (attempt {}/3)",
+                word, invalidWord.getAttemptCount(), invalidWord.getAttemptCount() + 1);
         }
 
-        // 3. DB에 없으면 AI 호출
+        // 3. DB에 없으면 AI 호출 (실패 시에도 InvalidWord로 캐싱)
         log.info("Word '{}' not found in database. Calling AI to analyze...", word);
-        List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
+        List<WordAnalysisResult> analysisResults;
+        try {
+            analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
 
-        // 4. AI 분석 결과가 비어있으면 InvalidWord로 캐싱
-        if (analysisResults.isEmpty()) {
-            log.info("AI returned empty result for '{}'. Caching as invalid word.", word);
+            // AI 호출 성공 시 InvalidWord 캐시에서 제거 (일시적 오류였던 경우 복구)
+            cachedInvalidWord.ifPresent(invalidWord -> {
+                invalidWordRepository.delete(invalidWord);
+                log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)",
+                    word, invalidWord.getAttemptCount());
+            });
+
+        } catch (Exception e) {
+            // AI 호출 실패 또는 무의미한 단어인 경우 InvalidWord로 캐싱
+            log.warn("AI call failed for word '{}'. Caching as invalid word to prevent retries.", word, e);
             saveInvalidWord(word);
             throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
         }
 
-        // 5. 트랜잭션 내에서 DB 저장 처리
+        // 4. 트랜잭션 내에서 DB 저장 처리
         List<WordVariant> savedVariants = new ArrayList<>();
         for (WordAnalysisResult analysisResult : analysisResults) {
             WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
@@ -295,16 +303,14 @@ public class WordService {
         } else {
             // 새로 저장
             LocalDateTime now = LocalDateTime.now();
-            LocalDateTime expiresAt = now.plusDays(30); // 30일 후 만료
 
             InvalidWord invalidWord = InvalidWord.builder()
                     .word(word)
                     .attemptedAt(now)
                     .attemptCount(1)
-                    .expiresAt(expiresAt) // 30일 후 자동 삭제
                     .build();
             invalidWordRepository.save(invalidWord);
-            log.info("Cached invalid word '{}' (will expire at {})", word, expiresAt);
+            log.info("Cached invalid word '{}' permanently (attempt 1/3)", word);
         }
     }
 
@@ -379,12 +385,7 @@ public class WordService {
         log.info("Calling AI to re-analyze word '{}'...", word);
         List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
 
-        if (analysisResults.isEmpty()) {
-            log.warn("AI returned empty result for '{}' during force re-analysis.", word);
-            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
-        }
-
-        // 분석 결과를 DB에 저장 (overwrite=false면 중복 체크로 인해 새로운 것만 추가됨)
+        // 분석 결과를 DB에 저장 (빈 결과는 WordAiService에서 예외 발생, overwrite=false면 중복 체크로 인해 새로운 것만 추가됨)
         List<WordVariant> savedVariants = new ArrayList<>();
         for (WordAnalysisResult analysisResult : analysisResults) {
             WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
