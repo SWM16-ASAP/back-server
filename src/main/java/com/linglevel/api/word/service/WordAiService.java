@@ -58,7 +58,30 @@ public class WordAiService {
             1. sourceLanguageCode/targetLanguageCode: "EN", "KO", etc.
             2. originalForm: Base form (verbs→infinitive, adj→positive, nouns→singular)
             3. variantTypes: **ARRAY** of relationships between INPUT word and originalForm
-               - Values: ORIGINAL_FORM|PAST_TENSE|PAST_PARTICIPLE|PRESENT_PARTICIPLE|THIRD_PERSON|COMPARATIVE|SUPERLATIVE|PLURAL|UNDEFINED
+
+               **CRITICAL: variantTypes vs partOfSpeech - DO NOT CONFUSE!**
+
+               variantTypes = ONLY morphological relationship (변형 관계만!)
+               ✅ VALID VALUES: ORIGINAL_FORM, PAST_TENSE, PAST_PARTICIPLE, PRESENT_PARTICIPLE, THIRD_PERSON, COMPARATIVE, SUPERLATIVE, PLURAL, UNDEFINED
+
+               ❌ NEVER use these in variantTypes (these are parts of speech, NOT variant types!):
+               - ADVERB, ADJECTIVE, NOUN, VERB (품사입니다!)
+               - OBJECT_PRONOUN, SUBJECT_PRONOUN (문법적 역할입니다!)
+               - RELATIVE_PRONOUN, INTERROGATIVE (단어 카테고리입니다!)
+
+               partOfSpeech = Grammatical category (품사)
+               - Goes INSIDE meanings array (meanings 배열 안에!)
+               - Values: verb, noun, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, article, numeral
+
+               Examples:
+               - "ran" → originalForm="run", variantTypes=[PAST_TENSE], meanings[0].partOfSpeech="verb"
+               - "carefully" → originalForm="carefully", variantTypes=[ORIGINAL_FORM], meanings[0].partOfSpeech="adverb"
+               - "them" → originalForm="them", variantTypes=[ORIGINAL_FORM], meanings[0].partOfSpeech="pronoun"
+               - "books" → originalForm="book", variantTypes=[PLURAL, THIRD_PERSON]
+
+               For words without inflection (adverbs, pronouns, prepositions, conjunctions, etc.):
+               → Use variantTypes=[ORIGINAL_FORM] (NOT the part of speech name!)
+
                - If input="ran" and originalForm="run", then variantTypes=[PAST_TENSE]
                - If input="books" and originalForm="book", then variantTypes=[PLURAL, THIRD_PERSON] (both noun plural AND verb 3rd person)
             4. summary: Max 3 common translations of the ORIGINAL FORM
@@ -127,6 +150,28 @@ public class WordAiService {
                 "conjugations": null,
                 "comparatives": null,
                 "plural": {{"singular": "saw", "plural": "saws"}}
+              }}
+            ]
+
+            EXAMPLE - "carefully" (adverb - NO inflection):
+            [
+              {{
+                "originalForm": "carefully",
+                "variantTypes": ["ORIGINAL_FORM"],
+                "sourceLanguageCode": "EN",
+                "targetLanguageCode": "KO",
+                "summary": ["조심스럽게", "주의깊게"],
+                "meanings": [
+                  {{
+                    "partOfSpeech": "adverb",
+                    "meaning": "주의를 기울여서, 조심스럽게",
+                    "example": "Drive carefully on icy roads.",
+                    "exampleTranslation": "얼어붙은 도로에서는 조심스럽게 운전하세요."
+                  }}
+                ],
+                "conjugations": null,
+                "comparatives": null,
+                "plural": null
               }}
             ]
 

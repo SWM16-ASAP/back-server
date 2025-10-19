@@ -13,7 +13,8 @@ public enum PartOfSpeech {
     CONJUNCTION("conjunction", "접속사"),
     INTERJECTION("interjection", "감탄사"),
     DETERMINER("determiner", "한정사"),
-    ARTICLE("article", "관사");
+    ARTICLE("article", "관사"),
+    NUMERAL("numeral", "수사");
 
     private final String value;
     private final String korean;
@@ -46,7 +47,7 @@ public enum PartOfSpeech {
         }
 
         throw new IllegalArgumentException("Unknown part of speech: " + value +
-            ". Valid values are: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, article");
+            ". Valid values are: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, article, numeral");
     }
 
     @Override
