@@ -14,12 +14,6 @@ import java.util.Optional;
 @Repository
 public interface WordRepository extends MongoRepository<Word, String> {
     /**
-     * @deprecated Use findByWordAndSourceLanguageCodeAndTargetLanguageCode instead
-     */
-    @Deprecated
-    Optional<Word> findByWord(String word);
-
-    /**
      * 단어와 언어 쌍으로 검색
      * 같은 단어도 언어 쌍별로 다른 Word 문서가 존재할 수 있음
      */
