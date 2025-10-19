@@ -150,25 +150,11 @@ public class BookmarkService {
         List<BookmarkedWordResponse> responses = new ArrayList<>();
 
         for (WordBookmark bookmark : bookmarks.getContent()) {
-            // Word를 찾을 수 없어도 북마크 정보는 표시
-            Optional<Word> wordOpt = wordRepository.findByWord(bookmark.getWord());
-
-            if (wordOpt.isPresent()) {
-                Word word = wordOpt.get();
-                responses.add(BookmarkedWordResponse.builder()
-                        .id(word.getId())
-                        .word(word.getWord())
-                        .bookmarkedAt(bookmark.getBookmarkedAt())
-                        .build());
-            } else {
-                // Word가 없어도 북마크 정보만으로 응답 생성
-                log.warn("Word '{}' not found in Word collection for bookmark", bookmark.getWord());
-                responses.add(BookmarkedWordResponse.builder()
-                        .id(bookmark.getId())
-                        .word(bookmark.getWord())
-                        .bookmarkedAt(bookmark.getBookmarkedAt())
-                        .build());
-            }
+            responses.add(BookmarkedWordResponse.builder()
+                    .id(bookmark.getId())
+                    .word(bookmark.getWord())
+                    .bookmarkedAt(bookmark.getBookmarkedAt())
+                    .build());
         }
 
         return new PageImpl<>(responses, bookmarks.getPageable(), bookmarks.getTotalElements());
