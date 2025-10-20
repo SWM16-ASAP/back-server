@@ -1,5 +1,6 @@
 package com.linglevel.api.content.article.dto;
 
+import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.i18n.LanguageCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -23,6 +24,9 @@ public class ArticleOriginResponse {
 
     @Schema(description = "타깃 언어 코드 목록", example = "[\"KO\", \"EN\", \"JA\"]")
     private List<LanguageCode> targetLanguageCode;
+
+    @Schema(description = "카테고리", example = "TECH")
+    private ContentCategory category;
 
     @Schema(description = "태그 목록", example = "[\"technology\", \"history\"]")
     private List<String> tags;

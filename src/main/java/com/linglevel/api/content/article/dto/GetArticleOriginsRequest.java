@@ -1,5 +1,6 @@
 package com.linglevel.api.content.article.dto;
 
+import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.i18n.LanguageCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
@@ -10,6 +11,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class GetArticleOriginsRequest {
+
+    @Schema(description = "카테고리 필터", example = "TECH")
+    private ContentCategory category;
 
     @Schema(description = "태그 필터 (쉼표로 구분)", example = "technology,business")
     private String tags;
