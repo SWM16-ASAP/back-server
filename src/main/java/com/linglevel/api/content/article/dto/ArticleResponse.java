@@ -1,6 +1,7 @@
 package com.linglevel.api.content.article.dto;
 
 import com.linglevel.api.content.common.DifficultyLevel;
+import com.linglevel.api.i18n.LanguageCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
@@ -57,7 +58,10 @@ public class ArticleResponse {
     
     @Schema(description = "태그 목록", example = "[\"technology\", \"history\"]")
     private List<String> tags;
-    
+
+    @Schema(description = "타깃 언어 코드 목록", example = "[\"KO\", \"EN\", \"JA\"]")
+    private List<LanguageCode> targetLanguageCode;
+
     @Schema(description = "생성 날짜", example = "2024-01-15T00:00:00")
     private LocalDateTime createdAt;
 }

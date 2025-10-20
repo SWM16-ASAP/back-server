@@ -18,6 +18,10 @@ public class ArticleImportData {
     @JsonProperty("original_text_level")
     private String originalTextLevel;
     private List<String> tags;
+    @JsonProperty("target_language_code")
+    private List<String> targetLanguageCode;
+    @JsonProperty("origin_url")
+    private String originUrl;
     @JsonProperty("leveled_results")
     private List<TextLevelData> leveledResults;
     
