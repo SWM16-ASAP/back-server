@@ -12,6 +12,7 @@ import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.entity.ArticleProgress;
+import com.linglevel.api.i18n.LanguageCode;
 import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
@@ -148,21 +149,32 @@ public class ArticleService {
         Article article = new Article();
         article.setTitle(importData.getTitle());
         article.setAuthor(importData.getAuthor());
-        
+
         DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(
                 importData.getOriginalTextLevel().toUpperCase());
         article.setDifficultyLevel(difficultyLevel);
-        
+
         String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, articlePathStrategy);
         article.setCoverImageUrl(coverImageUrl);
-        
+
         article.setReadingTime(0);
         article.setAverageRating(0.0);
         article.setReviewCount(0);
         article.setViewCount(0);
         article.setTags(importData.getTags() != null ? importData.getTags() : List.of());
+
+        // targetLanguageCode 매핑
+        if (importData.getTargetLanguageCode() != null) {
+            List<LanguageCode> targetLanguageCodes = importData.getTargetLanguageCode().stream()
+                    .map(code -> LanguageCode.valueOf(code.toUpperCase()))
+                    .collect(Collectors.toList());
+            article.setTargetLanguageCode(targetLanguageCodes);
+        } else {
+            article.setTargetLanguageCode(null);
+        }
+
         article.setCreatedAt(LocalDateTime.now());
-        
+
         return article;
     }
 
