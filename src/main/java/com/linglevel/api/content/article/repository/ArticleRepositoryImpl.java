@@ -50,6 +50,7 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
         applyKeywordFilter(query, request.getKeyword());
         applyProgressFilter(query, request.getProgress(), userId);
         applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
+        applyCreatedAfterFilter(query, request.getCreatedAfter());
 
         return query;
     }
@@ -107,6 +108,17 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
         }
 
         query.addCriteria(Criteria.where("targetLanguageCode").in(targetLanguageCode));
+    }
+
+    /**
+     * 생성 시간 필터 적용 (해당 시간 이후)
+     */
+    private void applyCreatedAfterFilter(Query query, java.time.LocalDateTime createdAfter) {
+        if (createdAfter == null) {
+            return;
+        }
+
+        query.addCriteria(Criteria.where("createdAt").gte(createdAfter));
     }
 
     /**

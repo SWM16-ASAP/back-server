@@ -7,6 +7,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -26,6 +29,10 @@ public class GetArticlesRequest {
 
     @Schema(description = "타깃 언어 코드 필터", example = "KO")
     private LanguageCode targetLanguageCode;
+
+    @Schema(description = "생성 시간 필터 (해당 시간 이후)", example = "2024-01-01T00:00:00")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    private LocalDateTime createdAfter;
 
     @Schema(description = "페이지 번호", example = "1", defaultValue = "1", minimum = "1")
     @Min(value = 1, message = "페이지 번호는 1 이상이어야 합니다.")

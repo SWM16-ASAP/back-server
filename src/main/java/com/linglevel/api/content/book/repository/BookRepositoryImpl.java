@@ -51,6 +51,7 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         applyTagsFilter(query, request.getTags());
         applyKeywordFilter(query, request.getKeyword());
         applyProgressFilter(query, request.getProgress(), userId);
+        applyCreatedAfterFilter(query, request.getCreatedAfter());
 
         return query;
     }
@@ -94,6 +95,17 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         if (!bookIds.isEmpty()) {
             query.addCriteria(Criteria.where("id").in(bookIds));
         }
+    }
+
+    /**
+     * 생성 시간 필터 적용 (해당 시간 이후)
+     */
+    private void applyCreatedAfterFilter(Query query, java.time.LocalDateTime createdAfter) {
+        if (createdAfter == null) {
+            return;
+        }
+
+        query.addCriteria(Criteria.where("createdAt").gte(createdAfter));
     }
 
     /**
