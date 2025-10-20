@@ -17,6 +17,7 @@ import com.linglevel.api.common.exception.CommonException;
 import com.linglevel.api.user.ticket.exception.TicketException;
 import com.linglevel.api.content.book.dto.ChunkResponse;
 import com.linglevel.api.content.article.dto.ArticleChunkResponse;
+import com.linglevel.api.content.article.service.ArticleService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.user.ticket.service.TicketService;
@@ -48,6 +49,7 @@ public class AdminController {
     private final NotificationService notificationService;
     private final TicketService ticketService;
     private final UserRepository userRepository;
+    private final ArticleService articleService;
 
     @Operation(summary = "책 청크 수정", description = "어드민 권한으로 특정 책의 청크 내용을 수정합니다.")
     @PutMapping("/books/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
@@ -131,25 +133,36 @@ public class AdminController {
     @PostMapping("/tickets/grant")
     public ResponseEntity<GrantTicketResponse> grantTicket(
             @Parameter(description = "티켓 지급 요청", required = true) @Valid @RequestBody GrantTicketRequest request) {
-        
-        log.info("Admin granting tickets - userId: {}, amount: {}, reason: {}", 
+
+        log.info("Admin granting tickets - userId: {}, amount: {}, reason: {}",
                 request.getUserId(), request.getAmount(), request.getReason());
-        
+
         // 사용자 존재 여부 확인
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "User not found."));
-        
+
         String reason = request.getReason() != null ? request.getReason() : "관리자 지급";
         int newBalance = ticketService.grantTicket(user.getId(), request.getAmount(), reason);
-        
+
         GrantTicketResponse response = GrantTicketResponse.builder()
                 .message("Tickets granted successfully.")
                 .userId(request.getUserId())
                 .amount(request.getAmount())
                 .newBalance(newBalance)
                 .build();
-        
+
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "아티클 targetLanguageCode 마이그레이션", description = "targetLanguageCode가 null이거나 없는 모든 아티클에 [KO, EN, JA]를 설정합니다.")
+    @PostMapping("/articles/migrate/target-language-code")
+    public ResponseEntity<MessageResponse> migrateArticleTargetLanguageCode() {
+        log.info("Admin migrating article targetLanguageCode");
+
+        long updatedCount = articleService.migrateTargetLanguageCode();
+
+        String message = String.format("Successfully updated %d articles with default target language codes [KO, EN, JA]", updatedCount);
+        return ResponseEntity.ok(new MessageResponse(message));
     }
 
     @ExceptionHandler(TicketException.class)

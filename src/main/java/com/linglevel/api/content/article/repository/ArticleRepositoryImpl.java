@@ -3,6 +3,7 @@ package com.linglevel.api.content.article.repository;
 import com.linglevel.api.content.article.dto.GetArticlesRequest;
 import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.common.ProgressStatus;
+import com.linglevel.api.i18n.LanguageCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -47,6 +48,7 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
         applyTagsFilter(query, request.getTags());
         applyKeywordFilter(query, request.getKeyword());
         applyProgressFilter(query, request.getProgress(), userId);
+        applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
 
         return query;
     }
@@ -93,6 +95,17 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
             // 조건에 맞는 아티클이 없으면 빈 결과 반환
             query.addCriteria(Criteria.where("_id").is(null));
         }
+    }
+
+    /**
+     * 타깃 언어 코드 필터 적용
+     */
+    private void applyTargetLanguageCodeFilter(Query query, LanguageCode targetLanguageCode) {
+        if (targetLanguageCode == null) {
+            return;
+        }
+
+        query.addCriteria(Criteria.where("targetLanguageCode").in(targetLanguageCode));
     }
 
     /**

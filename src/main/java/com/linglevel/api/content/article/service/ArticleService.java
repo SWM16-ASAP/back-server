@@ -2,7 +2,6 @@ package com.linglevel.api.content.article.service;
 
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.common.DifficultyLevel;
-import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.entity.ArticleChunk;
@@ -30,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -164,13 +162,14 @@ public class ArticleService {
         article.setTags(importData.getTags() != null ? importData.getTags() : List.of());
 
         // targetLanguageCode 매핑
-        if (importData.getTargetLanguageCode() != null) {
+        if (importData.getTargetLanguageCode() != null && !importData.getTargetLanguageCode().isEmpty()) {
             List<LanguageCode> targetLanguageCodes = importData.getTargetLanguageCode().stream()
                     .map(code -> LanguageCode.valueOf(code.toUpperCase()))
                     .collect(Collectors.toList());
             article.setTargetLanguageCode(targetLanguageCodes);
         } else {
-            article.setTargetLanguageCode(null);
+            // null이거나 빈 리스트면 모든 언어 코드로 설정
+            article.setTargetLanguageCode(LanguageCode.getAllCodes());
         }
 
         article.setCreatedAt(LocalDateTime.now());
@@ -234,6 +233,15 @@ public class ArticleService {
         response.setReviewCount(article.getReviewCount());
         response.setViewCount(article.getViewCount());
         response.setTags(article.getTags());
+
+        // targetLanguageCode가 null이면 모든 언어 코드로 응답
+        List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
+        response.setTargetLanguageCode(
+            (targetLanguageCodes != null && !targetLanguageCodes.isEmpty())
+                ? targetLanguageCodes
+                : LanguageCode.getAllCodes()
+        );
+
         response.setCreatedAt(article.getCreatedAt());
         return response;
     }
@@ -245,5 +253,24 @@ public class ArticleService {
     public Article findById(String articleId) {
         return articleRepository.findById(articleId)
                 .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
+    }
+
+    @Transactional
+    public long migrateTargetLanguageCode() {
+        log.info("Starting migration: setting default targetLanguageCode for articles");
+
+        List<Article> articles = articleRepository.findAll();
+        long updatedCount = 0;
+
+        for (Article article : articles) {
+            if (article.getTargetLanguageCode() == null || article.getTargetLanguageCode().isEmpty()) {
+                article.setTargetLanguageCode(LanguageCode.getAllCodes());
+                articleRepository.save(article);
+                updatedCount++;
+            }
+        }
+
+        log.info("Migration completed: updated {} articles", updatedCount);
+        return updatedCount;
     }
 }

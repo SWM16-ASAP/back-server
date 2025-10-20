@@ -1,6 +1,7 @@
 package com.linglevel.api.content.article.dto;
 
 import com.linglevel.api.content.common.ProgressStatus;
+import com.linglevel.api.i18n.LanguageCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -22,6 +23,9 @@ public class GetArticlesRequest {
 
     @Schema(description = "진도별 필터링", example = "IN_PROGRESS")
     private ProgressStatus progress;
+
+    @Schema(description = "타깃 언어 코드 필터", example = "KO")
+    private LanguageCode targetLanguageCode;
 
     @Schema(description = "페이지 번호", example = "1", defaultValue = "1", minimum = "1")
     @Min(value = 1, message = "페이지 번호는 1 이상이어야 합니다.")
