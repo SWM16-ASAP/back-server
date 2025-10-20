@@ -172,6 +172,7 @@ public class ArticleService {
             article.setTargetLanguageCode(LanguageCode.getAllCodes());
         }
 
+        article.setOriginUrl(importData.getOriginUrl());
         article.setCreatedAt(LocalDateTime.now());
 
         return article;

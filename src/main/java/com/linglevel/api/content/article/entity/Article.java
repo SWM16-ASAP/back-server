@@ -23,6 +23,8 @@ public class Article {
     private String author;
 
     private String coverImageUrl;
+
+    private String originUrl;
     
     private DifficultyLevel difficultyLevel;
     
