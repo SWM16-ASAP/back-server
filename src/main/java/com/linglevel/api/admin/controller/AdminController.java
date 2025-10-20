@@ -15,8 +15,11 @@ import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
 import com.linglevel.api.user.ticket.exception.TicketException;
+import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.content.book.dto.ChunkResponse;
 import com.linglevel.api.content.article.dto.ArticleChunkResponse;
+import com.linglevel.api.content.article.dto.ArticleOriginResponse;
+import com.linglevel.api.content.article.dto.GetArticleOriginsRequest;
 import com.linglevel.api.content.article.service.ArticleService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
@@ -30,6 +33,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -151,6 +155,18 @@ public class AdminController {
                 .newBalance(newBalance)
                 .build();
 
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "아티클 원본 URL 목록 조회", description = "어드민 권한으로 아티클의 원본 URL 목록을 필터링하여 조회합니다.")
+    @GetMapping("/articles/origins")
+    public ResponseEntity<PageResponse<ArticleOriginResponse>> getArticleOrigins(
+            @ParameterObject @ModelAttribute GetArticleOriginsRequest request) {
+
+        log.info("Admin fetching article origins - tags: {}, targetLanguageCode: {}",
+                request.getTags(), request.getTargetLanguageCode());
+
+        PageResponse<ArticleOriginResponse> response = articleService.getArticleOrigins(request);
         return ResponseEntity.ok(response);
     }
 

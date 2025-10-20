@@ -12,6 +12,7 @@ import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.i18n.LanguageCode;
+
 import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
@@ -254,6 +255,39 @@ public class ArticleService {
     public Article findById(String articleId) {
         return articleRepository.findById(articleId)
                 .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
+    }
+
+    public PageResponse<ArticleOriginResponse> getArticleOrigins(GetArticleOriginsRequest request) {
+        log.info("Fetching article origins with filters - tags: {}, targetLanguageCode: {}",
+                request.getTags(), request.getTargetLanguageCode());
+
+        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<Article> articlePage = articleRepository.findArticleOriginsWithFilters(request, pageable);
+
+        List<ArticleOriginResponse> responses = articlePage.getContent().stream()
+                .map(this::convertToArticleOriginResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(articlePage, responses);
+    }
+
+    private ArticleOriginResponse convertToArticleOriginResponse(Article article) {
+        ArticleOriginResponse response = new ArticleOriginResponse();
+        response.setId(article.getId());
+        response.setTitle(article.getTitle());
+        response.setOriginUrl(article.getOriginUrl());
+
+        List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
+        response.setTargetLanguageCode(
+            (targetLanguageCodes != null && !targetLanguageCodes.isEmpty())
+                ? targetLanguageCodes
+                : LanguageCode.getAllCodes()
+        );
+
+        response.setTags(article.getTags());
+        return response;
     }
 
     @Transactional
