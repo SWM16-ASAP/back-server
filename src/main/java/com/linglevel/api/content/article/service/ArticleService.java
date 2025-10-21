@@ -1,6 +1,7 @@
 package com.linglevel.api.content.article.service;
 
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -160,7 +162,9 @@ public class ArticleService {
         article.setAverageRating(0.0);
         article.setReviewCount(0);
         article.setViewCount(0);
-        article.setTags(importData.getTags() != null ? importData.getTags() : List.of());
+
+        // 카테고리와 태그 파싱
+        parseCategoryAndTags(article, importData.getTags());
 
         // targetLanguageCode 매핑
         if (importData.getTargetLanguageCode() != null && !importData.getTargetLanguageCode().isEmpty()) {
@@ -179,6 +183,33 @@ public class ArticleService {
         return article;
     }
 
+    /**
+     * AI가 제공한 태그 리스트에서 카테고리 추출
+     * - 5개 특별 태그(Sports, Science, Tech, Business, Culture) 중 하나가 있으면 category로 설정
+     * - 카테고리는 tags 리스트에도 그대로 유지 (중복 허용)
+     * - 유저 선호도 분석 등에 활용
+     */
+    private void parseCategoryAndTags(Article article, List<String> importedTags) {
+        if (importedTags == null || importedTags.isEmpty()) {
+            article.setCategory(null);
+            article.setTags(List.of());
+            return;
+        }
+
+        ContentCategory foundCategory = null;
+
+        for (String tag : importedTags) {
+            ContentCategory category = ContentCategory.fromString(tag);
+            if (category != null && foundCategory == null) {
+                // 첫 번째로 발견된 카테고리 태그를 사용
+                foundCategory = category;
+            }
+        }
+
+        article.setCategory(foundCategory);
+        // 모든 태그를 그대로 유지
+        article.setTags(importedTags);
+    }
 
     private ArticleResponse convertToArticleResponse(Article article, String userId) {
         // 진도 정보 조회
@@ -234,6 +265,7 @@ public class ArticleService {
         response.setAverageRating(article.getAverageRating());
         response.setReviewCount(article.getReviewCount());
         response.setViewCount(article.getViewCount());
+        response.setCategory(article.getCategory());
         response.setTags(article.getTags());
 
         // targetLanguageCode가 null이면 모든 언어 코드로 응답
@@ -286,6 +318,7 @@ public class ArticleService {
                 : LanguageCode.getAllCodes()
         );
 
+        response.setCategory(article.getCategory());
         response.setTags(article.getTags());
         return response;
     }

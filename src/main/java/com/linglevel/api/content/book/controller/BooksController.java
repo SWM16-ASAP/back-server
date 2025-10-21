@@ -123,8 +123,10 @@ public class BooksController {
             @PathVariable String bookId,
             @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
             @PathVariable String chapterId,
-            @ParameterObject @Valid @ModelAttribute GetChunksRequest request) {
-        PageResponse<ChunkResponse> response = chunkService.getChunks(bookId, chapterId, request);
+            @ParameterObject @Valid @ModelAttribute GetChunksRequest request,
+            @AuthenticationPrincipal JwtClaims claims) {
+        String userId = claims != null ? claims.getId() : null;
+        PageResponse<ChunkResponse> response = chunkService.getChunks(bookId, chapterId, request, userId);
         return ResponseEntity.ok(response);
     }
 

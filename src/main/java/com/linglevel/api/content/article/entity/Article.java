@@ -1,5 +1,6 @@
 package com.linglevel.api.content.article.entity;
 
+import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.i18n.LanguageCode;
 import lombok.*;
@@ -35,7 +36,9 @@ public class Article {
     private Integer reviewCount;
     
     private Integer viewCount;
-    
+
+    private ContentCategory category;
+
     private List<String> tags;
 
     private List<LanguageCode> targetLanguageCode;

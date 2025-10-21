@@ -1,5 +1,6 @@
 package com.linglevel.api.content.article.dto;
 
+import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.i18n.LanguageCode;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,6 +18,9 @@ public class GetArticlesRequest {
 
     @Schema(description = "정렬 기준", example = "created_at", defaultValue = "created_at", allowableValues = {"view_count", "average_rating", "created_at"})
     private String sortBy = "created_at";
+
+    @Schema(description = "카테고리 필터", example = "TECH")
+    private ContentCategory category;
 
     @Schema(description = "태그 필터 (쉼표로 구분)", example = "technology,business")
     private String tags;

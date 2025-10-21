@@ -79,9 +79,11 @@ public class ArticleController {
     public ResponseEntity<PageResponse<ArticleChunkResponse>> getArticleChunks(
             @Parameter(description = "기사 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String articleId,
-            @ParameterObject @Valid @ModelAttribute GetArticleChunksRequest request) {
-        
-        PageResponse<ArticleChunkResponse> response = articleChunkService.getArticleChunks(articleId, request);
+            @ParameterObject @Valid @ModelAttribute GetArticleChunksRequest request,
+            @AuthenticationPrincipal JwtClaims claims) {
+
+        String userId = claims != null ? claims.getId() : null;
+        PageResponse<ArticleChunkResponse> response = articleChunkService.getArticleChunks(articleId, request, userId);
         return ResponseEntity.ok(response);
     }
 

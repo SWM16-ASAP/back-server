@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/fcm-i18n ]
+    branches: [ develop, feat/content-category ]
 
 jobs:
   build:
