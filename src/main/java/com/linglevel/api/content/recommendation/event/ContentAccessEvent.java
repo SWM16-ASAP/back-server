@@ -1,4 +1,4 @@
-package com.linglevel.api.recommendation.event;
+package com.linglevel.api.content.recommendation.event;
 
 import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.ContentType;

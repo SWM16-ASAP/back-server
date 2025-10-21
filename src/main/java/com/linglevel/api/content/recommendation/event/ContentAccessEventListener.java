@@ -1,7 +1,7 @@
-package com.linglevel.api.recommendation.event;
+package com.linglevel.api.content.recommendation.event;
 
-import com.linglevel.api.recommendation.entity.ContentAccessLog;
-import com.linglevel.api.recommendation.repository.ContentAccessLogRepository;
+import com.linglevel.api.content.recommendation.entity.ContentAccessLog;
+import com.linglevel.api.content.recommendation.repository.ContentAccessLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

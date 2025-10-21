@@ -1,10 +1,10 @@
-package com.linglevel.api.recommendation.scheduler;
+package com.linglevel.api.content.recommendation.scheduler;
 
 import com.linglevel.api.content.common.ContentCategory;
-import com.linglevel.api.recommendation.entity.ContentAccessLog;
-import com.linglevel.api.recommendation.entity.UserCategoryPreference;
-import com.linglevel.api.recommendation.repository.ContentAccessLogRepository;
-import com.linglevel.api.recommendation.repository.UserCategoryPreferenceRepository;
+import com.linglevel.api.content.recommendation.entity.ContentAccessLog;
+import com.linglevel.api.content.recommendation.entity.UserCategoryPreference;
+import com.linglevel.api.content.recommendation.repository.ContentAccessLogRepository;
+import com.linglevel.api.content.recommendation.repository.UserCategoryPreferenceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

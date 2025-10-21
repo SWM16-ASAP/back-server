@@ -11,7 +11,7 @@ import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.common.dto.PageResponse;
-import com.linglevel.api.recommendation.event.ContentAccessEvent;
+import com.linglevel.api.content.recommendation.event.ContentAccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

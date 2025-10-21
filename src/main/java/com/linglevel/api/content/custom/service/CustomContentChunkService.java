@@ -9,7 +9,7 @@ import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
-import com.linglevel.api.recommendation.event.ContentAccessEvent;
+import com.linglevel.api.content.recommendation.event.ContentAccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
