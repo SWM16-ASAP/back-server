@@ -23,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/admin/words")
 @RequiredArgsConstructor
@@ -175,6 +177,36 @@ public class WordsAdminController {
 
         EssentialWordsStatsResponse response = oxford3000Service.getEssentialWordsStats();
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "등록된 필수 단어 목록 조회",
+            description = """
+                    관리자 전용: 이미 등록된 필수 단어(isEssential=true)의 word 문자열 목록을 반환합니다.
+
+                    **사용 사례:**
+                    - Python 스크립트에서 중복 등록 방지를 위해 사용
+                    - 특정 언어로 필터링 가능 (targetLanguage 파라미터 사용)
+
+                    **파라미터:**
+                    - targetLanguage (선택): 특정 번역 대상 언어로 필터링 (예: KO)
+                    - 파라미터 없으면 모든 언어의 필수 단어 반환
+                    """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+            @ApiResponse(responseCode = "401", description = "인증 실패 (관리자 권한 필요)",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @GetMapping("/essential/words")
+    public ResponseEntity<List<String>> getEssentialWords(
+            @Parameter(description = "번역 대상 언어 (선택)", example = "KO")
+            @RequestParam(required = false) LanguageCode targetLanguage) {
+
+        log.info("Admin get essential words: targetLanguage={}", targetLanguage);
+
+        List<String> words = oxford3000Service.getEssentialWordsList(targetLanguage);
+        return ResponseEntity.ok(words);
     }
 
     @Operation(
