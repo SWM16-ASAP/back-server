@@ -1,6 +1,6 @@
-package com.linglevel.api.recommendation.repository;
+package com.linglevel.api.content.recommendation.repository;
 
-import com.linglevel.api.recommendation.entity.UserCategoryPreference;
+import com.linglevel.api.content.recommendation.entity.UserCategoryPreference;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.Optional;

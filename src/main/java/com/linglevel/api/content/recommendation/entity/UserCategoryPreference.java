@@ -1,4 +1,4 @@
-package com.linglevel.api.recommendation.entity;
+package com.linglevel.api.content.recommendation.entity;
 
 import com.linglevel.api.content.common.ContentCategory;
 import lombok.*;

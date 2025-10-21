@@ -1,11 +1,12 @@
-package com.linglevel.api.recommendation.scheduler;
+package com.linglevel.api.content.recommendation.scheduler;
 
 import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.ContentType;
-import com.linglevel.api.recommendation.entity.ContentAccessLog;
-import com.linglevel.api.recommendation.entity.UserCategoryPreference;
-import com.linglevel.api.recommendation.repository.ContentAccessLogRepository;
-import com.linglevel.api.recommendation.repository.UserCategoryPreferenceRepository;
+import com.linglevel.api.content.recommendation.entity.ContentAccessLog;
+import com.linglevel.api.content.recommendation.entity.UserCategoryPreference;
+import com.linglevel.api.content.recommendation.repository.ContentAccessLogRepository;
+import com.linglevel.api.content.recommendation.repository.UserCategoryPreferenceRepository;
+import com.linglevel.api.content.recommendation.scheduler.UserPreferenceAggregationScheduler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;

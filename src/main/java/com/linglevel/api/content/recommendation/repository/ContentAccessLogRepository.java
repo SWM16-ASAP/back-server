@@ -1,8 +1,7 @@
-package com.linglevel.api.recommendation.repository;
+package com.linglevel.api.content.recommendation.repository;
 
-import com.linglevel.api.recommendation.entity.ContentAccessLog;
+import com.linglevel.api.content.recommendation.entity.ContentAccessLog;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
