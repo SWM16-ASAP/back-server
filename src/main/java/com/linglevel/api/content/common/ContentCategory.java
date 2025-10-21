@@ -6,7 +6,7 @@ import lombok.Getter;
 public enum ContentCategory {
     SPORTS("Sports"),
     SCIENCE("Science"),
-    TECH("Tech"),
+    TECH("Technology"),
     BUSINESS("Business"),
     CULTURE("Culture");
 
