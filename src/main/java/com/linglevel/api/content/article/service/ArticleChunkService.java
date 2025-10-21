@@ -1,15 +1,19 @@
 package com.linglevel.api.content.article.service;
 
+import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.article.dto.*;
+import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.recommendation.event.ContentAccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,11 +28,19 @@ public class ArticleChunkService {
 
     private final ArticleChunkRepository articleChunkRepository;
     private final ArticleRepository articleRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public PageResponse<ArticleChunkResponse> getArticleChunks(String articleId, GetArticleChunksRequest request) {
-        validateArticleExists(articleId);
+    public PageResponse<ArticleChunkResponse> getArticleChunks(String articleId, GetArticleChunksRequest request, String userId) {
+        Article article = articleRepository.findById(articleId)
+                .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
 
         articleRepository.incrementViewCount(articleId);
+
+        if (userId != null && article.getCategory() != null) {
+            eventPublisher.publishEvent(new ContentAccessEvent(
+                    this, userId, articleId, ContentType.ARTICLE, article.getCategory()
+            ));
+        }
 
         DifficultyLevel difficulty = request.getDifficultyLevel();
 
@@ -37,11 +49,11 @@ public class ArticleChunkService {
 
         Page<ArticleChunk> chunksPage = articleChunkRepository.findByArticleIdAndDifficultyLevelOrderByChunkNumber(
                 articleId, difficulty, pageable);
-        
+
         List<ArticleChunkResponse> chunkResponses = chunksPage.getContent().stream()
                 .map(this::convertToArticleChunkResponse)
                 .toList();
-        
+
         return PageResponse.of(chunksPage, chunkResponses);
     }
 
@@ -57,18 +69,6 @@ public class ArticleChunkService {
     private void validateArticleExists(String articleId) {
         if (!articleRepository.existsById(articleId)) {
             throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
-        }
-    }
-
-    private DifficultyLevel validateAndParseDifficulty(String difficultyStr) {
-        if (difficultyStr == null || difficultyStr.trim().isEmpty()) {
-            throw new ArticleException(ArticleErrorCode.INVALID_DIFFICULTY_LEVEL);
-        }
-        
-        try {
-            return DifficultyLevel.valueOf(difficultyStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ArticleException(ArticleErrorCode.INVALID_DIFFICULTY_LEVEL);
         }
     }
 

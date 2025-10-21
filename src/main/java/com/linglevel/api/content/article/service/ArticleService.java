@@ -1,8 +1,8 @@
 package com.linglevel.api.content.article.service;
 
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.DifficultyLevel;
-import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.entity.ArticleChunk;
@@ -12,6 +12,8 @@ import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.entity.ArticleProgress;
+import com.linglevel.api.i18n.LanguageCode;
+
 import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
@@ -29,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -148,24 +150,66 @@ public class ArticleService {
         Article article = new Article();
         article.setTitle(importData.getTitle());
         article.setAuthor(importData.getAuthor());
-        
+
         DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(
                 importData.getOriginalTextLevel().toUpperCase());
         article.setDifficultyLevel(difficultyLevel);
-        
+
         String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, articlePathStrategy);
         article.setCoverImageUrl(coverImageUrl);
-        
+
         article.setReadingTime(0);
         article.setAverageRating(0.0);
         article.setReviewCount(0);
         article.setViewCount(0);
-        article.setTags(importData.getTags() != null ? importData.getTags() : List.of());
+
+        // 카테고리와 태그 파싱
+        parseCategoryAndTags(article, importData.getTags());
+
+        // targetLanguageCode 매핑
+        if (importData.getTargetLanguageCode() != null && !importData.getTargetLanguageCode().isEmpty()) {
+            List<LanguageCode> targetLanguageCodes = importData.getTargetLanguageCode().stream()
+                    .map(code -> LanguageCode.valueOf(code.toUpperCase()))
+                    .collect(Collectors.toList());
+            article.setTargetLanguageCode(targetLanguageCodes);
+        } else {
+            // null이거나 빈 리스트면 모든 언어 코드로 설정
+            article.setTargetLanguageCode(LanguageCode.getAllCodes());
+        }
+
+        article.setOriginUrl(importData.getOriginUrl());
         article.setCreatedAt(LocalDateTime.now());
-        
+
         return article;
     }
 
+    /**
+     * AI가 제공한 태그 리스트에서 카테고리 추출
+     * - 5개 특별 태그(Sports, Science, Tech, Business, Culture) 중 하나가 있으면 category로 설정
+     * - 카테고리는 tags 리스트에도 그대로 유지 (중복 허용)
+     * - 유저 선호도 분석 등에 활용
+     */
+    private void parseCategoryAndTags(Article article, List<String> importedTags) {
+        if (importedTags == null || importedTags.isEmpty()) {
+            article.setCategory(null);
+            article.setTags(List.of());
+            return;
+        }
+
+        ContentCategory foundCategory = null;
+
+        for (String tag : importedTags) {
+            ContentCategory category = ContentCategory.fromString(tag);
+            if (category != null && foundCategory == null) {
+                // 첫 번째로 발견된 카테고리 태그를 사용
+                foundCategory = category;
+            }
+        }
+
+        article.setCategory(foundCategory);
+        // 모든 태그를 그대로 유지
+        article.setTags(importedTags);
+    }
 
     private ArticleResponse convertToArticleResponse(Article article, String userId) {
         // 진도 정보 조회
@@ -221,7 +265,17 @@ public class ArticleService {
         response.setAverageRating(article.getAverageRating());
         response.setReviewCount(article.getReviewCount());
         response.setViewCount(article.getViewCount());
+        response.setCategory(article.getCategory());
         response.setTags(article.getTags());
+
+        // targetLanguageCode가 null이면 모든 언어 코드로 응답
+        List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
+        response.setTargetLanguageCode(
+            (targetLanguageCodes != null && !targetLanguageCodes.isEmpty())
+                ? targetLanguageCodes
+                : LanguageCode.getAllCodes()
+        );
+
         response.setCreatedAt(article.getCreatedAt());
         return response;
     }
@@ -233,5 +287,58 @@ public class ArticleService {
     public Article findById(String articleId) {
         return articleRepository.findById(articleId)
                 .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
+    }
+
+    public PageResponse<ArticleOriginResponse> getArticleOrigins(GetArticleOriginsRequest request) {
+        log.info("Fetching article origins with filters - tags: {}, targetLanguageCode: {}",
+                request.getTags(), request.getTargetLanguageCode());
+
+        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<Article> articlePage = articleRepository.findArticleOriginsWithFilters(request, pageable);
+
+        List<ArticleOriginResponse> responses = articlePage.getContent().stream()
+                .map(this::convertToArticleOriginResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(articlePage, responses);
+    }
+
+    private ArticleOriginResponse convertToArticleOriginResponse(Article article) {
+        ArticleOriginResponse response = new ArticleOriginResponse();
+        response.setId(article.getId());
+        response.setTitle(article.getTitle());
+        response.setOriginUrl(article.getOriginUrl());
+
+        List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
+        response.setTargetLanguageCode(
+            (targetLanguageCodes != null && !targetLanguageCodes.isEmpty())
+                ? targetLanguageCodes
+                : LanguageCode.getAllCodes()
+        );
+
+        response.setCategory(article.getCategory());
+        response.setTags(article.getTags());
+        return response;
+    }
+
+    @Transactional
+    public long migrateTargetLanguageCode() {
+        log.info("Starting migration: setting default targetLanguageCode for articles");
+
+        List<Article> articles = articleRepository.findAll();
+        long updatedCount = 0;
+
+        for (Article article : articles) {
+            if (article.getTargetLanguageCode() == null || article.getTargetLanguageCode().isEmpty()) {
+                article.setTargetLanguageCode(LanguageCode.getAllCodes());
+                articleRepository.save(article);
+                updatedCount++;
+            }
+        }
+
+        log.info("Migration completed: updated {} articles", updatedCount);
+        return updatedCount;
     }
 }

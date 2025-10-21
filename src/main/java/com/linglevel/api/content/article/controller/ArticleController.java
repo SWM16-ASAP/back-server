@@ -7,8 +7,6 @@ import com.linglevel.api.content.article.service.ArticleService;
 import com.linglevel.api.content.article.service.ArticleChunkService;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
-import com.linglevel.api.common.exception.CommonErrorCode;
-import com.linglevel.api.common.exception.CommonException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,7 +21,6 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
@@ -82,9 +79,11 @@ public class ArticleController {
     public ResponseEntity<PageResponse<ArticleChunkResponse>> getArticleChunks(
             @Parameter(description = "기사 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String articleId,
-            @ParameterObject @Valid @ModelAttribute GetArticleChunksRequest request) {
-        
-        PageResponse<ArticleChunkResponse> response = articleChunkService.getArticleChunks(articleId, request);
+            @ParameterObject @Valid @ModelAttribute GetArticleChunksRequest request,
+            @AuthenticationPrincipal JwtClaims claims) {
+
+        String userId = claims != null ? claims.getId() : null;
+        PageResponse<ArticleChunkResponse> response = articleChunkService.getArticleChunks(articleId, request, userId);
         return ResponseEntity.ok(response);
     }
 

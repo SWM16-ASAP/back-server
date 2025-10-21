@@ -1,8 +1,11 @@
 package com.linglevel.api.content.article.repository;
 
+import com.linglevel.api.content.article.dto.GetArticleOriginsRequest;
 import com.linglevel.api.content.article.dto.GetArticlesRequest;
 import com.linglevel.api.content.article.entity.Article;
+import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.ProgressStatus;
+import com.linglevel.api.i18n.LanguageCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -44,11 +47,25 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
         Query query = new Query();
 
         // 각 필터를 독립적인 메서드로 분리
+        applyCategoryFilter(query, request.getCategory());
         applyTagsFilter(query, request.getTags());
         applyKeywordFilter(query, request.getKeyword());
         applyProgressFilter(query, request.getProgress(), userId);
+        applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
+        applyCreatedAfterFilter(query, request.getCreatedAfter());
 
         return query;
+    }
+
+    /**
+     * 카테고리 필터 적용
+     */
+    private void applyCategoryFilter(Query query, ContentCategory category) {
+        if (category == null) {
+            return;
+        }
+
+        query.addCriteria(Criteria.where("category").is(category));
     }
 
     /**
@@ -93,6 +110,28 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
             // 조건에 맞는 아티클이 없으면 빈 결과 반환
             query.addCriteria(Criteria.where("_id").is(null));
         }
+    }
+
+    /**
+     * 타깃 언어 코드 필터 적용
+     */
+    private void applyTargetLanguageCodeFilter(Query query, LanguageCode targetLanguageCode) {
+        if (targetLanguageCode == null) {
+            return;
+        }
+
+        query.addCriteria(Criteria.where("targetLanguageCode").in(targetLanguageCode));
+    }
+
+    /**
+     * 생성 시간 필터 적용 (해당 시간 이후)
+     */
+    private void applyCreatedAfterFilter(Query query, java.time.LocalDateTime createdAfter) {
+        if (createdAfter == null) {
+            return;
+        }
+
+        query.addCriteria(Criteria.where("createdAt").gte(createdAfter));
     }
 
     /**
@@ -165,6 +204,38 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
                 .stream()
                 .map(doc -> doc.getString("articleId"))
                 .toList();
+    }
+
+    @Override
+    public Page<Article> findArticleOriginsWithFilters(GetArticleOriginsRequest request, Pageable pageable) {
+        Query query = buildOriginQuery(request);
+
+        // 총 개수 조회
+        long total = mongoTemplate.count(query, Article.class);
+
+        // 페이지네이션 적용
+        query.with(pageable);
+
+        // 데이터 조회
+        List<Article> articles = mongoTemplate.find(query, Article.class);
+
+        return new PageImpl<>(articles, pageable, total);
+    }
+
+    /**
+     * originUrl 조회용 동적 쿼리 빌드
+     */
+    private Query buildOriginQuery(GetArticleOriginsRequest request) {
+        Query query = new Query();
+
+        // originUrl이 null이 아닌 것만 조회
+        query.addCriteria(Criteria.where("originUrl").ne(null));
+
+        applyCategoryFilter(query, request.getCategory());
+        applyTagsFilter(query, request.getTags());
+        applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
+
+        return query;
     }
 
     @Override

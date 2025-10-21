@@ -4,14 +4,17 @@ import com.linglevel.api.content.book.dto.ChunkResponse;
 import com.linglevel.api.content.book.dto.GetChunksRequest;
 import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.book.entity.Chunk;
+import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.recommendation.event.ContentAccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,8 +32,9 @@ public class ChunkService {
     private final ChunkRepository chunkRepository;
     private final ChapterRepository chapterRepository;
     private final BookService bookService;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public PageResponse<ChunkResponse> getChunks(String bookId, String chapterId, GetChunksRequest request) {
+    public PageResponse<ChunkResponse> getChunks(String bookId, String chapterId, GetChunksRequest request, String userId) {
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
@@ -39,6 +43,13 @@ public class ChunkService {
             .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
         if (!bookId.equals(chapter.getBookId())) {
             throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
+        }
+
+        // 사용자 콘텐츠 접근 로깅 (비동기)
+        if (userId != null) {
+            eventPublisher.publishEvent(new ContentAccessEvent(
+                    this, userId, bookId, ContentType.BOOK, null  // Book은 category 없음
+            ));
         }
 
         DifficultyLevel difficulty;
