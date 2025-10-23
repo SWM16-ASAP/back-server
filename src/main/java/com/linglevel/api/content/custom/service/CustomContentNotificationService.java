@@ -57,6 +57,7 @@ public class CustomContentNotificationService {
                         .userId(userId)
                         .action("view_content")
                         .deepLink(contentId != null ? "linglevel:///customContent/" + contentId : "linglevel:///customContent")
+                        .campaignId("customContent-completed")
                         .additionalData(additionalData)
                         .build();
 
@@ -110,6 +111,7 @@ public class CustomContentNotificationService {
                         .userId(userId)
                         .action("view_chat")
                         .deepLink("linglevel:///import?state=chat")
+                        .campaignId("customContent-failed")
                         .additionalData(additionalData)
                         .build();
 

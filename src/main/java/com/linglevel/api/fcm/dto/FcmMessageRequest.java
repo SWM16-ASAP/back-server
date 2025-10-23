@@ -30,6 +30,9 @@ public class FcmMessageRequest {
     @Schema(description = "딥링크 URL", example = "/custom-content/123")
     private String deepLink;
 
+    @Schema(description = "캠페인 ID", example = "newArticle-tech")
+    private String campaignId;
+
     @Schema(description = "추가 데이터", example = "{\"requestId\": \"req123\", \"contentTitle\": \"My Content\"}")
     private Map<String, String> additionalData;
 
@@ -43,6 +46,7 @@ public class FcmMessageRequest {
         if (userId != null) fcmData.put("userId", userId);
         if (action != null) fcmData.put("action", action);
         if (deepLink != null) fcmData.put("deepLink", deepLink);
+        if (campaignId != null) fcmData.put("campaignId", campaignId);
 
         if (additionalData != null) {
             fcmData.putAll(additionalData);

@@ -124,6 +124,7 @@ public class NotificationService {
             FcmMessageRequest fcmRequest = FcmMessageRequest.builder()
                     .title(message.getTitle())
                     .body(message.getBody())
+                    .campaignId("admin-targeted")
                     .data(data)
                     .build();
 
@@ -216,6 +217,7 @@ public class NotificationService {
             FcmMessageRequest fcmRequest = FcmMessageRequest.builder()
                     .title(message.getTitle())
                     .body(message.getBody())
+                    .campaignId("admin-broadcast")
                     .data(data)
                     .build();
 
@@ -444,16 +446,20 @@ public class NotificationService {
     private void sendArticleNotification(FcmToken token, Article article, LanguageCode userLanguage) {
         String localizedTitle = getLocalizedNotificationTitle(userLanguage);
 
-        Map<String, String> data = new HashMap<>();
-        data.put("type", "ARTICLE_RELEASE");
-        data.put("articleId", article.getId());
-        data.put("deepLink", "linglevel://article/" + article.getId());
+        // campaignId 생성: "newArticle-{category}"
+        String campaignId = "newArticle-" + article.getCategory().name().toLowerCase();
 
         FcmMessageRequest fcmRequest = FcmMessageRequest.builder()
                 .title(localizedTitle)
                 .body(article.getTitle())
-                .data(data)
+                .type("ARTICLE_RELEASE")
+                .deepLink("linglevel://articles/" + article.getId())
+                .campaignId(campaignId)
                 .build();
+
+        Map<String, String> additionalData = new HashMap<>();
+        additionalData.put("articleId", article.getId());
+        fcmRequest.setAdditionalData(additionalData);
 
         fcmMessagingService.sendMessage(token.getFcmToken(), fcmRequest);
     }
