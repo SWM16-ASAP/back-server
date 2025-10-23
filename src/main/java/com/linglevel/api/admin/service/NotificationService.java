@@ -292,7 +292,7 @@ public class NotificationService {
 
                 MatchedArticle matchedArticle = new MatchedArticle(
                         articleInfo.getArticleId(),
-                        ContentCategory.fromString(articleInfo.getTargetCategory()),
+                        articleInfo.getTargetCategoryEnum(),
                         priority,
                         userLanguage
                 );
@@ -404,7 +404,8 @@ public class NotificationService {
 
         boolean categoryMatch = false;
         if (preferenceOpt.isPresent() && preferenceOpt.get().getPrimaryCategory() != null) {
-            categoryMatch = preferenceOpt.get().getPrimaryCategory().equals(articleInfo.getTargetCategory());
+            ContentCategory targetCategory = articleInfo.getTargetCategoryEnum();
+            categoryMatch = preferenceOpt.get().getPrimaryCategory().equals(targetCategory);
         } else {
             categoryMatch = true;
         }
@@ -447,7 +448,10 @@ public class NotificationService {
         String localizedTitle = getLocalizedNotificationTitle(userLanguage);
 
         // campaignId 생성: "newArticle-{category}"
-        String campaignId = "newArticle-" + article.getCategory().name().toLowerCase();
+        String categoryName = article.getCategory() != null
+                ? article.getCategory().name().toLowerCase()
+                : "unknown";
+        String campaignId = "newArticle-" + categoryName;
 
         FcmMessageRequest fcmRequest = FcmMessageRequest.builder()
                 .title(localizedTitle)

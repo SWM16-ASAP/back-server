@@ -9,7 +9,7 @@ public class ArticlePathStrategy implements S3PathStrategy {
 
     private static final String BASE_DIR = "article";
     private static final String IMAGES_DIR = "/images/";
-    private static final String COVER_FILENAME = "cover.png";
+    private static final String COVER_FILENAME = "cover.jpg";
     private static final String METADATA_FILENAME = "metadata.json";
 
     @Override

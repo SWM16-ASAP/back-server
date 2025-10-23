@@ -35,8 +35,15 @@ public class ArticleReleaseNotificationRequest {
         @Schema(description = "타겟 언어 코드 목록 (null이면 모든 언어)", example = "[\"KO\", \"EN\"]")
         private List<LanguageCode> targetLanguageCodes;
 
-        @Schema(description = "타겟 카테고리", example = "TECH", required = true)
+        @Schema(description = "타겟 카테고리 displayName", example = "Technology", required = true)
         @NotNull(message = "Target category is required")
         private String targetCategory;
+
+        /**
+         * targetCategory String(displayName)을 ContentCategory enum으로 변환
+         */
+        public ContentCategory getTargetCategoryEnum() {
+            return ContentCategory.fromString(targetCategory);
+        }
     }
 }
