@@ -37,6 +37,6 @@ public class ArticleReleaseNotificationRequest {
 
         @Schema(description = "타겟 카테고리", example = "TECH", required = true)
         @NotNull(message = "Target category is required")
-        private ContentCategory targetCategory;
+        private String targetCategory;
     }
 }
