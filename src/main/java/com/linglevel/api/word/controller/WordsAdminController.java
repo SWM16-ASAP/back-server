@@ -83,10 +83,9 @@ public class WordsAdminController {
             description = """
                     관리자 전용: Oxford 3000 필수 단어를 일괄 생성/업데이트합니다.
 
-                    **사용 사례:**
-                    1. 최초 데이터 생성 (overwrite=false): 3000개 단어를 AI로 분석하여 DB에 저장
-                    2. 기존 데이터 갱신 (overwrite=true): 기존 Oxford 3000 단어를 삭제하고 재생성
-                    3. isEssential 플래그 업데이트 (overwrite=false): 이미 존재하는 단어는 isEssential=true로만 업데이트
+                    **동작 방식:**
+                    - 이미 존재하는 단어: 재사용하고 isEssential=true로 업데이트
+                    - 존재하지 않는 단어: AI로 분석하여 새로 생성
 
                     **주의사항:**
                     - 이 작업은 매우 오래 걸릴 수 있습니다 (3000개 단어 × AI 호출)
@@ -95,8 +94,6 @@ public class WordsAdminController {
 
                     **파라미터:**
                     - targetLanguage: 번역 대상 언어 (예: KO, JA)
-                    - overwrite=false (기본): 기존 데이터 유지, isEssential만 업데이트
-                    - overwrite=true: 기존 데이터 삭제 후 완전히 재생성
                     """
     )
     @ApiResponses(value = {
@@ -108,50 +105,11 @@ public class WordsAdminController {
     @PostMapping("/essential/initialize-oxford3000")
     public ResponseEntity<Oxford3000InitResponse> initializeOxford3000(
             @Parameter(description = "번역 대상 언어", example = "KO")
-            @RequestParam(defaultValue = "KO") LanguageCode targetLanguage,
-            @Parameter(description = "true: 기존 데이터 삭제 후 재생성, false: 기존 데이터 유지 + isEssential 업데이트")
-            @RequestParam(defaultValue = "false") boolean overwrite) {
+            @RequestParam(defaultValue = "KO") LanguageCode targetLanguage) {
 
-        log.info("Admin initialize-oxford3000: targetLanguage={}, overwrite={}", targetLanguage, overwrite);
+        log.info("Admin initialize-oxford3000: targetLanguage={}", targetLanguage);
 
-        Oxford3000InitResponse response = oxford3000Service.initializeOxford3000(targetLanguage, overwrite);
-        return ResponseEntity.ok(response);
-    }
-
-    @Operation(
-            summary = "[테스트] Oxford 3000 단어 초기화 (제한된 개수)",
-            description = """
-                    관리자 전용: Oxford 3000 필수 단어를 제한된 개수만큼 테스트로 생성/업데이트합니다.
-
-                    **사용 사례:**
-                    - 실제 배포 전 소량 테스트 (예: 3개, 10개, 100개)
-                    - AI 호출 및 저장 로직 검증
-
-                    **파라미터:**
-                    - targetLanguage: 번역 대상 언어 (예: KO, JA)
-                    - overwrite: 덮어쓰기 여부
-                    - limit: 처리할 최대 단어 수 (예: 3)
-                    """
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "초기화 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "401", description = "인증 실패 (관리자 권한 필요)",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @RateLimit(capacity = 10, refillMinutes = 10, keyType = KeyType.IP)
-    @PostMapping("/essential/initialize-oxford3000/test")
-    public ResponseEntity<Oxford3000InitResponse> initializeOxford3000Test(
-            @Parameter(description = "번역 대상 언어", example = "KO")
-            @RequestParam(defaultValue = "KO") LanguageCode targetLanguage,
-            @Parameter(description = "true: 기존 데이터 삭제 후 재생성, false: 기존 데이터 유지 + isEssential 업데이트")
-            @RequestParam(defaultValue = "false") boolean overwrite,
-            @Parameter(description = "처리할 최대 단어 수", example = "3")
-            @RequestParam(defaultValue = "3") int limit) {
-
-        log.info("Admin initialize-oxford3000 TEST: targetLanguage={}, overwrite={}, limit={}",
-                 targetLanguage, overwrite, limit);
-
-        Oxford3000InitResponse response = oxford3000Service.initializeOxford3000(targetLanguage, overwrite, limit);
+        Oxford3000InitResponse response = oxford3000Service.initializeOxford3000(targetLanguage);
         return ResponseEntity.ok(response);
     }
 
