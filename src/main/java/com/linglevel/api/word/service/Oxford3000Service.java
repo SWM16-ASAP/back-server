@@ -4,6 +4,7 @@ import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.EssentialWordsStatsResponse;
 import com.linglevel.api.word.dto.Oxford3000InitResponse;
 import com.linglevel.api.word.entity.Word;
+import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.repository.WordRepository;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +32,7 @@ public class Oxford3000Service {
     private final WordRepository wordRepository;
     private final WordService wordService;
     private final com.linglevel.api.word.validator.WordValidator wordValidator;
+    private final com.linglevel.api.word.repository.WordVariantRepository wordVariantRepository;
 
     private static final String OXFORD3000_CSV_PATH = "data/oxford3000_final_cleaned.csv";
     private static final int MAX_RETRY_ATTEMPTS = 3;
@@ -38,28 +41,14 @@ public class Oxford3000Service {
      * Oxford 3000 단어를 초기화합니다.
      *
      * @param targetLanguage 번역 대상 언어
-     * @param overwrite true: 기존 데이터 삭제 후 재생성, false: 기존 데이터 유지 + isEssential 업데이트
      * @return Oxford3000InitResponse
      */
     @Transactional
-    public Oxford3000InitResponse initializeOxford3000(LanguageCode targetLanguage, boolean overwrite) {
-        return initializeOxford3000(targetLanguage, overwrite, null);
-    }
-
-    /**
-     * Oxford 3000 단어를 초기화합니다 (제한된 개수로 테스트 가능)
-     *
-     * @param targetLanguage 번역 대상 언어
-     * @param overwrite true: 기존 데이터 삭제 후 재생성, false: 기존 데이터 유지 + isEssential 업데이트
-     * @param limit 처리할 최대 단어 수 (null이면 전체)
-     * @return Oxford3000InitResponse
-     */
-    @Transactional
-    public Oxford3000InitResponse initializeOxford3000(LanguageCode targetLanguage, boolean overwrite, Integer limit) {
+    public Oxford3000InitResponse initializeOxford3000(LanguageCode targetLanguage) {
         LocalDateTime startedAt = LocalDateTime.now();
         log.info("============================================================");
         log.info("Starting Oxford 3000 initialization");
-        log.info("Target Language: {}, Overwrite: {}, Limit: {}", targetLanguage, overwrite, limit);
+        log.info("Target Language: {}", targetLanguage);
         log.info("============================================================");
 
         // 1. CSV 파일에서 단어 읽기
@@ -79,12 +68,6 @@ public class Oxford3000Service {
         log.info("Step 3: {} words already registered, {} words to process",
                  skippedCount, wordsToProcess.size());
 
-        // limit이 지정되면 해당 개수만 처리
-        if (limit != null && limit > 0 && wordsToProcess.size() > limit) {
-            wordsToProcess = wordsToProcess.stream().limit(limit).collect(Collectors.toList());
-            log.info("Step 4: Limited to {} words for testing", wordsToProcess.size());
-        }
-
         log.info("============================================================");
         log.info("Processing {} words...", wordsToProcess.size());
         log.info("============================================================");
@@ -99,11 +82,10 @@ public class Oxford3000Service {
         for (int i = 0; i < wordsToProcess.size(); i++) {
             String word = wordsToProcess.get(i);
             boolean processed = false;
-            Exception lastException = null;
 
             for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
                 try {
-                    boolean existed = processWord(word, targetLanguage, overwrite);
+                    boolean existed = processWord(word, targetLanguage);
                     successCount++;
 
                     if (!existed) {
@@ -122,7 +104,6 @@ public class Oxford3000Service {
                     break; // 성공하면 재시도 중단
 
                 } catch (Exception e) {
-                    lastException = e;
                     if (attempt < MAX_RETRY_ATTEMPTS) {
                         log.warn("Failed to process word '{}' (attempt {}/{}): {}. Retrying...",
                                  word, attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
@@ -176,32 +157,55 @@ public class Oxford3000Service {
      *
      * @param word 처리할 단어
      * @param targetLanguage 번역 대상 언어
-     * @param overwrite 덮어쓰기 여부
      * @return true: 이미 존재했던 단어, false: 새로 생성된 단어
      */
     @Transactional
-    public boolean processWord(String word, LanguageCode targetLanguage, boolean overwrite) {
-        // WordValidator를 통한 전처리 및 검증
+    public boolean processWord(String word, LanguageCode targetLanguage) {
         String validatedWord = wordValidator.validateAndPreprocess(word);
         log.debug("Word validated and preprocessed: '{}' -> '{}'", word, validatedWord);
 
-        // WordService의 forceReanalyzeWord 사용 (overwrite 로직 포함)
-        com.linglevel.api.word.dto.WordSearchResponse response =
-                wordService.forceReanalyzeWord(validatedWord, targetLanguage, overwrite);
+        // 1. WordVariant에서 원형 찾기
+        List<WordVariant> variants =
+                wordVariantRepository.findAllByWord(validatedWord);
+        String originalForm;
 
-        // 생성된 모든 Word에 isEssential=true 설정
-        for (com.linglevel.api.word.dto.WordResponse wordResponse : response.getResults()) {
-            wordRepository.findById(wordResponse.getId())
-                .ifPresent(w -> {
-                    if (!Boolean.TRUE.equals(w.getIsEssential())) {
-                        w.setIsEssential(true);
-                        wordRepository.save(w);
-                        log.info("Set isEssential=true for Oxford 3000 word: {}", w.getWord());
-                    }
-                });
+        if (!variants.isEmpty()) {
+            originalForm = variants.get(0).getOriginalForm();
+            log.info("Found variant '{}' -> original form '{}'", validatedWord, originalForm);
+        } else {
+            originalForm = validatedWord;
         }
 
-        return !response.getResults().isEmpty();
+        // 2. targetLanguage와 일치하는 Word가 있는지 확인
+        Optional<Word> existingWord = wordRepository.findByWordAndTargetLanguageCode(
+                originalForm, targetLanguage);
+
+        Word wordToUpdate;
+        boolean existed = existingWord.isPresent();
+
+        if (existed) {
+            // 이미 존재하면 재사용
+            wordToUpdate = existingWord.get();
+            log.info("Word '{}' already exists for target language {}, reusing",
+                     originalForm, targetLanguage);
+        } else {
+            // 없으면 AI로 생성
+            wordService.forceReanalyzeWord(originalForm, targetLanguage, false);
+
+            // 생성된 결과 조회
+            wordToUpdate = wordRepository.findByWordAndTargetLanguageCode(
+                    originalForm, targetLanguage)
+                    .orElseThrow(() -> new WordsException(WordsErrorCode.WORD_NOT_FOUND));
+        }
+
+        // 3. isEssential=true 설정
+        if (!Boolean.TRUE.equals(wordToUpdate.getIsEssential())) {
+            wordToUpdate.setIsEssential(true);
+            wordRepository.save(wordToUpdate);
+            log.info("Set isEssential=true for Oxford 3000 word: {}", wordToUpdate.getWord());
+        }
+
+        return existed;
     }
 
     /**
@@ -251,10 +255,10 @@ public class Oxford3000Service {
     }
 
     /**
-     * 등록된 필수 단어 목록 조회 (word 문자열만)
+     * 등록된 필수 단어 목록 조회 (word 문자열만, 변형 형태 포함)
      *
      * @param targetLanguage 번역 대상 언어 (null이면 전체)
-     * @return 필수 단어 문자열 목록 (중복 제거)
+     * @return 필수 단어 문자열 목록 (원형 + 변형 형태, 중복 제거)
      */
     public List<String> getEssentialWordsList(LanguageCode targetLanguage) {
         List<Word> essentialWords;
@@ -267,16 +271,33 @@ public class Oxford3000Service {
             log.info("Found {} total essential words (all languages)", essentialWords.size());
         }
 
-        // word 문자열만 추출하고 중복 제거 (대소문자 구분 없이)
-        List<String> wordList = essentialWords.stream()
+        // 원형들 추출
+        List<String> originalForms = essentialWords.stream()
                 .map(Word::getWord)
                 .map(String::toLowerCase)
+                .distinct()
+                .collect(Collectors.toList());
+
+        // 각 원형의 변형 형태들도 가져오기
+        List<String> allFormsIncludingVariants = new ArrayList<>(originalForms);
+
+        for (String originalForm : originalForms) {
+            List<WordVariant> variants =
+                    wordVariantRepository.findAllByOriginalForm(originalForm);
+            variants.stream()
+                    .map(WordVariant::getWord)
+                    .map(String::toLowerCase)
+                    .forEach(allFormsIncludingVariants::add);
+        }
+
+        List<String> result = allFormsIncludingVariants.stream()
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
 
-        log.info("Returning {} unique essential word strings", wordList.size());
-        return wordList;
+        log.info("Returning {} unique essential word strings (including {} variants)",
+                 result.size(), result.size() - originalForms.size());
+        return result;
     }
 
     /**
