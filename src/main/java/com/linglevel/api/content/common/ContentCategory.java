@@ -16,16 +16,30 @@ public enum ContentCategory {
         this.displayName = displayName;
     }
 
-    public static ContentCategory fromString(String tag) {
-        if (tag == null) {
+    /**
+     * displayName 또는 enum name으로부터 ContentCategory로 변환
+     * @param value displayName (예: "Technology") 또는 enum name (예: "TECH")
+     * @return 매칭되는 ContentCategory, 없으면 null
+     */
+    public static ContentCategory fromString(String value) {
+        if (value == null) {
             return null;
         }
 
+        String trimmedValue = value.trim();
+
+        // 먼저 displayName으로 매칭 시도
         for (ContentCategory category : values()) {
-            if (category.displayName.equalsIgnoreCase(tag.trim())) {
+            if (category.displayName.equalsIgnoreCase(trimmedValue)) {
                 return category;
             }
         }
-        return null;
+
+        // displayName 매칭 실패시 enum name으로 매칭 시도
+        try {
+            return ContentCategory.valueOf(trimmedValue.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

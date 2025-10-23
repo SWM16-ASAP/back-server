@@ -231,7 +231,7 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
         // originUrl이 null이 아닌 것만 조회
         query.addCriteria(Criteria.where("originUrl").ne(null));
 
-        applyCategoryFilter(query, request.getCategory());
+        applyCategoryFilter(query, request.getCategoryEnum());
         applyTagsFilter(query, request.getTags());
         applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
 
