@@ -292,7 +292,7 @@ public class NotificationService {
 
                 MatchedArticle matchedArticle = new MatchedArticle(
                         articleInfo.getArticleId(),
-                        articleInfo.getTargetCategory(),
+                        ContentCategory.fromString(articleInfo.getTargetCategory()),
                         priority,
                         userLanguage
                 );
