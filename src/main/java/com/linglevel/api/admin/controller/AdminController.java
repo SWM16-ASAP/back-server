@@ -1,5 +1,7 @@
 package com.linglevel.api.admin.controller;
 
+import com.linglevel.api.admin.dto.ArticleReleaseNotificationRequest;
+import com.linglevel.api.admin.dto.ArticleReleaseNotificationResponse;
 import com.linglevel.api.admin.dto.GrantTicketRequest;
 import com.linglevel.api.admin.dto.GrantTicketResponse;
 import com.linglevel.api.admin.dto.NotificationBroadcastRequest;
@@ -130,6 +132,14 @@ public class AdminController {
             @Parameter(description = "알림 전송 요청", required = true) @Valid @RequestBody NotificationSendRequest request) {
 
         NotificationSendResponse response = notificationService.sendNotificationFromRequest(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "아티클 출시 알림 전송", description = "AI 서버가 새 아티클 출시 시 국가와 카테고리 기반으로 타겟 사용자에게 푸시 알림을 전송합니다.")
+    @PostMapping("/notifications/article-release")
+    public ResponseEntity<ArticleReleaseNotificationResponse> sendArticleReleaseNotification(
+            @Parameter(description = "아티클 출시 알림 전송 요청", required = true) @Valid @RequestBody ArticleReleaseNotificationRequest request) {
+        ArticleReleaseNotificationResponse response = notificationService.sendArticleReleaseNotification(request);
         return ResponseEntity.ok(response);
     }
 
