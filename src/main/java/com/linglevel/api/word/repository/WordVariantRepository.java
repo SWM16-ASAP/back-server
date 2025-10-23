@@ -13,9 +13,9 @@ public interface WordVariantRepository extends MongoRepository<WordVariant, Stri
 
     List<WordVariant> findAllByWord(String word);
 
-    boolean existsByWord(String word);
-
     List<WordVariant> findByWordIn(List<String> words);
 
     Optional<WordVariant> findByWordAndOriginalForm(String word, String originalForm);
+
+    List<WordVariant> findAllByOriginalForm(String originalForm);
 }
