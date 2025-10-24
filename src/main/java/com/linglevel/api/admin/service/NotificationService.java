@@ -457,7 +457,7 @@ public class NotificationService {
                 .title(localizedTitle)
                 .body(article.getTitle())
                 .type("ARTICLE_RELEASE")
-                .deepLink("linglevel://articles/" + article.getId())
+                .deepLink("linglevel:///articles/" + article.getId())
                 .campaignId(campaignId)
                 .build();
 
