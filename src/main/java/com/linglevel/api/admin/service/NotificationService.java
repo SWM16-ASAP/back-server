@@ -1,15 +1,24 @@
 package com.linglevel.api.admin.service;
 
 import com.google.firebase.messaging.*;
+import com.linglevel.api.admin.dto.ArticleReleaseNotificationRequest;
+import com.linglevel.api.admin.dto.ArticleReleaseNotificationResponse;
 import com.linglevel.api.admin.dto.NotificationBroadcastRequest;
 import com.linglevel.api.admin.dto.NotificationBroadcastResponse;
 import com.linglevel.api.admin.dto.NotificationSendResponse;
 import com.linglevel.api.admin.dto.NotificationSendRequest;
+import com.linglevel.api.content.article.entity.Article;
+import com.linglevel.api.content.article.repository.ArticleRepository;
+import com.linglevel.api.content.common.ContentCategory;
+import com.linglevel.api.content.recommendation.entity.UserCategoryPreference;
+import com.linglevel.api.content.recommendation.repository.UserCategoryPreferenceRepository;
 import com.linglevel.api.fcm.dto.FcmMessageRequest;
 import com.linglevel.api.fcm.entity.FcmToken;
 import com.linglevel.api.fcm.repository.FcmTokenRepository;
 import com.linglevel.api.fcm.service.FcmMessagingService;
 import com.linglevel.api.i18n.CountryCode;
+import com.linglevel.api.i18n.LanguageCode;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +34,8 @@ public class NotificationService {
 
     private final FcmMessagingService fcmMessagingService;
     private final FcmTokenRepository fcmTokenRepository;
+    private final ArticleRepository articleRepository;
+    private final UserCategoryPreferenceRepository userCategoryPreferenceRepository;
 
     public NotificationSendResponse sendNotificationFromRequest(NotificationSendRequest request) {
         return sendLocalizedNotification(request.getTargets(), request.getMessages(), request.getData());
@@ -113,6 +124,7 @@ public class NotificationService {
             FcmMessageRequest fcmRequest = FcmMessageRequest.builder()
                     .title(message.getTitle())
                     .body(message.getBody())
+                    .campaignId("admin-targeted")
                     .data(data)
                     .build();
 
@@ -205,6 +217,7 @@ public class NotificationService {
             FcmMessageRequest fcmRequest = FcmMessageRequest.builder()
                     .title(message.getTitle())
                     .body(message.getBody())
+                    .campaignId("admin-broadcast")
                     .data(data)
                     .build();
 
@@ -252,5 +265,241 @@ public class NotificationService {
                         totalTokens
                 )
         );
+    }
+
+    /**
+     * 아티클 출시 알림 전송
+     */
+    public ArticleReleaseNotificationResponse sendArticleReleaseNotification(ArticleReleaseNotificationRequest request) {
+        log.info("Starting article release notification for {} articles", request.getArticles().size());
+
+        int totalSentCount = 0;
+        List<ArticleReleaseNotificationResponse.ArticleResult> results = new ArrayList<>();
+        Map<String, List<MatchedArticle>> userArticleMatches = new HashMap<>();
+
+        // 1. 각 아티클별로 타겟 사용자 필터링
+        for (ArticleReleaseNotificationRequest.ArticleInfo articleInfo : request.getArticles()) {
+            List<FcmToken> targetTokens = filterTargetTokens(articleInfo);
+
+            log.info("Article {} matched {} tokens", articleInfo.getArticleId(), targetTokens.size());
+
+            // 각 토큰의 사용자에 대해 매칭 정보 저장
+            for (FcmToken token : targetTokens) {
+                String userId = token.getUserId();
+                LanguageCode userLanguage = convertCountryCodeToLanguageCode(token.getCountryCode());
+
+                int priority = calculatePriority(token, articleInfo, userLanguage);
+
+                MatchedArticle matchedArticle = new MatchedArticle(
+                        articleInfo.getArticleId(),
+                        articleInfo.getTargetCategoryEnum(),
+                        priority,
+                        userLanguage
+                );
+
+                userArticleMatches.computeIfAbsent(userId, k -> new ArrayList<>()).add(matchedArticle);
+            }
+        }
+
+        // 2. 각 사용자별로 최고 우선순위 아티클 1개만 선택하여 알림 전송
+        Map<String, Integer> articleSentCounts = new HashMap<>();
+        Map<String, Integer> articleTargetCounts = new HashMap<>();
+
+        for (Map.Entry<String, List<MatchedArticle>> entry : userArticleMatches.entrySet()) {
+            String userId = entry.getKey();
+            List<MatchedArticle> matches = entry.getValue();
+
+            // 우선순위가 가장 높은 아티클 선택 (priority 값이 낮을수록 우선순위 높음)
+            MatchedArticle topMatch = matches.stream()
+                    .min(Comparator.comparingInt(MatchedArticle::getPriority))
+                    .orElse(null);
+
+            if (topMatch != null) {
+                String articleId = topMatch.getArticleId();
+
+                articleTargetCounts.merge(articleId, 1, Integer::sum);
+
+                List<FcmToken> userTokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
+
+                if (!userTokens.isEmpty()) {
+                    Optional<Article> articleOpt = articleRepository.findById(articleId);
+                    if (articleOpt.isPresent()) {
+                        Article article = articleOpt.get();
+
+                        boolean sent = false;
+
+                        for (FcmToken token : userTokens) {
+                            try {
+                                sendArticleNotification(token, article, topMatch.getUserLanguage());
+                                sent = true;
+                                log.debug("Sent article notification to user: {}, article: {}", userId, articleId);
+                            } catch (Exception e) {
+                                log.warn("Failed to send notification to user: {}, token: {}, error: {}",
+                                        userId, maskToken(token.getFcmToken()), e.getMessage());
+
+                                if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
+                                    deactivateTokenByFcmToken(token.getFcmToken());
+                                }
+                            }
+                        }
+
+                        if (sent) {
+                            articleSentCounts.merge(articleId, 1, Integer::sum);
+                            totalSentCount++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. 응답 생성
+        for (ArticleReleaseNotificationRequest.ArticleInfo articleInfo : request.getArticles()) {
+            String articleId = articleInfo.getArticleId();
+            ArticleReleaseNotificationResponse.ArticleResult result = ArticleReleaseNotificationResponse.ArticleResult.builder()
+                    .articleId(articleId)
+                    .sentCount(articleSentCounts.getOrDefault(articleId, 0))
+                    .targetUserCount(articleTargetCounts.getOrDefault(articleId, 0))
+                    .build();
+            results.add(result);
+        }
+
+        log.info("Article release notification completed - Total sent: {}", totalSentCount);
+
+        return ArticleReleaseNotificationResponse.builder()
+                .totalSentCount(totalSentCount)
+                .results(results)
+                .build();
+    }
+
+    /**
+     * 타겟 토큰 필터링
+     */
+    private List<FcmToken> filterTargetTokens(ArticleReleaseNotificationRequest.ArticleInfo articleInfo) {
+        List<FcmToken> allActiveTokens = fcmTokenRepository.findByIsActive(true);
+
+        return allActiveTokens.stream()
+                .filter(token -> {
+                    LanguageCode userLanguage = convertCountryCodeToLanguageCode(token.getCountryCode());
+
+                    // targetLanguageCodes가 null이면 모든 언어 매칭
+                    if (articleInfo.getTargetLanguageCodes() != null &&
+                        !articleInfo.getTargetLanguageCodes().isEmpty()) {
+                        if (!articleInfo.getTargetLanguageCodes().contains(userLanguage)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 우선순위 계산
+     * Priority 1 (값: 1): 언어 AND 카테고리 모두 매칭
+     * Priority 2 (값: 2): 언어만 매칭
+     */
+    private int calculatePriority(FcmToken token, ArticleReleaseNotificationRequest.ArticleInfo articleInfo, LanguageCode userLanguage) {
+        Optional<UserCategoryPreference> preferenceOpt = userCategoryPreferenceRepository.findByUserId(token.getUserId());
+
+        boolean categoryMatch = false;
+        if (preferenceOpt.isPresent() && preferenceOpt.get().getPrimaryCategory() != null) {
+            ContentCategory targetCategory = articleInfo.getTargetCategoryEnum();
+            categoryMatch = preferenceOpt.get().getPrimaryCategory().equals(targetCategory);
+        } else {
+            categoryMatch = true;
+        }
+
+        // 언어는 이미 filterTargetTokens에서 필터링되었으므로 항상 매칭됨
+        boolean languageMatch = true;
+
+        if (languageMatch && categoryMatch) {
+            return 1;
+        } else if (languageMatch) {
+            return 2;
+        } else {
+            return 999;
+        }
+    }
+
+    /**
+     * CountryCode를 LanguageCode로 변환
+     */
+    private LanguageCode convertCountryCodeToLanguageCode(CountryCode countryCode) {
+        if (countryCode == null) {
+            return LanguageCode.EN;
+        }
+
+        switch (countryCode) {
+            case KR:
+                return LanguageCode.KO;
+            case JP:
+                return LanguageCode.JA;
+            case US:
+            default:
+                return LanguageCode.EN;
+        }
+    }
+
+    /**
+     * 아티클 알림 전송
+     */
+    private void sendArticleNotification(FcmToken token, Article article, LanguageCode userLanguage) {
+        String localizedTitle = getLocalizedNotificationTitle(userLanguage);
+
+        // campaignId 생성: "newArticle-{category}"
+        String categoryName = article.getCategory() != null
+                ? article.getCategory().name().toLowerCase()
+                : "unknown";
+        String campaignId = "newArticle-" + categoryName;
+
+        FcmMessageRequest fcmRequest = FcmMessageRequest.builder()
+                .title(localizedTitle)
+                .body(article.getTitle())
+                .type("ARTICLE_RELEASE")
+                .deepLink("linglevel:///articles/" + article.getId())
+                .campaignId(campaignId)
+                .build();
+
+        Map<String, String> additionalData = new HashMap<>();
+        additionalData.put("articleId", article.getId());
+        fcmRequest.setAdditionalData(additionalData);
+
+        fcmMessagingService.sendMessage(token.getFcmToken(), fcmRequest);
+    }
+
+    /**
+     * 언어별 알림 제목 로컬라이징
+     */
+    private String getLocalizedNotificationTitle(LanguageCode languageCode) {
+        switch (languageCode) {
+            case KO:
+                return "💌 오늘의 아티클 도착";
+            case JA:
+                return "💌 本日の記事が届きました";
+            case EN:
+            default:
+                return "💌 Today's Article Has Arrived";
+        }
+    }
+
+    /**
+     * 매칭된 아티클 정보를 담는 내부 클래스
+     */
+    @Getter
+    private static class MatchedArticle {
+        private final String articleId;
+        private final ContentCategory category;
+        private final int priority;
+        private final LanguageCode userLanguage;
+
+        public MatchedArticle(String articleId, ContentCategory category,
+                            int priority, LanguageCode userLanguage) {
+            this.articleId = articleId;
+            this.category = category;
+            this.priority = priority;
+            this.userLanguage = userLanguage;
+        }
+
     }
 }
