@@ -83,9 +83,8 @@ public class ArticleProgressService {
         ));
 
         // 스트릭 검사 로직
-        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId) && !streakService.hasCompletedStreakToday(userId)) {
-            log.info("Streak condition met for user: {}", userId);
-            // TODO: Implement streak update logic
+        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId)) {
+            streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
             readingSessionService.deleteReadingSession(userId);
         }
 

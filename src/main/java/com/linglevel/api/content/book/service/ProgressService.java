@@ -106,9 +106,8 @@ public class ProgressService {
         }
 
         // 스트릭 검사 로직
-        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId) && !streakService.hasCompletedStreakToday(userId)) {
-            log.info("Streak condition met for user: {}", userId);
-            // TODO: Implement streak update logic
+        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId)) {
+            streakService.updateStreak(userId, ContentType.BOOK, bookId);
             readingSessionService.deleteReadingSession(userId);
         }
 

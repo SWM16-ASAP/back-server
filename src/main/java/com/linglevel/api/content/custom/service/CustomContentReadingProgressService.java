@@ -92,9 +92,8 @@ public class CustomContentReadingProgressService {
         ));
 
         // 스트릭 검사 로직
-        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId) && !streakService.hasCompletedStreakToday(userId)) {
-            log.info("Streak condition met for user: {}", userId);
-            // TODO: Implement streak update logic
+        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId)) {
+            streakService.updateStreak(userId, ContentType.CUSTOM, customId);
             readingSessionService.deleteReadingSession(userId);
         }
 
