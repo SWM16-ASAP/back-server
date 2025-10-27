@@ -27,6 +27,9 @@ public class StreakResponse {
     @Schema(description = "전체 학습일 (dailyCompletions count)", example = "45")
     private long totalStudyDays;
 
+    @Schema(description = "읽은 고유 콘텐츠 개수 (dailyCompletions.firstCompletionCount의 합)", example = "120")
+    private long totalContentsRead;
+
     @Schema(description = "사용 가능한 프리즈 개수", example = "2")
     private int availableFreezes;
 

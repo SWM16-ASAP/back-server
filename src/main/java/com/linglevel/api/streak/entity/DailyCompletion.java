@@ -1,8 +1,10 @@
 package com.linglevel.api.streak.entity;
 
 import com.linglevel.api.content.common.ContentType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -18,6 +20,8 @@ import java.util.List;
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class DailyCompletion {
     @Id
     private String id;
@@ -28,7 +32,10 @@ public class DailyCompletion {
     private LocalDate completionDate;
 
     @Builder.Default
-    private Integer completionCount = 1;
+    private Integer firstCompletionCount = 0;
+
+    @Builder.Default
+    private Integer totalCompletionCount = 0;
 
     private List<CompletedContent> completedContents;
 
@@ -37,6 +44,8 @@ public class DailyCompletion {
     @Getter
     @Setter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class CompletedContent {
         private ContentType type;
         private String contentId;

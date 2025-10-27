@@ -8,6 +8,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 @Document(collection = "userStudyReports")
 @Getter
@@ -30,6 +32,8 @@ public class UserStudyReport {
     private Integer availableFreezes = 0;
 
     private Long totalReadingTimeSeconds = 0L;
+
+    private Set<String> completedContentIds = new HashSet<>();
 
     private Instant createdAt;
     private Instant updatedAt;

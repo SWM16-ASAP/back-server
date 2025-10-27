@@ -34,8 +34,11 @@ public class CalendarDayResponse {
     @Schema(description = "해당 날짜의 스트릭 개수 (FUTURE인 경우 null)", example = "20")
     private Integer streakCount;
 
-    @Schema(description = "해당 날짜에 완료한 학습 개수 (복습 포함, FUTURE인 경우 null)", example = "2")
-    private Integer completionCount;
+    @Schema(description = "해당 날짜에 첫 완료한 고유 콘텐츠 개수 (복습 제외, FUTURE인 경우 null)", example = "2")
+    private Integer firstCompletionCount;
+
+    @Schema(description = "해당 날짜에 완료한 총 콘텐츠 개수 (복습 포함, FUTURE인 경우 null)", example = "3")
+    private Integer totalCompletionCount;
 
     @Schema(description = "획득한 보상 정보 (FUTURE가 아닌 경우)")
     private RewardInfo rewards;

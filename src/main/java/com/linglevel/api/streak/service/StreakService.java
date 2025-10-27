@@ -45,6 +45,7 @@ public class StreakService {
         LocalDate today = getKstToday();
         StreakStatus todayStatus = calculateTodayStatus(userId, today);
         long totalStudyDays = dailyCompletionRepository.countByUserId(userId);
+        long totalContentsRead = report.getCompletedContentIds() != null ? report.getCompletedContentIds().size() : 0;
 
         return StreakResponse.builder()
                 .currentStreak(report.getCurrentStreak())
@@ -52,6 +53,7 @@ public class StreakService {
                 .longestStreak(report.getLongestStreak())
                 .streakStartDate(report.getStreakStartDate())
                 .totalStudyDays(totalStudyDays)
+                .totalContentsRead(totalContentsRead)
                 .availableFreezes(report.getAvailableFreezes())
                 .totalReadingTimeSeconds(report.getTotalReadingTimeSeconds())
                 .percentile(calculatePercentile(report))
@@ -92,9 +94,10 @@ public class StreakService {
 
         report.setLastCompletionDate(today);
         report.setUpdatedAt(Instant.now());
-        userStudyReportRepository.save(report);
 
-        saveDailyCompletion(userId, today, contentType, contentId);
+        saveDailyCompletion(report, today, contentType, contentId);
+
+        userStudyReportRepository.save(report);
 
         log.info("Streak updated for user: {}. Current streak: {}", userId, report.getCurrentStreak());
     }
@@ -166,19 +169,53 @@ public class StreakService {
         return report;
     }
 
-    private void saveDailyCompletion(String userId, LocalDate today, ContentType contentType, String contentId) {
+    private void saveDailyCompletion(UserStudyReport report, LocalDate today, ContentType contentType, String contentId) {
         DailyCompletion.CompletedContent completedContent = DailyCompletion.CompletedContent.builder()
                 .type(contentType)
                 .contentId(contentId)
                 .completedAt(Instant.now())
                 .build();
 
-        DailyCompletion dailyCompletion = DailyCompletion.builder()
-                .userId(userId)
-                .completionDate(today)
-                .completedContents(Collections.singletonList(completedContent))
-                .createdAt(Instant.now())
-                .build();
+        // 전체 기간에서 첫 완료인지 확인
+        boolean isFirstCompletion = !report.getCompletedContentIds().contains(contentId);
+
+        // 해당 날짜에 이미 DailyCompletion이 있는지 확인
+        DailyCompletion dailyCompletion = dailyCompletionRepository
+                .findByUserIdAndCompletionDate(report.getUserId(), today)
+                .orElse(null);
+
+        if (dailyCompletion != null) {
+            // 기존 레코드가 있는 경우
+            if (dailyCompletion.getCompletedContents() == null) {
+                dailyCompletion.setCompletedContents(new java.util.ArrayList<>());
+            }
+
+            // 총 완료 개수 증가 (복습 포함)
+            dailyCompletion.setTotalCompletionCount(dailyCompletion.getTotalCompletionCount() + 1);
+
+            // 첫 완료인 경우만 firstCompletionCount 증가
+            if (isFirstCompletion) {
+                dailyCompletion.setFirstCompletionCount(dailyCompletion.getFirstCompletionCount() + 1);
+                report.getCompletedContentIds().add(contentId);
+            }
+
+            // 모든 완료 기록을 completedContents에 추가
+            dailyCompletion.getCompletedContents().add(completedContent);
+        } else {
+            // 새로운 레코드 생성
+            dailyCompletion = DailyCompletion.builder()
+                    .userId(report.getUserId())
+                    .completionDate(today)
+                    .firstCompletionCount(isFirstCompletion ? 1 : 0)
+                    .totalCompletionCount(1)
+                    .completedContents(new java.util.ArrayList<>(Collections.singletonList(completedContent)))
+                    .createdAt(Instant.now())
+                    .build();
+
+            if (isFirstCompletion) {
+                report.getCompletedContentIds().add(contentId);
+            }
+        }
 
         dailyCompletionRepository.save(dailyCompletion);
     }
