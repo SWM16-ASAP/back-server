@@ -56,6 +56,32 @@ public class StreakController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/me/freeze-transactions")
+    @Operation(
+        summary = "내 프리즈 내역 조회",
+        description = "현재 로그인한 사용자의 프리즈 획득 및 사용 내역을 조회합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "프리즈 내역 조회 성공",
+            useReturnTypeSchema = true
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))
+        )
+    })
+    public ResponseEntity<org.springframework.data.domain.Page<com.linglevel.api.streak.dto.FreezeTransactionResponse>> getMyFreezeTransactions(
+            @AuthenticationPrincipal JwtClaims claims,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit) {
+
+        org.springframework.data.domain.Page<com.linglevel.api.streak.dto.FreezeTransactionResponse> response = streakService.getFreezeTransactions(claims.getId(), page, limit);
+        return ResponseEntity.ok(response);
+    }
+
     @ExceptionHandler(StreakException.class)
     public ResponseEntity<ExceptionResponse> handleStreakException(StreakException e) {
         log.error("Streak Exception: {}", e.getMessage());

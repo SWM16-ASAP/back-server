@@ -12,4 +12,5 @@ public class StreakResponse {
     private String encouragementMessage;
     private double percentile;
     private boolean isCompletedToday;
+    private int availableFreezes;
 }

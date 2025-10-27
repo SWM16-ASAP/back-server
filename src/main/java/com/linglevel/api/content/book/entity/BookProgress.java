@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -42,6 +43,8 @@ public class BookProgress {
     private DifficultyLevel currentDifficultyLevel;
 
     private Boolean isCompleted = false;
+
+    private Instant completedAt;
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
