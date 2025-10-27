@@ -10,11 +10,14 @@ import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
+import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.exception.UsersErrorCode;
 import com.linglevel.api.user.exception.UsersException;
 
+import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.streak.service.ReadingSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,10 +33,13 @@ public class CustomContentReadingProgressService {
     private final CustomContentProgressRepository customContentProgressRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
     private final ProgressCalculationService progressCalculationService;
+    private final ReadingSessionService readingSessionService;
 
 
     @Transactional
     public CustomContentReadingProgressResponse updateProgress(String customId, CustomContentReadingProgressUpdateRequest request, String userId) {
+        readingSessionService.startReadingSession(userId, ContentType.CUSTOM, customId);
+
         // 커스텀 콘텐츠 존재 여부 확인
         if (!customContentService.existsById(customId)) {
             throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);

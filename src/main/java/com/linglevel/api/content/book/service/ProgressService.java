@@ -9,7 +9,10 @@ import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
+import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
+import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.streak.service.ReadingSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,10 +29,13 @@ public class ProgressService {
     private final BookProgressRepository bookProgressRepository;
     private final ChunkRepository chunkRepository;
     private final ProgressCalculationService progressCalculationService;
+    private final ReadingSessionService readingSessionService;
 
 
     @Transactional
     public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String userId) {
+        readingSessionService.startReadingSession(userId, ContentType.BOOK, bookId);
+
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }

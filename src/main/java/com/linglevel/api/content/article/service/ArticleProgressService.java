@@ -8,7 +8,10 @@ import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
+import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
+import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.streak.service.ReadingSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,9 +27,12 @@ public class ArticleProgressService {
     private final ArticleProgressRepository articleProgressRepository;
     private final ArticleChunkRepository articleChunkRepository;
     private final ProgressCalculationService progressCalculationService;
+    private final ReadingSessionService readingSessionService;
 
     @Transactional
     public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request, String userId) {
+        readingSessionService.startReadingSession(userId, ContentType.ARTICLE, articleId);
+
         // 아티클 존재 여부 확인
         if (!articleService.existsById(articleId)) {
             throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
