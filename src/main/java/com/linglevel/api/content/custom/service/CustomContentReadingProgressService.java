@@ -12,12 +12,14 @@ import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
+import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.streak.service.StreakService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.exception.UsersErrorCode;
 import com.linglevel.api.user.exception.UsersException;
 
 import com.linglevel.api.content.common.ContentType;
-import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ public class CustomContentReadingProgressService {
     private final CustomContentChunkRepository customContentChunkRepository;
     private final ProgressCalculationService progressCalculationService;
     private final ReadingSessionService readingSessionService;
+    private final StreakService streakService;
 
 
     @Transactional
@@ -88,10 +91,25 @@ public class CustomContentReadingProgressService {
             customProgress.getIsCompleted(), isCompleted
         ));
 
+        // 스트릭 검사 로직
+        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId) && !streakService.hasCompletedStreakToday(userId)) {
+            log.info("Streak condition met for user: {}", userId);
+            // TODO: Implement streak update logic
+            readingSessionService.deleteReadingSession(userId);
+        }
+
         customContentProgressRepository.save(customProgress);
 
         return convertToCustomContentReadingProgressResponse(customProgress);
     }
+
+    private boolean isLastChunk(CustomContentChunk chunk) {
+        long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+            chunk.getCustomContentId(), chunk.getDifficultyLevel()
+        );
+        return chunk.getChunkNum() >= totalChunks;
+    }
+
 
     @Transactional(readOnly = true)
     public CustomContentReadingProgressResponse getProgress(String customId, String userId) {

@@ -11,8 +11,8 @@ import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +30,7 @@ public class ProgressService {
     private final ChunkRepository chunkRepository;
     private final ProgressCalculationService progressCalculationService;
     private final ReadingSessionService readingSessionService;
+    private final StreakService streakService;
 
 
     @Transactional
@@ -104,10 +105,25 @@ public class ProgressService {
             bookProgress.setIsCompleted(true);
         }
 
+        // 스트릭 검사 로직
+        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId) && !streakService.hasCompletedStreakToday(userId)) {
+            log.info("Streak condition met for user: {}", userId);
+            // TODO: Implement streak update logic
+            readingSessionService.deleteReadingSession(userId);
+        }
+
         bookProgressRepository.save(bookProgress);
 
         return convertToProgressResponse(bookProgress);
     }
+
+    private boolean isLastChunk(Chunk chunk) {
+        long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
+            chunk.getChapterId(), chunk.getDifficultyLevel()
+        );
+        return chunk.getChunkNumber() >= totalChunks;
+    }
+
 
     @Transactional(readOnly = true)
     public ProgressResponse getProgress(String bookId, String userId) {

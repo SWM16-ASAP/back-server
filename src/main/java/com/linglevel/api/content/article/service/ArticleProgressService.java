@@ -10,8 +10,8 @@ import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +28,7 @@ public class ArticleProgressService {
     private final ArticleChunkRepository articleChunkRepository;
     private final ProgressCalculationService progressCalculationService;
     private final ReadingSessionService readingSessionService;
+    private final StreakService streakService;
 
     @Transactional
     public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request, String userId) {
@@ -81,10 +82,25 @@ public class ArticleProgressService {
             articleProgress.getIsCompleted(), isCompleted
         ));
 
+        // 스트릭 검사 로직
+        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId) && !streakService.hasCompletedStreakToday(userId)) {
+            log.info("Streak condition met for user: {}", userId);
+            // TODO: Implement streak update logic
+            readingSessionService.deleteReadingSession(userId);
+        }
+
         articleProgressRepository.save(articleProgress);
 
         return convertToArticleProgressResponse(articleProgress);
     }
+
+    private boolean isLastChunk(ArticleChunk chunk) {
+        long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
+            chunk.getArticleId(), chunk.getDifficultyLevel()
+        );
+        return chunk.getChunkNumber() >= totalChunks;
+    }
+
 
     @Transactional(readOnly = true)
     public ArticleProgressResponse getProgress(String articleId, String userId) {

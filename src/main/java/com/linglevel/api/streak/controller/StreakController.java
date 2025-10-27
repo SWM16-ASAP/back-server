@@ -52,8 +52,9 @@ public class StreakController {
     public ResponseEntity<StreakResponse> getMyStreak(
             @AuthenticationPrincipal JwtClaims claims) {
 
-        StreakResponse response = streakService.getStreakInfo(claims.getId());
-        return ResponseEntity.ok(response);
+        // StreakResponse response = streakService.getStreakInfo(claims.getId());
+        // return ResponseEntity.ok(response);
+        return ResponseEntity.ok().build();
     }
 
     @ExceptionHandler(StreakException.class)
