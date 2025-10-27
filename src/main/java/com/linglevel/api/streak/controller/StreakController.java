@@ -37,16 +37,6 @@ public class StreakController {
             responseCode = "200",
             description = "스트릭 정보 조회 성공",
             useReturnTypeSchema = true
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "인증 실패",
-            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "스트릭 기록을 찾을 수 없음",
-            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))
         )
     })
     public ResponseEntity<StreakResponse> getMyStreak(

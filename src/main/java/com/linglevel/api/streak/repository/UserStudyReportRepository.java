@@ -9,4 +9,6 @@ public interface UserStudyReportRepository extends MongoRepository<UserStudyRepo
     Optional<UserStudyReport> findByUserId(String userId);
 
     long countByCurrentStreakLessThan(int currentStreak);
+
+    long countByCurrentStreakGreaterThanEqual(int currentStreak);
 }

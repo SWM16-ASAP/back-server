@@ -7,4 +7,6 @@ import java.time.LocalDate;
 
 public interface DailyCompletionRepository extends MongoRepository<DailyCompletion, String> {
     boolean existsByUserIdAndCompletionDate(String userId, LocalDate completionDate);
+
+    long countByUserId(String userId);
 }

@@ -1,9 +1,11 @@
 package com.linglevel.api.streak.service;
 
 import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.streak.dto.EncouragementMessage;
 import com.linglevel.api.streak.dto.FreezeTransactionResponse;
 import com.linglevel.api.streak.dto.StreakResponse;
 import com.linglevel.api.streak.entity.DailyCompletion;
+import com.linglevel.api.streak.entity.StreakStatus;
 import com.linglevel.api.streak.entity.UserStudyReport;
 import com.linglevel.api.streak.exception.StreakErrorCode;
 import com.linglevel.api.streak.exception.StreakException;
@@ -40,14 +42,18 @@ public class StreakService {
         UserStudyReport report = userStudyReportRepository.findByUserId(userId)
                 .orElseThrow(() -> new StreakException(StreakErrorCode.STREAK_NOT_FOUND));
 
-        boolean isCompletedToday = hasCompletedStreakToday(userId, getKstToday());
+        LocalDate today = getKstToday();
+        StreakStatus todayStatus = calculateTodayStatus(userId, today);
+        long totalStudyDays = dailyCompletionRepository.countByUserId(userId);
 
         return StreakResponse.builder()
                 .currentStreak(report.getCurrentStreak())
+                .todayStatus(todayStatus)
                 .longestStreak(report.getLongestStreak())
-                .totalReadingTimeSeconds(report.getTotalReadingTimeSeconds())
-                .isCompletedToday(isCompletedToday)
+                .streakStartDate(report.getStreakStartDate())
+                .totalStudyDays(totalStudyDays)
                 .availableFreezes(report.getAvailableFreezes())
+                .totalReadingTimeSeconds(report.getTotalReadingTimeSeconds())
                 .percentile(calculatePercentile(report))
                 .encouragementMessage(getEncouragementMessage(report.getCurrentStreak()))
                 .build();
@@ -191,24 +197,73 @@ public class StreakService {
             return 100.0;
         }
 
-        long usersWithLowerStreak = userStudyReportRepository.countByCurrentStreakLessThan(report.getCurrentStreak());
+        // Calculate "top X%" - users with higher or equal streak
+        long usersWithHigherOrEqualStreak = userStudyReportRepository.countByCurrentStreakGreaterThanEqual(report.getCurrentStreak());
 
-        double percentile = ((double) usersWithLowerStreak / totalUsers) * 100;
+        double percentile = ((double) usersWithHigherOrEqualStreak / totalUsers) * 100;
 
         // 소수점 첫째 자리까지 반올림
         return Math.round(percentile * 10.0) / 10.0;
     }
 
-    private String getEncouragementMessage(int currentStreak) {
+    private EncouragementMessage getEncouragementMessage(int currentStreak) {
+        String title;
+        String body;
+        String translation;
+
         if (currentStreak == 0) {
-            return "첫 스트릭을 시작해보세요!";
+            title = "시작하세요!";
+            body = "Start your first streak!";
+            translation = "첫 스트릭을 시작해보세요!";
         } else if (currentStreak < 5) {
-            return "잘하고 있어요! 계속 꾸준히 학습해보세요.";
+            title = currentStreak + "일 연속!";
+            body = "Great job! Keep it up!";
+            translation = "잘하고 있어요! 계속 꾸준히 학습해보세요.";
         } else if (currentStreak < 10) {
-            return "벌써 " + currentStreak + "일 연속 스트릭 달성! 대단해요!";
+            title = currentStreak + "일 연속!";
+            body = "Amazing! " + currentStreak + " days in a row!";
+            translation = "벌써 " + currentStreak + "일 연속 스트릭 달성! 대단해요!";
         } else {
-            return "당신의 꾸준함에 박수를 보냅니다! " + currentStreak + "일 연속 스트릭!";
+            title = currentStreak + "일 연속!";
+            body = "Impressive! " + currentStreak + " days in a row!";
+            translation = "당신의 꾸준함에 박수를 보냅니다! " + currentStreak + "일 연속 스트릭!";
         }
+
+        return EncouragementMessage.builder()
+                .title(title)
+                .body(body)
+                .translation(translation)
+                .build();
+    }
+
+    private StreakStatus calculateTodayStatus(String userId, LocalDate today) {
+        boolean todayCompleted = dailyCompletionRepository.existsByUserIdAndCompletionDate(userId, today);
+
+        if (todayCompleted) {
+            return StreakStatus.COMPLETED;
+        }
+
+        // Check if yesterday freeze was used
+        boolean yesterdayFreezeUsed = checkYesterdayFreezeUsed(userId, today);
+        if (yesterdayFreezeUsed) {
+            return StreakStatus.FREEZE_USED;
+        }
+
+        return StreakStatus.MISSED;
+    }
+
+    private boolean checkYesterdayFreezeUsed(String userId, LocalDate today) {
+        LocalDate yesterday = today.minusDays(1);
+
+        // Convert yesterday date to Instant range (00:00:00 ~ 23:59:59 KST)
+        ZoneId kst = ZoneId.of("Asia/Seoul");
+        Instant yesterdayStart = yesterday.atStartOfDay(kst).toInstant();
+        Instant yesterdayEnd = yesterday.plusDays(1).atStartOfDay(kst).toInstant();
+
+        // Check if freeze was consumed (amount = -1) yesterday
+        return freezeTransactionRepository.existsByUserIdAndAmountAndCreatedAtBetween(
+            userId, -1, yesterdayStart, yesterdayEnd
+        );
     }
 
     @Transactional(readOnly = true)

@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Document(collection = "dailyCompletions")
-@CompoundIndex(name = "user_completion_date", def = "{'userId': 1, 'completionDate': 1}", unique = true)
+@CompoundIndex(name = "idx_userId_completionDate", def = "{'userId': 1, 'completionDate': 1}", unique = true)
 @Getter
 @Setter
 @Builder
