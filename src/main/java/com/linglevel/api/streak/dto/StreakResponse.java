@@ -1,10 +1,13 @@
 package com.linglevel.api.streak.dto;
 
+import com.linglevel.api.streak.entity.StreakStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
 
 @Data
 @Builder
@@ -19,8 +22,14 @@ public class StreakResponse {
     @Schema(description = "오늘 학습 완료 여부", example = "true")
     private Boolean todayCompleted;
 
+    @Schema(description = "오늘의 스트릭 상태 (COMPLETED, FREEZE_USED, MISSED)", example = "COMPLETED")
+    private StreakStatus todayStatus;
+
     @Schema(description = "최장 스트릭 기록", example = "30")
     private Integer longestStreak;
+
+    @Schema(description = "현재 스트릭 시작 날짜 (yyyy-MM-dd, KST)", example = "2025-10-01")
+    private LocalDate streakStartDate;
 
     @Schema(description = "전체 학습일 수", example = "45")
     private Long totalStudyDays;

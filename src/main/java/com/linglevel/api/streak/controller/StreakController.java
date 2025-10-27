@@ -60,7 +60,9 @@ public class StreakController {
         StreakResponse mockResponse = StreakResponse.builder()
                 .currentStreak(0)
                 .todayCompleted(false)
+                .todayStatus(com.linglevel.api.streak.entity.StreakStatus.MISSED)
                 .longestStreak(0)
+                .streakStartDate(null)
                 .totalStudyDays(0L)
                 .totalContentsRead(0L)
                 .freezeCount(0)
@@ -78,3 +80,5 @@ public class StreakController {
                 .body(new ExceptionResponse(e));
     }
 }
+// This is Comment. Can write comment by double slash.
+/* Or by this way */
