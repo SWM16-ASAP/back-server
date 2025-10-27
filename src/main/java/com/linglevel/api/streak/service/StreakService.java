@@ -182,9 +182,21 @@ public class StreakService {
     }
 
     private double calculatePercentile(UserStudyReport report) {
-        // For now, returning a mock value.
-        // Real implementation would require aggregating data from all users.
-        return 75.5;
+        if (report.getCurrentStreak() == 0) {
+            return 0.0;
+        }
+
+        long totalUsers = userStudyReportRepository.count();
+        if (totalUsers <= 1) {
+            return 100.0;
+        }
+
+        long usersWithLowerStreak = userStudyReportRepository.countByCurrentStreakLessThan(report.getCurrentStreak());
+
+        double percentile = ((double) usersWithLowerStreak / totalUsers) * 100;
+
+        // 소수점 첫째 자리까지 반올림
+        return Math.round(percentile * 10.0) / 10.0;
     }
 
     private String getEncouragementMessage(int currentStreak) {
