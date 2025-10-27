@@ -2,6 +2,7 @@ package com.linglevel.api.streak.controller;
 
 import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.dto.ExceptionResponse;
+import com.linglevel.api.streak.dto.CalendarResponse;
 import com.linglevel.api.streak.dto.StreakResponse;
 import com.linglevel.api.streak.exception.StreakException;
 import com.linglevel.api.streak.service.StreakService;
@@ -69,6 +70,33 @@ public class StreakController {
             @RequestParam(defaultValue = "10") int limit) {
 
         org.springframework.data.domain.Page<com.linglevel.api.streak.dto.FreezeTransactionResponse> response = streakService.getFreezeTransactions(claims.getId(), page, limit);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/calendar")
+    @Operation(
+        summary = "달력 조회",
+        description = "특정 년월의 달력 정보를 조회합니다. 각 날짜별 스트릭 상태, 완료한 학습 개수, 보상 정보를 포함합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "달력 조회 성공",
+            useReturnTypeSchema = true
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))
+        )
+    })
+    public ResponseEntity<CalendarResponse> getCalendar(
+            @AuthenticationPrincipal JwtClaims claims,
+            @RequestParam @Schema(description = "년도", example = "2025") int year,
+            @RequestParam @Schema(description = "월", example = "10") int month) {
+
+        // CalendarResponse response = streakService.getCalendar(claims.getId(), year, month);
+        CalendarResponse response = new  CalendarResponse();
         return ResponseEntity.ok(response);
     }
 
