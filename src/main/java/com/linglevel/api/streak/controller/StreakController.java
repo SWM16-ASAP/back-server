@@ -4,6 +4,7 @@ import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.streak.dto.CalendarResponse;
 import com.linglevel.api.streak.dto.StreakResponse;
+import com.linglevel.api.streak.dto.WeekStreakResponse;
 import com.linglevel.api.streak.exception.StreakException;
 import com.linglevel.api.streak.service.StreakService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -97,6 +98,31 @@ public class StreakController {
 
         // CalendarResponse response = streakService.getCalendar(claims.getId(), year, month);
         CalendarResponse response = new  CalendarResponse();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/this-week")
+    @Operation(
+        summary = "이번 주 스트릭 조회",
+        description = "이번 주의 스트릭 정보를 조회합니다. 월요일부터 일요일까지의 스트릭 상태와 보상 정보를 포함합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "주간 스트릭 조회 성공",
+            useReturnTypeSchema = true
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ExceptionResponse.class))
+        )
+    })
+    public ResponseEntity<WeekStreakResponse> getThisWeekStreak(
+            @AuthenticationPrincipal JwtClaims claims) {
+
+        // WeekStreakResponse response = streakService.getThisWeekStreak(claims.getId());
+        WeekStreakResponse response = new WeekStreakResponse();
         return ResponseEntity.ok(response);
     }
 
