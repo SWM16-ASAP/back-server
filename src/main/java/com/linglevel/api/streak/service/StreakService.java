@@ -1,5 +1,6 @@
 package com.linglevel.api.streak.service;
 
+import com.linglevel.api.streak.dto.ContentInfo;
 import com.linglevel.api.streak.dto.StreakResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,10 +41,10 @@ public class StreakService {
     /**
      * Check and update streak when content is completed
      * @param userId User ID
-     * @param contentInfo Content information (TODO: create ContentInfo DTO)
+     * @param contentInfo Content completion information
      * @return true if streak was increased, false otherwise
      */
-    public boolean checkAndUpdateStreak(String userId, Object contentInfo) {
+    public boolean checkAndUpdateStreak(String userId, ContentInfo contentInfo) {
         // TODO: Implement according to HELP.md section 11.1
         // 1. Get completion date (KST timezone)
         // 2. Get UserStudyReport
