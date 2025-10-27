@@ -52,24 +52,8 @@ public class StreakController {
     public ResponseEntity<StreakResponse> getMyStreak(
             @AuthenticationPrincipal JwtClaims claims) {
 
-        // TODO: Service 구현 완료 후 주석 해제
-        // StreakResponse response = streakService.getStreakInfo(claims.getId());
-        // return ResponseEntity.ok(response);
-
-        // Mock response for Swagger documentation (Service 구현 전 임시)
-        StreakResponse mockResponse = StreakResponse.builder()
-                .currentStreak(0)
-                .todayStatus(com.linglevel.api.streak.entity.StreakStatus.MISSED)
-                .longestStreak(0)
-                .streakStartDate(null)
-                .totalStudyDays(0L)
-                .totalContentsRead(0L)
-                .freezeCount(0)
-                .totalReadingTimeSeconds(0L)
-                .percentileRank(0)
-                .build();
-
-        return ResponseEntity.ok(mockResponse);
+        StreakResponse response = streakService.getStreakInfo(claims.getId());
+        return ResponseEntity.ok(response);
     }
 
     @ExceptionHandler(StreakException.class)
@@ -79,5 +63,3 @@ public class StreakController {
                 .body(new ExceptionResponse(e));
     }
 }
-// This is Comment. Can write comment by double slash.
-/* Or by this way */
