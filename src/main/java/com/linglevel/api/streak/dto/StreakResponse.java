@@ -19,9 +19,6 @@ public class StreakResponse {
     @Schema(description = "현재 연속 일수", example = "25")
     private Integer currentStreak;
 
-    @Schema(description = "오늘 학습 완료 여부", example = "true")
-    private Boolean todayCompleted;
-
     @Schema(description = "오늘의 스트릭 상태 (COMPLETED, FREEZE_USED, MISSED)", example = "COMPLETED")
     private StreakStatus todayStatus;
 

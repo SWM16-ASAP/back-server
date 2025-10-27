@@ -59,7 +59,6 @@ public class StreakController {
         // Mock response for Swagger documentation (Service 구현 전 임시)
         StreakResponse mockResponse = StreakResponse.builder()
                 .currentStreak(0)
-                .todayCompleted(false)
                 .todayStatus(com.linglevel.api.streak.entity.StreakStatus.MISSED)
                 .longestStreak(0)
                 .streakStartDate(null)
