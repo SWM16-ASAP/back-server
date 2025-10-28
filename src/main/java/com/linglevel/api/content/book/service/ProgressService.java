@@ -96,25 +96,17 @@ public class ProgressService {
         }
         // 현재 챕터가 max 챕터보다 낮은 경우는 max 값을 변경하지 않는다.
 
-        // 완료 조건 변경: 마지막 챕터의 진행률이 100%일 때만 완료 처리
-        com.linglevel.api.content.book.entity.Book book = bookService.findById(bookId);
-        boolean isLastChapter = chapter.getChapterNumber().equals(book.getChapterCount());
-        boolean isChapterCompleted = progressCalculationService.isCompleted(normalizedProgress);
-
-        if (isLastChapter && isChapterCompleted) {
-            bookProgress.setIsCompleted(true);
-        }
-
         // 스트릭 검사 및 완료 처리 로직
         if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId)) {
+            // 첫 완료 시에만 isCompleted와 completedAt 함께 설정
+            if (bookProgress.getCompletedAt() == null) {
+                bookProgress.setIsCompleted(true);
+                bookProgress.setCompletedAt(java.time.Instant.now());
+            }
+
             // 스트릭 업데이트는 재학습 시에도 호출
             streakService.updateStreak(userId, ContentType.BOOK, bookId);
             readingSessionService.deleteReadingSession(userId);
-
-            // 첫 완료 시에만 completedAt 설정
-            if (bookProgress.getCompletedAt() == null) {
-                bookProgress.setCompletedAt(java.time.Instant.now());
-            }
         }
 
         bookProgressRepository.save(bookProgress);

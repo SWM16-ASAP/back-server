@@ -46,19 +46,19 @@ public class ReadingSessionService {
     public boolean isReadingSessionValid(String userId, ContentType contentType, String contentId) {
         ReadingSession session = getReadingSession(userId);
         if (session == null) {
-            log.warn("No reading session found for user: {}", userId);
+            log.info("No reading session found for user: {}", userId);
             return false;
         }
 
         if (!session.getContentType().equals(contentType) || !session.getContentId().equals(contentId)) {
-            log.warn("Reading session content mismatch for user: {}. Expected: {}/{}, Actual: {}/{}",
+            log.info("Reading session content mismatch for user: {}. Expected: {}/{}, Actual: {}/{}",
                     userId, contentType.getCode(), contentId, session.getContentType().getCode(), session.getContentId());
             return false;
         }
 
         Duration readingDuration = Duration.between(session.getStartedAt(), Instant.now());
         if (readingDuration.compareTo(MIN_READING_DURATION) < 0) {
-            log.warn("Reading duration for user: {} is less than 30 seconds. Duration: {}", userId, readingDuration);
+            log.info("Reading duration for user: {} is less than 30 seconds. Duration: {}", userId, readingDuration);
             return false;
         }
 

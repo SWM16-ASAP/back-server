@@ -76,22 +76,17 @@ public class ArticleProgressService {
             articleProgress.setMaxNormalizedProgress(normalizedProgress);
         }
 
-        // 완료 조건: maxNormalizedProgress >= 100%
-        boolean isCompleted = progressCalculationService.isCompleted(articleProgress.getMaxNormalizedProgress());
-        articleProgress.setIsCompleted(progressCalculationService.updateCompletedFlag(
-            articleProgress.getIsCompleted(), isCompleted
-        ));
-
         // 스트릭 검사 및 완료 처리 로직
         if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId)) {
+            // 첫 완료 시에만 isCompleted와 completedAt 함께 설정
+            if (articleProgress.getCompletedAt() == null) {
+                articleProgress.setIsCompleted(true);
+                articleProgress.setCompletedAt(java.time.Instant.now());
+            }
+
             // 스트릭 업데이트는 재학습 시에도 호출
             streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
             readingSessionService.deleteReadingSession(userId);
-
-            // 첫 완료 시에만 completedAt 설정
-            if (articleProgress.getCompletedAt() == null) {
-                articleProgress.setCompletedAt(java.time.Instant.now());
-            }
         }
 
         articleProgressRepository.save(articleProgress);
