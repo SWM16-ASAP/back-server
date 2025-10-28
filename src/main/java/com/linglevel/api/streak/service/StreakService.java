@@ -1,8 +1,11 @@
 package com.linglevel.api.streak.service;
 
 import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.streak.dto.CalendarDayResponse;
+import com.linglevel.api.streak.dto.CalendarResponse;
 import com.linglevel.api.streak.dto.EncouragementMessage;
 import com.linglevel.api.streak.dto.FreezeTransactionResponse;
+import com.linglevel.api.streak.dto.RewardInfo;
 import com.linglevel.api.streak.dto.StreakResponse;
 import com.linglevel.api.streak.entity.DailyCompletion;
 import com.linglevel.api.streak.entity.StreakStatus;
@@ -25,7 +28,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -454,5 +461,141 @@ public class StreakService {
         freezeTransactionRepository.save(transaction);
 
         log.debug("Created freeze consumption transaction for user {} on date {}", report.getUserId(), missedDate);
+    }
+
+    @Transactional(readOnly = true)
+    public CalendarResponse getCalendar(String userId, int year, int month) {
+        LocalDate today = getKstToday();
+        LocalDate firstDay = LocalDate.of(year, month, 1);
+        LocalDate lastDay = firstDay.withDayOfMonth(firstDay.lengthOfMonth());
+
+        // 사용자 스트릭 정보 조회
+        UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+                .orElseGet(() -> createNewUserStudyReport(userId));
+
+        // 해당 월의 모든 DailyCompletion 조회
+        List<DailyCompletion> completions = dailyCompletionRepository
+                .findByUserIdAndCompletionDateBetween(userId, firstDay, lastDay);
+        Map<LocalDate, DailyCompletion> completionMap = completions.stream()
+                .collect(Collectors.toMap(DailyCompletion::getCompletionDate, c -> c));
+
+        // 해당 월의 모든 프리즈 소진 트랜잭션 조회
+        ZoneId kst = ZoneId.of("Asia/Seoul");
+        Instant monthStart = firstDay.atStartOfDay(kst).toInstant();
+        Instant monthEnd = lastDay.plusDays(1).atStartOfDay(kst).toInstant();
+        List<FreezeTransaction> freezeTransactions = freezeTransactionRepository
+                .findByUserIdAndAmountAndCreatedAtBetween(userId, -1, monthStart, monthEnd);
+
+        // description에서 날짜 추출하여 Map 생성
+        Map<LocalDate, FreezeTransaction> freezeMap = freezeTransactions.stream()
+                .filter(t -> t.getDescription() != null && t.getDescription().contains("missed day:"))
+                .collect(Collectors.toMap(
+                        t -> LocalDate.parse(t.getDescription().substring(t.getDescription().lastIndexOf(":") + 2)),
+                        t -> t,
+                        (t1, t2) -> t1  // 중복 시 첫 번째 선택
+                ));
+
+        // 각 날짜별 응답 생성
+        List<CalendarDayResponse> days = new ArrayList<>();
+        for (LocalDate date = firstDay; !date.isAfter(lastDay); date = date.plusDays(1)) {
+            days.add(buildCalendarDay(date, today, report, completionMap, freezeMap));
+        }
+
+        return CalendarResponse.builder()
+                .year(year)
+                .month(month)
+                .today(today.getDayOfMonth())
+                .currentStreak(report.getCurrentStreak())
+                .days(days)
+                .build();
+    }
+
+    private CalendarDayResponse buildCalendarDay(
+            LocalDate date,
+            LocalDate today,
+            UserStudyReport report,
+            Map<LocalDate, DailyCompletion> completionMap,
+            Map<LocalDate, FreezeTransaction> freezeMap) {
+
+        boolean isToday = date.equals(today);
+        boolean isFuture = date.isAfter(today);
+        DailyCompletion completion = completionMap.get(date);
+
+        // Status 결정
+        StreakStatus status;
+        if (isFuture) {
+            status = StreakStatus.FUTURE;
+        } else if (completion != null) {
+            status = StreakStatus.COMPLETED;
+        } else if (freezeMap.containsKey(date)) {
+            status = StreakStatus.FREEZE_USED;
+        } else {
+            status = StreakStatus.MISSED;
+        }
+
+        // Streak count 계산
+        Integer streakCount = null;
+        if (!isFuture && report.getStreakStartDate() != null) {
+            if (!date.isBefore(report.getStreakStartDate()) &&
+                report.getLastCompletionDate() != null &&
+                !date.isAfter(report.getLastCompletionDate())) {
+                streakCount = (int) ChronoUnit.DAYS.between(report.getStreakStartDate(), date) + 1;
+            }
+        }
+
+        // Completion counts
+        Integer firstCompletionCount = completion != null ? completion.getFirstCompletionCount() : 0;
+        Integer totalCompletionCount = completion != null ? completion.getTotalCompletionCount() : 0;
+
+        // Rewards 계산
+        RewardInfo rewards = null;
+        RewardInfo expectedRewards = null;
+
+        if (isFuture) {
+            // 미래 날짜의 예상 보상
+            if (report.getCurrentStreak() > 0) {
+                int expectedStreak = report.getCurrentStreak() + (int) ChronoUnit.DAYS.between(today, date) + 1;
+                expectedRewards = calculateRewards(expectedStreak);
+            } else {
+                expectedRewards = calculateRewards(1); // 새로 시작할 경우
+            }
+        } else if (streakCount != null && streakCount > 0) {
+            // 과거/오늘 날짜의 실제 보상
+            rewards = calculateRewards(streakCount);
+        }
+
+        return CalendarDayResponse.builder()
+                .date(date)
+                .dayOfMonth(date.getDayOfMonth())
+                .isToday(isToday)
+                .status(status)
+                .streakCount(streakCount)
+                .firstCompletionCount(firstCompletionCount)
+                .totalCompletionCount(totalCompletionCount)
+                .rewards(rewards)
+                .expectedRewards(expectedRewards)
+                .build();
+    }
+
+    private RewardInfo calculateRewards(int streakCount) {
+        int freezes = 0;
+        int tickets = 0;
+
+        // 프리즈: 5일마다 (최대 2개 보유는 여기서는 체크 안함, 실제 지급 시에만 체크)
+        if (streakCount > 0 && streakCount % 5 == 0) {
+            freezes = 1;
+        }
+
+        // 티켓: 1, 7, 15, 30, 45, 60...
+        if (streakCount == 1 || streakCount == 7) {
+            tickets = 1;
+        } else if (streakCount >= 15 && (streakCount - 15) % 15 == 0) {
+            tickets = 1;
+        }
+
+        return RewardInfo.builder()
+                .tickets(tickets)
+                .freezes(freezes)
+                .build();
     }
 }

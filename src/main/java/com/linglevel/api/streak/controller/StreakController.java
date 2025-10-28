@@ -98,8 +98,7 @@ public class StreakController {
             @RequestParam @Schema(description = "년도", example = "2025") int year,
             @RequestParam @Schema(description = "월", example = "10") int month) {
 
-        // CalendarResponse response = streakService.getCalendar(claims.getId(), year, month);
-        CalendarResponse response = new  CalendarResponse();
+        CalendarResponse response = streakService.getCalendar(claims.getId(), year, month);
         return ResponseEntity.ok(response);
     }
 
