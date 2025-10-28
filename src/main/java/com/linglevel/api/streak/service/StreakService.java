@@ -97,12 +97,25 @@ public class StreakService {
                 log.warn("User {} completed multiple times today. Should have been prevented.", userId);
                 return false;
             } else {
-                // daysBetween > 1: 배치가 이미 처리했어야 함
-                // 서버 다운 등으로 배치 누락된 경우 보완
-                log.warn("User {} has {} days gap. Batch should have processed this. Starting new streak.",
-                        userId, daysBetween);
-                report.setCurrentStreak(1);
-                report.setStreakStartDate(today);
+                // daysBetween > 1: 여러 날 누락 (배치 실패 대비 방어적 처리)
+                log.warn("User {} has {} days gap. Processing defensively.", userId, daysBetween);
+
+                boolean streakWasReset = processMissedDays(report, today);
+
+                if (streakWasReset) {
+                    // 스트릭이 리셋됨 -> 오늘부터 다시 시작
+                    report.setCurrentStreak(1);
+                    report.setStreakStartDate(today);
+                } else {
+                    // 프리즈로 스트릭 유지됨 또는 이미 배치 처리됨 -> 오늘 완료로 스트릭 증가
+                    if (report.getCurrentStreak() > 0) {
+                        report.setCurrentStreak(report.getCurrentStreak() + 1);
+                    } else {
+                        // 배치에서 이미 리셋됨 -> 새로 시작
+                        report.setCurrentStreak(1);
+                        report.setStreakStartDate(today);
+                    }
+                }
             }
         }
 
@@ -330,5 +343,116 @@ public class StreakService {
 
         report.setTotalReadingTimeSeconds(report.getTotalReadingTimeSeconds() + studyTimeSeconds);
         userStudyReportRepository.save(report);
+    }
+
+    /**
+     * 여러 날 누락 처리
+     *
+     * @param report UserStudyReport
+     * @param today 오늘 날짜
+     * @return 스트릭이 리셋되었는지 여부
+     */
+    @Transactional
+    public boolean processMissedDays(UserStudyReport report, LocalDate today) {
+        if (report.getLastCompletionDate() == null) {
+            log.warn("Cannot process missed days: lastCompletionDate is null for user {}", report.getUserId());
+            return false;
+        }
+
+        long daysSinceLastCompletion = ChronoUnit.DAYS.between(report.getLastCompletionDate(), today);
+
+        if (daysSinceLastCompletion <= 1) {
+            return false;
+        }
+
+        int daysMissed = (int) daysSinceLastCompletion - 1;
+        log.warn("User {} missed {} days. Processing gap.", report.getUserId(), daysMissed);
+
+        // 각 누락일에 대해 배치가 이미 처리했는지 확인
+        int unprocessedDays = 0;
+        for (int i = 1; i <= daysMissed; i++) {
+            LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
+            if (!wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
+                unprocessedDays++;
+            }
+        }
+
+        if (unprocessedDays == 0) {
+            log.info("All missed days already processed for user {}", report.getUserId());
+            return false;
+        }
+
+        log.info("User {} has {} unprocessed missed days.", report.getUserId(), unprocessedDays);
+
+        if (report.getAvailableFreezes() >= unprocessedDays) {
+            // 프리즈 충분 -> 소진하고 스트릭 유지
+            report.setAvailableFreezes(report.getAvailableFreezes() - unprocessedDays);
+
+            // 각 누락일에 대해 FreezeTransaction 기록
+            for (int i = 1; i <= daysMissed; i++) {
+                LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
+                if (!wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
+                    consumeFreezeForDate(report, missedDate);
+                }
+            }
+
+            log.info("Consumed {} freezes for user {}. Streak maintained at {}.",
+                    unprocessedDays, report.getUserId(), report.getCurrentStreak());
+            return false;
+        } else {
+            // 프리즈 부족 -> 남은 프리즈 모두 소진하고 스트릭 리셋
+            int remainingFreezes = report.getAvailableFreezes();
+            report.setAvailableFreezes(0);
+
+            // 소진 가능한 프리즈에 대해 트랜잭션 기록
+            int processedDays = 0;
+            for (int i = 1; i <= daysMissed && processedDays < remainingFreezes; i++) {
+                LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
+                if (!wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
+                    consumeFreezeForDate(report, missedDate);
+                    processedDays++;
+                }
+            }
+
+            // 스트릭 리셋
+            int previousStreak = report.getCurrentStreak();
+            report.setCurrentStreak(0);
+            report.setLastCompletionDate(null);
+            report.setStreakStartDate(null);
+
+            log.warn("Insufficient freezes for user {}. Streak reset from {} to 0. Consumed {} freezes.",
+                    report.getUserId(), previousStreak, remainingFreezes);
+            return true;
+        }
+    }
+
+    /**
+     * 특정 날짜에 프리즈 소진 트랜잭션이 이미 생성되었는지 확인
+     * (배치 작업과 실시간 처리 간 중복 방지)
+     */
+    private boolean wasFreezeProcessedForDate(String userId, LocalDate date) {
+        ZoneId kst = ZoneId.of("Asia/Seoul");
+        Instant dayStart = date.atStartOfDay(kst).toInstant();
+        Instant dayEnd = date.plusDays(1).atStartOfDay(kst).toInstant();
+
+        return freezeTransactionRepository.existsByUserIdAndAmountAndCreatedAtBetween(
+                userId, -1, dayStart, dayEnd
+        );
+    }
+
+    /**
+     * 특정 날짜에 대한 프리즈 소진 트랜잭션 생성
+     * description에 날짜를 포함하여 캘린더 API에서 활용
+     */
+    private void consumeFreezeForDate(UserStudyReport report, LocalDate missedDate) {
+        FreezeTransaction transaction = FreezeTransaction.builder()
+                .userId(report.getUserId())
+                .amount(-1)
+                .description("Auto-consumed for missed day: " + missedDate)
+                .createdAt(Instant.now())
+                .build();
+        freezeTransactionRepository.save(transaction);
+
+        log.debug("Created freeze consumption transaction for user {} on date {}", report.getUserId(), missedDate);
     }
 }

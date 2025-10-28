@@ -1,10 +1,8 @@
 package com.linglevel.api.streak.scheduler;
 
-import com.linglevel.api.streak.entity.FreezeTransaction;
 import com.linglevel.api.streak.entity.UserStudyReport;
-import com.linglevel.api.streak.repository.DailyCompletionRepository;
-import com.linglevel.api.streak.repository.FreezeTransactionRepository;
 import com.linglevel.api.streak.repository.UserStudyReportRepository;
+import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
@@ -30,8 +29,7 @@ import java.util.List;
 public class DailyStreakValidationScheduler {
 
     private final UserStudyReportRepository userStudyReportRepository;
-    private final DailyCompletionRepository dailyCompletionRepository;
-    private final FreezeTransactionRepository freezeTransactionRepository;
+    private final StreakService streakService;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
@@ -59,29 +57,29 @@ public class DailyStreakValidationScheduler {
                 try {
                     processedCount++;
 
-                    boolean completedYesterday = dailyCompletionRepository
-                            .existsByUserIdAndCompletionDate(report.getUserId(), yesterday);
+                    boolean wasReset = streakService.processMissedDays(report, today);
 
-                    if (completedYesterday) {
-                        maintainedCount++;
-                        log.debug("[Streak Validation] User {} completed yesterday. Streak maintained: {}",
-                                report.getUserId(), report.getCurrentStreak());
-                        continue;
-                    }
-
-                    if (report.getAvailableFreezes() > 0) {
-                        // 프리즈 사용
-                        handleFreezeUsage(report, yesterday);
-                        freezeUsedCount++;
-                        log.debug("[Streak Validation] User {} used freeze. Remaining freezes: {}, Streak: {}",
-                                report.getUserId(), report.getAvailableFreezes(), report.getCurrentStreak());
-                    } else {
-                        // 프리즈 없음 → 스트릭 리셋
-                        handleStreakReset(report, yesterday);
+                    if (wasReset) {
                         streakResetCount++;
-                        log.debug("[Streak Validation] User {} streak reset. Previous streak: {}",
-                                report.getUserId(), report.getCurrentStreak() - 1);
+                        // TODO: FCM 알림 전송 (Phase 2)
+                        // notificationService.sendStreakResetNotification(report.getUserId());
+                    } else {
+                        // 스트릭 유지됨 (어제 완료 또는 프리즈 소진)
+                        long daysSinceLastCompletion = ChronoUnit.DAYS.between(
+                                report.getLastCompletionDate(), today);
+
+                        if (daysSinceLastCompletion == 1) {
+                            maintainedCount++;
+                        } else if (daysSinceLastCompletion > 1) {
+                            // 프리즈 소진으로 스트릭 유지
+                            freezeUsedCount++;
+                            // TODO: FCM 알림 전송 (Phase 2)
+                            // notificationService.sendFreezeConsumedNotification(report.getUserId());
+                        }
                     }
+
+                    report.setUpdatedAt(Instant.now());
+                    userStudyReportRepository.save(report);
 
                 } catch (Exception e) {
                     log.error("[Streak Validation] Failed to process user: {}", report.getUserId(), e);
@@ -98,49 +96,5 @@ public class DailyStreakValidationScheduler {
             log.error("[Streak Validation] Critical error during streak validation. Processed: {}, Freeze Used: {}, Reset: {}",
                     processedCount, freezeUsedCount, streakResetCount, e);
         }
-    }
-
-    /**
-     * 프리즈 사용 처리
-     */
-    private void handleFreezeUsage(UserStudyReport report, LocalDate missedDate) {
-        // 프리즈 1개 소모
-        report.setAvailableFreezes(report.getAvailableFreezes() - 1);
-        report.setUpdatedAt(Instant.now());
-
-        userStudyReportRepository.save(report);
-
-        // FreezeTransaction 기록 (음수: 소모)
-        FreezeTransaction transaction = FreezeTransaction.builder()
-                .userId(report.getUserId())
-                .amount(-1)
-                .description("Auto-consumed for missed day: " + missedDate)
-                .createdAt(Instant.now())
-                .build();
-        freezeTransactionRepository.save(transaction);
-
-        // TODO: FCM 알림 전송 (Phase 2)
-        // notificationService.sendFreezeConsumedNotification(report.getUserId(), missedDate);
-    }
-
-    /**
-     * 스트릭 리셋 처리
-     */
-    private void handleStreakReset(UserStudyReport report, LocalDate missedDate) {
-        int previousStreak = report.getCurrentStreak();
-
-        // 스트릭 리셋
-        report.setCurrentStreak(0);
-        report.setLastCompletionDate(null);
-        report.setStreakStartDate(null);
-        report.setUpdatedAt(Instant.now());
-
-        userStudyReportRepository.save(report);
-
-        // TODO: FCM 알림 전송 (Phase 2)
-        // notificationService.sendStreakResetNotification(report.getUserId(), previousStreak, missedDate);
-
-        log.warn("[Streak Validation] User {} streak reset from {} to 0 due to missed day: {}",
-                report.getUserId(), previousStreak, missedDate);
     }
 }
