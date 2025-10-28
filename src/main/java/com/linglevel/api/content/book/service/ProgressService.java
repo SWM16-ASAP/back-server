@@ -92,7 +92,6 @@ public class ProgressService {
                 bookProgress.setMaxNormalizedProgress(normalizedProgress);
             }
         }
-        // 현재 챕터가 max 챕터보다 낮은 경우는 max 값을 변경하지 않는다.
 
         // 스트릭 검사 및 완료 처리 로직
         boolean streakUpdated = false;
@@ -103,7 +102,7 @@ public class ProgressService {
                 bookProgress.setCompletedAt(java.time.Instant.now());
             }
 
-            // 스트릭 업데이트는 재학습 시에도 호출
+            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.BOOK, bookId));
             streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, bookId);
             readingSessionService.deleteReadingSession(userId);
         }

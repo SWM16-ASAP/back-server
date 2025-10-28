@@ -45,17 +45,27 @@ public class ReadingSessionService {
         log.info("Reading session deleted - userId: {}, redisKey: {}", userId, key);
     }
 
+    public long getReadingSessionSeconds(String userId, ContentType contentType, String contentId) {
+        ReadingSession session = getReadingSession(userId);
+        if (session == null) {
+            return 0;
+        }
+
+        Instant startedAt = Instant.ofEpochMilli(session.getStartedAtMillis());
+        return Duration.between(startedAt, Instant.now()).getSeconds();
+    }
+
     public boolean isReadingSessionValid(String userId, ContentType contentType, String contentId) {
         String key = READING_SESSION_KEY_PREFIX + userId + READING_SESSION_KEY_SUFFIX;
         ReadingSession session = getReadingSession(userId);
         if (session == null) {
-            log.warn("No reading session found - userId: {}, redisKey: {}, expected content: {}/{}",
+            log.info("No reading session found - userId: {}, redisKey: {}, expected content: {}/{}",
                     userId, key, contentType.getCode(), contentId);
             return false;
         }
 
         if (!session.getContentType().equals(contentType) || !session.getContentId().equals(contentId)) {
-            log.warn("Reading session content mismatch - userId: {}, expected: {}/{}, actual: {}/{}",
+            log.info("Reading session content mismatch - userId: {}, expected: {}/{}, actual: {}/{}",
                     userId, contentType.getCode(), contentId, session.getContentType().getCode(), session.getContentId());
             return false;
         }
@@ -63,7 +73,7 @@ public class ReadingSessionService {
         Instant startedAt = Instant.ofEpochMilli(session.getStartedAtMillis());
         Duration readingDuration = Duration.between(startedAt, Instant.now());
         if (readingDuration.compareTo(MIN_READING_DURATION) < 0) {
-            log.warn("Reading duration too short - userId: {}, duration: {} seconds (minimum: 30)",
+            log.info("Reading duration too short - userId: {}, duration: {} seconds (minimum: 30)",
                     userId, readingDuration.getSeconds());
             return false;
         }

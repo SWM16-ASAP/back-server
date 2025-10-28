@@ -83,7 +83,7 @@ public class ArticleProgressService {
                 articleProgress.setCompletedAt(java.time.Instant.now());
             }
 
-            // 스트릭 업데이트는 재학습 시에도 호출
+            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.ARTICLE, articleId));
             streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
             readingSessionService.deleteReadingSession(userId);
         }

@@ -318,4 +318,17 @@ public class StreakService {
                 .createdAt(transaction.getCreatedAt())
                 .build();
     }
+
+    @Transactional
+    public void addStudyTime(String userId, long studyTimeSeconds) {
+        UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    UserStudyReport newReport = createNewUserStudyReport(userId);
+                    userStudyReportRepository.save(newReport);
+                    return newReport;
+                });
+
+        report.setTotalReadingTimeSeconds(report.getTotalReadingTimeSeconds() + studyTimeSeconds);
+        userStudyReportRepository.save(report);
+    }
 }
