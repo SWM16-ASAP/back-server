@@ -1,6 +1,7 @@
 package com.linglevel.api.streak.service;
 
 import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.streak.dto.CalendarDayResponse;
 import com.linglevel.api.streak.dto.CalendarResponse;
 import com.linglevel.api.streak.dto.EncouragementMessage;
@@ -10,6 +11,8 @@ import com.linglevel.api.streak.dto.StreakResponse;
 import com.linglevel.api.streak.dto.WeekDayResponse;
 import com.linglevel.api.streak.dto.WeekStreakResponse;
 import com.linglevel.api.streak.entity.DailyCompletion;
+import com.linglevel.api.streak.entity.InspirationQuote;
+import com.linglevel.api.streak.entity.StreakMilestone;
 import com.linglevel.api.streak.entity.StreakStatus;
 import com.linglevel.api.streak.entity.UserStudyReport;
 import com.linglevel.api.streak.repository.DailyCompletionRepository;
@@ -59,7 +62,7 @@ public class StreakService {
     private final TicketTransactionRepository ticketTransactionRepository;
 
     @Transactional
-    public StreakResponse getStreakInfo(String userId) {
+    public StreakResponse getStreakInfo(String userId, LanguageCode languageCode) {
         UserStudyReport report = userStudyReportRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     UserStudyReport newReport = createNewUserStudyReport(userId);
@@ -85,7 +88,7 @@ public class StreakService {
                 .availableFreezes(report.getAvailableFreezes())
                 .totalReadingTimeSeconds(report.getTotalReadingTimeSeconds())
                 .percentile(calculatePercentile(report))
-                .encouragementMessage(getEncouragementMessage(report.getCurrentStreak()))
+                .encouragementMessage(getEncouragementMessage(report.getCurrentStreak(), languageCode))
                 .build();
     }
 
@@ -294,34 +297,32 @@ public class StreakService {
         return Math.round(percentile * 10.0) / 10.0;
     }
 
-    private EncouragementMessage getEncouragementMessage(int currentStreak) {
-        String title;
-        String body;
-        String translation;
-
-        if (currentStreak == 0) {
-            title = "시작하세요!";
-            body = "Start your first streak!";
-            translation = "첫 스트릭을 시작해보세요!";
-        } else if (currentStreak < 5) {
-            title = currentStreak + "일 연속!";
-            body = "Great job! Keep it up!";
-            translation = "잘하고 있어요! 계속 꾸준히 학습해보세요.";
-        } else if (currentStreak < 10) {
-            title = currentStreak + "일 연속!";
-            body = "Amazing! " + currentStreak + " days in a row!";
-            translation = "벌써 " + currentStreak + "일 연속 스트릭 달성! 대단해요!";
-        } else {
-            title = currentStreak + "일 연속!";
-            body = "Impressive! " + currentStreak + " days in a row!";
-            translation = "당신의 꾸준함에 박수를 보냅니다! " + currentStreak + "일 연속 스트릭!";
+    private EncouragementMessage getEncouragementMessage(int currentStreak, LanguageCode languageCode) {
+        // Default to EN if null
+        if (languageCode == null) {
+            languageCode = LanguageCode.EN;
         }
 
-        return EncouragementMessage.builder()
-                .title(title)
-                .body(body)
-                .translation(translation)
-                .build();
+        // Check if current streak is a milestone day
+        var milestone = StreakMilestone.fromDay(currentStreak);
+
+        if (milestone.isPresent()) {
+            // Milestone day - show celebration message
+            StreakMilestone streakMilestone = milestone.get();
+            return EncouragementMessage.builder()
+                    .title(streakMilestone.getTitle(languageCode))
+                    .body(null)
+                    .translation(streakMilestone.getMessage(languageCode))
+                    .build();
+        } else {
+            // Non-milestone day - show random inspirational quote
+            InspirationQuote quote = InspirationQuote.random();
+            return EncouragementMessage.builder()
+                    .title(null)
+                    .body(quote.getOriginal())
+                    .translation(quote.getTranslation(languageCode))
+                    .build();
+        }
     }
 
     private StreakStatus calculateTodayStatus(String userId, LocalDate today) {

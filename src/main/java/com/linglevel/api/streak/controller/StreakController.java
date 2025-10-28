@@ -4,6 +4,7 @@ import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.streak.dto.CalendarResponse;
 import com.linglevel.api.streak.dto.FreezeTransactionResponse;
+import com.linglevel.api.streak.dto.GetStreakInfoRequest;
 import com.linglevel.api.streak.dto.StreakResponse;
 import com.linglevel.api.streak.dto.WeekStreakResponse;
 import com.linglevel.api.streak.exception.StreakException;
@@ -14,8 +15,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -44,9 +47,10 @@ public class StreakController {
         )
     })
     public ResponseEntity<StreakResponse> getMyStreak(
-            @AuthenticationPrincipal JwtClaims claims) {
+            @AuthenticationPrincipal JwtClaims claims,
+            @ParameterObject @Valid @ModelAttribute GetStreakInfoRequest request) {
 
-        StreakResponse response = streakService.getStreakInfo(claims.getId());
+        StreakResponse response = streakService.getStreakInfo(claims.getId(), request.getLanguageCode());
         return ResponseEntity.ok(response);
     }
 
