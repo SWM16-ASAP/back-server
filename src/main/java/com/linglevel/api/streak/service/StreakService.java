@@ -571,14 +571,35 @@ public class StreakService {
         RewardInfo rewards = null;
         RewardInfo expectedRewards = null;
         if (isFuture) {
-            if (report.getCurrentStreak() > 0) {
-                int expectedStreak = report.getCurrentStreak() + (int) ChronoUnit.DAYS.between(today, date);
-                expectedRewards = calculateRewards(expectedStreak);
+            int streakAfterToday;
+            LocalDate lastCompletion = report.getLastCompletionDate();
+
+            if (lastCompletion != null && lastCompletion.isEqual(today)) {
+                // Case 1: Today is already completed.
+                streakAfterToday = report.getCurrentStreak();
+            } else if (lastCompletion != null && lastCompletion.isEqual(today.minusDays(1))) {
+                // Case 2: Streak is active from yesterday. Today's completion will increment it.
+                streakAfterToday = report.getCurrentStreak() + 1;
             } else {
-                expectedRewards = calculateRewards(1);
+                // Case 3: Streak is broken, was reset, or is the first ever. Today's completion will start a new streak at 1.
+                streakAfterToday = 1;
             }
-        } else if (streakCount != null && streakCount > 0) {
-            rewards = calculateRewards(streakCount);
+
+            int expectedStreak = streakAfterToday + (int) ChronoUnit.DAYS.between(today, date);
+            expectedRewards = calculateRewards(expectedStreak);
+
+        } else { // For today or past days
+            if (streakCount != null && streakCount > 0) {
+                RewardInfo calculatedReward = calculateRewards(streakCount);
+
+                if (date.isEqual(today) && status != StreakStatus.COMPLETED) {
+                    // For today, if not completed, show as expected reward.
+                    expectedRewards = calculatedReward;
+                } else {
+                    // For past days, or for today if completed, show as actual reward.
+                    rewards = calculatedReward;
+                }
+            }
         }
 
         return new StreakDayInfo(status, streakCount, rewards, expectedRewards);
