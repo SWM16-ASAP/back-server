@@ -473,20 +473,62 @@ public class StreakService {
         LocalDate firstDay = LocalDate.of(year, month, 1);
         LocalDate lastDay = firstDay.withDayOfMonth(firstDay.lengthOfMonth());
 
-        // 사용자 스트릭 정보 조회
+        StreakViewData viewData = prepareStreakViewData(userId, firstDay, lastDay);
+
+        Map<LocalDate, Boolean> monthlyFreezeMap = viewData.getAllFreezeDates().stream()
+                .filter(d -> d.getYear() == year && d.getMonthValue() == month)
+                .collect(Collectors.toMap(d -> d, d -> true));
+
+        List<CalendarDayResponse> days = new ArrayList<>();
+        for (LocalDate date = firstDay; !date.isAfter(lastDay); date = date.plusDays(1)) {
+            days.add(buildCalendarDay(date, today, viewData, monthlyFreezeMap));
+        }
+
+        return CalendarResponse.builder()
+                .year(year)
+                .month(month)
+                .today(today.getDayOfMonth())
+                .currentStreak(viewData.getReport().getCurrentStreak())
+                .days(days)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public WeekStreakResponse getThisWeekStreak(String userId) {
+        LocalDate today = getKstToday();
+        LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate sunday = monday.plusDays(6);
+
+        StreakViewData viewData = prepareStreakViewData(userId, monday, sunday);
+
+        Map<LocalDate, Boolean> weeklyFreezeMap = viewData.getAllFreezeDates().stream()
+                .filter(d -> !d.isBefore(monday) && !d.isAfter(sunday))
+                .collect(Collectors.toMap(d -> d, d -> true));
+
+        List<WeekDayResponse> weekDays = new ArrayList<>();
+        for (LocalDate date = monday; !date.isAfter(sunday); date = date.plusDays(1)) {
+            weekDays.add(buildWeekDay(date, today, viewData, weeklyFreezeMap));
+        }
+
+        return WeekStreakResponse.builder()
+                .currentStreak(viewData.getReport().getCurrentStreak())
+                .freezeCount(viewData.getReport().getAvailableFreezes())
+                .weekDays(weekDays)
+                .build();
+    }
+
+    private StreakViewData prepareStreakViewData(String userId, LocalDate startDate, LocalDate endDate) {
         UserStudyReport report = userStudyReportRepository.findByUserId(userId)
                 .orElseGet(() -> createNewUserStudyReport(userId));
 
-        // 해당 월의 모든 DailyCompletion 조회
         List<DailyCompletion> completions = dailyCompletionRepository
-                .findByUserIdAndCompletionDateBetween(userId, firstDay, lastDay);
+                .findByUserIdAndCompletionDateBetween(userId, startDate, endDate);
         Map<LocalDate, DailyCompletion> completionMap = completions.stream()
                 .collect(Collectors.toMap(DailyCompletion::getCompletionDate, c -> c));
 
-        // 스트릭 시작일 이후의 모든 프리즈 소진 날짜 조회
-        ZoneId kst = ZoneId.of("Asia/Seoul");
         java.util.Set<LocalDate> allFreezeDates = new java.util.HashSet<>();
         if (report.getStreakStartDate() != null) {
+            ZoneId kst = ZoneId.of("Asia/Seoul");
             Instant streakStartInstant = report.getStreakStartDate().atStartOfDay(kst).toInstant();
             List<FreezeTransaction> allFreezeTransactions = freezeTransactionRepository
                     .findByUserIdAndAmountAndCreatedAtBetween(userId, -1, streakStartInstant, Instant.now());
@@ -496,40 +538,14 @@ public class StreakService {
                     .map(t -> LocalDate.parse(t.getDescription().substring(t.getDescription().lastIndexOf(":") + 2)))
                     .collect(Collectors.toSet());
         }
-
-        // 현재 월의 프리즈 사용 여부 확인을 위한 Map
-        Map<LocalDate, Boolean> monthlyFreezeMap = allFreezeDates.stream()
-                .filter(d -> d.getYear() == year && d.getMonthValue() == month)
-                .collect(Collectors.toMap(d -> d, d -> true));
-
-        // 각 날짜별 응답 생성
-        List<CalendarDayResponse> days = new ArrayList<>();
-        for (LocalDate date = firstDay; !date.isAfter(lastDay); date = date.plusDays(1)) {
-            days.add(buildCalendarDay(date, today, report, completionMap, monthlyFreezeMap, allFreezeDates));
-        }
-
-        return CalendarResponse.builder()
-                .year(year)
-                .month(month)
-                .today(today.getDayOfMonth())
-                .currentStreak(report.getCurrentStreak())
-                .days(days)
-                .build();
+        return new StreakViewData(report, completionMap, allFreezeDates);
     }
 
-    private CalendarDayResponse buildCalendarDay(
-            LocalDate date,
-            LocalDate today,
-            UserStudyReport report,
-            Map<LocalDate, DailyCompletion> completionMap,
-            Map<LocalDate, Boolean> freezeMap,
-            java.util.Set<LocalDate> allFreezeDates) {
-
-        boolean isToday = date.equals(today);
+    private StreakDayInfo calculateStreakDayInfo(LocalDate date, LocalDate today, StreakViewData viewData, Map<LocalDate, Boolean> freezeMap) {
         boolean isFuture = date.isAfter(today);
-        DailyCompletion completion = completionMap.get(date);
+        DailyCompletion completion = viewData.getCompletionMap().get(date);
+        UserStudyReport report = viewData.getReport();
 
-        // Status 결정
         StreakStatus status;
         if (isFuture) {
             status = StreakStatus.FUTURE;
@@ -541,49 +557,63 @@ public class StreakService {
             status = StreakStatus.MISSED;
         }
 
-        // Streak count 계산
         Integer streakCount = null;
         if (!isFuture && report.getStreakStartDate() != null && !date.isBefore(report.getStreakStartDate())) {
             if (status == StreakStatus.COMPLETED || status == StreakStatus.FREEZE_USED) {
                 long daysInStreak = ChronoUnit.DAYS.between(report.getStreakStartDate(), date) + 1;
-                long freezesUsed = allFreezeDates.stream()
+                long freezesUsed = viewData.getAllFreezeDates().stream()
                         .filter(freezeDate -> !freezeDate.isBefore(report.getStreakStartDate()) && !freezeDate.isAfter(date))
                         .count();
                 streakCount = (int) (daysInStreak - freezesUsed);
             }
         }
 
-        // Completion counts
-        Integer firstCompletionCount = completion != null ? completion.getFirstCompletionCount() : 0;
-        Integer totalCompletionCount = completion != null ? completion.getTotalCompletionCount() : 0;
-
-        // Rewards 계산
         RewardInfo rewards = null;
         RewardInfo expectedRewards = null;
-
         if (isFuture) {
-            // 미래 날짜의 예상 보상
             if (report.getCurrentStreak() > 0) {
                 int expectedStreak = report.getCurrentStreak() + (int) ChronoUnit.DAYS.between(today, date);
                 expectedRewards = calculateRewards(expectedStreak);
             } else {
-                expectedRewards = calculateRewards(1); // 새로 시작할 경우
+                expectedRewards = calculateRewards(1);
             }
         } else if (streakCount != null && streakCount > 0) {
-            // 과거/오늘 날짜의 실제 보상
             rewards = calculateRewards(streakCount);
         }
+
+        return new StreakDayInfo(status, streakCount, rewards, expectedRewards);
+    }
+
+    private CalendarDayResponse buildCalendarDay(LocalDate date, LocalDate today, StreakViewData viewData, Map<LocalDate, Boolean> freezeMap) {
+        StreakDayInfo dayInfo = calculateStreakDayInfo(date, today, viewData, freezeMap);
+        DailyCompletion completion = viewData.getCompletionMap().get(date);
+
+        Integer firstCompletionCount = (completion != null) ? completion.getFirstCompletionCount() : 0;
+        Integer totalCompletionCount = (completion != null) ? completion.getTotalCompletionCount() : 0;
 
         return CalendarDayResponse.builder()
                 .date(date)
                 .dayOfMonth(date.getDayOfMonth())
-                .isToday(isToday)
-                .status(status)
-                .streakCount(streakCount)
+                .isToday(date.equals(today))
+                .status(dayInfo.status)
+                .streakCount(dayInfo.streakCount)
                 .firstCompletionCount(firstCompletionCount)
                 .totalCompletionCount(totalCompletionCount)
-                .rewards(rewards)
-                .expectedRewards(expectedRewards)
+                .rewards(dayInfo.rewards)
+                .expectedRewards(dayInfo.expectedRewards)
+                .build();
+    }
+
+    private WeekDayResponse buildWeekDay(LocalDate date, LocalDate today, StreakViewData viewData, Map<LocalDate, Boolean> freezeMap) {
+        StreakDayInfo dayInfo = calculateStreakDayInfo(date, today, viewData, freezeMap);
+
+        return WeekDayResponse.builder()
+                .dayOfWeek(date.getDayOfWeek().name())
+                .date(date)
+                .isToday(date.equals(today))
+                .status(dayInfo.status)
+                .rewards(dayInfo.rewards)
+                .expectedRewards(dayInfo.expectedRewards)
                 .build();
     }
 
@@ -609,112 +639,18 @@ public class StreakService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
-    public WeekStreakResponse getThisWeekStreak(String userId) {
-        LocalDate today = getKstToday();
-        LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate sunday = monday.plusDays(6);
-
-        // 사용자 스트릭 정보 조회
-        UserStudyReport report = userStudyReportRepository.findByUserId(userId)
-                .orElseGet(() -> createNewUserStudyReport(userId));
-
-        // 이번 주 DailyCompletion 조회
-        List<DailyCompletion> completions = dailyCompletionRepository
-                .findByUserIdAndCompletionDateBetween(userId, monday, sunday);
-        Map<LocalDate, DailyCompletion> completionMap = completions.stream()
-                .collect(Collectors.toMap(DailyCompletion::getCompletionDate, c -> c));
-
-        // 스트릭 시작일 이후의 모든 프리즈 소진 날짜 조회
-        ZoneId kst = ZoneId.of("Asia/Seoul");
-        java.util.Set<LocalDate> allFreezeDates = new java.util.HashSet<>();
-        if (report.getStreakStartDate() != null) {
-            Instant streakStartInstant = report.getStreakStartDate().atStartOfDay(kst).toInstant();
-            List<FreezeTransaction> allFreezeTransactions = freezeTransactionRepository
-                    .findByUserIdAndAmountAndCreatedAtBetween(userId, -1, streakStartInstant, Instant.now());
-
-            allFreezeDates = allFreezeTransactions.stream()
-                    .filter(t -> t.getDescription() != null && t.getDescription().contains("missed day:"))
-                    .map(t -> LocalDate.parse(t.getDescription().substring(t.getDescription().lastIndexOf(":") + 2)))
-                    .collect(Collectors.toSet());
-        }
-
-        // 이번 주의 프리즈 사용 여부 확인을 위한 Map
-        Map<LocalDate, Boolean> weeklyFreezeMap = allFreezeDates.stream()
-                .filter(d -> !d.isBefore(monday) && !d.isAfter(sunday))
-                .collect(Collectors.toMap(d -> d, d -> true));
-
-        // 월요일부터 일요일까지 요일별 응답 생성
-        List<WeekDayResponse> weekDays = new ArrayList<>();
-        for (LocalDate date = monday; !date.isAfter(sunday); date = date.plusDays(1)) {
-            weekDays.add(buildWeekDay(date, today, report, completionMap, weeklyFreezeMap, allFreezeDates));
-        }
-
-        return WeekStreakResponse.builder()
-                .currentStreak(report.getCurrentStreak())
-                .freezeCount(report.getAvailableFreezes())
-                .weekDays(weekDays)
-                .build();
+    @lombok.Value
+    private static class StreakViewData {
+        UserStudyReport report;
+        Map<LocalDate, DailyCompletion> completionMap;
+        java.util.Set<LocalDate> allFreezeDates;
     }
 
-    private WeekDayResponse buildWeekDay(
-            LocalDate date,
-            LocalDate today,
-            UserStudyReport report,
-            Map<LocalDate, DailyCompletion> completionMap,
-            Map<LocalDate, Boolean> freezeMap,
-            java.util.Set<LocalDate> allFreezeDates) {
-
-        boolean isToday = date.equals(today);
-        boolean isFuture = date.isAfter(today);
-        DailyCompletion completion = completionMap.get(date);
-
-        // Status 결정
+    @lombok.Value
+    private static class StreakDayInfo {
         StreakStatus status;
-        if (isFuture) {
-            status = StreakStatus.FUTURE;
-        } else if (completion != null) {
-            status = StreakStatus.COMPLETED;
-        } else if (freezeMap.containsKey(date)) {
-            status = StreakStatus.FREEZE_USED;
-        } else {
-            status = StreakStatus.MISSED;
-        }
-
-        // Streak count 계산 (주간에서는 필요없어서 생략, 필요시 추가 가능)
-        Integer streakCount = null;
-        if (!isFuture && report.getStreakStartDate() != null && !date.isBefore(report.getStreakStartDate())) {
-            if (status == StreakStatus.COMPLETED || status == StreakStatus.FREEZE_USED) {
-                long daysInStreak = ChronoUnit.DAYS.between(report.getStreakStartDate(), date) + 1;
-                long freezesUsed = allFreezeDates.stream()
-                        .filter(freezeDate -> !freezeDate.isBefore(report.getStreakStartDate()) && !freezeDate.isAfter(date))
-                        .count();
-                streakCount = (int) (daysInStreak - freezesUsed);
-            }
-        }
-
-        // Rewards 계산
-        RewardInfo rewards = null;
-        RewardInfo expectedRewards = null;
-
-        if (isFuture) {
-            if (report.getCurrentStreak() > 0) {
-                int expectedStreak = report.getCurrentStreak() + (int) ChronoUnit.DAYS.between(today, date);
-                expectedRewards = calculateRewards(expectedStreak);
-            } else {
-                expectedRewards = calculateRewards(1);
-            }
-        } else if (streakCount != null && streakCount > 0) {
-            rewards = calculateRewards(streakCount);
-        }
-
-        return WeekDayResponse.builder()
-                .dayOfWeek(date.getDayOfWeek().name())
-                .date(date)
-                .isToday(isToday)
-                .status(status)
-                .rewards(rewards)
-                .expectedRewards(expectedRewards)
-                .build();
+        Integer streakCount;
+        RewardInfo rewards;
+        RewardInfo expectedRewards;
     }
 }
