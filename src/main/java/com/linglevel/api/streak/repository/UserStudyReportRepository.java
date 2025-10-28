@@ -3,6 +3,7 @@ package com.linglevel.api.streak.repository;
 import com.linglevel.api.streak.entity.UserStudyReport;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserStudyReportRepository extends MongoRepository<UserStudyReport, String> {
@@ -11,4 +12,6 @@ public interface UserStudyReportRepository extends MongoRepository<UserStudyRepo
     long countByCurrentStreakLessThan(int currentStreak);
 
     long countByCurrentStreakGreaterThanEqual(int currentStreak);
+
+    List<UserStudyReport> findByCurrentStreakGreaterThan(int currentStreak);
 }

@@ -64,6 +64,8 @@ public class StreakService {
     @Transactional
     public void updateStreak(String userId, ContentType contentType, String contentId) {
         LocalDate today = getKstToday();
+
+        // 오늘 이미 완료했는지 체크 (중복 방지)
         if (hasCompletedStreakToday(userId, today)) {
             log.info("User {} has already completed a streak today.", userId);
             return;
@@ -73,18 +75,31 @@ public class StreakService {
                 .orElseGet(() -> createNewUserStudyReport(userId));
 
         if (report.getLastCompletionDate() == null) {
+            // 첫 완료
             report.setCurrentStreak(1);
             report.setLongestStreak(1);
             report.setStreakStartDate(today);
         } else {
             long daysBetween = ChronoUnit.DAYS.between(report.getLastCompletionDate(), today);
+
             if (daysBetween == 1) {
+                // 연속 완료 → 스트릭 증가
                 report.setCurrentStreak(report.getCurrentStreak() + 1);
-            } else if (daysBetween > 1) {
-                handleStreakReset(report, today);
+            } else if (daysBetween == 0) {
+                // 오늘 이미 완료 (hasCompletedStreakToday에서 걸러져야 함)
+                log.warn("User {} completed multiple times today. Should have been prevented.", userId);
+                return;
+            } else {
+                // daysBetween > 1: 배치가 이미 처리했어야 함
+                // 서버 다운 등으로 배치 누락된 경우 보완
+                log.warn("User {} has {} days gap. Batch should have processed this. Starting new streak.",
+                        userId, daysBetween);
+                report.setCurrentStreak(1);
+                report.setStreakStartDate(today);
             }
         }
 
+        // 최장 기록 갱신
         if (report.getCurrentStreak() > report.getLongestStreak()) {
             report.setLongestStreak(report.getCurrentStreak());
         }
@@ -100,29 +115,6 @@ public class StreakService {
         userStudyReportRepository.save(report);
 
         log.info("Streak updated for user: {}. Current streak: {}", userId, report.getCurrentStreak());
-    }
-
-    private void handleStreakReset(UserStudyReport report, LocalDate today) {
-        if (report.getAvailableFreezes() > 0) {
-            report.setAvailableFreezes(report.getAvailableFreezes() - 1);
-            // 스트릭을 유지하기 위해 마지막 완료 날짜를 어제로 "브릿지"합니다.
-            // 이렇게 하면 daysBetween이 1이 되어 스트릭이 계속됩니다.
-            report.setLastCompletionDate(today.minusDays(1));
-            report.setCurrentStreak(report.getCurrentStreak() + 1); // 스트릭 증가
-
-            FreezeTransaction transaction = FreezeTransaction.builder()
-                    .userId(report.getUserId())
-                    .amount(-1)
-                    .description("Used a freeze to maintain streak")
-                    .createdAt(Instant.now())
-                    .build();
-            freezeTransactionRepository.save(transaction);
-            log.info("Used 1 freeze for user {}. Remaining freezes: {}", report.getUserId(), report.getAvailableFreezes());
-        } else {
-            report.setCurrentStreak(1);
-            report.setStreakStartDate(today);
-            log.info("Resetting streak for user {} due to inactivity and no available freezes.", report.getUserId());
-        }
     }
 
     private void checkAndGrantRewards(UserStudyReport report) {
