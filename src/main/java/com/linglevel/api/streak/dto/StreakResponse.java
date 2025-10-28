@@ -18,6 +18,9 @@ public class StreakResponse {
     @Schema(description = "오늘의 스트릭 상태 (COMPLETED, FREEZE_USED, MISSED)")
     private StreakStatus todayStatus;
 
+    @Schema(description = "어제의 스트릭 상태 (COMPLETED, FREEZE_USED, MISSED)")
+    private StreakStatus yesterdayStatus;
+
     @Schema(description = "최장 연속 일수", example = "30")
     private int longestStreak;
 

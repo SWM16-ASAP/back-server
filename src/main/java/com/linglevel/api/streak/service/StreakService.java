@@ -49,12 +49,14 @@ public class StreakService {
 
         LocalDate today = getKstToday();
         StreakStatus todayStatus = calculateTodayStatus(userId, today);
+        StreakStatus yesterdayStatus = calculateTodayStatus(userId, today.minusDays(1));
         long totalStudyDays = dailyCompletionRepository.countByUserId(userId);
         long totalContentsRead = report.getCompletedContentIds() != null ? report.getCompletedContentIds().size() : 0;
 
         return StreakResponse.builder()
                 .currentStreak(report.getCurrentStreak())
                 .todayStatus(todayStatus)
+                .yesterdayStatus(yesterdayStatus)
                 .longestStreak(report.getLongestStreak())
                 .streakStartDate(report.getStreakStartDate())
                 .totalStudyDays(totalStudyDays)
