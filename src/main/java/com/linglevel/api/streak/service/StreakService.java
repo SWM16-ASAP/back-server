@@ -7,6 +7,8 @@ import com.linglevel.api.streak.dto.EncouragementMessage;
 import com.linglevel.api.streak.dto.FreezeTransactionResponse;
 import com.linglevel.api.streak.dto.RewardInfo;
 import com.linglevel.api.streak.dto.StreakResponse;
+import com.linglevel.api.streak.dto.WeekDayResponse;
+import com.linglevel.api.streak.dto.WeekStreakResponse;
 import com.linglevel.api.streak.entity.DailyCompletion;
 import com.linglevel.api.streak.entity.StreakStatus;
 import com.linglevel.api.streak.entity.UserStudyReport;
@@ -24,10 +26,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -596,6 +600,109 @@ public class StreakService {
         return RewardInfo.builder()
                 .tickets(tickets)
                 .freezes(freezes)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public WeekStreakResponse getThisWeekStreak(String userId) {
+        LocalDate today = getKstToday();
+        LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate sunday = monday.plusDays(6);
+
+        // 사용자 스트릭 정보 조회
+        UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+                .orElseGet(() -> createNewUserStudyReport(userId));
+
+        // 이번 주 DailyCompletion 조회
+        List<DailyCompletion> completions = dailyCompletionRepository
+                .findByUserIdAndCompletionDateBetween(userId, monday, sunday);
+        Map<LocalDate, DailyCompletion> completionMap = completions.stream()
+                .collect(Collectors.toMap(DailyCompletion::getCompletionDate, c -> c));
+
+        // 이번 주 프리즈 소진 트랜잭션 조회
+        ZoneId kst = ZoneId.of("Asia/Seoul");
+        Instant weekStart = monday.atStartOfDay(kst).toInstant();
+        Instant weekEnd = sunday.plusDays(1).atStartOfDay(kst).toInstant();
+        List<FreezeTransaction> freezeTransactions = freezeTransactionRepository
+                .findByUserIdAndAmountAndCreatedAtBetween(userId, -1, weekStart, weekEnd);
+
+        // description에서 날짜 추출하여 Map 생성
+        Map<LocalDate, FreezeTransaction> freezeMap = freezeTransactions.stream()
+                .filter(t -> t.getDescription() != null && t.getDescription().contains("missed day:"))
+                .collect(Collectors.toMap(
+                        t -> LocalDate.parse(t.getDescription().substring(t.getDescription().lastIndexOf(":") + 2)),
+                        t -> t,
+                        (t1, t2) -> t1
+                ));
+
+        // 월요일부터 일요일까지 요일별 응답 생성
+        List<WeekDayResponse> weekDays = new ArrayList<>();
+        for (LocalDate date = monday; !date.isAfter(sunday); date = date.plusDays(1)) {
+            weekDays.add(buildWeekDay(date, today, report, completionMap, freezeMap));
+        }
+
+        return WeekStreakResponse.builder()
+                .currentStreak(report.getCurrentStreak())
+                .freezeCount(report.getAvailableFreezes())
+                .weekDays(weekDays)
+                .build();
+    }
+
+    private WeekDayResponse buildWeekDay(
+            LocalDate date,
+            LocalDate today,
+            UserStudyReport report,
+            Map<LocalDate, DailyCompletion> completionMap,
+            Map<LocalDate, FreezeTransaction> freezeMap) {
+
+        boolean isToday = date.equals(today);
+        boolean isFuture = date.isAfter(today);
+        DailyCompletion completion = completionMap.get(date);
+
+        // Status 결정
+        StreakStatus status;
+        if (isFuture) {
+            status = StreakStatus.FUTURE;
+        } else if (completion != null) {
+            status = StreakStatus.COMPLETED;
+        } else if (freezeMap.containsKey(date)) {
+            status = StreakStatus.FREEZE_USED;
+        } else {
+            status = StreakStatus.MISSED;
+        }
+
+        // Streak count 계산 (주간에서는 필요없어서 생략, 필요시 추가 가능)
+        Integer streakCount = null;
+        if (!isFuture && report.getStreakStartDate() != null) {
+            if (!date.isBefore(report.getStreakStartDate()) &&
+                report.getLastCompletionDate() != null &&
+                !date.isAfter(report.getLastCompletionDate())) {
+                streakCount = (int) ChronoUnit.DAYS.between(report.getStreakStartDate(), date) + 1;
+            }
+        }
+
+        // Rewards 계산
+        RewardInfo rewards = null;
+        RewardInfo expectedRewards = null;
+
+        if (isFuture) {
+            if (report.getCurrentStreak() > 0) {
+                int expectedStreak = report.getCurrentStreak() + (int) ChronoUnit.DAYS.between(today, date) + 1;
+                expectedRewards = calculateRewards(expectedStreak);
+            } else {
+                expectedRewards = calculateRewards(1);
+            }
+        } else if (streakCount != null && streakCount > 0) {
+            rewards = calculateRewards(streakCount);
+        }
+
+        return WeekDayResponse.builder()
+                .dayOfWeek(date.getDayOfWeek().name())
+                .date(date)
+                .isToday(isToday)
+                .status(status)
+                .rewards(rewards)
+                .expectedRewards(expectedRewards)
                 .build();
     }
 }

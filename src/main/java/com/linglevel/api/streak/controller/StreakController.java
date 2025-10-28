@@ -122,8 +122,7 @@ public class StreakController {
     public ResponseEntity<WeekStreakResponse> getThisWeekStreak(
             @AuthenticationPrincipal JwtClaims claims) {
 
-        // WeekStreakResponse response = streakService.getThisWeekStreak(claims.getId());
-        WeekStreakResponse response = new WeekStreakResponse();
+        WeekStreakResponse response = streakService.getThisWeekStreak(claims.getId());
         return ResponseEntity.ok(response);
     }
 
