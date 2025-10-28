@@ -12,14 +12,15 @@ import com.linglevel.api.streak.dto.WeekStreakResponse;
 import com.linglevel.api.streak.entity.DailyCompletion;
 import com.linglevel.api.streak.entity.StreakStatus;
 import com.linglevel.api.streak.entity.UserStudyReport;
-import com.linglevel.api.streak.exception.StreakErrorCode;
-import com.linglevel.api.streak.exception.StreakException;
 import com.linglevel.api.streak.repository.DailyCompletionRepository;
 import com.linglevel.api.streak.repository.UserStudyReportRepository;
 import com.linglevel.api.user.ticket.service.TicketService;
 import com.linglevel.api.streak.repository.FreezeTransactionRepository;
 import com.linglevel.api.streak.entity.FreezeTransaction;
+import com.linglevel.api.user.ticket.repository.TicketTransactionRepository;
+import com.linglevel.api.user.ticket.entity.TicketTransaction;
 import lombok.RequiredArgsConstructor;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
@@ -43,10 +45,18 @@ import java.util.stream.Collectors;
 @Slf4j
 public class StreakService {
 
+    private static final int FREEZE_REWARD_CYCLE = 5;
+    private static final int MAX_FREEZE_COUNT = 2;
+    private static final int FIRST_TICKET_REWARD_DAY = 7;
+    private static final int TICKET_REWARD_CYCLE = 15;
+    private static final int TICKET_REWARD_AMOUNT = 1;
+    private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
+
     private final UserStudyReportRepository userStudyReportRepository;
     private final DailyCompletionRepository dailyCompletionRepository;
     private final TicketService ticketService;
     private final FreezeTransactionRepository freezeTransactionRepository;
+    private final TicketTransactionRepository ticketTransactionRepository;
 
     @Transactional
     public StreakResponse getStreakInfo(String userId) {
@@ -153,33 +163,50 @@ public class StreakService {
         int currentStreak = report.getCurrentStreak();
         String userId = report.getUserId();
 
-        // 프리즈 지급 (5일 주기, 최대 2개 보유)
-        if (currentStreak > 0 && currentStreak % 5 == 0 && report.getAvailableFreezes() < 2) {
-            report.setAvailableFreezes(report.getAvailableFreezes() + 1);
+        grantFreezeIfEligible(report, currentStreak, userId);
+        grantTicketIfEligible(currentStreak, userId);
+    }
 
-            FreezeTransaction freezeTransaction = FreezeTransaction.builder()
-                    .userId(userId)
-                    .amount(1)
-                    .description("Reward for " + currentStreak + "-day streak")
-                    .createdAt(Instant.now())
-                    .build();
-            freezeTransactionRepository.save(freezeTransaction);
-            log.info("Granted 1 freeze to user {} for {} day streak. User now has {} freezes.", userId, currentStreak, report.getAvailableFreezes());
+    private void grantFreezeIfEligible(UserStudyReport report, int currentStreak, String userId) {
+        boolean isEligible = currentStreak > 0
+                && currentStreak % FREEZE_REWARD_CYCLE == 0
+                && report.getAvailableFreezes() < MAX_FREEZE_COUNT;
+
+        if (!isEligible) {
+            return;
         }
 
-        // 티켓 지급 (1, 7, 15, 30, 45...)
-        boolean shouldGrantTicket = false;
-        if (currentStreak == 1 || currentStreak == 7) {
-            shouldGrantTicket = true;
-        } else if (currentStreak >= 15 && (currentStreak - 15) % 15 == 0) {
-            shouldGrantTicket = true;
+        report.setAvailableFreezes(report.getAvailableFreezes() + 1);
+
+        FreezeTransaction freezeTransaction = FreezeTransaction.builder()
+                .userId(userId)
+                .amount(1)
+                .description("Reward for " + currentStreak + "-day streak")
+                .createdAt(Instant.now())
+                .build();
+        freezeTransactionRepository.save(freezeTransaction);
+
+        log.info("Granted 1 freeze to user {} for {} day streak. User now has {} freezes.",
+                userId, currentStreak, report.getAvailableFreezes());
+    }
+
+    private void grantTicketIfEligible(int currentStreak, String userId) {
+        if (!shouldGrantTicket(currentStreak)) {
+            return;
         }
 
-        if (shouldGrantTicket) {
-            String description = "Reward for " + currentStreak + "-day streak";
-            ticketService.grantTicket(userId, 1, description);
-            log.info("Granted 1 ticket to user {} for {} day streak.", userId, currentStreak);
+        String description = "Reward for " + currentStreak + "-day streak";
+        ticketService.grantTicket(userId, TICKET_REWARD_AMOUNT, description);
+
+        log.info("Granted {} ticket to user {} for {} day streak.",
+                TICKET_REWARD_AMOUNT, userId, currentStreak);
+    }
+
+    private boolean shouldGrantTicket(int streakCount) {
+        if (streakCount == FIRST_TICKET_REWARD_DAY) {
+            return true;
         }
+        return streakCount >= TICKET_REWARD_CYCLE && (streakCount - TICKET_REWARD_CYCLE) % TICKET_REWARD_CYCLE == 0;
     }
 
     public boolean hasCompletedStreakToday(String userId, LocalDate today) {
@@ -245,7 +272,7 @@ public class StreakService {
     }
 
     private LocalDate getKstToday() {
-        return LocalDate.now(ZoneId.of("Asia/Seoul"));
+        return LocalDate.now(KST_ZONE);
     }
 
     private double calculatePercentile(UserStudyReport report) {
@@ -315,13 +342,9 @@ public class StreakService {
 
     private boolean checkYesterdayFreezeUsed(String userId, LocalDate today) {
         LocalDate yesterday = today.minusDays(1);
+        Instant yesterdayStart = yesterday.atStartOfDay(KST_ZONE).toInstant();
+        Instant yesterdayEnd = yesterday.plusDays(1).atStartOfDay(KST_ZONE).toInstant();
 
-        // Convert yesterday date to Instant range (00:00:00 ~ 23:59:59 KST)
-        ZoneId kst = ZoneId.of("Asia/Seoul");
-        Instant yesterdayStart = yesterday.atStartOfDay(kst).toInstant();
-        Instant yesterdayEnd = yesterday.plusDays(1).atStartOfDay(kst).toInstant();
-
-        // Check if freeze was consumed (amount = -1) yesterday
         return freezeTransactionRepository.existsByUserIdAndAmountAndCreatedAtBetween(
             userId, -1, yesterdayStart, yesterdayEnd
         );
@@ -437,24 +460,15 @@ public class StreakService {
         }
     }
 
-    /**
-     * 특정 날짜에 프리즈 소진 트랜잭션이 이미 생성되었는지 확인
-     * (배치 작업과 실시간 처리 간 중복 방지)
-     */
     private boolean wasFreezeProcessedForDate(String userId, LocalDate date) {
-        ZoneId kst = ZoneId.of("Asia/Seoul");
-        Instant dayStart = date.atStartOfDay(kst).toInstant();
-        Instant dayEnd = date.plusDays(1).atStartOfDay(kst).toInstant();
+        Instant dayStart = date.atStartOfDay(KST_ZONE).toInstant();
+        Instant dayEnd = date.plusDays(1).atStartOfDay(KST_ZONE).toInstant();
 
         return freezeTransactionRepository.existsByUserIdAndAmountAndCreatedAtBetween(
                 userId, -1, dayStart, dayEnd
         );
     }
 
-    /**
-     * 특정 날짜에 대한 프리즈 소진 트랜잭션 생성
-     * description에 날짜를 포함하여 캘린더 API에서 활용
-     */
     private void consumeFreezeForDate(UserStudyReport report, LocalDate missedDate) {
         FreezeTransaction transaction = FreezeTransaction.builder()
                 .userId(report.getUserId())
@@ -473,15 +487,11 @@ public class StreakService {
         LocalDate firstDay = LocalDate.of(year, month, 1);
         LocalDate lastDay = firstDay.withDayOfMonth(firstDay.lengthOfMonth());
 
-        StreakViewData viewData = prepareStreakViewData(userId, firstDay, lastDay);
-
-        Map<LocalDate, Boolean> monthlyFreezeMap = viewData.getAllFreezeDates().stream()
-                .filter(d -> d.getYear() == year && d.getMonthValue() == month)
-                .collect(Collectors.toMap(d -> d, d -> true));
+        CalendarViewData viewData = prepareCalendarViewData(userId, firstDay, lastDay);
 
         List<CalendarDayResponse> days = new ArrayList<>();
         for (LocalDate date = firstDay; !date.isAfter(lastDay); date = date.plusDays(1)) {
-            days.add(buildCalendarDay(date, today, viewData, monthlyFreezeMap));
+            days.add(buildCalendarDay(date, today, viewData));
         }
 
         return CalendarResponse.builder()
@@ -499,15 +509,11 @@ public class StreakService {
         LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate sunday = monday.plusDays(6);
 
-        StreakViewData viewData = prepareStreakViewData(userId, monday, sunday);
-
-        Map<LocalDate, Boolean> weeklyFreezeMap = viewData.getAllFreezeDates().stream()
-                .filter(d -> !d.isBefore(monday) && !d.isAfter(sunday))
-                .collect(Collectors.toMap(d -> d, d -> true));
+        CalendarViewData viewData = prepareCalendarViewData(userId, monday, sunday);
 
         List<WeekDayResponse> weekDays = new ArrayList<>();
         for (LocalDate date = monday; !date.isAfter(sunday); date = date.plusDays(1)) {
-            weekDays.add(buildWeekDay(date, today, viewData, weeklyFreezeMap));
+            weekDays.add(buildWeekDay(date, today, viewData));
         }
 
         return WeekStreakResponse.builder()
@@ -517,7 +523,7 @@ public class StreakService {
                 .build();
     }
 
-    private StreakViewData prepareStreakViewData(String userId, LocalDate startDate, LocalDate endDate) {
+    private CalendarViewData prepareCalendarViewData(String userId, LocalDate startDate, LocalDate endDate) {
         UserStudyReport report = userStudyReportRepository.findByUserId(userId)
                 .orElseGet(() -> createNewUserStudyReport(userId));
 
@@ -526,87 +532,87 @@ public class StreakService {
         Map<LocalDate, DailyCompletion> completionMap = completions.stream()
                 .collect(Collectors.toMap(DailyCompletion::getCompletionDate, c -> c));
 
-        java.util.Set<LocalDate> allFreezeDates = new java.util.HashSet<>();
-        if (report.getStreakStartDate() != null) {
-            ZoneId kst = ZoneId.of("Asia/Seoul");
-            Instant streakStartInstant = report.getStreakStartDate().atStartOfDay(kst).toInstant();
-            List<FreezeTransaction> allFreezeTransactions = freezeTransactionRepository
-                    .findByUserIdAndAmountAndCreatedAtBetween(userId, -1, streakStartInstant, Instant.now());
+        Instant startInstant = startDate.atStartOfDay(KST_ZONE).toInstant();
+        Instant endInstant = endDate.plusDays(1).atStartOfDay(KST_ZONE).toInstant();
 
-            allFreezeDates = allFreezeTransactions.stream()
-                    .filter(t -> t.getDescription() != null && t.getDescription().contains("missed day:"))
-                    .map(t -> LocalDate.parse(t.getDescription().substring(t.getDescription().lastIndexOf(":") + 2)))
-                    .collect(Collectors.toSet());
-        }
-        return new StreakViewData(report, completionMap, allFreezeDates);
+        List<FreezeTransaction> freezeUsageTxs = freezeTransactionRepository
+                .findByUserIdAndAmountAndCreatedAtBetween(userId, -1, startInstant, endInstant);
+        Map<LocalDate, Boolean> freezeUsageMap = freezeUsageTxs.stream()
+                .map(t -> t.getCreatedAt().atZone(KST_ZONE).toLocalDate())
+                .distinct()
+                .collect(Collectors.toMap(date -> date, date -> true));
+
+        List<FreezeTransaction> freezeRewardTxs = freezeTransactionRepository
+            .findByUserIdAndAmountAndCreatedAtBetween(userId, 1, startInstant, endInstant);
+        Map<LocalDate, Integer> freezeRewardsMap = freezeRewardTxs.stream()
+            .collect(Collectors.groupingBy(
+                t -> t.getCreatedAt().atZone(KST_ZONE).toLocalDate(),
+                Collectors.summingInt(FreezeTransaction::getAmount)
+            ));
+
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay();
+
+        List<TicketTransaction> ticketRewardTxs = ticketTransactionRepository
+            .findByUserIdAndAmountAndCreatedAtBetween(userId, TICKET_REWARD_AMOUNT, startDateTime, endDateTime);
+        Map<LocalDate, Integer> ticketRewardsMap = ticketRewardTxs.stream()
+            .collect(Collectors.groupingBy(
+                t -> t.getCreatedAt().toLocalDate(),
+                Collectors.summingInt(TicketTransaction::getAmount)
+            ));
+
+        return new CalendarViewData(report, completionMap, freezeUsageMap, freezeRewardsMap, ticketRewardsMap);
     }
 
-    private StreakDayInfo calculateStreakDayInfo(LocalDate date, LocalDate today, StreakViewData viewData, Map<LocalDate, Boolean> freezeMap) {
+    private CalendarDayInfo calculateCalendarDayInfo(LocalDate date, LocalDate today, CalendarViewData viewData) {
         boolean isFuture = date.isAfter(today);
         DailyCompletion completion = viewData.getCompletionMap().get(date);
-        UserStudyReport report = viewData.getReport();
 
+        // Determine StreakStatus
         StreakStatus status;
         if (isFuture) {
             status = StreakStatus.FUTURE;
         } else if (completion != null) {
             status = StreakStatus.COMPLETED;
-        } else if (freezeMap.containsKey(date)) {
+        } else if (viewData.getFreezeUsageMap().containsKey(date)) {
             status = StreakStatus.FREEZE_USED;
         } else {
             status = StreakStatus.MISSED;
         }
 
-        Integer streakCount = null;
-        if (!isFuture && report.getStreakStartDate() != null && !date.isBefore(report.getStreakStartDate())) {
-            if (status == StreakStatus.COMPLETED || status == StreakStatus.FREEZE_USED) {
-                long daysInStreak = ChronoUnit.DAYS.between(report.getStreakStartDate(), date) + 1;
-                long freezesUsed = viewData.getAllFreezeDates().stream()
-                        .filter(freezeDate -> !freezeDate.isBefore(report.getStreakStartDate()) && !freezeDate.isAfter(date))
-                        .count();
-                streakCount = (int) (daysInStreak - freezesUsed);
-            }
-        }
-
         RewardInfo rewards = null;
         RewardInfo expectedRewards = null;
-        if (isFuture) {
-            int streakAfterToday;
-            LocalDate lastCompletion = report.getLastCompletionDate();
 
-            if (lastCompletion != null && lastCompletion.isEqual(today)) {
-                // Case 1: Today is already completed.
-                streakAfterToday = report.getCurrentStreak();
-            } else if (lastCompletion != null && lastCompletion.isEqual(today.minusDays(1))) {
-                // Case 2: Streak is active from yesterday. Today's completion will increment it.
-                streakAfterToday = report.getCurrentStreak() + 1;
-            } else {
-                // Case 3: Streak is broken, was reset, or is the first ever. Today's completion will start a new streak at 1.
-                streakAfterToday = 1;
-            }
-
-            int expectedStreak = streakAfterToday + (int) ChronoUnit.DAYS.between(today, date);
-            expectedRewards = calculateRewards(expectedStreak);
-
-        } else { // For today or past days
-            if (streakCount != null && streakCount > 0) {
-                RewardInfo calculatedReward = calculateRewards(streakCount);
-
-                if (date.isEqual(today) && status != StreakStatus.COMPLETED) {
-                    // For today, if not completed, show as expected reward.
-                    expectedRewards = calculatedReward;
-                } else {
-                    // For past days, or for today if completed, show as actual reward.
-                    rewards = calculatedReward;
-                }
-            }
+        if (!isFuture) {
+            rewards = createRewardInfo(
+                viewData.getTicketRewardsMap().getOrDefault(date, 0),
+                viewData.getFreezeRewardsMap().getOrDefault(date, 0)
+            );
         }
 
-        return new StreakDayInfo(status, streakCount, rewards, expectedRewards);
+        if (!date.isBefore(today)) {
+            UserStudyReport report = viewData.getReport();
+            boolean isTodayCompleted = viewData.getCompletionMap().containsKey(today);
+
+            int baseStreak = report.getCurrentStreak();
+            if (isTodayCompleted) {
+                baseStreak--;
+            }
+            if (baseStreak < 0) {
+                baseStreak = 0;
+            }
+
+            int daysFromToday = (int) ChronoUnit.DAYS.between(today, date);
+            int expectedStreak = baseStreak + 1 + daysFromToday;
+
+            expectedRewards = calculateExpectedRewards(expectedStreak);
+        }
+
+        return new CalendarDayInfo(status, rewards, expectedRewards);
     }
 
-    private CalendarDayResponse buildCalendarDay(LocalDate date, LocalDate today, StreakViewData viewData, Map<LocalDate, Boolean> freezeMap) {
-        StreakDayInfo dayInfo = calculateStreakDayInfo(date, today, viewData, freezeMap);
+    private CalendarDayResponse buildCalendarDay(LocalDate date, LocalDate today, CalendarViewData viewData) {
+        CalendarDayInfo dayInfo = calculateCalendarDayInfo(date, today, viewData);
         DailyCompletion completion = viewData.getCompletionMap().get(date);
 
         Integer firstCompletionCount = (completion != null) ? completion.getFirstCompletionCount() : 0;
@@ -617,7 +623,7 @@ public class StreakService {
                 .dayOfMonth(date.getDayOfMonth())
                 .isToday(date.equals(today))
                 .status(dayInfo.status)
-                .streakCount(dayInfo.streakCount)
+                .streakCount(null)
                 .firstCompletionCount(firstCompletionCount)
                 .totalCompletionCount(totalCompletionCount)
                 .rewards(dayInfo.rewards)
@@ -625,8 +631,8 @@ public class StreakService {
                 .build();
     }
 
-    private WeekDayResponse buildWeekDay(LocalDate date, LocalDate today, StreakViewData viewData, Map<LocalDate, Boolean> freezeMap) {
-        StreakDayInfo dayInfo = calculateStreakDayInfo(date, today, viewData, freezeMap);
+    private WeekDayResponse buildWeekDay(LocalDate date, LocalDate today, CalendarViewData viewData) {
+        CalendarDayInfo dayInfo = calculateCalendarDayInfo(date, today, viewData);
 
         return WeekDayResponse.builder()
                 .dayOfWeek(date.getDayOfWeek().name())
@@ -638,40 +644,43 @@ public class StreakService {
                 .build();
     }
 
-    private RewardInfo calculateRewards(int streakCount) {
+    private RewardInfo calculateExpectedRewards(int streakCount) {
         int freezes = 0;
         int tickets = 0;
 
-        // 프리즈: 5일마다 (최대 2개 보유는 여기서는 체크 안함, 실제 지급 시에만 체크)
-        if (streakCount > 0 && streakCount % 5 == 0) {
+        if (streakCount > 0 && streakCount % FREEZE_REWARD_CYCLE == 0) {
             freezes = 1;
         }
 
-        // 티켓: 7, 15, 30, 45, 60...
-        if (streakCount == 7) {
-            tickets = 1;
-        } else if (streakCount >= 15 && (streakCount - 15) % 15 == 0) {
-            tickets = 1;
+        if (shouldGrantTicket(streakCount)) {
+            tickets = TICKET_REWARD_AMOUNT;
         }
 
+        return createRewardInfo(tickets, freezes);
+    }
+
+    private RewardInfo createRewardInfo(int tickets, int freezes) {
         return RewardInfo.builder()
                 .tickets(tickets)
                 .freezes(freezes)
                 .build();
     }
 
-    @lombok.Value
-    private static class StreakViewData {
+    @Value
+    private static class CalendarViewData {
         UserStudyReport report;
         Map<LocalDate, DailyCompletion> completionMap;
-        java.util.Set<LocalDate> allFreezeDates;
+        Map<LocalDate, Boolean> freezeUsageMap;
+        Map<LocalDate, Integer> freezeRewardsMap;
+        Map<LocalDate, Integer> ticketRewardsMap;
     }
 
-    @lombok.Value
-    private static class StreakDayInfo {
+    @Value
+    private static class CalendarDayInfo {
         StreakStatus status;
-        Integer streakCount;
         RewardInfo rewards;
         RewardInfo expectedRewards;
     }
 }
+
+    
