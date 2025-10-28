@@ -8,6 +8,7 @@ import com.linglevel.api.admin.dto.NotificationBroadcastRequest;
 import com.linglevel.api.admin.dto.NotificationBroadcastResponse;
 import com.linglevel.api.admin.dto.NotificationSendResponse;
 import com.linglevel.api.admin.dto.NotificationSendRequest;
+import com.linglevel.api.admin.dto.ResetTodayStreakRequest;
 import com.linglevel.api.fcm.dto.FcmMessageRequest;
 import com.linglevel.api.admin.dto.UpdateChunkRequest;
 import com.linglevel.api.admin.service.AdminService;
@@ -189,6 +190,13 @@ public class AdminController {
 
         String message = String.format("Successfully updated %d articles with default target language codes [KO, EN, JA]", updatedCount);
         return ResponseEntity.ok(new MessageResponse(message));
+    }
+
+    @Operation(summary = "[Debug] 오늘의 스트릭 학습 상태 리셋", description = "디버깅용 API. 특정 사용자의 오늘 학습 완료 기록을 삭제하여, 스트릭을 달성하지 않은 상태로 되돌립니다.")
+    @PostMapping("/streaks/reset-today")
+    public ResponseEntity<MessageResponse> resetTodayStreak(@Valid @RequestBody ResetTodayStreakRequest request) {
+        adminService.resetTodayStreak(request.getUserId());
+        return ResponseEntity.ok(new MessageResponse("User " + request.getUserId() + "'s streak status for today has been reset."));
     }
 
     @ExceptionHandler(TicketException.class)
