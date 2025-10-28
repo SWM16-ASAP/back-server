@@ -14,6 +14,18 @@ import java.util.Optional;
 @Getter
 @RequiredArgsConstructor
 public enum StreakMilestone {
+    DAY_0(0,
+            Map.of(
+                    LanguageCode.KO, "새로운 시작",
+                    LanguageCode.EN, "A New Start",
+                    LanguageCode.JA, "新しい始まり"
+            ),
+            Map.of(
+                    LanguageCode.KO, "첫 학습을 시작하고 스트릭을 만들어보세요! 당신의 도전을 응원합니다.",
+                    LanguageCode.EN, "Start your first lesson and build a streak! We're cheering for your challenge.",
+                    LanguageCode.JA, "最初の学習を始めて、ストリークを作りましょう！あなたの挑戦を応援します。"
+            )
+    ),
     DAY_1(1,
             Map.of(
                     LanguageCode.KO, "첫 시작!",
