@@ -5,10 +5,12 @@ import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.MessageResponse;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.custom.dto.*;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.service.CustomContentService;
 import com.linglevel.api.content.custom.service.CustomContentChunkService;
+import com.linglevel.api.streak.service.ReadingSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -35,6 +37,7 @@ public class CustomContentController {
 
     private final CustomContentService customContentService;
     private final CustomContentChunkService customContentChunkService;
+    private final ReadingSessionService readingSessionService;
 
     @Operation(
         summary = "커스텀 콘텐츠 목록 조회",
@@ -122,6 +125,14 @@ public class CustomContentController {
             @Parameter(description = "커스텀 콘텐츠 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String customContentId,
             @ParameterObject @ModelAttribute GetCustomContentChunksRequest request) {
+
+        if (claims != null) {
+            readingSessionService.startReadingSession(
+                claims.getId(),
+                ContentType.CUSTOM,
+                customContentId
+            );
+        }
 
         PageResponse<CustomContentChunkResponse> response = customContentChunkService.getCustomContentChunks(claims.getId(), customContentId, request);
         return ResponseEntity.ok(response);

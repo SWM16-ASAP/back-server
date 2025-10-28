@@ -32,8 +32,6 @@ public class ArticleProgressService {
 
     @Transactional
     public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request, String userId) {
-        readingSessionService.startReadingSession(userId, ContentType.ARTICLE, articleId);
-
         // 아티클 존재 여부 확인
         if (!articleService.existsById(articleId)) {
             throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
@@ -77,6 +75,7 @@ public class ArticleProgressService {
         }
 
         // 스트릭 검사 및 완료 처리 로직
+        boolean streakUpdated = false;
         if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId)) {
             // 첫 완료 시에만 isCompleted와 completedAt 함께 설정
             if (articleProgress.getCompletedAt() == null) {
@@ -85,13 +84,13 @@ public class ArticleProgressService {
             }
 
             // 스트릭 업데이트는 재학습 시에도 호출
-            streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
+            streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
             readingSessionService.deleteReadingSession(userId);
         }
 
         articleProgressRepository.save(articleProgress);
 
-        return convertToArticleProgressResponse(articleProgress);
+        return convertToArticleProgressResponse(articleProgress, streakUpdated);
     }
 
     private boolean isLastChunk(ArticleChunk chunk) {
@@ -112,7 +111,7 @@ public class ArticleProgressService {
         ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
                 .orElseGet(() -> initializeProgress(userId, articleId));
 
-        return convertToArticleProgressResponse(articleProgress);
+        return convertToArticleProgressResponse(articleProgress, false);
     }
 
     private ArticleProgress initializeProgress(String userId, String articleId) {
@@ -151,7 +150,7 @@ public class ArticleProgressService {
         articleProgressRepository.delete(articleProgress);
     }
 
-    private ArticleProgressResponse convertToArticleProgressResponse(ArticleProgress progress) {
+    private ArticleProgressResponse convertToArticleProgressResponse(ArticleProgress progress, boolean streakUpdated) {
         // [DTO_MAPPING] chunk에서 chunkNumber 조회
         ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
 
@@ -192,6 +191,7 @@ public class ArticleProgressService {
                 .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
                 .normalizedProgress(progress.getNormalizedProgress())
                 .maxNormalizedProgress(progress.getMaxNormalizedProgress())
+                .streakUpdated(streakUpdated)
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

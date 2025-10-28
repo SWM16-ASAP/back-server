@@ -37,10 +37,15 @@ public class StreakService {
     private final TicketService ticketService;
     private final FreezeTransactionRepository freezeTransactionRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public StreakResponse getStreakInfo(String userId) {
         UserStudyReport report = userStudyReportRepository.findByUserId(userId)
-                .orElseThrow(() -> new StreakException(StreakErrorCode.STREAK_NOT_FOUND));
+                .orElseGet(() -> {
+                    UserStudyReport newReport = createNewUserStudyReport(userId);
+                    userStudyReportRepository.save(newReport);
+                    log.info("Created new UserStudyReport for user: {}", userId);
+                    return newReport;
+                });
 
         LocalDate today = getKstToday();
         StreakStatus todayStatus = calculateTodayStatus(userId, today);
@@ -62,13 +67,13 @@ public class StreakService {
     }
 
     @Transactional
-    public void updateStreak(String userId, ContentType contentType, String contentId) {
+    public boolean updateStreak(String userId, ContentType contentType, String contentId) {
         LocalDate today = getKstToday();
 
         // 오늘 이미 완료했는지 체크 (중복 방지)
         if (hasCompletedStreakToday(userId, today)) {
             log.info("User {} has already completed a streak today.", userId);
-            return;
+            return false;
         }
 
         UserStudyReport report = userStudyReportRepository.findByUserId(userId)
@@ -88,7 +93,7 @@ public class StreakService {
             } else if (daysBetween == 0) {
                 // 오늘 이미 완료 (hasCompletedStreakToday에서 걸러져야 함)
                 log.warn("User {} completed multiple times today. Should have been prevented.", userId);
-                return;
+                return false;
             } else {
                 // daysBetween > 1: 배치가 이미 처리했어야 함
                 // 서버 다운 등으로 배치 누락된 경우 보완
@@ -115,6 +120,7 @@ public class StreakService {
         userStudyReportRepository.save(report);
 
         log.info("Streak updated for user: {}. Current streak: {}", userId, report.getCurrentStreak());
+        return true;
     }
 
     private void checkAndGrantRewards(UserStudyReport report) {

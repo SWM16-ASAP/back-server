@@ -45,6 +45,9 @@ public class CustomContentReadingProgressResponse {
     @Schema(description = "정규화된 최대 진행률 (%)", example = "85.2")
     private Double maxNormalizedProgress;
 
+    @Schema(description = "스트릭이 업데이트되었는지 여부 (완료 시 true)", example = "true")
+    private Boolean streakUpdated;
+
     @Schema(description = "업데이트 일시", example = "2024-01-15T10:30:00")
     private LocalDateTime updatedAt;
 }

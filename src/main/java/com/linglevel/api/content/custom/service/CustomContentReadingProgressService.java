@@ -41,8 +41,6 @@ public class CustomContentReadingProgressService {
 
     @Transactional
     public CustomContentReadingProgressResponse updateProgress(String customId, CustomContentReadingProgressUpdateRequest request, String userId) {
-        readingSessionService.startReadingSession(userId, ContentType.CUSTOM, customId);
-
         // 커스텀 콘텐츠 존재 여부 확인
         if (!customContentService.existsById(customId)) {
             throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
@@ -86,6 +84,7 @@ public class CustomContentReadingProgressService {
         }
 
         // 스트릭 검사 및 완료 처리 로직
+        boolean streakUpdated = false;
         if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId)) {
             // 첫 완료 시에만 isCompleted와 completedAt 함께 설정
             if (customProgress.getCompletedAt() == null) {
@@ -94,13 +93,13 @@ public class CustomContentReadingProgressService {
             }
 
             // 스트릭 업데이트는 재학습 시에도 호출
-            streakService.updateStreak(userId, ContentType.CUSTOM, customId);
+            streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
             readingSessionService.deleteReadingSession(userId);
         }
 
         customContentProgressRepository.save(customProgress);
 
-        return convertToCustomContentReadingProgressResponse(customProgress);
+        return convertToCustomContentReadingProgressResponse(customProgress, streakUpdated);
     }
 
     private boolean isLastChunk(CustomContentChunk chunk) {
@@ -121,7 +120,7 @@ public class CustomContentReadingProgressService {
         CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
                 .orElseGet(() -> initializeProgress(userId, customId));
 
-        return convertToCustomContentReadingProgressResponse(customProgress);
+        return convertToCustomContentReadingProgressResponse(customProgress, false);
     }
 
     private CustomContentProgress initializeProgress(String userId, String customId) {
@@ -160,7 +159,7 @@ public class CustomContentReadingProgressService {
         customContentProgressRepository.delete(customProgress);
     }
 
-    private CustomContentReadingProgressResponse convertToCustomContentReadingProgressResponse(CustomContentProgress progress) {
+    private CustomContentReadingProgressResponse convertToCustomContentReadingProgressResponse(CustomContentProgress progress, boolean streakUpdated) {
         // [DTO_MAPPING] chunk에서 chunkNum 조회
         CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
 
@@ -201,6 +200,7 @@ public class CustomContentReadingProgressService {
                 .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
                 .normalizedProgress(progress.getNormalizedProgress())
                 .maxNormalizedProgress(progress.getMaxNormalizedProgress())
+                .streakUpdated(streakUpdated)
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

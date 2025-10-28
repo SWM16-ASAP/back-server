@@ -35,8 +35,6 @@ public class ProgressService {
 
     @Transactional
     public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String userId) {
-        readingSessionService.startReadingSession(userId, ContentType.BOOK, bookId);
-
         if (!bookService.existsById(bookId)) {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
@@ -97,6 +95,7 @@ public class ProgressService {
         // 현재 챕터가 max 챕터보다 낮은 경우는 max 값을 변경하지 않는다.
 
         // 스트릭 검사 및 완료 처리 로직
+        boolean streakUpdated = false;
         if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId)) {
             // 첫 완료 시에만 isCompleted와 completedAt 함께 설정
             if (bookProgress.getCompletedAt() == null) {
@@ -105,13 +104,13 @@ public class ProgressService {
             }
 
             // 스트릭 업데이트는 재학습 시에도 호출
-            streakService.updateStreak(userId, ContentType.BOOK, bookId);
+            streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, bookId);
             readingSessionService.deleteReadingSession(userId);
         }
 
         bookProgressRepository.save(bookProgress);
 
-        return convertToProgressResponse(bookProgress);
+        return convertToProgressResponse(bookProgress, streakUpdated);
     }
 
     private boolean isLastChunk(Chunk chunk) {
@@ -131,7 +130,7 @@ public class ProgressService {
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElseGet(() -> initializeProgress(userId, bookId));
 
-        return convertToProgressResponse(bookProgress);
+        return convertToProgressResponse(bookProgress, false);
     }
 
     private BookProgress initializeProgress(String userId, String bookId) {
@@ -179,7 +178,7 @@ public class ProgressService {
         return maxChapter == null || chapterNum > maxChapter;
     }
 
-    private ProgressResponse convertToProgressResponse(BookProgress progress) {
+    private ProgressResponse convertToProgressResponse(BookProgress progress, boolean streakUpdated) {
         // [DTO_MAPPING] chunk에서 chunkNumber 조회
         Chunk chunk = chunkService.findById(progress.getChunkId());
 
@@ -217,6 +216,7 @@ public class ProgressService {
                 .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
                 .normalizedProgress(progress.getNormalizedProgress())
                 .maxNormalizedProgress(progress.getMaxNormalizedProgress())
+                .streakUpdated(streakUpdated)
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

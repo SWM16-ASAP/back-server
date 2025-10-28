@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.Instant;
 
 @Getter
 @NoArgsConstructor
@@ -16,5 +15,5 @@ import java.time.Instant;
 public class ReadingSession implements Serializable {
     private ContentType contentType;
     private String contentId;
-    private Instant startedAt;
+    private Long startedAtMillis;  // Epoch milliseconds for Redis serialization
 }
