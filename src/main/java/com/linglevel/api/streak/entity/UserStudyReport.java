@@ -29,6 +29,8 @@ public class UserStudyReport {
 
     private LocalDate streakStartDate;
 
+    private Instant lastLearningTimestamp;
+
     private Integer availableFreezes = 0;
 
     private Long totalReadingTimeSeconds = 0L;

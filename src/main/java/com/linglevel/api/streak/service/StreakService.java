@@ -152,6 +152,7 @@ public class StreakService {
         checkAndGrantRewards(report);
 
         report.setLastCompletionDate(today);
+        report.setLastLearningTimestamp(Instant.now());
         report.setUpdatedAt(Instant.now());
 
         saveDailyCompletion(report, today, contentType, contentId);

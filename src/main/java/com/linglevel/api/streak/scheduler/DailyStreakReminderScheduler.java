@@ -5,6 +5,9 @@ import com.linglevel.api.fcm.dto.FcmMessageRequest;
 import com.linglevel.api.fcm.entity.FcmToken;
 import com.linglevel.api.fcm.repository.FcmTokenRepository;
 import com.linglevel.api.fcm.service.FcmMessagingService;
+import com.linglevel.api.i18n.CountryCode;
+import com.linglevel.api.i18n.LanguageCode;
+import com.linglevel.api.streak.dto.StreakReminderMessage;
 import com.linglevel.api.streak.entity.UserStudyReport;
 import com.linglevel.api.streak.repository.DailyCompletionRepository;
 import com.linglevel.api.streak.repository.UserStudyReportRepository;
@@ -13,23 +16,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * 매일 오전 9시(KST)에 실행되어 학습하지 않은 사용자에게 리마인더 알림을 전송하는 배치 작업
- *
- * 주요 기능:
- * 1. 활성 스트릭이 있는 사용자 조회
- * 2. 오늘 학습을 완료하지 않은 사용자 필터링
- * 3. 해당 사용자들에게 FCM 푸시 알림 전송
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -41,117 +34,193 @@ public class DailyStreakReminderScheduler {
     private final FcmMessagingService fcmMessagingService;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-    private static final String NOTIFICATION_TITLE = "Keep your streak alive!";
-    private static final String NOTIFICATION_BODY = "Don't forget to complete your daily learning to maintain your streak.";
     private static final String NOTIFICATION_TYPE = "streak_reminder";
-    private static final String CAMPAIGN_ID = "daily_streak_reminder_9am";
+    private static final String CAMPAIGN_ID = "optimal_timing_streak_reminder";
 
-    @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
-    public void sendDailyStreakReminders() {
+    // 마일스톤 달성 직전 날짜들 (예: 6일은 7일 마일스톤 직전)
+    private static final Set<Integer> MILESTONE_APPROACHING_DAYS = Set.of(2, 6, 13, 29, 49, 99, 364);
+
+    /**
+     * 매시간 실행되어 최적 타이밍(23.5시간 후)에 도달한 사용자에게 개인화된 알림 전송
+     */
+    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
+    public void sendOptimalTimingStreakReminders() {
         Instant startTime = Instant.now();
         LocalDate today = LocalDate.now(KST);
 
-        log.info("[Streak Reminder] Starting daily streak reminder at {} for date: {}", startTime, today);
+        log.info("[Optimal Timing Reminder] Starting at {}", startTime);
 
-        int totalActiveUsers = 0;
+        int candidateUsers = 0;
         int usersWithoutCompletion = 0;
         int usersWithTokens = 0;
         int notificationsSent = 0;
         int notificationsFailed = 0;
 
         try {
-            // 1. 활성 스트릭이 있는 사용자 조회 (currentStreak > 0)
-            List<UserStudyReport> activeReports = userStudyReportRepository
-                    .findByCurrentStreakGreaterThan(0);
-            totalActiveUsers = activeReports.size();
+            // 1. 최적 타이밍 사용자 조회 (23~24시간 전에 학습한 사용자)
+            Instant now = Instant.now();
+            Instant twentyFourHoursAgo = now.minus(Duration.ofHours(24));
+            Instant twentyThreeHoursAgo = now.minus(Duration.ofHours(23));
 
-            log.info("[Streak Reminder] Found {} active users with streak > 0", totalActiveUsers);
+            List<UserStudyReport> candidateReports = userStudyReportRepository
+                    .findUsersForOptimalTimingReminder(twentyFourHoursAgo, twentyThreeHoursAgo);
+            candidateUsers = candidateReports.size();
 
-            if (activeReports.isEmpty()) {
-                log.info("[Streak Reminder] No active users found. Skipping notification.");
+            log.info("[Optimal Timing Reminder] Found {} users in optimal timing window (23-24h after last learning)",
+                    candidateUsers);
+
+            if (candidateReports.isEmpty()) {
+                log.info("[Optimal Timing Reminder] No users found in optimal timing window. Skipping notification.");
                 return;
             }
 
-            // 2. 오늘 아직 학습을 완료하지 않은 사용자 필터링
-            List<String> usersToNotify = new ArrayList<>();
-            for (UserStudyReport report : activeReports) {
+            // 2. 오늘 아직 학습하지 않은 사용자 필터링
+            List<UserStudyReport> usersToNotify = new ArrayList<>();
+            for (UserStudyReport report : candidateReports) {
                 boolean hasCompletedToday = dailyCompletionRepository
                         .existsByUserIdAndCompletionDate(report.getUserId(), today);
 
                 if (!hasCompletedToday) {
-                    usersToNotify.add(report.getUserId());
+                    usersToNotify.add(report);
                     usersWithoutCompletion++;
                 }
             }
 
-            log.info("[Streak Reminder] Found {} users who haven't completed today's streak", usersWithoutCompletion);
+            log.info("[Optimal Timing Reminder] Found {} users who haven't completed today's lesson",
+                    usersWithoutCompletion);
 
             if (usersToNotify.isEmpty()) {
-                log.info("[Streak Reminder] All active users have completed today. Skipping notification.");
+                log.info("[Optimal Timing Reminder] All candidate users have completed today. Skipping notification.");
                 return;
             }
 
-            // 3. 사용자별 FCM 토큰 조회 및 알림 전송
-            Map<String, List<String>> userTokensMap = new HashMap<>();
-            for (String userId : usersToNotify) {
+            // 3. 사용자별 개인화된 알림 전송
+            for (UserStudyReport report : usersToNotify) {
+                String userId = report.getUserId();
+
+                // 3-1. FCM 토큰 조회
                 List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
-                if (!tokens.isEmpty()) {
-                    List<String> fcmTokens = tokens.stream()
-                            .map(FcmToken::getFcmToken)
-                            .collect(Collectors.toList());
-                    userTokensMap.put(userId, fcmTokens);
-                    usersWithTokens++;
+                if (tokens.isEmpty()) {
+                    log.debug("[Optimal Timing Reminder] No active FCM tokens for user: {}", userId);
+                    continue;
                 }
-            }
+                usersWithTokens++;
 
-            log.info("[Streak Reminder] Found {} users with active FCM tokens", usersWithTokens);
+                List<String> fcmTokens = tokens.stream()
+                        .map(FcmToken::getFcmToken)
+                        .collect(Collectors.toList());
 
-            // 4. 알림 메시지 생성 및 전송
-            FcmMessageRequest messageRequest = FcmMessageRequest.builder()
-                    .title(NOTIFICATION_TITLE)
-                    .body(NOTIFICATION_BODY)
-                    .type(NOTIFICATION_TYPE)
-                    .campaignId(CAMPAIGN_ID)
-                    .action("open_app")
-                    .build();
+                // 3-2. 언어 결정 (FcmToken의 countryCode 기반)
+                LanguageCode languageCode = determineLanguageFromTokens(tokens);
 
-            for (Map.Entry<String, List<String>> entry : userTokensMap.entrySet()) {
-                String userId = entry.getKey();
-                List<String> tokens = entry.getValue();
+                // 3-3. 개인화된 메시지 생성
+                StreakReminderMessage messageType = determineMessageType(report);
+                String title = messageType.getTitle(languageCode);
+                String body = messageType.getFormattedBody(languageCode, report.getCurrentStreak());
 
+                FcmMessageRequest messageRequest = FcmMessageRequest.builder()
+                        .title(title)
+                        .body(body)
+                        .type(NOTIFICATION_TYPE)
+                        .campaignId(CAMPAIGN_ID)
+                        .action("open_app")
+                        .build();
+
+                // 3-4. 알림 전송
                 try {
-                    if (tokens.size() == 1) {
-                        // 단일 토큰: sendMessage 사용
-                        fcmMessagingService.sendMessage(tokens.get(0), messageRequest);
+                    if (fcmTokens.size() == 1) {
+                        fcmMessagingService.sendMessage(fcmTokens.get(0), messageRequest);
                         notificationsSent++;
-                        log.debug("[Streak Reminder] Sent notification to user: {}", userId);
+                        log.debug("[Optimal Timing Reminder] Sent to user: {} (lang: {}, streak: {}, type: {})",
+                                userId, languageCode, report.getCurrentStreak(), messageType);
                     } else {
-                        // 여러 토큰: sendMulticastMessage 사용
-                        BatchResponse response = fcmMessagingService.sendMulticastMessage(tokens, messageRequest);
+                        BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
                         notificationsSent += response.getSuccessCount();
                         notificationsFailed += response.getFailureCount();
-                        log.debug("[Streak Reminder] Sent multicast notification to user: {} - Success: {}, Failed: {}",
+                        log.debug("[Optimal Timing Reminder] Multicast to user: {} - Success: {}, Failed: {}",
                                 userId, response.getSuccessCount(), response.getFailureCount());
                     }
                 } catch (Exception e) {
                     notificationsFailed++;
-                    log.error("[Streak Reminder] Failed to send notification to user: {}", userId, e);
+                    log.error("[Optimal Timing Reminder] Failed to send notification to user: {}", userId, e);
                 }
             }
 
             Instant endTime = Instant.now();
-            long durationMillis = java.time.Duration.between(startTime, endTime).toMillis();
+            long durationMillis = Duration.between(startTime, endTime).toMillis();
 
-            log.info("[Streak Reminder] Completed. Total Active Users: {}, Users Without Completion: {}, " +
-                    "Users With Tokens: {}, Notifications Sent: {}, Failed: {}, Duration: {}ms",
-                    totalActiveUsers, usersWithoutCompletion, usersWithTokens,
+            log.info("[Optimal Timing Reminder] Completed. Candidates: {}, Without Completion: {}, " +
+                            "With Tokens: {}, Sent: {}, Failed: {}, Duration: {}ms",
+                    candidateUsers, usersWithoutCompletion, usersWithTokens,
                     notificationsSent, notificationsFailed, durationMillis);
 
         } catch (Exception e) {
-            log.error("[Streak Reminder] Critical error during streak reminder. " +
-                    "Active Users: {}, Without Completion: {}, With Tokens: {}, Sent: {}, Failed: {}",
-                    totalActiveUsers, usersWithoutCompletion, usersWithTokens,
+            log.error("[Optimal Timing Reminder] Critical error. " +
+                            "Candidates: {}, Without Completion: {}, With Tokens: {}, Sent: {}, Failed: {}",
+                    candidateUsers, usersWithoutCompletion, usersWithTokens,
                     notificationsSent, notificationsFailed, e);
+        }
+    }
+
+    /**
+     * 사용자의 스트릭 상태를 분석하여 적절한 메시지 타입을 결정합니다.
+     *
+     * @param report 사용자 학습 리포트
+     * @return 적절한 StreakReminderMessage 타입
+     */
+    private StreakReminderMessage determineMessageType(UserStudyReport report) {
+        int currentStreak = report.getCurrentStreak();
+
+        // 마일스톤 직전 (예: 6일 -> 내일 7일 마일스톤)
+        if (MILESTONE_APPROACHING_DAYS.contains(currentStreak)) {
+            return StreakReminderMessage.MILESTONE_APPROACHING;
+        }
+
+        // 긴 스트릭 (7일 이상)
+        if (currentStreak >= 7) {
+            return StreakReminderMessage.LONG_STREAK_REMINDER;
+        }
+
+        // 일반 리마인더
+        return StreakReminderMessage.REGULAR_REMINDER;
+    }
+
+    /**
+     * FcmToken 리스트에서 사용자의 선호 언어를 결정합니다.
+     * 첫 번째 토큰의 countryCode를 기반으로 LanguageCode로 변환합니다.
+     *
+     * @param tokens 사용자의 FCM 토큰 리스트
+     * @return 결정된 LanguageCode (기본값: EN)
+     */
+    private LanguageCode determineLanguageFromTokens(List<FcmToken> tokens) {
+        if (tokens.isEmpty()) {
+            return LanguageCode.EN;
+        }
+
+        // 첫 번째 토큰의 countryCode 사용
+        CountryCode countryCode = tokens.get(0).getCountryCode();
+        return convertCountryCodeToLanguageCode(countryCode);
+    }
+
+    /**
+     * CountryCode를 LanguageCode로 변환합니다.
+     *
+     * @param countryCode 국가 코드
+     * @return 변환된 LanguageCode (기본값: EN)
+     */
+    private LanguageCode convertCountryCodeToLanguageCode(CountryCode countryCode) {
+        if (countryCode == null) {
+            return LanguageCode.EN;
+        }
+
+        switch (countryCode) {
+            case KR:
+                return LanguageCode.KO;
+            case JP:
+                return LanguageCode.JA;
+            case US:
+            default:
+                return LanguageCode.EN;
         }
     }
 }
