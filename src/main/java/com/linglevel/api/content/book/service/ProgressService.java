@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -31,6 +33,7 @@ public class ProgressService {
     private final ProgressCalculationService progressCalculationService;
     private final ReadingSessionService readingSessionService;
     private final StreakService streakService;
+    private final com.linglevel.api.content.book.repository.ChapterRepository chapterRepository;
 
 
     @Transactional
@@ -65,45 +68,80 @@ public class ProgressService {
         bookProgress.setChapterId(chapter.getId()); // 역추산된 chapter ID
         bookProgress.setChunkId(request.getChunkId());
         bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
-
-        // [V2_CORE] V2 필드: 정규화된 진행률 계산
-        long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
-            chapter.getId(), chunk.getDifficultyLevel()
-        );
-        double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-            chunk.getChunkNumber(), totalChunks
-        );
-
-        bookProgress.setNormalizedProgress(normalizedProgress);
         bookProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
-        // max 진도 업데이트 로직 변경
+        // [V3_CHAPTER_BASED] 챕터별 진행률 계산
+        long totalChunksInChapter = chunkRepository.countByChapterIdAndDifficultyLevel(
+            chapter.getId(), chunk.getDifficultyLevel()
+        );
+        double chapterProgressPercentage = totalChunksInChapter > 0
+            ? (chunk.getChunkNumber() * 100.0 / totalChunksInChapter)
+            : 0.0;
+
+        // 챕터 진행률 배열 초기화 (null 체크)
+        if (bookProgress.getChapterProgresses() == null) {
+            bookProgress.setChapterProgresses(new ArrayList<>());
+        }
+
+        // 현재 챕터의 진행률 업데이트 (배열 구조)
+        updateOrAddChapterProgress(bookProgress, chapter.getChapterNumber(), chapterProgressPercentage, false, null);
+
+        // 책 전체 진행률 = 완료된 챕터 수 / 전체 챕터 수
+        Integer totalChapters = chapterRepository.countByBookId(bookId);
+        long completedCount = getCompletedChapterCount(bookProgress);
+        double bookProgress_normalizedProgress = totalChapters > 0
+            ? (completedCount * 100.0 / totalChapters)
+            : 0.0;
+
+        bookProgress.setNormalizedProgress(bookProgress_normalizedProgress);
+
+        // max 진도 업데이트 (현재 읽고 있는 챕터 번호 기준)
         Integer currentChapterNum = chapter.getChapterNumber();
         Integer maxChapterNum = bookProgress.getMaxReadChapterNumber();
 
         if (maxChapterNum == null || currentChapterNum > maxChapterNum) {
-            // 새로운 높은 챕터로 이동한 경우, max 값을 현재 값으로 덮어쓴다.
             bookProgress.setMaxReadChapterNumber(currentChapterNum);
-            bookProgress.setMaxNormalizedProgress(normalizedProgress);
-        } else if (currentChapterNum.equals(maxChapterNum)) {
-            // 가장 높은 챕터 내에서 진행률이 증가한 경우, max 값을 갱신한다.
-            if (progressCalculationService.shouldUpdateMaxProgress(
-                bookProgress.getMaxNormalizedProgress(), normalizedProgress)) {
-                bookProgress.setMaxNormalizedProgress(normalizedProgress);
-            }
         }
 
-        // 스트릭 검사 및 완료 처리 로직
+        // maxNormalizedProgress는 완료된 챕터 기반으로 설정
+        bookProgress.setMaxNormalizedProgress(bookProgress_normalizedProgress);
+
+        // 챕터 완료 및 스트릭 검사 로직
         boolean streakUpdated = false;
-        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId)) {
-            // 첫 완료 시에만 isCompleted와 completedAt 함께 설정
-            if (bookProgress.getCompletedAt() == null) {
+        if (readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId)) {
+            // 1. 현재 청크가 챕터의 마지막 청크인지 확인
+            boolean isChapterCompleted = isLastChunkInChapter(chunk);
+
+            if (isChapterCompleted) {
+                // 챕터 완료 여부 확인 (배열에서 찾기)
+                BookProgress.ChapterProgressInfo existingProgress = findChapterProgress(bookProgress, chapter.getChapterNumber());
+                boolean isFirstCompletion = existingProgress == null || !Boolean.TRUE.equals(existingProgress.getIsCompleted());
+
+                // 챕터 진행률을 100%로 설정하고 완료 처리
+                updateOrAddChapterProgress(
+                    bookProgress,
+                    chapter.getChapterNumber(),
+                    100.0,
+                    true,
+                    isFirstCompletion ? java.time.Instant.now() : existingProgress.getCompletedAt()
+                );
+
+                log.info("Chapter {} completed for book {} (first completion: {})",
+                    chapter.getChapterNumber(), bookId, isFirstCompletion);
+
+                streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.BOOK, bookId));
+                streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, bookId);
+            }
+
+            // 3. 모든 챕터가 완료되었는지 확인 (책 전체 완료 체크)
+            boolean allChaptersCompleted = getCompletedChapterCount(bookProgress) >= totalChapters;
+
+            // 4. 책 전체 완료 시 isCompleted 설정
+            if (allChaptersCompleted && bookProgress.getCompletedAt() == null) {
                 bookProgress.setIsCompleted(true);
                 bookProgress.setCompletedAt(java.time.Instant.now());
             }
 
-            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.BOOK, bookId));
-            streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, bookId);
             readingSessionService.deleteReadingSession(userId);
         }
 
@@ -112,11 +150,70 @@ public class ProgressService {
         return convertToProgressResponse(bookProgress, streakUpdated);
     }
 
-    private boolean isLastChunk(Chunk chunk) {
+    /**
+     * 현재 청크가 챕터의 마지막 청크인지 확인
+     */
+    private boolean isLastChunkInChapter(Chunk chunk) {
         long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
             chunk.getChapterId(), chunk.getDifficultyLevel()
         );
         return chunk.getChunkNumber() >= totalChunks;
+    }
+
+    /**
+     * 챕터 진행률 정보 찾기
+     */
+    private BookProgress.ChapterProgressInfo findChapterProgress(BookProgress bookProgress, Integer chapterNumber) {
+        if (bookProgress.getChapterProgresses() == null) {
+            return null;
+        }
+        return bookProgress.getChapterProgresses().stream()
+            .filter(cp -> chapterNumber.equals(cp.getChapterNumber()))
+            .findFirst()
+            .orElse(null);
+    }
+
+    /**
+     * 챕터 진행률 업데이트 또는 추가
+     */
+    private void updateOrAddChapterProgress(
+        BookProgress bookProgress,
+        Integer chapterNumber,
+        Double progressPercentage,
+        Boolean isCompleted,
+        java.time.Instant completedAt
+    ) {
+        BookProgress.ChapterProgressInfo existing = findChapterProgress(bookProgress, chapterNumber);
+
+        if (existing != null) {
+            // 기존 항목 업데이트
+            existing.setProgressPercentage(progressPercentage);
+            existing.setIsCompleted(isCompleted);
+            if (completedAt != null) {
+                existing.setCompletedAt(completedAt);
+            }
+        } else {
+            // 새 항목 추가
+            BookProgress.ChapterProgressInfo newProgress = BookProgress.ChapterProgressInfo.builder()
+                .chapterNumber(chapterNumber)
+                .progressPercentage(progressPercentage)
+                .isCompleted(isCompleted)
+                .completedAt(completedAt)
+                .build();
+            bookProgress.getChapterProgresses().add(newProgress);
+        }
+    }
+
+    /**
+     * 완료된 챕터 수 계산
+     */
+    private long getCompletedChapterCount(BookProgress bookProgress) {
+        if (bookProgress.getChapterProgresses() == null) {
+            return 0;
+        }
+        return bookProgress.getChapterProgresses().stream()
+            .filter(cp -> Boolean.TRUE.equals(cp.getIsCompleted()))
+            .count();
     }
 
 
@@ -181,25 +278,29 @@ public class ProgressService {
         // [DTO_MAPPING] chunk에서 chunkNumber 조회
         Chunk chunk = chunkService.findById(progress.getChunkId());
 
-        // [FALLBACK] V2 필드가 없으면 동적 계산 (기존 데이터 대응)
-        if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
-            log.info("V2 fields missing for BookProgress {}, calculating lazily", progress.getId());
+        // [FALLBACK] V3 챕터 기반 진행률 계산 (배열 구조)
+        if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null
+            || progress.getChapterProgresses() == null) {
+            log.info("V3 chapter-based fields missing for BookProgress {}, calculating lazily", progress.getId());
 
-            // 난이도별 전체 청크 수 조회
-            long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
-                chunk.getChapterId(), chunk.getDifficultyLevel()
-            );
-            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-                chunk.getChunkNumber(), totalChunks
-            );
+            // 챕터 기반 진행률 계산
+            Integer totalChapters = chapterRepository.countByBookId(progress.getBookId());
+            long completedCount = getCompletedChapterCount(progress);
+            double chapterBasedProgress = totalChapters > 0
+                ? (completedCount * 100.0 / totalChapters)
+                : 0.0;
 
-            // Lazy migration: V2 필드 저장
-            progress.setNormalizedProgress(normalizedProgress);
-            progress.setMaxNormalizedProgress(normalizedProgress);
+            // Lazy migration: V3 필드 저장
+            progress.setNormalizedProgress(chapterBasedProgress);
+            progress.setMaxNormalizedProgress(chapterBasedProgress);
             progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
+            if (progress.getChapterProgresses() == null) {
+                progress.setChapterProgresses(new ArrayList<>());
+            }
+
             bookProgressRepository.save(progress);
-            log.info("Lazy migration completed for BookProgress {}", progress.getId());
+            log.info("Lazy migration to V3 chapter-based progress (array structure) completed for BookProgress {}", progress.getId());
         }
 
         return ProgressResponse.builder()
