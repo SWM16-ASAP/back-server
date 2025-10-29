@@ -106,40 +106,35 @@ public class ProgressService {
         // maxNormalizedProgress는 완료된 챕터 기반으로 설정
         bookProgress.setMaxNormalizedProgress(bookProgress_normalizedProgress);
 
-        // 챕터 완료 및 스트릭 검사 로직
+        // 스트릭 검사 및 완료 처리 로직
         boolean streakUpdated = false;
-        if (readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId)) {
-            // 1. 현재 청크가 챕터의 마지막 청크인지 확인
-            boolean isChapterCompleted = isLastChunkInChapter(chunk);
+        if (isLastChunkInChapter(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, bookId)) {
+            // 1. 챕터 완료 처리
+            BookProgress.ChapterProgressInfo existingProgress = findChapterProgress(bookProgress, chapter.getChapterNumber());
+            boolean isFirstCompletion = existingProgress == null || !Boolean.TRUE.equals(existingProgress.getIsCompleted());
 
-            if (isChapterCompleted) {
-                // 챕터 완료 여부 확인 (배열에서 찾기)
-                BookProgress.ChapterProgressInfo existingProgress = findChapterProgress(bookProgress, chapter.getChapterNumber());
-                boolean isFirstCompletion = existingProgress == null || !Boolean.TRUE.equals(existingProgress.getIsCompleted());
+            // 챕터 진행률을 100%로 설정하고 완료 처리
+            updateOrAddChapterProgress(
+                bookProgress,
+                chapter.getChapterNumber(),
+                100.0,
+                true,
+                isFirstCompletion ? java.time.Instant.now() : existingProgress.getCompletedAt()
+            );
 
-                // 챕터 진행률을 100%로 설정하고 완료 처리
-                updateOrAddChapterProgress(
-                    bookProgress,
-                    chapter.getChapterNumber(),
-                    100.0,
-                    true,
-                    isFirstCompletion ? java.time.Instant.now() : existingProgress.getCompletedAt()
-                );
+            log.info("Chapter {} completed for book {} (first completion: {})",
+                chapter.getChapterNumber(), bookId, isFirstCompletion);
 
-                log.info("Chapter {} completed for book {} (first completion: {})",
-                    chapter.getChapterNumber(), bookId, isFirstCompletion);
+            // 2. 스트릭 업데이트 (복습도 포함하여 항상 호출)
+            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.BOOK, bookId));
+            streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, bookId);
 
-                streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.BOOK, bookId));
-                streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, bookId);
-            }
-
-            // 3. 모든 챕터가 완료되었는지 확인 (책 전체 완료 체크)
+            // 3. 책 전체 완료 확인 (모든 챕터 완료 시)
             boolean allChaptersCompleted = getCompletedChapterCount(bookProgress) >= totalChapters;
-
-            // 4. 책 전체 완료 시 isCompleted 설정
             if (allChaptersCompleted && bookProgress.getCompletedAt() == null) {
                 bookProgress.setIsCompleted(true);
                 bookProgress.setCompletedAt(java.time.Instant.now());
+                log.info("Book {} fully completed (all {} chapters) by user {}", bookId, totalChapters, userId);
             }
 
             readingSessionService.deleteReadingSession(userId);
