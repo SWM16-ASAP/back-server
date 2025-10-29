@@ -18,6 +18,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "customContentChunks")
+@CompoundIndexes({
+    @CompoundIndex(name = "custom_content_difficulty_chapter_chunk_idx", def = "{'customContentId': 1, 'difficultyLevel': 1, 'chapterNum': 1, 'chunkNum': 1}"),
+    @CompoundIndex(name = "user_deleted_created_idx", def = "{'userId': 1, 'isDeleted': 1, 'createdAt': -1}")
+})
 public class CustomContentChunk {
     
     @Id
