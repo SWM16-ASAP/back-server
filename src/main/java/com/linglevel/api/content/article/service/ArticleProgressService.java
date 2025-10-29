@@ -48,6 +48,9 @@ public class ArticleProgressService {
         ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
                 .orElse(new ArticleProgress());
 
+        // [MIGRATION] V2 진행률 필드 마이그레이션
+        ensureMigrated(articleProgress, chunk);
+
         // Null 체크
         if (chunk.getChunkNumber() == null) {
             throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
@@ -99,6 +102,37 @@ public class ArticleProgressService {
             chunk.getArticleId(), chunk.getDifficultyLevel()
         );
         return chunk.getChunkNumber() >= totalChunks;
+    }
+
+    /**
+     * V2 마이그레이션 보장
+     * updateProgress 시점에 한 번만 실행
+     */
+    private void ensureMigrated(ArticleProgress progress, ArticleChunk chunk) {
+        boolean needsMigration = false;
+
+        // V2 필드 초기화
+        if (progress.getNormalizedProgress() == null) {
+            long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
+                chunk.getArticleId(), chunk.getDifficultyLevel()
+            );
+            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
+                chunk.getChunkNumber(), totalChunks
+            );
+            progress.setNormalizedProgress(normalizedProgress);
+            progress.setMaxNormalizedProgress(normalizedProgress);
+            needsMigration = true;
+        }
+
+        if (progress.getCurrentDifficultyLevel() == null) {
+            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+            needsMigration = true;
+        }
+
+        if (needsMigration) {
+            log.info("V2 migration completed for ArticleProgress id={}, userId={}",
+                progress.getId(), progress.getUserId());
+        }
     }
 
 
@@ -155,31 +189,10 @@ public class ArticleProgressService {
         // [DTO_MAPPING] chunk에서 chunkNumber 조회
         ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
 
-        // [FALLBACK] V2 필드가 없으면 동적 계산 (기존 데이터 대응)
+        // [SAFETY] 마이그레이션이 안 되어 있는 경우 경고 로그
         if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
-            log.info("V2 fields missing for ArticleProgress {}, calculating lazily", progress.getId());
-
-            // 난이도별 전체 청크 수 조회
-            long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
-                chunk.getArticleId(), chunk.getDifficultyLevel()
-            );
-            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-                chunk.getChunkNumber(), totalChunks
-            );
-
-            // Lazy migration: V2 필드 저장
-            progress.setNormalizedProgress(normalizedProgress);
-            progress.setMaxNormalizedProgress(normalizedProgress);
-            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
-
-            // 완료 조건 재계산
-            boolean isCompleted = progressCalculationService.isCompleted(normalizedProgress);
-            progress.setIsCompleted(progressCalculationService.updateCompletedFlag(
-                progress.getIsCompleted(), isCompleted
-            ));
-
-            articleProgressRepository.save(progress);
-            log.info("Lazy migration completed for ArticleProgress {}", progress.getId());
+            log.warn("ArticleProgress {} not migrated yet - this should only happen on read-only access",
+                progress.getId());
         }
 
         return ArticleProgressResponse.builder()

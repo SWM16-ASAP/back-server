@@ -8,6 +8,7 @@ import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
+import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
@@ -33,7 +34,7 @@ public class ProgressService {
     private final ProgressCalculationService progressCalculationService;
     private final ReadingSessionService readingSessionService;
     private final StreakService streakService;
-    private final com.linglevel.api.content.book.repository.ChapterRepository chapterRepository;
+    private final ChapterRepository chapterRepository;
 
 
     @Transactional
@@ -57,6 +58,8 @@ public class ProgressService {
 
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
                 .orElse(new BookProgress());
+
+        ensureMigrated(bookProgress);
 
         // Null 체크
         if (chapter.getChapterNumber() == null || chunk.getChunkNumber() == null) {
@@ -211,6 +214,25 @@ public class ProgressService {
             .count();
     }
 
+    /**
+     * V3 마이그레이션 보장
+     * updateProgress 시점에 한 번만 실행
+     */
+    private void ensureMigrated(BookProgress progress) {
+        boolean needsMigration = false;
+
+        // V3 필드 초기화
+        if (progress.getChapterProgresses() == null) {
+            progress.setChapterProgresses(new ArrayList<>());
+            needsMigration = true;
+        }
+
+        if (needsMigration) {
+            log.info("V3 migration completed for BookProgress id={}, userId={}",
+                progress.getId(), progress.getUserId());
+        }
+    }
+
 
     @Transactional(readOnly = true)
     public ProgressResponse getProgress(String bookId, String userId) {
@@ -273,29 +295,10 @@ public class ProgressService {
         // [DTO_MAPPING] chunk에서 chunkNumber 조회
         Chunk chunk = chunkService.findById(progress.getChunkId());
 
-        // [FALLBACK] V3 챕터 기반 진행률 계산 (배열 구조)
-        if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null
-            || progress.getChapterProgresses() == null) {
-            log.info("V3 chapter-based fields missing for BookProgress {}, calculating lazily", progress.getId());
-
-            // 챕터 기반 진행률 계산
-            Integer totalChapters = chapterRepository.countByBookId(progress.getBookId());
-            long completedCount = getCompletedChapterCount(progress);
-            double chapterBasedProgress = totalChapters > 0
-                ? (completedCount * 100.0 / totalChapters)
-                : 0.0;
-
-            // Lazy migration: V3 필드 저장
-            progress.setNormalizedProgress(chapterBasedProgress);
-            progress.setMaxNormalizedProgress(chapterBasedProgress);
-            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
-
-            if (progress.getChapterProgresses() == null) {
-                progress.setChapterProgresses(new ArrayList<>());
-            }
-
-            bookProgressRepository.save(progress);
-            log.info("Lazy migration to V3 chapter-based progress (array structure) completed for BookProgress {}", progress.getId());
+        // [SAFETY] 마이그레이션이 안 되어 있는 경우 경고 로그
+        if (progress.getChapterProgresses() == null) {
+            log.warn("BookProgress {} not migrated yet - this should only happen on read-only access",
+                progress.getId());
         }
 
         return ProgressResponse.builder()
