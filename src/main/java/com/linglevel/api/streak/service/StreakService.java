@@ -77,6 +77,13 @@ public class StreakService {
         long totalStudyDays = dailyCompletionRepository.countByUserId(userId);
         long totalContentsRead = report.getCompletedContentIds() != null ? report.getCompletedContentIds().size() : 0;
 
+        // Calculate expected rewards for today (if not completed yet)
+        RewardInfo expectedRewards = null;
+        if (todayStatus != StreakStatus.COMPLETED) {
+            int expectedStreak = report.getCurrentStreak() + 1;
+            expectedRewards = calculateExpectedRewards(expectedStreak);
+        }
+
         return StreakResponse.builder()
                 .currentStreak(report.getCurrentStreak())
                 .todayStatus(todayStatus)
@@ -89,6 +96,7 @@ public class StreakService {
                 .totalReadingTimeSeconds(report.getTotalReadingTimeSeconds())
                 .percentile(calculatePercentile(report))
                 .encouragementMessage(getEncouragementMessage(report.getCurrentStreak(), languageCode))
+                .expectedRewards(expectedRewards)
                 .build();
     }
 

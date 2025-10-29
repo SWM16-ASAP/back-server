@@ -44,4 +44,7 @@ public class StreakResponse {
 
     @Schema(description = "격려 메시지")
     private EncouragementMessage encouragementMessage;
+
+    @Schema(description = "오늘의 예상 보상 정보")
+    private RewardInfo expectedRewards;
 }
