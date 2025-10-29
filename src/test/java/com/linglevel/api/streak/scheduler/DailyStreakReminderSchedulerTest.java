@@ -99,8 +99,12 @@ class DailyStreakReminderSchedulerTest {
         UserStudyReport completedUser = createReport("user1", 5);
         UserStudyReport notCompletedUser = createReport("user2", 10);
 
+        // Day 1 window만 사용자 반환, 나머지는 빈 리스트
         when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
-                .thenReturn(List.of(completedUser, notCompletedUser));
+                .thenReturn(List.of(completedUser, notCompletedUser))  // Day 1
+                .thenReturn(new ArrayList<>())  // Day 2
+                .thenReturn(new ArrayList<>())  // Day 3
+                .thenReturn(new ArrayList<>());  // Day 4
 
         when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(true);
         when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user2", today)).thenReturn(false);
@@ -125,7 +129,10 @@ class DailyStreakReminderSchedulerTest {
         UserStudyReport report = createReport("user1", 5);
 
         when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
-                .thenReturn(List.of(report));
+                .thenReturn(List.of(report))
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>());
         when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
         when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(new ArrayList<>());
 
@@ -144,7 +151,10 @@ class DailyStreakReminderSchedulerTest {
         UserStudyReport report = createReport("user1", 5);
 
         when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
-                .thenReturn(List.of(report));
+                .thenReturn(List.of(report))
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>());
         when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
         when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
                 .thenReturn(List.of(createFcmToken("user1", "token123")));
@@ -170,7 +180,10 @@ class DailyStreakReminderSchedulerTest {
         );
 
         when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
-                .thenReturn(List.of(report));
+                .thenReturn(List.of(report))
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>());
         when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
         when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(tokens);
 
@@ -200,7 +213,10 @@ class DailyStreakReminderSchedulerTest {
         );
 
         when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
-                .thenReturn(reports);
+                .thenReturn(reports)
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>());
         when(dailyCompletionRepository.existsByUserIdAndCompletionDate(anyString(), any(LocalDate.class)))
                 .thenReturn(false);
 
@@ -230,7 +246,10 @@ class DailyStreakReminderSchedulerTest {
         );
 
         when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
-                .thenReturn(reports);
+                .thenReturn(reports)
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>());
         when(dailyCompletionRepository.existsByUserIdAndCompletionDate(anyString(), any(LocalDate.class)))
                 .thenReturn(false);
 
@@ -262,13 +281,16 @@ class DailyStreakReminderSchedulerTest {
     void sendMessagesInAppropriateLanguageBasedOnCountryCode() {
         // Given
         List<UserStudyReport> reports = List.of(
-                createReport("koreanUser", 5),
-                createReport("japaneseUser", 7),
-                createReport("usUser", 10)
+                createReportWithLastLearning("koreanUser", 5, Instant.now().minus(java.time.Duration.ofHours(23).plusMinutes(30))),
+                createReportWithLastLearning("japaneseUser", 7, Instant.now().minus(java.time.Duration.ofHours(23).plusMinutes(30))),
+                createReportWithLastLearning("usUser", 10, Instant.now().minus(java.time.Duration.ofHours(23).plusMinutes(30)))
         );
 
         when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
-                .thenReturn(reports);
+                .thenReturn(reports)
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>())
+                .thenReturn(new ArrayList<>());
         when(dailyCompletionRepository.existsByUserIdAndCompletionDate(anyString(), any(LocalDate.class)))
                 .thenReturn(false);
 
@@ -290,12 +312,218 @@ class DailyStreakReminderSchedulerTest {
         verify(fcmMessagingService, times(3)).sendMessage(anyString(), any(FcmMessageRequest.class));
     }
 
+    @Test
+    @DisplayName("Day 2 복귀 메시지를 전송한다 (47-48시간)")
+    void sendComebackDay2Message() {
+        // Given - 47시간 30분 전에 마지막 학습
+        UserStudyReport report = createReportWithLastLearning(
+                "user1", 5, Instant.now().minus(java.time.Duration.ofHours(47).plusMinutes(30))
+        );
+
+        // Day 2 window에만 사용자 반환
+        when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
+                .thenReturn(new ArrayList<>())  // Day 1
+                .thenReturn(List.of(report))    // Day 2
+                .thenReturn(new ArrayList<>())  // Day 3
+                .thenReturn(new ArrayList<>());  // Day 4
+        when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today))
+                .thenReturn(false);
+        when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
+                .thenReturn(List.of(createFcmToken("user1", "token1")));
+        when(fcmMessagingService.sendMessage(anyString(), any(FcmMessageRequest.class)))
+                .thenReturn("message-id");
+
+        // When
+        scheduler.sendOptimalTimingStreakReminders();
+
+        // Then
+        verify(fcmMessagingService, times(1)).sendMessage(anyString(), any(FcmMessageRequest.class));
+    }
+
+    @Test
+    @DisplayName("Day 3 복귀 메시지를 전송한다 (71-72시간)")
+    void sendComebackDay3Message() {
+        // Given - 71시간 30분 전에 마지막 학습
+        UserStudyReport report = createReportWithLastLearning(
+                "user1", 10, Instant.now().minus(java.time.Duration.ofHours(71).plusMinutes(30))
+        );
+
+        // Day 3 window에만 사용자 반환
+        when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
+                .thenReturn(new ArrayList<>())  // Day 1
+                .thenReturn(new ArrayList<>())  // Day 2
+                .thenReturn(List.of(report))    // Day 3
+                .thenReturn(new ArrayList<>());  // Day 4
+        when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today))
+                .thenReturn(false);
+        when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
+                .thenReturn(List.of(createFcmToken("user1", "token1")));
+        when(fcmMessagingService.sendMessage(anyString(), any(FcmMessageRequest.class)))
+                .thenReturn("message-id");
+
+        // When
+        scheduler.sendOptimalTimingStreakReminders();
+
+        // Then
+        verify(fcmMessagingService, times(1)).sendMessage(anyString(), any(FcmMessageRequest.class));
+    }
+
+    @Test
+    @DisplayName("Day 4 마지막 복귀 메시지를 전송한다 (95-96시간)")
+    void sendComebackDay4Message() {
+        // Given - 95시간 30분 전에 마지막 학습
+        UserStudyReport report = createReportWithLastLearning(
+                "user1", 15, Instant.now().minus(java.time.Duration.ofHours(95).plusMinutes(30))
+        );
+
+        // Day 4 window에만 사용자 반환
+        when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
+                .thenReturn(new ArrayList<>())  // Day 1
+                .thenReturn(new ArrayList<>())  // Day 2
+                .thenReturn(new ArrayList<>())  // Day 3
+                .thenReturn(List.of(report));   // Day 4
+        when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today))
+                .thenReturn(false);
+        when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
+                .thenReturn(List.of(createFcmToken("user1", "token1")));
+        when(fcmMessagingService.sendMessage(anyString(), any(FcmMessageRequest.class)))
+                .thenReturn("message-id");
+
+        // When
+        scheduler.sendOptimalTimingStreakReminders();
+
+        // Then
+        verify(fcmMessagingService, times(1)).sendMessage(anyString(), any(FcmMessageRequest.class));
+    }
+
+    @Test
+    @DisplayName("스트릭이 깨진 사용자에게 Day 1 STREAK_LOST 메시지를 전송한다 (23-24시간)")
+    void sendStreakLostDay1Message() {
+        // Given - 스트릭이 0으로 초기화된 사용자, 23시간 30분 전 마지막 학습
+        UserStudyReport report = createReportWithLastLearning(
+                "user1", 0, Instant.now().minus(java.time.Duration.ofHours(23).plusMinutes(30))
+        );
+
+        // Day 1 window에만 사용자 반환
+        when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
+                .thenReturn(List.of(report))    // Day 1
+                .thenReturn(new ArrayList<>())  // Day 2
+                .thenReturn(new ArrayList<>())  // Day 3
+                .thenReturn(new ArrayList<>());  // Day 4
+        when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today))
+                .thenReturn(false);
+        when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
+                .thenReturn(List.of(createFcmToken("user1", "token1")));
+        when(fcmMessagingService.sendMessage(anyString(), any(FcmMessageRequest.class)))
+                .thenReturn("message-id");
+
+        // When
+        scheduler.sendOptimalTimingStreakReminders();
+
+        // Then
+        verify(fcmMessagingService, times(1)).sendMessage(anyString(), any(FcmMessageRequest.class));
+    }
+
+    @Test
+    @DisplayName("스트릭이 깨진 사용자에게 Day 2 STREAK_LOST 메시지를 전송한다 (47-48시간)")
+    void sendStreakLostDay2Message() {
+        // Given - 스트릭이 0으로 초기화된 사용자, 47시간 30분 전 마지막 학습
+        UserStudyReport report = createReportWithLastLearning(
+                "user1", 0, Instant.now().minus(java.time.Duration.ofHours(47).plusMinutes(30))
+        );
+
+        // Day 2 window에만 사용자 반환
+        when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
+                .thenReturn(new ArrayList<>())  // Day 1
+                .thenReturn(List.of(report))    // Day 2
+                .thenReturn(new ArrayList<>())  // Day 3
+                .thenReturn(new ArrayList<>());  // Day 4
+        when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today))
+                .thenReturn(false);
+        when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
+                .thenReturn(List.of(createFcmToken("user1", "token1")));
+        when(fcmMessagingService.sendMessage(anyString(), any(FcmMessageRequest.class)))
+                .thenReturn("message-id");
+
+        // When
+        scheduler.sendOptimalTimingStreakReminders();
+
+        // Then
+        verify(fcmMessagingService, times(1)).sendMessage(anyString(), any(FcmMessageRequest.class));
+    }
+
+    @Test
+    @DisplayName("스트릭이 깨진 사용자에게 Day 3 STREAK_LOST 메시지를 전송한다 (71-72시간)")
+    void sendStreakLostDay3Message() {
+        // Given - 스트릭이 0으로 초기화된 사용자, 71시간 30분 전 마지막 학습
+        UserStudyReport report = createReportWithLastLearning(
+                "user1", 0, Instant.now().minus(java.time.Duration.ofHours(71).plusMinutes(30))
+        );
+
+        // Day 3 window에만 사용자 반환
+        when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
+                .thenReturn(new ArrayList<>())  // Day 1
+                .thenReturn(new ArrayList<>())  // Day 2
+                .thenReturn(List.of(report))    // Day 3
+                .thenReturn(new ArrayList<>());  // Day 4
+        when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today))
+                .thenReturn(false);
+        when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
+                .thenReturn(List.of(createFcmToken("user1", "token1")));
+        when(fcmMessagingService.sendMessage(anyString(), any(FcmMessageRequest.class)))
+                .thenReturn("message-id");
+
+        // When
+        scheduler.sendOptimalTimingStreakReminders();
+
+        // Then
+        verify(fcmMessagingService, times(1)).sendMessage(anyString(), any(FcmMessageRequest.class));
+    }
+
+    @Test
+    @DisplayName("스트릭이 깨진 사용자에게 Day 4 STREAK_LOST 메시지를 전송한다 (95-96시간)")
+    void sendStreakLostDay4Message() {
+        // Given - 스트릭이 0으로 초기화된 사용자, 95시간 30분 전 마지막 학습
+        UserStudyReport report = createReportWithLastLearning(
+                "user1", 0, Instant.now().minus(java.time.Duration.ofHours(95).plusMinutes(30))
+        );
+
+        // Day 4 window에만 사용자 반환
+        when(userStudyReportRepository.findUsersForOptimalTimingReminder(any(Instant.class), any(Instant.class)))
+                .thenReturn(new ArrayList<>())  // Day 1
+                .thenReturn(new ArrayList<>())  // Day 2
+                .thenReturn(new ArrayList<>())  // Day 3
+                .thenReturn(List.of(report));   // Day 4
+        when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today))
+                .thenReturn(false);
+        when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
+                .thenReturn(List.of(createFcmToken("user1", "token1")));
+        when(fcmMessagingService.sendMessage(anyString(), any(FcmMessageRequest.class)))
+                .thenReturn("message-id");
+
+        // When
+        scheduler.sendOptimalTimingStreakReminders();
+
+        // Then
+        verify(fcmMessagingService, times(1)).sendMessage(anyString(), any(FcmMessageRequest.class));
+    }
+
     // Helper methods
     private UserStudyReport createReport(String userId, int currentStreak) {
         UserStudyReport report = new UserStudyReport();
         report.setUserId(userId);
         report.setCurrentStreak(currentStreak);
         report.setLastCompletionDate(today.minusDays(1));
+        report.setLastLearningTimestamp(Instant.now().minus(java.time.Duration.ofHours(23).plusMinutes(30)));
+        return report;
+    }
+
+    private UserStudyReport createReportWithLastLearning(String userId, int currentStreak, Instant lastLearningTime) {
+        UserStudyReport report = new UserStudyReport();
+        report.setUserId(userId);
+        report.setCurrentStreak(currentStreak);
+        report.setLastCompletionDate(today.minusDays(1));
+        report.setLastLearningTimestamp(lastLearningTime);
         return report;
     }
 

@@ -43,7 +43,13 @@ public class DailyStreakReminderScheduler {
     private static final Set<Integer> MILESTONE_APPROACHING_DAYS = Set.of(2, 6, 13, 29, 49, 99, 364);
 
     /**
-     * 매시간 실행되어 최적 타이밍(23.5시간 후)에 도달한 사용자에게 개인화된 알림 전송
+     * 매시간 실행되어 최적 타이밍에 도달한 사용자에게 개인화된 알림 전송
+     *
+     * 다단계 리마인더 시스템:
+     * - Day 1 (23-24h): 오늘도 학습해요
+     * - Day 2 (47-48h): 어제는 빼먹었지만 오늘이라면?
+     * - Day 3 (71-72h): 다시 돌아와 주세요
+     * - Day 4 (95-96h): 마지막 부탁
      */
     @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
     public void sendOptimalTimingStreakReminders() {
@@ -59,26 +65,36 @@ public class DailyStreakReminderScheduler {
         int notificationsFailed = 0;
 
         try {
-            // 1. 최적 타이밍 사용자 조회 (23~24시간 전에 학습한 사용자)
             Instant now = Instant.now();
-            Instant twentyFourHoursAgo = now.minus(Duration.ofHours(24));
-            Instant twentyThreeHoursAgo = now.minus(Duration.ofHours(23));
 
-            List<UserStudyReport> candidateReports = userStudyReportRepository
-                    .findUsersForOptimalTimingReminder(twentyFourHoursAgo, twentyThreeHoursAgo);
-            candidateUsers = candidateReports.size();
+            // 1. 여러 시간 윈도우에서 사용자 조회
+            List<UserStudyReport> allCandidates = new ArrayList<>();
 
-            log.info("[Optimal Timing Reminder] Found {} users in optimal timing window (23-24h after last learning)",
+            // Day 1: 23-24시간 전 (첫 번째 리마인더)
+            allCandidates.addAll(getUsersInTimeWindow(now, 23, 24));
+
+            // Day 2: 47-48시간 전 (어제 놓침)
+            allCandidates.addAll(getUsersInTimeWindow(now, 47, 48));
+
+            // Day 3: 71-72시간 전 (이틀 연속 놓침)
+            allCandidates.addAll(getUsersInTimeWindow(now, 71, 72));
+
+            // Day 4: 95-96시간 전 (사흘 연속 놓침 - 마지막)
+            allCandidates.addAll(getUsersInTimeWindow(now, 95, 96));
+
+            candidateUsers = allCandidates.size();
+
+            log.info("[Optimal Timing Reminder] Found {} users across all time windows",
                     candidateUsers);
 
-            if (candidateReports.isEmpty()) {
-                log.info("[Optimal Timing Reminder] No users found in optimal timing window. Skipping notification.");
+            if (allCandidates.isEmpty()) {
+                log.info("[Optimal Timing Reminder] No users found in time windows. Skipping notification.");
                 return;
             }
 
             // 2. 오늘 아직 학습하지 않은 사용자 필터링
             List<UserStudyReport> usersToNotify = new ArrayList<>();
-            for (UserStudyReport report : candidateReports) {
+            for (UserStudyReport report : allCandidates) {
                 boolean hasCompletedToday = dailyCompletionRepository
                         .existsByUserIdAndCompletionDate(report.getUserId(), today);
 
@@ -116,11 +132,13 @@ public class DailyStreakReminderScheduler {
                 LanguageCode languageCode = determineLanguageFromTokens(tokens);
 
                 // 3-3. 개인화된 메시지 생성
-                StreakReminderMessage messageType = determineMessageType(report);
+                StreakReminderMessage messageType = determineMessageType(report, now);
                 StreakReminderMessage.Message message = messageType.getRandomMessage(languageCode);
 
                 String title = message.getTitle();
-                String body = String.format(message.getBodyFormat(), report.getCurrentStreak());
+                // 스트릭이 0이면 "새로운 시작"을 표현하기 위해 1로 표시
+                int displayStreak = report.getCurrentStreak() > 0 ? report.getCurrentStreak() : 1;
+                String body = String.format(message.getBodyFormat(), displayStreak);
 
                 FcmMessageRequest messageRequest = FcmMessageRequest.builder()
                         .title(title)
@@ -167,25 +185,101 @@ public class DailyStreakReminderScheduler {
     }
 
     /**
-     * 사용자의 스트릭 상태를 분석하여 적절한 메시지 타입을 결정합니다.
+     * 시간 윈도우 내의 사용자 조회
+     *
+     * @param now 현재 시간
+     * @param hoursAgoStart 시작 시간 (예: 23시간 전)
+     * @param hoursAgoEnd 종료 시간 (예: 24시간 전)
+     * @return 해당 윈도우의 사용자 리스트
+     */
+    private List<UserStudyReport> getUsersInTimeWindow(Instant now, int hoursAgoStart, int hoursAgoEnd) {
+        Instant windowEnd = now.minus(Duration.ofHours(hoursAgoEnd));
+        Instant windowStart = now.minus(Duration.ofHours(hoursAgoStart));
+
+        return userStudyReportRepository.findUsersForOptimalTimingReminder(windowEnd, windowStart);
+    }
+
+    /**
+     * 사용자의 스트릭 상태와 마지막 학습 시간을 분석하여 적절한 메시지 타입을 결정합니다.
+     *
+     * 우선순위:
+     * 1. 스트릭이 깨진 상태 (currentStreak = 0)
+     *    - Day 1 (23-24h): STREAK_LOST_DAY1
+     *    - Day 2 (47-48h): STREAK_LOST_DAY2
+     *    - Day 3 (71-72h): STREAK_LOST_DAY3
+     *    - Day 4 (95-96h): STREAK_LOST_DAY4
+     * 2. 스트릭 유지 중 - 시간별 복귀 유도 (Day 2, 3, 4)
+     * 3. 스트릭 유지 중 - 일반 유지 메시지 (Day 1)
      *
      * @param report 사용자 학습 리포트
+     * @param now 현재 시간
      * @return 적절한 StreakReminderMessage 타입
      */
-    private StreakReminderMessage determineMessageType(UserStudyReport report) {
+    private StreakReminderMessage determineMessageType(UserStudyReport report, Instant now) {
         int currentStreak = report.getCurrentStreak();
+        Instant lastLearning = report.getLastLearningTimestamp();
 
-        // 마일스톤 직전 (예: 6일 -> 내일 7일 마일스톤)
-        if (MILESTONE_APPROACHING_DAYS.contains(currentStreak)) {
-            return StreakReminderMessage.MILESTONE_APPROACHING;
+        // lastLearningTimestamp가 없으면 기본 메시지
+        if (lastLearning == null) {
+            return currentStreak == 0
+                ? StreakReminderMessage.STREAK_LOST_DAY1
+                : StreakReminderMessage.REGULAR_REMINDER;
         }
 
-        // 긴 스트릭 (7일 이상)
-        if (currentStreak >= 7) {
-            return StreakReminderMessage.LONG_STREAK_REMINDER;
+        // 마지막 학습 후 경과 시간 계산
+        long hoursSinceLastLearning = Duration.between(lastLearning, now).toHours();
+
+        // 스트릭이 깨진 경우: 시간별 STREAK_LOST 메시지
+        if (currentStreak == 0) {
+            if (hoursSinceLastLearning >= 95 && hoursSinceLastLearning < 96) {
+                return StreakReminderMessage.STREAK_LOST_DAY4;
+            }
+            if (hoursSinceLastLearning >= 71 && hoursSinceLastLearning < 72) {
+                return StreakReminderMessage.STREAK_LOST_DAY3;
+            }
+            if (hoursSinceLastLearning >= 47 && hoursSinceLastLearning < 48) {
+                return StreakReminderMessage.STREAK_LOST_DAY2;
+            }
+            if (hoursSinceLastLearning >= 23 && hoursSinceLastLearning < 24) {
+                return StreakReminderMessage.STREAK_LOST_DAY1;
+            }
+            // 기본값
+            return StreakReminderMessage.STREAK_LOST_DAY1;
         }
 
-        // 일반 리마인더
+        // 스트릭 유지 중: 시간별 복귀 유도 또는 일반 메시지
+        // Day 4 (95-96h): 마지막 부탁
+        if (hoursSinceLastLearning >= 95 && hoursSinceLastLearning < 96) {
+            return StreakReminderMessage.COMEBACK_DAY4;
+        }
+
+        // Day 3 (71-72h): 다시 돌아와 주세요
+        if (hoursSinceLastLearning >= 71 && hoursSinceLastLearning < 72) {
+            return StreakReminderMessage.COMEBACK_DAY3;
+        }
+
+        // Day 2 (47-48h): 어제는 빼먹었지만 오늘이라면?
+        if (hoursSinceLastLearning >= 47 && hoursSinceLastLearning < 48) {
+            return StreakReminderMessage.COMEBACK_DAY2;
+        }
+
+        // Day 1 (23-24h): 현재 스트릭 상태에 따라 결정
+        if (hoursSinceLastLearning >= 23 && hoursSinceLastLearning < 24) {
+            // 마일스톤 직전 (예: 6일 -> 내일 7일 마일스톤)
+            if (MILESTONE_APPROACHING_DAYS.contains(currentStreak)) {
+                return StreakReminderMessage.MILESTONE_APPROACHING;
+            }
+
+            // 긴 스트릭 (7일 이상)
+            if (currentStreak >= 7) {
+                return StreakReminderMessage.LONG_STREAK_REMINDER;
+            }
+
+            // 일반 리마인더
+            return StreakReminderMessage.REGULAR_REMINDER;
+        }
+
+        // 기본값: 일반 리마인더
         return StreakReminderMessage.REGULAR_REMINDER;
     }
 

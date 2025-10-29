@@ -56,13 +56,94 @@ public enum StreakReminderMessage {
     ),
 
     /**
-     * 시나리오 3: 스트릭이 깨졌을 때
+     * 시나리오 3: 스트릭이 깨진 후 Day 1 (23-24시간) - 즉시 재시작 독려
      */
-    STREAK_LOST(
+    STREAK_LOST_DAY1(
             Map.of(
-                    LanguageCode.KO, List.of(new Message("새로운 시작도 멋져요", "스트릭은 잠시 쉬어가도 괜찮아요. 중요한 건 다시 시작하는 용기! 오늘 1일차부터 다시 시작해 볼까요?")),
-                    LanguageCode.EN, List.of(new Message("A fresh start is great, too!", "It's okay to rest your streak. What matters is the courage to restart! How about starting Day 1 again today?")),
-                    LanguageCode.JA, List.of(new Message("新しいスタートも素敵です！", "ストリークは少し休んでも大丈夫。大切なのは再スタートする勇気です！今日から1日目を始めてみませんか？"))
+                    LanguageCode.KO, List.of(
+                            new Message("새로운 시작!", "스트릭이 끊겼지만 괜찮아요. 오늘부터 다시 시작하면 돼요!"),
+                            new Message("다시 일어설 시간", "넘어졌다면 다시 일어서면 되죠! 오늘 1일차를 시작해 볼까요?"),
+                            new Message("괜찮아요!", "스트릭이 깨졌어도 괜찮아요. 중요한 건 다시 시작하는 용기예요.")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("A fresh start!", "Your streak ended, but that's okay. Let's start again today!"),
+                            new Message("Time to get back up", "If you fall, just get back up! How about starting Day 1 today?"),
+                            new Message("It's okay!", "It's okay your streak ended. What matters is the courage to restart.")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("新しいスタート！", "ストリークが途切れましたが、大丈夫です。今日からまた始めましょう！"),
+                            new Message("立ち上がる時間", "転んだら起き上がればいいんです！今日から1日目を始めてみませんか？"),
+                            new Message("大丈夫です！", "ストリークが途切れても大丈夫。大切なのは再スタートする勇気です。")
+                    )
+            )
+    ),
+
+    /**
+     * 시나리오 3-2: 스트릭이 깨진 후 Day 2 (47-48시간) - 부드러운 복귀 유도
+     */
+    STREAK_LOST_DAY2(
+            Map.of(
+                    LanguageCode.KO, List.of(
+                            new Message("함께 다시 시작해요", "어제 새로 시작하지 못했지만, 오늘이 바로 그날이에요!"),
+                            new Message("기다리고 있어요", "언제든 돌아올 수 있어요. 오늘 작은 한 걸음을 시작해 볼까요?"),
+                            new Message("두 번째 기회", "완벽하지 않아도 괜찮아요. 오늘 다시 도전해 보세요!")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("Let's start together", "You didn't restart yesterday, but today is the day!"),
+                            new Message("We're waiting", "You can come back anytime. How about taking a small step today?"),
+                            new Message("Second chance", "You don't have to be perfect. Try again today!")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("一緒に再スタート", "昨日は始められませんでしたが、今日がその日です！"),
+                            new Message("待っています", "いつでも戻ってこれます。今日、小さな一歩を始めてみませんか？"),
+                            new Message("2度目のチャンス", "完璧でなくても大丈夫。今日また挑戦してみてください！")
+                    )
+            )
+    ),
+
+    /**
+     * 시나리오 3-3: 스트릭이 깨진 후 Day 3 (71-72시간) - 강한 복귀 유도
+     */
+    STREAK_LOST_DAY3(
+            Map.of(
+                    LanguageCode.KO, List.of(
+                            new Message("당신을 기억해요", "그동안 쌓아온 노력이 아깝지 않나요? 오늘 다시 시작해 보세요."),
+                            new Message("아직 늦지 않았어요", "지금 돌아오면 과거의 당신처럼 다시 성장할 수 있어요."),
+                            new Message("마지막 기회일지도", "오늘이 다시 시작하기에 마지막으로 좋은 타이밍일 수 있어요.")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("We remember you", "Don't you miss the effort you've built up? Start again today."),
+                            new Message("It's not too late", "Come back now and you can grow like you used to."),
+                            new Message("Maybe the last chance", "Today might be the last good timing to restart.")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("あなたを覚えています", "これまで積み重ねた努力がもったいなくないですか？今日再スタートしてみてください。"),
+                            new Message("まだ遅くありません", "今戻れば、以前のように成長できます。"),
+                            new Message("最後のチャンスかも", "今日が再スタートするのに最後の良いタイミングかもしれません。")
+                    )
+            )
+    ),
+
+    /**
+     * 시나리오 3-4: 스트릭이 깨진 후 Day 4 (95-96시간) - 최후의 메시지
+     */
+    STREAK_LOST_DAY4(
+            Map.of(
+                    LanguageCode.KO, List.of(
+                            new Message("마지막 인사", "언제든 돌아오고 싶으면 여기 있을게요. 당신의 선택을 응원해요."),
+                            new Message("문은 열려 있어요", "학습은 언제나 여기서 기다리고 있어요. 준비되면 돌아오세요."),
+                            new Message("당신의 페이스로", "서두를 필요 없어요. 준비됐을 때 다시 만나요.")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("Final goodbye", "We'll be here whenever you want to come back. We support your choice."),
+                            new Message("The door is open", "Learning is always waiting here. Come back when you're ready."),
+                            new Message("At your own pace", "No need to rush. See you again when you're ready.")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("最後の挨拶", "戻りたくなったらいつでもここにいます。あなたの選択を応援しています。"),
+                            new Message("ドアは開いています", "学習はいつもここで待っています。準備ができたら戻ってきてください。"),
+                            new Message("自分のペースで", "急ぐ必要はありません。準備ができたらまた会いましょう。")
+                    )
             )
     ),
 
@@ -103,6 +184,75 @@ public enum StreakReminderMessage {
                     LanguageCode.KO, List.of(new Message("마일스톤이 코앞!", "현재 %d일! 하루만 더 하면 특별한 마일스톤을 달성해요!")),
                     LanguageCode.EN, List.of(new Message("Milestone ahead!", "You're at %d days! Just one more day to reach a special milestone!")),
                     LanguageCode.JA, List.of(new Message("マイルストーン目前！", "現在%d日！あと1日で特別なマイルストーンを達成します！"))
+            )
+    ),
+
+    /**
+     * 시나리오 6: 어제 학습 놓침 - 첫 번째 복귀 유도 (Day 2)
+     */
+    COMEBACK_DAY2(
+            Map.of(
+                    LanguageCode.KO, List.of(
+                            new Message("어제는 쉬어갔죠?", "괜찮아요! 오늘 다시 시작하면 %d일 스트릭을 되찾을 수 있어요."),
+                            new Message("오늘이라면 가능해요!", "어제는 빼먹었지만, 오늘 학습하고 %d일 스트릭을 이어가세요!"),
+                            new Message("다시 시작할 시간!", "하루쯤은 괜찮아요. 오늘 학습하고 %d일의 기록을 계속 쌓아가세요.")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("Took a break yesterday?", "That's okay! Start again today and get back to your %d-day streak."),
+                            new Message("Today's your chance!", "You missed yesterday, but today you can continue your %d-day streak!"),
+                            new Message("Time for a fresh start!", "One day off is fine. Study today and keep building on your %d-day record.")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("昨日は休憩しましたか？", "大丈夫です！今日再開すれば、%d日のストリークを取り戻せます。"),
+                            new Message("今日ならできます！", "昨日は休んでしまいましたが、今日学習して%d日のストリークを続けましょう！"),
+                            new Message("再スタートの時間！", "1日くらいは大丈夫。今日学習して%d日の記録を積み重ねていきましょう。")
+                    )
+            )
+    ),
+
+    /**
+     * 시나리오 7: 이틀 연속 놓침 - 두 번째 복귀 유도 (Day 3)
+     */
+    COMEBACK_DAY3(
+            Map.of(
+                    LanguageCode.KO, List.of(
+                            new Message("다시 돌아올 때예요", "%d일이나 쌓은 소중한 기록이 기다리고 있어요. 오늘 다시 시작해 볼까요?"),
+                            new Message("아직 늦지 않았어요!", "지금 돌아오면 %d일의 노력이 헛되지 않아요. 오늘 한번 해보세요!"),
+                            new Message("여기서 멈추긴 아쉬워요", "%d일 동안의 여정이 그리울 거예요. 오늘 다시 시작하는 건 어떨까요?")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("Time to come back", "Your precious %d-day record is waiting. How about starting again today?"),
+                            new Message("It's not too late!", "Come back now and your %d days of effort won't be wasted. Give it a try today!"),
+                            new Message("Too good to stop here", "You'll miss your %d-day journey. Why not restart today?")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("戻ってくる時です", "大切な%d日の記録が待っています。今日再開してみませんか？"),
+                            new Message("まだ遅くありません！", "今戻れば、%d日の努力が無駄になりません。今日やってみましょう！"),
+                            new Message("ここで止めるのはもったいない", "%d日間の旅が恋しくなるでしょう。今日再スタートしませんか？")
+                    )
+            )
+    ),
+
+    /**
+     * 시나리오 8: 사흘 연속 놓침 - 마지막 복귀 유도 (Day 4)
+     */
+    COMEBACK_DAY4(
+            Map.of(
+                    LanguageCode.KO, List.of(
+                            new Message("마지막으로 부탁드려요", "%d일의 추억을 간직하고 새로운 시작을 해보는 건 어떨까요?"),
+                            new Message("언제든 돌아올 수 있어요", "완벽하지 않아도 괜찮아요. %d일의 경험을 바탕으로 다시 도전해 보세요."),
+                            new Message("당신을 기다리고 있어요", "학습은 언제나 여기 있어요. %d일 동안 함께했던 시간을 기억하며 다시 시작해 볼까요?")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("One last reminder", "How about treasuring your %d-day memory and starting fresh?"),
+                            new Message("You can always come back", "It's okay not to be perfect. Try again building on your %d-day experience."),
+                            new Message("We're waiting for you", "Learning is always here. Remember your %d days together and start again?")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("最後にお願いします", "%d日の思い出を胸に、新しいスタートを切ってみませんか？"),
+                            new Message("いつでも戻ってこれます", "完璧でなくても大丈夫。%d日の経験を基に、再チャレンジしてみましょう。"),
+                            new Message("お待ちしています", "学習はいつもここにあります。%d日間一緒に過ごした時間を思い出して、また始めてみませんか？")
+                    )
             )
     );
 
