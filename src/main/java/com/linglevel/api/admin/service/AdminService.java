@@ -22,12 +22,16 @@ import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.s3.service.S3StaticService;
 import com.linglevel.api.s3.strategy.ArticlePathStrategy;
 import com.linglevel.api.s3.strategy.BookPathStrategy;
+import com.linglevel.api.streak.repository.DailyCompletionRepository;
+import com.linglevel.api.streak.repository.UserStudyReportRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -45,6 +49,8 @@ public class AdminService {
     private final S3StaticService s3StaticService;
     private final BookPathStrategy bookPathStrategy;
     private final ArticlePathStrategy articlePathStrategy;
+    private final DailyCompletionRepository dailyCompletionRepository;
+    private final UserStudyReportRepository userStudyReportRepository;
 
     public ChunkResponse updateBookChunk(String bookId, String chapterId, String chunkId, UpdateChunkRequest request) {
         log.info("Updating book chunk - bookId: {}, chapterId: {}, chunkId: {}", bookId, chapterId, chunkId);
@@ -178,5 +184,31 @@ public class AdminService {
             log.error("Error during article deletion - articleId: {}, error: {}", articleId, e.getMessage(), e);
             throw new ArticleException(ArticleErrorCode.ARTICLE_DELETION_FAILED);
         }
+    }
+
+    public void resetTodayStreak(String userId) {
+        log.info("Admin resetting today's streak for user: {}", userId);
+
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+
+        // 1. Delete today's DailyCompletion record
+        dailyCompletionRepository.findByUserIdAndCompletionDate(userId, today)
+                .ifPresent(dailyCompletionRepository::delete);
+
+        // 2. Revert UserStudyReport if today was the last completion
+        userStudyReportRepository.findByUserId(userId).ifPresent(report -> {
+            if (report.getLastCompletionDate() != null && report.getLastCompletionDate().isEqual(today)) {
+                // Decrement streak
+                if (report.getCurrentStreak() > 0) {
+                    report.setCurrentStreak(report.getCurrentStreak() - 1);
+                }
+                // Revert last completion date to yesterday.
+                report.setLastCompletionDate(today.minusDays(1));
+
+                // Note: This doesn't revert longestStreak or rewards, as it's a debug tool.
+                userStudyReportRepository.save(report);
+                log.info("UserStudyReport reverted for user: {}", userId);
+            }
+        });
     }
 }

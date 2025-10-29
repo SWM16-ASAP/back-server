@@ -10,6 +10,8 @@ import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
+import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.streak.service.ReadingSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -41,6 +43,7 @@ public class BooksController {
     private final BookService bookService;
     private final ChapterService chapterService;
     private final ChunkService chunkService;
+    private final ReadingSessionService readingSessionService;
 
 
     @Operation(summary = "책 목록 조회", description = "책 목록을 조건에 따라 조회합니다.")
@@ -125,6 +128,15 @@ public class BooksController {
             @PathVariable String chapterId,
             @ParameterObject @Valid @ModelAttribute GetChunksRequest request,
             @AuthenticationPrincipal JwtClaims claims) {
+
+        if (claims != null) {
+            readingSessionService.startReadingSession(
+                claims.getId(),
+                ContentType.BOOK,
+                bookId
+            );
+        }
+
         String userId = claims != null ? claims.getId() : null;
         PageResponse<ChunkResponse> response = chunkService.getChunks(bookId, chapterId, request, userId);
         return ResponseEntity.ok(response);

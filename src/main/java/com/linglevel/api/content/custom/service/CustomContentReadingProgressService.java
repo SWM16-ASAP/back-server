@@ -10,11 +10,16 @@ import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
+import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
+import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.streak.service.StreakService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.exception.UsersErrorCode;
 import com.linglevel.api.user.exception.UsersException;
 
+import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +35,8 @@ public class CustomContentReadingProgressService {
     private final CustomContentProgressRepository customContentProgressRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
     private final ProgressCalculationService progressCalculationService;
+    private final ReadingSessionService readingSessionService;
+    private final StreakService streakService;
 
 
     @Transactional
@@ -49,6 +56,8 @@ public class CustomContentReadingProgressService {
 
         CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
                 .orElse(new CustomContentProgress());
+
+        ensureMigrated(customProgress, chunk);
 
         // Null 체크
         if (chunk.getChunkNum() == null) {
@@ -76,16 +85,59 @@ public class CustomContentReadingProgressService {
             customProgress.setMaxNormalizedProgress(normalizedProgress);
         }
 
-        // 완료 조건: maxNormalizedProgress >= 100%
-        boolean isCompleted = progressCalculationService.isCompleted(customProgress.getMaxNormalizedProgress());
-        customProgress.setIsCompleted(progressCalculationService.updateCompletedFlag(
-            customProgress.getIsCompleted(), isCompleted
-        ));
+        // 스트릭 검사 및 완료 처리 로직
+        boolean streakUpdated = false;
+        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId)) {
+            // 첫 완료 시에만 isCompleted와 completedAt 설정
+            if (customProgress.getCompletedAt() == null) {
+                customProgress.setIsCompleted(true);
+                customProgress.setCompletedAt(java.time.Instant.now());
+            }
+
+            // 스트릭 업데이트 (복습도 포함하여 항상 호출)
+            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.CUSTOM, customId));
+            streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
+            readingSessionService.deleteReadingSession(userId);
+        }
 
         customContentProgressRepository.save(customProgress);
 
-        return convertToCustomContentReadingProgressResponse(customProgress);
+        return convertToCustomContentReadingProgressResponse(customProgress, streakUpdated);
     }
+
+    private boolean isLastChunk(CustomContentChunk chunk) {
+        long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+            chunk.getCustomContentId(), chunk.getDifficultyLevel()
+        );
+        return chunk.getChunkNum() >= totalChunks;
+    }
+
+    private void ensureMigrated(CustomContentProgress progress, CustomContentChunk chunk) {
+        boolean needsMigration = false;
+
+        if (progress.getNormalizedProgress() == null) {
+            long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+                chunk.getCustomContentId(), chunk.getDifficultyLevel()
+            );
+            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
+                chunk.getChunkNum(), totalChunks
+            );
+            progress.setNormalizedProgress(normalizedProgress);
+            progress.setMaxNormalizedProgress(normalizedProgress);
+            needsMigration = true;
+        }
+
+        if (progress.getCurrentDifficultyLevel() == null) {
+            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+            needsMigration = true;
+        }
+
+        if (needsMigration) {
+            log.info("V2 migration completed for CustomContentProgress id={}, userId={}",
+                progress.getId(), progress.getUserId());
+        }
+    }
+
 
     @Transactional(readOnly = true)
     public CustomContentReadingProgressResponse getProgress(String customId, String userId) {
@@ -97,7 +149,7 @@ public class CustomContentReadingProgressService {
         CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
                 .orElseGet(() -> initializeProgress(userId, customId));
 
-        return convertToCustomContentReadingProgressResponse(customProgress);
+        return convertToCustomContentReadingProgressResponse(customProgress, false);
     }
 
     private CustomContentProgress initializeProgress(String userId, String customId) {
@@ -136,35 +188,13 @@ public class CustomContentReadingProgressService {
         customContentProgressRepository.delete(customProgress);
     }
 
-    private CustomContentReadingProgressResponse convertToCustomContentReadingProgressResponse(CustomContentProgress progress) {
+    private CustomContentReadingProgressResponse convertToCustomContentReadingProgressResponse(CustomContentProgress progress, boolean streakUpdated) {
         // [DTO_MAPPING] chunk에서 chunkNum 조회
         CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
 
-        // [FALLBACK] V2 필드가 없으면 동적 계산 (기존 데이터 대응)
         if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
-            log.info("V2 fields missing for CustomContentProgress {}, calculating lazily", progress.getId());
-
-            // 난이도별 전체 청크 수 조회
-            long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
-                chunk.getCustomContentId(), chunk.getDifficultyLevel()
-            );
-            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-                chunk.getChunkNum(), totalChunks
-            );
-
-            // Lazy migration: V2 필드 저장
-            progress.setNormalizedProgress(normalizedProgress);
-            progress.setMaxNormalizedProgress(normalizedProgress);
-            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
-
-            // 완료 조건 재계산
-            boolean isCompleted = progressCalculationService.isCompleted(normalizedProgress);
-            progress.setIsCompleted(progressCalculationService.updateCompletedFlag(
-                progress.getIsCompleted(), isCompleted
-            ));
-
-            customContentProgressRepository.save(progress);
-            log.info("Lazy migration completed for CustomContentProgress {}", progress.getId());
+            log.warn("CustomContentProgress {} not migrated yet - this should only happen on read-only access",
+                progress.getId());
         }
 
         return CustomContentReadingProgressResponse.builder()
@@ -177,6 +207,7 @@ public class CustomContentReadingProgressService {
                 .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
                 .normalizedProgress(progress.getNormalizedProgress())
                 .maxNormalizedProgress(progress.getMaxNormalizedProgress())
+                .streakUpdated(streakUpdated)
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

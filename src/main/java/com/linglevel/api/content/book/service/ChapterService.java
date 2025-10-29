@@ -157,31 +157,55 @@ public class ChapterService {
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
         DifficultyLevel currentDifficultyLevel = book.getDifficultyLevel(); // Fallback: Book's difficulty
+        boolean isCompleted = false;
 
         if (bookProgress != null) {
             if (bookProgress.getCurrentDifficultyLevel() != null) {
                 currentDifficultyLevel = bookProgress.getCurrentDifficultyLevel();
             }
 
-            Integer progressChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
-                ? bookProgress.getCurrentReadChapterNumber() : 0;
+            // [V3] chapterProgresses 배열에서 챕터 정보 조회
+            BookProgress.ChapterProgressInfo chapterProgressInfo = bookProgress.getChapterProgresses() != null
+                ? bookProgress.getChapterProgresses().stream()
+                    .filter(cp -> chapter.getChapterNumber().equals(cp.getChapterNumber()))
+                    .findFirst()
+                    .orElse(null)
+                : null;
 
-            Integer progressChunkNumber = (progressChunk != null && progressChunk.getChunkNumber() != null)
-                ? progressChunk.getChunkNumber() : 0;
+            if (chapterProgressInfo != null) {
+                // 배열에서 찾은 경우
+                progressPercentage = chapterProgressInfo.getProgressPercentage() != null
+                    ? chapterProgressInfo.getProgressPercentage() : 0.0;
+                isCompleted = Boolean.TRUE.equals(chapterProgressInfo.getIsCompleted());
 
-            long totalChunksForLevel = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap()).getOrDefault(currentDifficultyLevel, 0L);
+                // 진행률에 따라 currentReadChunkNumber 계산
+                long totalChunksForLevel = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap())
+                    .getOrDefault(currentDifficultyLevel, 0L);
+                currentReadChunkNumber = (int) Math.ceil(progressPercentage * totalChunksForLevel / 100.0);
 
-            if (chapter.getChapterNumber() < progressChapterNumber) {
-                currentReadChunkNumber = (int) totalChunksForLevel;
-                progressPercentage = 100.0;
-            } else if (chapter.getChapterNumber().equals(progressChapterNumber)) {
-                currentReadChunkNumber = progressChunkNumber;
-                if (totalChunksForLevel > 0) {
-                    progressPercentage = (double) progressChunkNumber / totalChunksForLevel * 100.0;
-                }
             } else {
-                currentReadChunkNumber = 0;
-                progressPercentage = 0.0;
+                // [FALLBACK] 기존 로직 사용 (backward compatibility)
+                Integer progressChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
+                    ? bookProgress.getCurrentReadChapterNumber() : 0;
+
+                Integer progressChunkNumber = (progressChunk != null && progressChunk.getChunkNumber() != null)
+                    ? progressChunk.getChunkNumber() : 0;
+
+                long totalChunksForLevel = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap())
+                    .getOrDefault(currentDifficultyLevel, 0L);
+
+                if (chapter.getChapterNumber() < progressChapterNumber) {
+                    currentReadChunkNumber = (int) totalChunksForLevel;
+                    progressPercentage = 100.0;
+                } else if (chapter.getChapterNumber().equals(progressChapterNumber)) {
+                    currentReadChunkNumber = progressChunkNumber;
+                    if (totalChunksForLevel > 0) {
+                        progressPercentage = (double) progressChunkNumber / totalChunksForLevel * 100.0;
+                    }
+                } else {
+                    currentReadChunkNumber = 0;
+                    progressPercentage = 0.0;
+                }
             }
         }
 
@@ -196,6 +220,7 @@ public class ChapterService {
             .chunkCount((int) totalChunkCount)
             .currentReadChunkNumber(currentReadChunkNumber)
             .progressPercentage(progressPercentage)
+            .isCompleted(isCompleted)
             .currentDifficultyLevel(currentDifficultyLevel)
             .readingTime(chapter.getReadingTime())
             .build();
