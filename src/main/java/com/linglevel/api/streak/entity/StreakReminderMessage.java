@@ -1,4 +1,4 @@
-package com.linglevel.api.streak.dto;
+package com.linglevel.api.streak.entity;
 
 import com.linglevel.api.i18n.LanguageCode;
 import lombok.Getter;
@@ -14,24 +14,24 @@ import java.util.Map;
 @RequiredArgsConstructor
 public enum StreakReminderMessage {
     /**
-     * 시나리오 1: 일반 스트릭 유지 독려
+     * 시나리오 1: 일반 스트릭 유지 독려 (수정: 게이미피케이션 요소 강화)
      * 사용자가 활성 스트릭을 가지고 있으며, 오늘 학습을 완료하지 않은 경우
      */
     REGULAR_REMINDER(
             Map.of(
-                    LanguageCode.KO, "스트릭 유지",
-                    LanguageCode.EN, "Keep your streak alive!",
-                    LanguageCode.JA, "ストリークを維持しよう！"
+                    LanguageCode.KO, "불꽃🔥을 지켜주세요!",
+                    LanguageCode.EN, "Keep the flame🔥 alive!",
+                    LanguageCode.JA, "炎🔥を守ろう！"
             ),
             Map.of(
-                    LanguageCode.KO, "오늘 학습을 완료하고 %d일 스트릭을 이어가세요!",
-                    LanguageCode.EN, "Complete your lesson today to keep your %d-day streak alive!",
-                    LanguageCode.JA, "今日のレッスンを完了して、%d日のストリークを続けましょう！"
+                    LanguageCode.KO, "오늘 학습을 완료하고 %d일 스트릭 불꽃을 계속 타오르게 하세요!",
+                    LanguageCode.EN, "Complete your lesson today and keep your %d-day streak flame burning!",
+                    LanguageCode.JA, "今日のレッスンを完了して、%d日のストリークの炎を燃やし続けましょう！"
             )
     ),
 
     /**
-     * 시나리오 2: 프리즈로 스트릭이 보존되었을 때
+     * 시나리오 2: 프리즈로 스트릭이 보존되었을 때 (유지)
      * 어제 학습하지 않았지만 프리즈가 스트릭을 보호한 경우
      */
     STREAK_SAVED_BY_FREEZE(
@@ -48,41 +48,41 @@ public enum StreakReminderMessage {
     ),
 
     /**
-     * 시나리오 3: 스트릭이 깨졌을 때 (격려 메시지)
+     * 시나리오 3: 스트릭이 깨졌을 때 (수정: 부정적 감정 최소화)
      * 어제 스트릭이 끊겼으며, 새롭게 시작할 수 있도록 격려
      */
     STREAK_LOST(
             Map.of(
-                    LanguageCode.KO, "새로운 시작",
-                    LanguageCode.EN, "A fresh start!",
-                    LanguageCode.JA, "新しいスタート！"
+                    LanguageCode.KO, "새로운 시작도 멋져요",
+                    LanguageCode.EN, "A fresh start is great, too!",
+                    LanguageCode.JA, "新しいスタートも素敵です！"
             ),
             Map.of(
-                    LanguageCode.KO, "어제 스트릭이 깨졌어요. 괜찮아요! 오늘부터 다시 시작해 보세요.",
-                    LanguageCode.EN, "Your streak ended yesterday. It's okay! Start a new one today.",
-                    LanguageCode.JA, "昨日ストリークが途切れました。大丈夫です！今日から新しく始めましょう。"
+                    LanguageCode.KO, "스트릭은 잠시 쉬어가도 괜찮아요. 중요한 건 다시 시작하는 용기! 오늘 1일차부터 다시 시작해 볼까요?",
+                    LanguageCode.EN, "It's okay to rest your streak. What matters is the courage to restart! How about starting Day 1 again today?",
+                    LanguageCode.JA, "ストリークは少し休んでも大丈夫。大切なのは再スタートする勇気です！今日から1日目を始めてみませんか？"
             )
     ),
 
     /**
-     * 시나리오 4: 긴 스트릭 유지 중 (7일 이상)
+     * 시나리오 4: 긴 스트릭 유지 중 (수정: 사회적 증명 활용)
      * 일주일 이상의 스트릭을 유지하고 있는 사용자에게 특별한 동기부여
      */
     LONG_STREAK_REMINDER(
             Map.of(
-                    LanguageCode.KO, "멋진 스트릭이에요!",
-                    LanguageCode.EN, "Amazing streak!",
-                    LanguageCode.JA, "素晴らしいストリーク！"
+                    LanguageCode.KO, "정말 대단한 기록이에요!",
+                    LanguageCode.EN, "What an incredible record!",
+                    LanguageCode.JA, "本当に素晴らしい記録です！"
             ),
             Map.of(
-                    LanguageCode.KO, "와! %d일 연속 학습 중이에요! 이 멋진 기록을 계속 이어가세요!",
-                    LanguageCode.EN, "Wow! You're on a %d-day learning streak! Keep this amazing record going!",
-                    LanguageCode.JA, "すごい！%d日連続で学習中です！この素晴らしい記録を続けましょう！"
+                    LanguageCode.KO, "와! %d일 연속 학습 중! 상위 1% 학습자들의 기록이에요. 이 멋진 기록을 계속 이어가세요!",
+                    LanguageCode.EN, "Wow! %d-day streak! That's a record for the top 1% of learners. Keep this amazing record going!",
+                    LanguageCode.JA, "すごい！%d日連続学習中！上位1%の学習者の記録です。この素晴らしい記録を続けましょう！"
             )
     ),
 
     /**
-     * 시나리오 5: 마일스톤 직전 (예: 6일, 13일, 29일 등)
+     * 시나리오 5: 마일스톤 직전 (유지)
      * 다음 마일스톤 달성이 임박한 경우
      */
     MILESTONE_APPROACHING(

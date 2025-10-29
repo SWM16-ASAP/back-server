@@ -7,7 +7,7 @@ import com.linglevel.api.fcm.repository.FcmTokenRepository;
 import com.linglevel.api.fcm.service.FcmMessagingService;
 import com.linglevel.api.i18n.CountryCode;
 import com.linglevel.api.i18n.LanguageCode;
-import com.linglevel.api.streak.dto.StreakReminderMessage;
+import com.linglevel.api.streak.entity.StreakReminderMessage;
 import com.linglevel.api.streak.entity.UserStudyReport;
 import com.linglevel.api.streak.repository.DailyCompletionRepository;
 import com.linglevel.api.streak.repository.UserStudyReportRepository;
