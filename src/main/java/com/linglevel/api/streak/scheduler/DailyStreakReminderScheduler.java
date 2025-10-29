@@ -20,7 +20,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
@@ -115,8 +117,10 @@ public class DailyStreakReminderScheduler {
 
                 // 3-3. 개인화된 메시지 생성
                 StreakReminderMessage messageType = determineMessageType(report);
-                String title = messageType.getTitle(languageCode);
-                String body = messageType.getFormattedBody(languageCode, report.getCurrentStreak());
+                StreakReminderMessage.Message message = messageType.getRandomMessage(languageCode);
+
+                String title = message.getTitle();
+                String body = String.format(message.getBodyFormat(), report.getCurrentStreak());
 
                 FcmMessageRequest messageRequest = FcmMessageRequest.builder()
                         .title(title)
