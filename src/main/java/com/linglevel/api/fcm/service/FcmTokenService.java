@@ -48,6 +48,28 @@ public class FcmTokenService {
         }
     }
 
+    /**
+     * FCM 토큰을 비활성화합니다.
+     * 전송 실패한 토큰을 비활성화하여 더 이상 사용하지 않도록 합니다.
+     */
+    public void deactivateToken(String fcmToken) {
+        try {
+            Optional<FcmToken> tokenOpt = fcmTokenRepository.findByFcmToken(fcmToken);
+            if (tokenOpt.isPresent()) {
+                FcmToken token = tokenOpt.get();
+                token.setIsActive(false);
+                token.setUpdatedAt(LocalDateTime.now());
+                fcmTokenRepository.save(token);
+                log.info("Deactivated invalid FCM token for user: {}, device: {}",
+                         token.getUserId(), token.getDeviceId());
+            } else {
+                log.warn("FCM token not found in database for deactivation");
+            }
+        } catch (Exception e) {
+            log.error("Failed to deactivate FCM token", e);
+        }
+    }
+
     public FcmTokenUpsertResult upsertFcmToken(String userId, FcmTokenUpsertRequest request) {
         try {
             // FCM 토큰 유효성 검증

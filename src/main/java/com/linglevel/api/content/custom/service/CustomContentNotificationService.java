@@ -22,6 +22,7 @@ public class CustomContentNotificationService {
 
     private final FcmTokenRepository fcmTokenRepository;
     private final FcmMessagingService fcmMessagingService;
+    private final com.linglevel.api.fcm.service.FcmTokenService fcmTokenService;
 
     public void sendContentCompletedNotification(String userId, String requestId, String contentTitle, String contentId) {
         try {
@@ -61,14 +62,36 @@ public class CustomContentNotificationService {
                         .additionalData(additionalData)
                         .build();
 
-                for (FcmToken token : tokens) {
-                    try {
-                        fcmMessagingService.sendMessage(token.getFcmToken(), messageRequest);
-                        log.info("Sent completion notification (country: {}) to token: {} for user: {}",
-                                countryCode, token.getDeviceId(), userId);
-                    } catch (Exception e) {
-                        log.error("Failed to send completion notification to token: {} for user: {}",
-                                token.getDeviceId(), userId, e);
+                List<String> fcmTokens = tokens.stream()
+                        .map(FcmToken::getFcmToken)
+                        .collect(Collectors.toList());
+
+                try {
+                    if (fcmTokens.size() == 1) {
+                        fcmMessagingService.sendMessage(fcmTokens.get(0), messageRequest);
+                        log.info("Sent completion notification (country: {}) to user: {}", countryCode, userId);
+                    } else if (!fcmTokens.isEmpty()) {
+                        com.google.firebase.messaging.BatchResponse response =
+                                fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
+
+                        // 개별 응답 처리 - 실패한 토큰 비활성화
+                        for (int i = 0; i < response.getResponses().size(); i++) {
+                            if (!response.getResponses().get(i).isSuccessful()) {
+                                String failedToken = fcmTokens.get(i);
+                                log.warn("Failed to send completion notification to token for user: {}, error: {}",
+                                        userId, response.getResponses().get(i).getException().getMessage());
+                                fcmTokenService.deactivateToken(failedToken);
+                            }
+                        }
+
+                        log.info("Sent multicast completion notification (country: {}) to user: {} - Success: {}, Failed: {}",
+                                countryCode, userId, response.getSuccessCount(), response.getFailureCount());
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to send completion notification (country: {}) to user: {}, error: {}",
+                            countryCode, userId, e.getMessage(), e);
+                    if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
+                        fcmTokens.forEach(fcmTokenService::deactivateToken);
                     }
                 }
             });
@@ -115,14 +138,36 @@ public class CustomContentNotificationService {
                         .additionalData(additionalData)
                         .build();
 
-                for (FcmToken token : tokens) {
-                    try {
-                        fcmMessagingService.sendMessage(token.getFcmToken(), messageRequest);
-                        log.info("Sent failure notification (country: {}) to token: {} for user: {}",
-                                countryCode, token.getDeviceId(), userId);
-                    } catch (Exception e) {
-                        log.error("Failed to send failure notification to token: {} for user: {}",
-                                token.getDeviceId(), userId, e);
+                List<String> fcmTokens = tokens.stream()
+                        .map(FcmToken::getFcmToken)
+                        .collect(Collectors.toList());
+
+                try {
+                    if (fcmTokens.size() == 1) {
+                        fcmMessagingService.sendMessage(fcmTokens.get(0), messageRequest);
+                        log.info("Sent failure notification (country: {}) to user: {}", countryCode, userId);
+                    } else if (!fcmTokens.isEmpty()) {
+                        com.google.firebase.messaging.BatchResponse response =
+                                fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
+
+                        // 개별 응답 처리 - 실패한 토큰 비활성화
+                        for (int i = 0; i < response.getResponses().size(); i++) {
+                            if (!response.getResponses().get(i).isSuccessful()) {
+                                String failedToken = fcmTokens.get(i);
+                                log.warn("Failed to send failure notification to token for user: {}, error: {}",
+                                        userId, response.getResponses().get(i).getException().getMessage());
+                                fcmTokenService.deactivateToken(failedToken);
+                            }
+                        }
+
+                        log.info("Sent multicast failure notification (country: {}) to user: {} - Success: {}, Failed: {}",
+                                countryCode, userId, response.getSuccessCount(), response.getFailureCount());
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to send failure notification (country: {}) to user: {}, error: {}",
+                            countryCode, userId, e.getMessage(), e);
+                    if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
+                        fcmTokens.forEach(fcmTokenService::deactivateToken);
                     }
                 }
             });

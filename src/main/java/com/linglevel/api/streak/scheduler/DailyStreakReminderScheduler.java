@@ -34,6 +34,7 @@ public class DailyStreakReminderScheduler {
     private final DailyCompletionRepository dailyCompletionRepository;
     private final FcmTokenRepository fcmTokenRepository;
     private final FcmMessagingService fcmMessagingService;
+    private final com.linglevel.api.fcm.service.FcmTokenService fcmTokenService;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final String NOTIFICATION_TYPE = "streak_reminder";
@@ -157,14 +158,29 @@ public class DailyStreakReminderScheduler {
                                 userId, languageCode, report.getCurrentStreak(), messageType);
                     } else {
                         BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
-                        notificationsSent += response.getSuccessCount();
-                        notificationsFailed += response.getFailureCount();
+
+                        // 개별 응답 처리 - 실패한 토큰 비활성화
+                        for (int i = 0; i < response.getResponses().size(); i++) {
+                            if (response.getResponses().get(i).isSuccessful()) {
+                                notificationsSent++;
+                            } else {
+                                notificationsFailed++;
+                                String failedToken = fcmTokens.get(i);
+                                log.warn("[Optimal Timing Reminder] Failed to send to user: {}, token error: {}",
+                                        userId, response.getResponses().get(i).getException().getMessage());
+                                fcmTokenService.deactivateToken(failedToken);
+                            }
+                        }
+
                         log.debug("[Optimal Timing Reminder] Multicast to user: {} - Success: {}, Failed: {}",
                                 userId, response.getSuccessCount(), response.getFailureCount());
                     }
                 } catch (Exception e) {
-                    notificationsFailed++;
+                    notificationsFailed += fcmTokens.size();
                     log.error("[Optimal Timing Reminder] Failed to send notification to user: {}", userId, e);
+                    if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
+                        fcmTokens.forEach(fcmTokenService::deactivateToken);
+                    }
                 }
             }
 
