@@ -1,5 +1,6 @@
 package com.linglevel.api.user.service;
 
+import com.linglevel.api.fcm.service.FcmTokenService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.exception.UsersErrorCode;
 import com.linglevel.api.user.exception.UsersException;
@@ -15,8 +16,9 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @Slf4j
 public class UsersService {
-    
+
     private final UserRepository userRepository;
+    private final FcmTokenService fcmTokenService;
     
     @Transactional
     public void deleteUser(String userId) {
@@ -31,8 +33,10 @@ public class UsersService {
         user.setDeletedAt(LocalDateTime.now());
         String originalUsername = user.getUsername();
         user.setUsername("deleted_" + user.getDeletedAt() + "_" + originalUsername);
-        
+
         userRepository.save(user);
-        log.info("User deleted successfully: {}", originalUsername);
+        fcmTokenService.deactivateAllTokens(userId);
+
+        log.info("User deleted successfully (username: {}, FCM tokens deactivated)", originalUsername);
     }
 }
