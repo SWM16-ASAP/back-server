@@ -7,6 +7,8 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -18,6 +20,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "customContentChunks")
+@CompoundIndexes({
+    @CompoundIndex(name = "custom_content_difficulty_chapter_chunk_idx", def = "{'customContentId': 1, 'difficultyLevel': 1, 'chapterNum': 1, 'chunkNum': 1}"),
+    @CompoundIndex(name = "user_deleted_created_idx", def = "{'userId': 1, 'isDeleted': 1, 'createdAt': -1}")
+})
 public class CustomContentChunk {
     
     @Id

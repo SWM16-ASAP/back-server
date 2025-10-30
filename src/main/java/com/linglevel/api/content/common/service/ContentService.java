@@ -105,11 +105,17 @@ public class ContentService {
                     Book book = booksMap.get(p.contentId());
                     BookProgress progress = (BookProgress) p.originalProgress();
                     if (book == null) return null;
+
+                    // [FIX] Use normalizedProgress for accurate percentage. Fallback to old calculation if null.
+                    Double progressPercentage = progress.getNormalizedProgress() != null
+                        ? progress.getNormalizedProgress()
+                        : calculatePercentage(progress.getCurrentReadChapterNumber(), book.getChapterCount());
+
                     return RecentContentResponse.builder()
                             .contentId(book.getId()).contentType(ContentType.BOOK).title(book.getTitle()).author(book.getAuthor())
                             .coverImageUrl(book.getCoverImageUrl()).difficultyLevel(book.getDifficultyLevel().name()).tags(book.getTags())
                             .readingTime(book.getReadingTime()).chapterCount(book.getChapterCount()).currentReadChapterNumber(progress.getCurrentReadChapterNumber())
-                            .progressPercentage(calculatePercentage(progress.getCurrentReadChapterNumber(), book.getChapterCount()))
+                            .progressPercentage(progressPercentage)
                             .isCompleted(progress.getIsCompleted()).lastStudiedAt(p.lastStudiedAt()).build();
                 }
                 case ARTICLE: {
@@ -117,22 +123,33 @@ public class ContentService {
                     ArticleProgress progress = (ArticleProgress) p.originalProgress();
                     if (article == null) return null;
 
-                    Integer currentChunkNumber = 0;
+                    // [FIX] Use normalizedProgress for accurate percentage.
+                    Double progressPercentage = progress.getNormalizedProgress();
+                    Integer currentChunkNumber = 0; // Default value
+                    long totalChunks = 0; // Default value
+
+                    // For display purposes, we might still need chunk numbers.
+                    // This part is kept for now, but the percentage is taken from the migrated data.
                     try {
                         ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
                         currentChunkNumber = chunk.getChunkNumber();
                     } catch (Exception e) {
-                        currentChunkNumber = 0;
+                        // chunkId might be null for old data, or chunk not found.
                     }
 
                     DifficultyLevel difficulty = progress.getCurrentDifficultyLevel() != null ? progress.getCurrentDifficultyLevel() : article.getDifficultyLevel();
-                    long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), difficulty);
+                    totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), difficulty);
+
+                    // If normalizedProgress is somehow null (not migrated), fallback to calculation.
+                    if (progressPercentage == null) {
+                        progressPercentage = calculatePercentage(currentChunkNumber, (int) totalChunks);
+                    }
 
                     return RecentContentResponse.builder()
                             .contentId(article.getId()).contentType(ContentType.ARTICLE).title(article.getTitle()).author(article.getAuthor())
                             .coverImageUrl(article.getCoverImageUrl()).difficultyLevel(article.getDifficultyLevel().name()).tags(article.getTags())
                             .readingTime(article.getReadingTime()).chunkCount((int) totalChunks).currentReadChunkNumber(currentChunkNumber)
-                            .progressPercentage(calculatePercentage(currentChunkNumber, (int) totalChunks))
+                            .progressPercentage(progressPercentage)
                             .isCompleted(progress.getIsCompleted()).lastStudiedAt(p.lastStudiedAt()).build();
                 }
                 case CUSTOM: {
@@ -140,22 +157,31 @@ public class ContentService {
                     CustomContentProgress progress = (CustomContentProgress) p.originalProgress();
                     if (custom == null) return null;
 
-                    Integer currentChunkNumber = 0;
+                    // [FIX] Use normalizedProgress for accurate percentage.
+                    Double progressPercentage = progress.getNormalizedProgress();
+                    Integer currentChunkNumber = 0; // Default value
+                    long totalChunks = 0; // Default value
+
                     try {
                         CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
                         currentChunkNumber = chunk.getChunkNum();
                     } catch (Exception e) {
-                        currentChunkNumber = 0;
+                        // chunkId might be null for old data, or chunk not found.
                     }
 
                     DifficultyLevel difficulty = progress.getCurrentDifficultyLevel() != null ? progress.getCurrentDifficultyLevel() : custom.getDifficultyLevel();
-                    long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(custom.getId(), difficulty);
+                    totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(custom.getId(), difficulty);
+
+                    // If normalizedProgress is somehow null (not migrated), fallback to calculation.
+                    if (progressPercentage == null) {
+                        progressPercentage = calculatePercentage(currentChunkNumber, (int) totalChunks);
+                    }
 
                     return RecentContentResponse.builder()
                             .contentId(custom.getId()).contentType(ContentType.CUSTOM).title(custom.getTitle()).author(custom.getAuthor())
                             .coverImageUrl(custom.getCoverImageUrl()).difficultyLevel(custom.getDifficultyLevel().name()).tags(custom.getTags())
                             .readingTime(custom.getReadingTime()).chunkCount((int) totalChunks).currentReadChunkNumber(currentChunkNumber)
-                            .progressPercentage(calculatePercentage(currentChunkNumber, (int) totalChunks))
+                            .progressPercentage(progressPercentage)
                             .isCompleted(progress.getIsCompleted()).originUrl(custom.getOriginUrl()).originDomain(custom.getOriginDomain())
                             .lastStudiedAt(p.lastStudiedAt()).build();
                 }

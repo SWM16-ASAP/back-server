@@ -8,6 +8,8 @@ import com.linglevel.api.auth.dto.RefreshTokenResponse;
 import com.linglevel.api.auth.exception.AuthErrorCode;
 import com.linglevel.api.auth.exception.AuthException;
 import com.linglevel.api.auth.jwt.JwtProvider;
+import com.linglevel.api.auth.jwt.RefreshTokenService;
+import com.linglevel.api.fcm.service.FcmTokenService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.entity.UserRole;
 import com.linglevel.api.user.repository.UserRepository;
@@ -28,6 +30,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final FcmTokenService fcmTokenService;
 
     public LoginResponse authenticateWithFirebase(String authCode) {
         try {
@@ -98,9 +101,14 @@ public class AuthService {
     public RefreshTokenResponse refreshToken(String refreshToken) {
         return refreshTokenService.refreshAccessToken(refreshToken);
     }
-    
-    public void logout(String userId) {
-        refreshTokenService.deleteRefreshToken(userId);
-        log.info("User logged out: {}", userId);
+
+    public void logout(String refreshToken) {
+        refreshTokenService.deleteRefreshToken(refreshToken);
+    }
+
+    public void logoutAll(String userId) {
+        refreshTokenService.deleteAllRefreshTokens(userId);
+        fcmTokenService.deactivateAllTokens(userId);
+        log.info("Logged out all devices and deactivated all FCM tokens for user: {}", userId);
     }
 }

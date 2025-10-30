@@ -6,6 +6,7 @@ import com.linglevel.api.word.dto.RelatedForms;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.List;
@@ -23,11 +24,17 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "words")
-@CompoundIndex(
-    name = "word_language_pair_idx",
-    def = "{'word': 1, 'sourceLanguageCode': 1, 'targetLanguageCode': 1}",
-    unique = true
-)
+@CompoundIndexes({
+    @CompoundIndex(
+        name = "word_language_pair_idx",
+        def = "{'word': 1, 'sourceLanguageCode': 1, 'targetLanguageCode': 1}",
+        unique = true
+    ),
+    @CompoundIndex(
+        name = "word_target_language_idx",
+        def = "{'word': 1, 'targetLanguageCode': 1}"
+    )
+})
 public class Word {
     @Id
     private String id;

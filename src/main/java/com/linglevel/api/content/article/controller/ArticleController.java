@@ -7,6 +7,8 @@ import com.linglevel.api.content.article.service.ArticleService;
 import com.linglevel.api.content.article.service.ArticleChunkService;
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.streak.service.ReadingSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -34,6 +36,7 @@ public class ArticleController {
 
     private final ArticleService articleService;
     private final ArticleChunkService articleChunkService;
+    private final ReadingSessionService readingSessionService;
 
 
     @Operation(summary = "기사 목록 조회", description = "기사 목록을 조건에 따라 조회합니다.")
@@ -82,6 +85,14 @@ public class ArticleController {
             @ParameterObject @Valid @ModelAttribute GetArticleChunksRequest request,
             @AuthenticationPrincipal JwtClaims claims) {
 
+        if (claims != null) {
+            readingSessionService.startReadingSession(
+                claims.getId(),
+                ContentType.ARTICLE,
+                articleId
+            );
+        }
+
         String userId = claims != null ? claims.getId() : null;
         PageResponse<ArticleChunkResponse> response = articleChunkService.getArticleChunks(articleId, request, userId);
         return ResponseEntity.ok(response);
@@ -99,7 +110,6 @@ public class ArticleController {
             @PathVariable String articleId,
             @Parameter(description = "청크 ID", example = "60d0fe4f5311236168a109cd")
             @PathVariable String chunkId) {
-        
         ArticleChunkResponse response = articleChunkService.getArticleChunk(articleId, chunkId);
         return ResponseEntity.ok(response);
     }

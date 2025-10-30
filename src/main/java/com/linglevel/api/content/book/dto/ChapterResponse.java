@@ -37,6 +37,9 @@ public class ChapterResponse {
     @Schema(description = "진행률", example = "80.0")
     private Double progressPercentage;
 
+    @Schema(description = "챕터 완료 여부", example = "true")
+    private Boolean isCompleted;
+
     @Schema(description = "현재 선택한 난이도", example = "EASY")
     private DifficultyLevel currentDifficultyLevel;
 

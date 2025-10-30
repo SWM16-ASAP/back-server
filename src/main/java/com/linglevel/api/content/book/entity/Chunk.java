@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Getter
@@ -14,6 +15,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "chunks")
+@CompoundIndex(name = "chapter_difficulty_chunk_idx", def = "{'chapterId': 1, 'difficultyLevel': 1, 'chunkNumber': 1}")
 public class Chunk {
     @Id
     private String id;

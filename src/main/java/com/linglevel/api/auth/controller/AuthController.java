@@ -56,7 +56,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "로그아웃", description = "현재 세션을 종료하고 토큰을 무효화합니다.")
+    @Operation(summary = "로그아웃", description = "현재 기기에서 로그아웃합니다. 다른 기기는 로그인 상태를 유지합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로그아웃 성공",
                     content = @Content(schema = @Schema(implementation = LogoutResponse.class))),
@@ -64,12 +64,29 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
     })
     @PostMapping("/logout")
-    public ResponseEntity<LogoutResponse> logout(HttpServletRequest request) {
-        JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
-        authService.logout(claims.getId());
-        
+    public ResponseEntity<LogoutResponse> logout(@RequestBody LogoutRequest request) {
+        authService.logout(request.getRefreshToken());
+
         LogoutResponse response = LogoutResponse.builder()
                 .message("Successfully logged out")
+                .build();
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "모든 기기에서 로그아웃", description = "모든 기기에서 로그아웃하여 모든 토큰을 무효화합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로그아웃 성공",
+                    content = @Content(schema = @Schema(implementation = LogoutResponse.class))),
+            @ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
+    })
+    @PostMapping("/logout/all")
+    public ResponseEntity<LogoutResponse> logoutAll(HttpServletRequest request) {
+        JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
+        authService.logoutAll(claims.getId());
+
+        LogoutResponse response = LogoutResponse.builder()
+                .message("Successfully logged out from all devices")
                 .build();
         return ResponseEntity.ok(response);
     }

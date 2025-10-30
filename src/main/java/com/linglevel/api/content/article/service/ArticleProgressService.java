@@ -8,7 +8,10 @@ import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
+import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
+import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,8 @@ public class ArticleProgressService {
     private final ArticleProgressRepository articleProgressRepository;
     private final ArticleChunkRepository articleChunkRepository;
     private final ProgressCalculationService progressCalculationService;
+    private final ReadingSessionService readingSessionService;
+    private final StreakService streakService;
 
     @Transactional
     public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request, String userId) {
@@ -42,6 +47,9 @@ public class ArticleProgressService {
 
         ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
                 .orElse(new ArticleProgress());
+
+        // [MIGRATION] V2 진행률 필드 마이그레이션
+        ensureMigrated(articleProgress, chunk);
 
         // Null 체크
         if (chunk.getChunkNumber() == null) {
@@ -69,16 +77,64 @@ public class ArticleProgressService {
             articleProgress.setMaxNormalizedProgress(normalizedProgress);
         }
 
-        // 완료 조건: maxNormalizedProgress >= 100%
-        boolean isCompleted = progressCalculationService.isCompleted(articleProgress.getMaxNormalizedProgress());
-        articleProgress.setIsCompleted(progressCalculationService.updateCompletedFlag(
-            articleProgress.getIsCompleted(), isCompleted
-        ));
+        // 스트릭 검사 및 완료 처리 로직
+        boolean streakUpdated = false;
+        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId)) {
+            // 첫 완료 시에만 isCompleted와 completedAt 설정
+            if (articleProgress.getCompletedAt() == null) {
+                articleProgress.setIsCompleted(true);
+                articleProgress.setCompletedAt(java.time.Instant.now());
+            }
+
+            // 스트릭 업데이트 (복습도 포함하여 항상 호출)
+            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.ARTICLE, articleId));
+            streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
+            readingSessionService.deleteReadingSession(userId);
+        }
 
         articleProgressRepository.save(articleProgress);
 
-        return convertToArticleProgressResponse(articleProgress);
+        return convertToArticleProgressResponse(articleProgress, streakUpdated);
     }
+
+    private boolean isLastChunk(ArticleChunk chunk) {
+        long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
+            chunk.getArticleId(), chunk.getDifficultyLevel()
+        );
+        return chunk.getChunkNumber() >= totalChunks;
+    }
+
+    /**
+     * V2 마이그레이션 보장
+     * updateProgress 시점에 한 번만 실행
+     */
+    private void ensureMigrated(ArticleProgress progress, ArticleChunk chunk) {
+        boolean needsMigration = false;
+
+        // V2 필드 초기화
+        if (progress.getNormalizedProgress() == null) {
+            long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
+                chunk.getArticleId(), chunk.getDifficultyLevel()
+            );
+            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
+                chunk.getChunkNumber(), totalChunks
+            );
+            progress.setNormalizedProgress(normalizedProgress);
+            progress.setMaxNormalizedProgress(normalizedProgress);
+            needsMigration = true;
+        }
+
+        if (progress.getCurrentDifficultyLevel() == null) {
+            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+            needsMigration = true;
+        }
+
+        if (needsMigration) {
+            log.info("V2 migration completed for ArticleProgress id={}, userId={}",
+                progress.getId(), progress.getUserId());
+        }
+    }
+
 
     @Transactional(readOnly = true)
     public ArticleProgressResponse getProgress(String articleId, String userId) {
@@ -90,7 +146,7 @@ public class ArticleProgressService {
         ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
                 .orElseGet(() -> initializeProgress(userId, articleId));
 
-        return convertToArticleProgressResponse(articleProgress);
+        return convertToArticleProgressResponse(articleProgress, false);
     }
 
     private ArticleProgress initializeProgress(String userId, String articleId) {
@@ -129,35 +185,14 @@ public class ArticleProgressService {
         articleProgressRepository.delete(articleProgress);
     }
 
-    private ArticleProgressResponse convertToArticleProgressResponse(ArticleProgress progress) {
+    private ArticleProgressResponse convertToArticleProgressResponse(ArticleProgress progress, boolean streakUpdated) {
         // [DTO_MAPPING] chunk에서 chunkNumber 조회
         ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
 
-        // [FALLBACK] V2 필드가 없으면 동적 계산 (기존 데이터 대응)
+        // [SAFETY] 마이그레이션이 안 되어 있는 경우 경고 로그
         if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
-            log.info("V2 fields missing for ArticleProgress {}, calculating lazily", progress.getId());
-
-            // 난이도별 전체 청크 수 조회
-            long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
-                chunk.getArticleId(), chunk.getDifficultyLevel()
-            );
-            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-                chunk.getChunkNumber(), totalChunks
-            );
-
-            // Lazy migration: V2 필드 저장
-            progress.setNormalizedProgress(normalizedProgress);
-            progress.setMaxNormalizedProgress(normalizedProgress);
-            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
-
-            // 완료 조건 재계산
-            boolean isCompleted = progressCalculationService.isCompleted(normalizedProgress);
-            progress.setIsCompleted(progressCalculationService.updateCompletedFlag(
-                progress.getIsCompleted(), isCompleted
-            ));
-
-            articleProgressRepository.save(progress);
-            log.info("Lazy migration completed for ArticleProgress {}", progress.getId());
+            log.warn("ArticleProgress {} not migrated yet - this should only happen on read-only access",
+                progress.getId());
         }
 
         return ArticleProgressResponse.builder()
@@ -170,6 +205,7 @@ public class ArticleProgressService {
                 .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
                 .normalizedProgress(progress.getNormalizedProgress())
                 .maxNormalizedProgress(progress.getMaxNormalizedProgress())
+                .streakUpdated(streakUpdated)
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }

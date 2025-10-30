@@ -128,17 +128,39 @@ public class NotificationService {
                     .data(data)
                     .build();
 
-            for (FcmToken token : tokens) {
-                try {
-                    fcmMessagingService.sendMessage(token.getFcmToken(), fcmRequest);
-                    sentTokens.add(token.getFcmToken());
-                    log.debug("Sent localized message (country: {}) to token: {}", countryCode, maskToken(token.getFcmToken()));
-                } catch (Exception e) {
-                    failedTokens.add(token.getFcmToken());
-                    log.warn("Failed to send localized message to token: {}, error: {}", maskToken(token.getFcmToken()), e.getMessage());
+            List<String> fcmTokens = tokens.stream()
+                    .map(FcmToken::getFcmToken)
+                    .collect(Collectors.toList());
 
+            try {
+                if (fcmTokens.size() == 1) {
+                    fcmMessagingService.sendMessage(fcmTokens.get(0), fcmRequest);
+                    sentTokens.add(fcmTokens.get(0));
+                    log.debug("Sent localized message (country: {}) to token: {}", countryCode, maskToken(fcmTokens.get(0)));
+                } else if (!fcmTokens.isEmpty()) {
+                    BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, fcmRequest);
+
+                    // 개별 응답 처리
+                    for (int i = 0; i < response.getResponses().size(); i++) {
+                        String token = fcmTokens.get(i);
+                        if (response.getResponses().get(i).isSuccessful()) {
+                            sentTokens.add(token);
+                        } else {
+                            failedTokens.add(token);
+                            log.warn("Failed to send localized message to token: {}, error: {}",
+                                    maskToken(token), response.getResponses().get(i).getException().getMessage());
+                            deactivateTokenByFcmToken(token);
+                        }
+                    }
+                    log.debug("Sent multicast message (country: {}) - Success: {}, Failed: {}",
+                            countryCode, response.getSuccessCount(), response.getFailureCount());
+                }
+            } catch (Exception e) {
+                log.error("Failed to send localized message batch (country: {}), error: {}", countryCode, e.getMessage());
+                for (String token : fcmTokens) {
+                    failedTokens.add(token);
                     if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
-                        deactivateTokenByFcmToken(token.getFcmToken());
+                        deactivateTokenByFcmToken(token);
                     }
                 }
             }
@@ -221,20 +243,49 @@ public class NotificationService {
                     .data(data)
                     .build();
 
-            for (FcmToken token : tokens) {
-                try {
-                    fcmMessagingService.sendMessage(token.getFcmToken(), fcmRequest);
-                    successfulUserIds.add(token.getUserId());
+            List<String> fcmTokens = tokens.stream()
+                    .map(FcmToken::getFcmToken)
+                    .collect(Collectors.toList());
+
+            Map<String, String> tokenToUserId = tokens.stream()
+                    .collect(Collectors.toMap(FcmToken::getFcmToken, FcmToken::getUserId, (a, b) -> a));
+
+            try {
+                if (fcmTokens.size() == 1) {
+                    fcmMessagingService.sendMessage(fcmTokens.get(0), fcmRequest);
+                    successfulUserIds.add(tokenToUserId.get(fcmTokens.get(0)));
                     totalSentCount++;
                     log.debug("Broadcast localized message (country: {}) sent to user: {}, token: {}",
-                            countryCode, token.getUserId(), maskToken(token.getFcmToken()));
-                } catch (Exception e) {
-                    totalFailedCount++;
-                    log.warn("Failed to send localized broadcast to user: {}, token: {}, error: {}",
-                            token.getUserId(), maskToken(token.getFcmToken()), e.getMessage());
+                            countryCode, tokenToUserId.get(fcmTokens.get(0)), maskToken(fcmTokens.get(0)));
+                } else if (!fcmTokens.isEmpty()) {
+                    BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, fcmRequest);
 
+                    // 개별 응답 처리
+                    for (int i = 0; i < response.getResponses().size(); i++) {
+                        String token = fcmTokens.get(i);
+                        String userId = tokenToUserId.get(token);
+
+                        if (response.getResponses().get(i).isSuccessful()) {
+                            successfulUserIds.add(userId);
+                            totalSentCount++;
+                        } else {
+                            failedUserIds.add(userId);
+                            totalFailedCount++;
+                            log.warn("Failed to send localized broadcast to user: {}, token: {}, error: {}",
+                                    userId, maskToken(token), response.getResponses().get(i).getException().getMessage());
+                            deactivateTokenByFcmToken(token);
+                        }
+                    }
+                    log.debug("Broadcast multicast message (country: {}) - Success: {}, Failed: {}",
+                            countryCode, response.getSuccessCount(), response.getFailureCount());
+                }
+            } catch (Exception e) {
+                log.error("Failed to send broadcast message batch (country: {}), error: {}", countryCode, e.getMessage());
+                for (String token : fcmTokens) {
+                    failedUserIds.add(tokenToUserId.get(token));
+                    totalFailedCount++;
                     if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
-                        deactivateTokenByFcmToken(token.getFcmToken());
+                        deactivateTokenByFcmToken(token);
                     }
                 }
             }
@@ -326,19 +377,61 @@ public class NotificationService {
                     if (articleOpt.isPresent()) {
                         Article article = articleOpt.get();
 
+                        String localizedTitle = getLocalizedNotificationTitle(topMatch.getUserLanguage());
+                        String categoryName = article.getCategory() != null
+                                ? article.getCategory().name().toLowerCase()
+                                : "unknown";
+                        String campaignId = "newArticle-" + categoryName;
+
+                        FcmMessageRequest fcmRequest = FcmMessageRequest.builder()
+                                .title(localizedTitle)
+                                .body(article.getTitle())
+                                .type("ARTICLE_RELEASE")
+                                .deepLink("linglevel:///articles/" + article.getId())
+                                .campaignId(campaignId)
+                                .build();
+
+                        Map<String, String> additionalData = new HashMap<>();
+                        additionalData.put("articleId", article.getId());
+                        fcmRequest.setAdditionalData(additionalData);
+
+                        List<String> fcmTokens = userTokens.stream()
+                                .map(FcmToken::getFcmToken)
+                                .collect(Collectors.toList());
+
                         boolean sent = false;
 
-                        for (FcmToken token : userTokens) {
-                            try {
-                                sendArticleNotification(token, article, topMatch.getUserLanguage());
+                        try {
+                            if (fcmTokens.size() == 1) {
+                                fcmMessagingService.sendMessage(fcmTokens.get(0), fcmRequest);
                                 sent = true;
                                 log.debug("Sent article notification to user: {}, article: {}", userId, articleId);
-                            } catch (Exception e) {
-                                log.warn("Failed to send notification to user: {}, token: {}, error: {}",
-                                        userId, maskToken(token.getFcmToken()), e.getMessage());
+                            } else if (!fcmTokens.isEmpty()) {
+                                BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, fcmRequest);
 
+                                // 개별 응답 처리
+                                for (int i = 0; i < response.getResponses().size(); i++) {
+                                    String token = fcmTokens.get(i);
+                                    if (response.getResponses().get(i).isSuccessful()) {
+                                        sent = true;
+                                    } else {
+                                        log.warn("Failed to send article notification to user: {}, token: {}, error: {}",
+                                                userId, maskToken(token), response.getResponses().get(i).getException().getMessage());
+                                        deactivateTokenByFcmToken(token);
+                                    }
+                                }
+
+                                if (sent) {
+                                    log.debug("Sent article notification multicast to user: {} (Success: {}, Failed: {}), article: {}",
+                                            userId, response.getSuccessCount(), response.getFailureCount(), articleId);
+                                }
+                            }
+                        } catch (Exception e) {
+                            log.error("Failed to send article notification to user: {}, article: {}, error: {}",
+                                    userId, articleId, e.getMessage());
+                            for (String token : fcmTokens) {
                                 if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
-                                    deactivateTokenByFcmToken(token.getFcmToken());
+                                    deactivateTokenByFcmToken(token);
                                 }
                             }
                         }
