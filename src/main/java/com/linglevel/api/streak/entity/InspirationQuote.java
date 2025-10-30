@@ -526,6 +526,10 @@ public enum InspirationQuote {
      * @return 해당 언어의 번역, 없으면 영어 원문
      */
     public String getTranslation(LanguageCode languageCode) {
+        if (languageCode == LanguageCode.EN) {
+            return null;
+        }
+
         return translations.getOrDefault(languageCode, original);
     }
 }
