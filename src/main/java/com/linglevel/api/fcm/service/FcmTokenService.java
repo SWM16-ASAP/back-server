@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -67,6 +68,53 @@ public class FcmTokenService {
             }
         } catch (Exception e) {
             log.error("Failed to deactivate FCM token", e);
+        }
+    }
+
+    /**
+     * 특정 사용자의 특정 디바이스 FCM 토큰을 비활성화합니다.
+     * 로그아웃 시 사용됩니다.
+     */
+    public void deactivateTokenByDevice(String userId, String deviceId) {
+        try {
+            Optional<FcmToken> tokenOpt = fcmTokenRepository.findByUserIdAndDeviceId(userId, deviceId);
+            if (tokenOpt.isPresent()) {
+                FcmToken token = tokenOpt.get();
+                token.setIsActive(false);
+                token.setUpdatedAt(LocalDateTime.now());
+                fcmTokenRepository.save(token);
+                log.info("Deactivated FCM token on logout - user: {}, device: {}", userId, deviceId);
+            } else {
+                log.debug("No FCM token found for user: {}, device: {}", userId, deviceId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to deactivate FCM token for user: {}, device: {}", userId, deviceId, e);
+        }
+    }
+
+    /**
+     * 특정 사용자의 모든 FCM 토큰을 비활성화합니다.
+     * 전체 로그아웃 또는 계정 삭제 시 사용됩니다.
+     */
+    public void deactivateAllTokens(String userId) {
+        try {
+            List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
+            if (tokens.isEmpty()) {
+                log.debug("No active FCM tokens found for user: {}", userId);
+                return;
+            }
+
+            int deactivatedCount = 0;
+            for (FcmToken token : tokens) {
+                token.setIsActive(false);
+                token.setUpdatedAt(LocalDateTime.now());
+                fcmTokenRepository.save(token);
+                deactivatedCount++;
+            }
+
+            log.info("Deactivated {} FCM token(s) for user: {}", deactivatedCount, userId);
+        } catch (Exception e) {
+            log.error("Failed to deactivate all FCM tokens for user: {}", userId, e);
         }
     }
 
