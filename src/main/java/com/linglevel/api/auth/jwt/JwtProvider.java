@@ -25,9 +25,6 @@ public class JwtProvider {
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
 
-    @Value("${jwt.refresh-token-expiration}")
-    private long refreshTokenExpiration;
-
     public String createToken(User user) {
         Claims claims = Jwts.claims()
                 .add("id", user.getId())

@@ -8,6 +8,7 @@ import com.linglevel.api.auth.dto.RefreshTokenResponse;
 import com.linglevel.api.auth.exception.AuthErrorCode;
 import com.linglevel.api.auth.exception.AuthException;
 import com.linglevel.api.auth.jwt.JwtProvider;
+import com.linglevel.api.auth.jwt.RefreshTokenService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.entity.UserRole;
 import com.linglevel.api.user.repository.UserRepository;
@@ -98,9 +99,12 @@ public class AuthService {
     public RefreshTokenResponse refreshToken(String refreshToken) {
         return refreshTokenService.refreshAccessToken(refreshToken);
     }
-    
-    public void logout(String userId) {
-        refreshTokenService.deleteRefreshToken(userId);
-        log.info("User logged out: {}", userId);
+
+    public void logout(String refreshToken) {
+        refreshTokenService.deleteRefreshToken(refreshToken);
+    }
+
+    public void logoutAll(String userId) {
+        refreshTokenService.deleteAllRefreshTokens(userId);
     }
 }
