@@ -1,11 +1,9 @@
-package com.linglevel.api.auth.service;
+package com.linglevel.api.auth.jwt;
 
-import com.linglevel.api.auth.jwt.RefreshToken;
 import com.linglevel.api.auth.dto.RefreshTokenResponse;
 import com.linglevel.api.auth.exception.AuthException;
 import com.linglevel.api.auth.exception.AuthErrorCode;
 import com.linglevel.api.auth.repository.RefreshTokenRepository;
-import com.linglevel.api.auth.jwt.JwtProvider;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.user.exception.UsersException;
@@ -35,18 +33,16 @@ public class RefreshTokenService {
     public String createRefreshToken(String userId) {
         String tokenId = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(refreshTokenExpirationMs / 1000);
-        
-        refreshTokenRepository.deleteByUserId(userId);
-        
+
         RefreshToken refreshToken = RefreshToken.builder()
                 .tokenId(tokenId)
                 .userId(userId)
                 .expiresAt(expiresAt)
                 .build();
-        
+
         refreshTokenRepository.save(refreshToken);
         log.info("Refresh token created for user: {}", userId);
-        
+
         return tokenId;
     }
     
@@ -80,8 +76,17 @@ public class RefreshTokenService {
     }
     
     @Transactional
-    public void deleteRefreshToken(String userId) {
+    public void deleteRefreshToken(String tokenId) {
+        refreshTokenRepository.findByTokenId(tokenId)
+                .ifPresent(token -> {
+                    refreshTokenRepository.delete(token);
+                    log.info("Refresh token deleted: {} for user: {}", tokenId, token.getUserId());
+                });
+    }
+
+    @Transactional
+    public void deleteAllRefreshTokens(String userId) {
         refreshTokenRepository.deleteByUserId(userId);
-        log.info("Refresh token deleted for user: {}", userId);
+        log.info("All refresh tokens deleted for user: {}", userId);
     }
 }
