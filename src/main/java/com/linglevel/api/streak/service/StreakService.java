@@ -516,13 +516,13 @@ public class StreakService {
     @Transactional(readOnly = true)
     public WeekStreakResponse getThisWeekStreak(String userId) {
         LocalDate today = getKstToday();
-        LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate sunday = monday.plusDays(6);
+        LocalDate sunday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
+        LocalDate saturday = sunday.plusDays(6);
 
-        CalendarViewData viewData = prepareCalendarViewData(userId, monday, sunday);
+        CalendarViewData viewData = prepareCalendarViewData(userId, sunday, saturday);
 
         List<WeekDayResponse> weekDays = new ArrayList<>();
-        for (LocalDate date = monday; !date.isAfter(sunday); date = date.plusDays(1)) {
+        for (LocalDate date = sunday; !date.isAfter(saturday); date = date.plusDays(1)) {
             weekDays.add(buildWeekDay(date, today, viewData));
         }
 
