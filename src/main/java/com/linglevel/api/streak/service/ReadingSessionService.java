@@ -73,6 +73,11 @@ public class ReadingSessionService {
             return 0;
         }
 
+        // 세션의 contentType과 contentId가 일치하지 않으면 0 반환
+        if (!session.getContentType().equals(contentType) || !session.getContentId().equals(contentId)) {
+            return 0;
+        }
+
         Instant startedAt = Instant.ofEpochMilli(session.getStartedAtMillis());
         return Duration.between(startedAt, Instant.now()).getSeconds();
     }
