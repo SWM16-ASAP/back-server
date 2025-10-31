@@ -3,16 +3,21 @@ package com.linglevel.api.fcm.service;
 import com.google.firebase.messaging.*;
 import com.linglevel.api.fcm.dto.FcmMessageRequest;
 import com.linglevel.api.fcm.entity.FcmToken;
+import com.linglevel.api.fcm.entity.PushLog;
 import com.linglevel.api.fcm.exception.FcmErrorCode;
 import com.linglevel.api.fcm.exception.FcmException;
 import com.linglevel.api.fcm.repository.FcmTokenRepository;
+import com.linglevel.api.fcm.repository.PushLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +26,7 @@ public class FcmMessagingService {
 
     private final FirebaseMessaging firebaseMessaging;
     private final FcmTokenRepository fcmTokenRepository;
+    private final PushLogRepository pushLogRepository;
     private final PushLogService pushLogService;
 
     private static final String ANALYTICS_LABEL_PREFIX = "notification_sent_";
@@ -103,17 +109,9 @@ public class FcmMessagingService {
                      fcmTokens.size(), response.getSuccessCount(), response.getFailureCount(),
                      analyticsLabel != null ? analyticsLabel : "N/A");
 
-            // 개별 결과를 로그에 저장
+            // 배치로 로그 저장
             if (campaignId != null) {
-                for (int i = 0; i < response.getResponses().size(); i++) {
-                    String fcmToken = fcmTokens.get(i);
-                    String userId = getUserIdFromToken(fcmToken);
-                    boolean success = response.getResponses().get(i).isSuccessful();
-
-                    if (userId != null) {
-                        pushLogService.logSent(campaignId, userId, success);
-                    }
-                }
+                savePushLogsBatch(fcmTokens, campaignId, response);
             }
 
             return response;
@@ -121,17 +119,91 @@ public class FcmMessagingService {
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send multicast FCM message: {}", e.getMessage());
 
-            // 전체 실패 로그 저장
+            // 전체 실패 로그 배치 저장
             if (campaignId != null) {
-                for (String fcmToken : fcmTokens) {
-                    String userId = getUserIdFromToken(fcmToken);
-                    if (userId != null) {
-                        pushLogService.logSent(campaignId, userId, false);
-                    }
-                }
+                savePushLogsAllFailed(fcmTokens, campaignId);
             }
 
             throw new FcmException(FcmErrorCode.MESSAGE_SEND_FAILED);
+        }
+    }
+
+    /**
+     * 푸시 로그를 배치로 저장 (성공/실패 혼합)
+     */
+    private void savePushLogsBatch(List<String> fcmTokens, String campaignId, BatchResponse response) {
+        try {
+            Map<String, String> tokenToUserId = getTokenToUserIdMap(fcmTokens);
+            List<PushLog> logsToSave = new ArrayList<>();
+            LocalDateTime now = LocalDateTime.now();
+
+            for (int i = 0; i < response.getResponses().size(); i++) {
+                String fcmToken = fcmTokens.get(i);
+                String userId = tokenToUserId.get(fcmToken);
+                boolean success = response.getResponses().get(i).isSuccessful();
+
+                if (userId != null) {
+                    logsToSave.add(createPushLog(campaignId, userId, success, now));
+                }
+            }
+
+            savePushLogsIfNotEmpty(logsToSave, campaignId);
+        } catch (Exception e) {
+            log.error("Failed to batch save push logs for campaign: {}", campaignId, e);
+        }
+    }
+
+    /**
+     * 전체 실패 시 푸시 로그를 배치로 저장
+     */
+    private void savePushLogsAllFailed(List<String> fcmTokens, String campaignId) {
+        try {
+            Map<String, String> tokenToUserId = getTokenToUserIdMap(fcmTokens);
+            List<PushLog> logsToSave = new ArrayList<>();
+            LocalDateTime now = LocalDateTime.now();
+
+            for (String fcmToken : fcmTokens) {
+                String userId = tokenToUserId.get(fcmToken);
+                if (userId != null) {
+                    logsToSave.add(createPushLog(campaignId, userId, false, now));
+                }
+            }
+
+            savePushLogsIfNotEmpty(logsToSave, campaignId);
+        } catch (Exception e) {
+            log.error("Failed to batch save failed push logs for campaign: {}", campaignId, e);
+        }
+    }
+
+    /**
+     * FCM 토큰 목록으로 토큰-사용자ID 맵 생성
+     */
+    private Map<String, String> getTokenToUserIdMap(List<String> fcmTokens) {
+        List<FcmToken> tokens = fcmTokenRepository.findAllByFcmTokenIn(fcmTokens);
+        return tokens.stream()
+                .collect(Collectors.toMap(FcmToken::getFcmToken, FcmToken::getUserId));
+    }
+
+    /**
+     * PushLog 객체 생성
+     */
+    private PushLog createPushLog(String campaignId, String userId, boolean success, LocalDateTime now) {
+        return PushLog.builder()
+                .campaignId(campaignId)
+                .userId(userId)
+                .sentAt(now)
+                .sentSuccess(success)
+                .createdAt(now)
+                .build();
+    }
+
+    /**
+     * PushLog 목록이 비어있지 않으면 배치 저장
+     */
+    private void savePushLogsIfNotEmpty(List<PushLog> logsToSave, String campaignId) {
+        if (!logsToSave.isEmpty()) {
+            pushLogRepository.saveAll(logsToSave);
+            log.debug("Batch saved {} push logs for campaign: {}", logsToSave.size(), campaignId);
         }
     }
 
