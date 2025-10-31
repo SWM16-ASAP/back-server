@@ -6,6 +6,7 @@ import com.linglevel.api.fcm.exception.FcmException;
 import com.linglevel.api.fcm.repository.PushLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -38,16 +39,28 @@ public class PushLogService {
     }
 
     /**
-     * 푸시 알림 오픈 로그 업데이트
+     * 푸시 알림 오픈 로그 업데이트 (낙관적 락을 통한 동시성 제어)
      */
     public void logOpened(String userId, String campaignId, LocalDateTime openedAt) {
-        PushLog pushLog = pushLogRepository.findByCampaignIdAndUserId(campaignId, userId)
-                .orElseThrow(() -> new FcmException(FcmErrorCode.PUSH_LOG_NOT_FOUND));
-
-        pushLog.setOpenedAt(openedAt);
-
         try {
+            PushLog pushLog = pushLogRepository.findByCampaignIdAndUserId(campaignId, userId)
+                    .orElseThrow(() -> new FcmException(FcmErrorCode.PUSH_LOG_NOT_FOUND));
+
+            // 멱등성 보장: 이미 오픈되었으면 무시
+            if (pushLog.getOpenedAt() != null) {
+                log.debug("Push already opened, ignoring duplicate - campaignId: {}, userId: {}",
+                        campaignId, userId);
+                return;
+            }
+
+            pushLog.setOpenedAt(openedAt);
             pushLogRepository.save(pushLog);
+            log.debug("Logged push opened - campaignId: {}, userId: {}", campaignId, userId);
+
+        } catch (OptimisticLockingFailureException e) {
+            // 낙관적 락 충돌: 다른 요청이 먼저 업데이트함 (정상 케이스)
+            log.debug("Optimistic lock conflict on push opened - campaignId: {}, userId: {} (already updated by another request)",
+                    campaignId, userId);
         } catch (Exception e) {
             log.error("Failed to update push opened log - campaignId: {}, userId: {}", campaignId, userId, e);
             throw new FcmException(FcmErrorCode.PUSH_LOG_SAVE_FAILED);

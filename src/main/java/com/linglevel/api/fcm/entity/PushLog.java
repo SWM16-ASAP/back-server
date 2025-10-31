@@ -3,6 +3,7 @@ package com.linglevel.api.fcm.entity;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -33,4 +34,7 @@ public class PushLog {
     @CreatedDate
     @Indexed(expireAfter = "15552000s")
     private LocalDateTime createdAt;
+
+    @Version
+    private Long version;
 }
