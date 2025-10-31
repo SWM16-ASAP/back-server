@@ -100,10 +100,9 @@ public class CustomContentReadingProgressService {
             if (readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId)) {
                 streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
             }
-
-            readingSessionService.deleteReadingSession(userId);
         }
 
+        readingSessionService.deleteReadingSession(userId);
         customContentProgressRepository.save(customProgress);
 
         return convertToCustomContentReadingProgressResponse(customProgress, streakUpdated);

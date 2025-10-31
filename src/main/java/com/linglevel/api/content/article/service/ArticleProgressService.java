@@ -92,10 +92,9 @@ public class ArticleProgressService {
             if (readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId)) {
                 streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
             }
-
-            readingSessionService.deleteReadingSession(userId);
         }
 
+        readingSessionService.deleteReadingSession(userId);
         articleProgressRepository.save(articleProgress);
 
         return convertToArticleProgressResponse(articleProgress, streakUpdated);

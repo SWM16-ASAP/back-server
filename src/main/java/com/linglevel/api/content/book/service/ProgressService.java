@@ -142,10 +142,9 @@ public class ProgressService {
                 bookProgress.setCompletedAt(java.time.Instant.now());
                 log.info("Book {} fully completed (all {} chapters) by user {}", bookId, totalChapters, userId);
             }
-
-            readingSessionService.deleteReadingSession(userId);
         }
 
+        readingSessionService.deleteReadingSession(userId);
         bookProgressRepository.save(bookProgress);
 
         return convertToProgressResponse(bookProgress, streakUpdated);
