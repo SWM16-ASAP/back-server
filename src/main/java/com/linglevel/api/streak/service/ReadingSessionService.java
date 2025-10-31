@@ -2,6 +2,8 @@ package com.linglevel.api.streak.service;
 
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.streak.dto.ReadingSession;
+import com.linglevel.api.streak.exception.StreakErrorCode;
+import com.linglevel.api.streak.exception.StreakException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -23,6 +25,18 @@ public class ReadingSessionService {
 
     public void startReadingSession(String userId, ContentType contentType, String contentId) {
         String key = READING_SESSION_KEY_PREFIX + userId + READING_SESSION_KEY_SUFFIX;
+        ReadingSession existingSession = getReadingSession(userId);
+
+        // 같은 작품에 대한 세션이 이미 존재하면 started 시간을 갱신하지 않음
+        if (existingSession != null
+                && existingSession.getContentType().equals(contentType)
+                && existingSession.getContentId().equals(contentId)) {
+            // TTL만 갱신
+            redisTemplate.expire(key, READING_SESSION_TTL);
+            return;
+        }
+
+        // 다른 작품이거나 세션이 없으면 새로운 세션 생성
         ReadingSession session = ReadingSession.builder()
                 .contentType(contentType)
                 .contentId(contentId)
@@ -39,6 +53,14 @@ public class ReadingSessionService {
         return (ReadingSession) redisTemplate.opsForValue().get(key);
     }
 
+    public ReadingSession getReadingSessionOrThrow(String userId) {
+        ReadingSession session = getReadingSession(userId);
+        if (session == null) {
+            throw new StreakException(StreakErrorCode.READING_SESSION_NOT_FOUND);
+        }
+        return session;
+    }
+
     public void deleteReadingSession(String userId) {
         String key = READING_SESSION_KEY_PREFIX + userId + READING_SESSION_KEY_SUFFIX;
         redisTemplate.delete(key);
@@ -48,6 +70,11 @@ public class ReadingSessionService {
     public long getReadingSessionSeconds(String userId, ContentType contentType, String contentId) {
         ReadingSession session = getReadingSession(userId);
         if (session == null) {
+            return 0;
+        }
+
+        // 세션의 contentType과 contentId가 일치하지 않으면 0 반환
+        if (!session.getContentType().equals(contentType) || !session.getContentId().equals(contentId)) {
             return 0;
         }
 

@@ -5,9 +5,12 @@ import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.streak.dto.CalendarResponse;
 import com.linglevel.api.streak.dto.FreezeTransactionResponse;
 import com.linglevel.api.streak.dto.GetStreakInfoRequest;
+import com.linglevel.api.streak.dto.ReadingSession;
+import com.linglevel.api.streak.dto.ReadingSessionResponse;
 import com.linglevel.api.streak.dto.StreakResponse;
 import com.linglevel.api.streak.dto.WeekStreakResponse;
 import com.linglevel.api.streak.exception.StreakException;
+import com.linglevel.api.streak.service.ReadingSessionService;
 import com.linglevel.api.streak.service.StreakService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +35,7 @@ import org.springframework.web.bind.annotation.*;
 public class StreakController {
 
     private final StreakService streakService;
+    private final ReadingSessionService readingSessionService;
 
     @GetMapping("/me")
     @Operation(
@@ -127,6 +131,27 @@ public class StreakController {
             @AuthenticationPrincipal JwtClaims claims) {
 
         WeekStreakResponse response = streakService.getThisWeekStreak(claims.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me/reading-session")
+    @Operation(
+        summary = "내 읽기 세션 조회",
+        description = "현재 로그인한 사용자의 활성화된 읽기 세션 정보를 조회합니다. " +
+                     "세션이 없는 경우 404를 반환합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "200",
+            description = "읽기 세션 조회 성공",
+            useReturnTypeSchema = true
+        )
+    })
+    public ResponseEntity<ReadingSessionResponse> getMyReadingSession(
+            @AuthenticationPrincipal JwtClaims claims) {
+
+        ReadingSession session = readingSessionService.getReadingSessionOrThrow(claims.getId());
+        ReadingSessionResponse response = ReadingSessionResponse.from(session);
         return ResponseEntity.ok(response);
     }
 

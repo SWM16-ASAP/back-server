@@ -133,7 +133,7 @@ public class BooksController {
             readingSessionService.startReadingSession(
                 claims.getId(),
                 ContentType.BOOK,
-                bookId
+                chapterId
             );
         }
 

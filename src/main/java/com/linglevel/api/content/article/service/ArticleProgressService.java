@@ -79,19 +79,22 @@ public class ArticleProgressService {
 
         // 스트릭 검사 및 완료 처리 로직
         boolean streakUpdated = false;
-        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId)) {
+        if (isLastChunk(chunk)) {
             // 첫 완료 시에만 isCompleted와 completedAt 설정
             if (articleProgress.getCompletedAt() == null) {
                 articleProgress.setIsCompleted(true);
                 articleProgress.setCompletedAt(java.time.Instant.now());
             }
 
-            // 스트릭 업데이트 (복습도 포함하여 항상 호출)
             streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.ARTICLE, articleId));
-            streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
-            readingSessionService.deleteReadingSession(userId);
+
+            // 스트릭 업데이트 (세션이 유효할 때만)
+            if (readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId)) {
+                streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
+            }
         }
 
+        readingSessionService.deleteReadingSession(userId);
         articleProgressRepository.save(articleProgress);
 
         return convertToArticleProgressResponse(articleProgress, streakUpdated);
