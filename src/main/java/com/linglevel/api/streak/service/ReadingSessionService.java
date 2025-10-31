@@ -23,6 +23,18 @@ public class ReadingSessionService {
 
     public void startReadingSession(String userId, ContentType contentType, String contentId) {
         String key = READING_SESSION_KEY_PREFIX + userId + READING_SESSION_KEY_SUFFIX;
+        ReadingSession existingSession = getReadingSession(userId);
+
+        // 같은 작품에 대한 세션이 이미 존재하면 started 시간을 갱신하지 않음
+        if (existingSession != null
+                && existingSession.getContentType().equals(contentType)
+                && existingSession.getContentId().equals(contentId)) {
+            // TTL만 갱신
+            redisTemplate.expire(key, READING_SESSION_TTL);
+            return;
+        }
+
+        // 다른 작품이거나 세션이 없으면 새로운 세션 생성
         ReadingSession session = ReadingSession.builder()
                 .contentType(contentType)
                 .contentId(contentId)
