@@ -87,16 +87,20 @@ public class CustomContentReadingProgressService {
 
         // 스트릭 검사 및 완료 처리 로직
         boolean streakUpdated = false;
-        if (isLastChunk(chunk) && readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId)) {
+        if (isLastChunk(chunk)) {
             // 첫 완료 시에만 isCompleted와 completedAt 설정
             if (customProgress.getCompletedAt() == null) {
                 customProgress.setIsCompleted(true);
                 customProgress.setCompletedAt(java.time.Instant.now());
             }
 
-            // 스트릭 업데이트 (복습도 포함하여 항상 호출)
             streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.CUSTOM, customId));
-            streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
+
+            // 스트릭 업데이트 (세션이 유효할 때만)
+            if (readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId)) {
+                streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
+            }
+
             readingSessionService.deleteReadingSession(userId);
         }
 
