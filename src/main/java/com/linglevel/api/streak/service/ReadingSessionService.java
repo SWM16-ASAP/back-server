@@ -2,6 +2,8 @@ package com.linglevel.api.streak.service;
 
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.streak.dto.ReadingSession;
+import com.linglevel.api.streak.exception.StreakErrorCode;
+import com.linglevel.api.streak.exception.StreakException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -49,6 +51,14 @@ public class ReadingSessionService {
     public ReadingSession getReadingSession(String userId) {
         String key = READING_SESSION_KEY_PREFIX + userId + READING_SESSION_KEY_SUFFIX;
         return (ReadingSession) redisTemplate.opsForValue().get(key);
+    }
+
+    public ReadingSession getReadingSessionOrThrow(String userId) {
+        ReadingSession session = getReadingSession(userId);
+        if (session == null) {
+            throw new StreakException(StreakErrorCode.READING_SESSION_NOT_FOUND);
+        }
+        return session;
     }
 
     public void deleteReadingSession(String userId) {
