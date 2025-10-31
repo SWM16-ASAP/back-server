@@ -17,7 +17,10 @@ public enum FcmErrorCode {
     TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "FCM token not found."),
     INVALID_FCM_TOKEN_FORMAT(HttpStatus.BAD_REQUEST, "FCM token validation failed."),
     MESSAGE_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to send FCM message."),
-    
+
+    PUSH_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Push log not found for the given campaign and user."),
+    PUSH_LOG_SAVE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save push log."),
+
     UNAUTHORIZED_ACCESS(HttpStatus.UNAUTHORIZED, "Invalid or expired token."),
     
     NOT_IMPLEMENTED(HttpStatus.NOT_IMPLEMENTED, "not implemented yet.");
