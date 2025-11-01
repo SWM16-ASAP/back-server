@@ -582,14 +582,14 @@ public class StreakService {
                 Collectors.summingInt(FreezeTransaction::getAmount)
             ));
 
-        LocalDateTime startDateTime = startDate.atStartOfDay();
-        LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay();
+        LocalDateTime startDateTime = startDate.atStartOfDay(KST_ZONE).toLocalDateTime();
+        LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay(KST_ZONE).toLocalDateTime();
 
         List<TicketTransaction> ticketRewardTxs = ticketTransactionRepository
             .findByUserIdAndAmountAndCreatedAtBetween(userId, TICKET_REWARD_AMOUNT, startDateTime, endDateTime);
         Map<LocalDate, Integer> ticketRewardsMap = ticketRewardTxs.stream()
             .collect(Collectors.groupingBy(
-                t -> t.getCreatedAt().toLocalDate(),
+                t -> t.getCreatedAt().atZone(ZoneId.systemDefault()).withZoneSameInstant(KST_ZONE).toLocalDate(),
                 Collectors.summingInt(TicketTransaction::getAmount)
             ));
 
