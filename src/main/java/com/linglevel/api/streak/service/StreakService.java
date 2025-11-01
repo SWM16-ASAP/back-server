@@ -222,7 +222,10 @@ public class StreakService {
     }
 
     public boolean hasCompletedStreakToday(String userId, LocalDate today) {
-        return dailyCompletionRepository.existsByUserIdAndCompletionDate(userId, today);
+        return dailyCompletionRepository
+                .findByUserIdAndCompletionDate(userId, today)
+                .map(completion -> completion.getTotalCompletionCount() > 0)
+                .orElse(false);
     }
 
     private UserStudyReport createNewUserStudyReport(String userId) {
@@ -262,6 +265,9 @@ public class StreakService {
                 report.getCompletedContentIds().add(contentId);
             }
 
+            // 현재 스트릭 카운트 저장
+            dailyCompletion.setStreakCount(report.getCurrentStreak());
+
             // 모든 완료 기록을 completedContents에 추가
             dailyCompletion.getCompletedContents().add(completedContent);
         } else {
@@ -272,6 +278,7 @@ public class StreakService {
                     .firstCompletionCount(isFirstCompletion ? 1 : 0)
                     .totalCompletionCount(1)
                     .completedContents(new java.util.ArrayList<>(Collections.singletonList(completedContent)))
+                    .streakCount(report.getCurrentStreak())
                     .createdAt(Instant.now())
                     .build();
 
@@ -334,29 +341,31 @@ public class StreakService {
         }
     }
 
-    private StreakStatus calculateTodayStatus(String userId, LocalDate today) {
-        boolean todayCompleted = dailyCompletionRepository.existsByUserIdAndCompletionDate(userId, today);
+    private StreakStatus calculateTodayStatus(String userId, LocalDate date) {
+        DailyCompletion completion = dailyCompletionRepository
+                .findByUserIdAndCompletionDate(userId, date)
+                .orElse(null);
 
-        if (todayCompleted) {
+        if (completion != null && completion.getTotalCompletionCount() > 0) {
+            // 실제 학습 활동이 있음
             return StreakStatus.COMPLETED;
         }
 
-        // Check if yesterday freeze was used
-        boolean yesterdayFreezeUsed = checkYesterdayFreezeUsed(userId, today);
-        if (yesterdayFreezeUsed) {
+        // 프리즈 사용 여부 확인
+        boolean freezeUsed = checkFreezeUsedOnDate(userId, date);
+        if (freezeUsed) {
             return StreakStatus.FREEZE_USED;
         }
 
         return StreakStatus.MISSED;
     }
 
-    private boolean checkYesterdayFreezeUsed(String userId, LocalDate today) {
-        LocalDate yesterday = today.minusDays(1);
-        Instant yesterdayStart = yesterday.atStartOfDay(KST_ZONE).toInstant();
-        Instant yesterdayEnd = yesterday.plusDays(1).atStartOfDay(KST_ZONE).toInstant();
+    private boolean checkFreezeUsedOnDate(String userId, LocalDate date) {
+        Instant dayStart = date.atStartOfDay(KST_ZONE).toInstant();
+        Instant dayEnd = date.plusDays(1).atStartOfDay(KST_ZONE).toInstant();
 
         return freezeTransactionRepository.existsByUserIdAndAmountAndCreatedAtBetween(
-            userId, -1, yesterdayStart, yesterdayEnd
+            userId, -1, dayStart, dayEnd
         );
     }
 
@@ -488,7 +497,20 @@ public class StreakService {
                 .build();
         freezeTransactionRepository.save(transaction);
 
-        log.debug("Created freeze consumption transaction for user {} on date {}", report.getUserId(), missedDate);
+        // 프리즈 사용 시에도 DailyCompletion 생성 (totalCompletionCount=0으로 구분)
+        DailyCompletion freezeCompletion = DailyCompletion.builder()
+                .userId(report.getUserId())
+                .completionDate(missedDate)
+                .firstCompletionCount(0)
+                .totalCompletionCount(0)
+                .completedContents(new ArrayList<>())
+                .streakCount(report.getCurrentStreak())
+                .createdAt(Instant.now())
+                .build();
+        dailyCompletionRepository.save(freezeCompletion);
+
+        log.debug("Created freeze consumption transaction and DailyCompletion for user {} on date {} with streak count {}",
+                report.getUserId(), missedDate, report.getCurrentStreak());
     }
 
     @Transactional(readOnly = true)
@@ -582,12 +604,22 @@ public class StreakService {
         StreakStatus status;
         if (isFuture) {
             status = StreakStatus.FUTURE;
-        } else if (completion != null) {
+        } else if (completion != null && completion.getTotalCompletionCount() > 0) {
+            // 실제 학습 활동이 있는 경우
             status = StreakStatus.COMPLETED;
         } else if (viewData.getFreezeUsageMap().containsKey(date)) {
             status = StreakStatus.FREEZE_USED;
         } else {
             status = StreakStatus.MISSED;
+        }
+
+        // 저장된 streakCount 가져오기
+        Integer streakCount = null;
+        if (completion != null && completion.getStreakCount() != null) {
+            streakCount = completion.getStreakCount();
+        } else if (status == StreakStatus.MISSED) {
+            // MISSED 상태는 0으로 표시
+            streakCount = 0;
         }
 
         RewardInfo rewards = null;
@@ -618,7 +650,7 @@ public class StreakService {
             expectedRewards = calculateExpectedRewards(expectedStreak);
         }
 
-        return new CalendarDayInfo(status, rewards, expectedRewards);
+        return new CalendarDayInfo(status, streakCount, rewards, expectedRewards);
     }
 
     private CalendarDayResponse buildCalendarDay(LocalDate date, LocalDate today, CalendarViewData viewData) {
@@ -633,7 +665,7 @@ public class StreakService {
                 .dayOfMonth(date.getDayOfMonth())
                 .isToday(date.equals(today))
                 .status(dayInfo.status)
-                .streakCount(null)
+                .streakCount(dayInfo.streakCount)
                 .firstCompletionCount(firstCompletionCount)
                 .totalCompletionCount(totalCompletionCount)
                 .rewards(dayInfo.rewards)
@@ -688,6 +720,7 @@ public class StreakService {
     @Value
     private static class CalendarDayInfo {
         StreakStatus status;
+        Integer streakCount;
         RewardInfo rewards;
         RewardInfo expectedRewards;
     }
