@@ -39,6 +39,8 @@ public class DailyCompletion {
 
     private List<CompletedContent> completedContents;
 
+    private Integer streakCount;
+
     private Instant createdAt;
 
     @Getter
