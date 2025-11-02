@@ -11,6 +11,7 @@ import com.linglevel.api.common.dto.PageResponse;
 import com.linglevel.api.common.exception.CommonErrorCode;
 import com.linglevel.api.common.exception.CommonException;
 import com.linglevel.api.content.common.ContentType;
+import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.streak.service.ReadingSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -71,9 +72,11 @@ public class BooksController {
     public ResponseEntity<BookResponse> getBook(
             @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
             @PathVariable String bookId,
+            @Parameter(description = "언어 코드", example = "EN")
+            @RequestParam(defaultValue = "EN") LanguageCode languageCode,
             @AuthenticationPrincipal JwtClaims claims) {
         String userId = claims != null ? claims.getId() : null;
-        BookResponse response = bookService.getBook(bookId, userId);
+        BookResponse response = bookService.getBook(bookId, userId, languageCode);
         return ResponseEntity.ok(response);
     }
 
