@@ -128,8 +128,17 @@ public class FcmTokenService {
             // countryCode가 제공되지 않으면 기본값 US 사용
             CountryCode countryCode = request.getCountryCode() != null ? request.getCountryCode() : CountryCode.US;
 
+            // 1. 같은 fcmToken이 다른 유저/기기에 할당되어 있는지 확인
+            Optional<FcmToken> existingFcmToken = fcmTokenRepository.findFirstByFcmToken(request.getFcmToken());
+            if (existingFcmToken.isPresent()) {
+                FcmToken oldToken = existingFcmToken.get();
+                if (!oldToken.getUserId().equals(userId) || !oldToken.getDeviceId().equals(request.getDeviceId())) {
+                    fcmTokenRepository.delete(oldToken);
+                }
+            }
+
             Optional<FcmToken> existingToken = fcmTokenRepository.findByUserIdAndDeviceId(userId, request.getDeviceId());
-            
+
             if (existingToken.isPresent()) {
                 // 기존 토큰 업데이트
                 FcmToken token = existingToken.get();
@@ -140,10 +149,10 @@ public class FcmTokenService {
                 token.setOsVersion(request.getOsVersion());
                 token.setUpdatedAt(LocalDateTime.now());
                 token.setIsActive(true);
-                
+
                 FcmToken savedToken = fcmTokenRepository.save(token);
                 log.info("FCM token updated for user: {}, device: {}", userId, request.getDeviceId());
-                
+
                 return FcmTokenUpsertResult.builder()
                         .tokenId(savedToken.getId())
                         .created(false)
@@ -162,10 +171,10 @@ public class FcmTokenService {
                         .updatedAt(LocalDateTime.now())
                         .isActive(true)
                         .build();
-                
+
                 FcmToken savedToken = fcmTokenRepository.save(newToken);
                 log.info("FCM token created for user: {}, device: {}", userId, request.getDeviceId());
-                
+
                 return FcmTokenUpsertResult.builder()
                         .tokenId(savedToken.getId())
                         .created(true)

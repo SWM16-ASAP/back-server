@@ -30,6 +30,7 @@ public class FcmToken {
     private String deviceId;
     
     @NotNull
+    @Indexed(unique = true)
     private String fcmToken;
     
     @NotNull
