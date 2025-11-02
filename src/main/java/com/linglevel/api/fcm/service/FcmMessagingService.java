@@ -181,7 +181,11 @@ public class FcmMessagingService {
     private Map<String, String> getTokenToUserIdMap(List<String> fcmTokens) {
         List<FcmToken> tokens = fcmTokenRepository.findAllByFcmTokenIn(fcmTokens);
         return tokens.stream()
-                .collect(Collectors.toMap(FcmToken::getFcmToken, FcmToken::getUserId));
+                .collect(Collectors.toMap(
+                        FcmToken::getFcmToken,
+                        FcmToken::getUserId,
+                        (existing, replacement) -> existing
+                ));
     }
 
     /**
@@ -211,7 +215,7 @@ public class FcmMessagingService {
      * FCM 토큰으로 사용자 ID 조회
      */
     private String getUserIdFromToken(String fcmToken) {
-        Optional<FcmToken> tokenOpt = fcmTokenRepository.findByFcmToken(fcmToken);
+        Optional<FcmToken> tokenOpt = fcmTokenRepository.findFirstByFcmToken(fcmToken);
         return tokenOpt.map(FcmToken::getUserId).orElse(null);
     }
 

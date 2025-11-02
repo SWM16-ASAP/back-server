@@ -14,6 +14,8 @@ public interface FcmTokenRepository extends MongoRepository<FcmToken, String> {
 
     Optional<FcmToken> findByFcmToken(String fcmToken);
 
+    Optional<FcmToken> findFirstByFcmToken(String fcmToken);
+
     List<FcmToken> findByUserIdAndIsActive(String userId, Boolean isActive);
 
     List<FcmToken> findByIsActive(Boolean isActive);
