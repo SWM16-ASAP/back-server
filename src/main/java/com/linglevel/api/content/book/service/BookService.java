@@ -90,6 +90,7 @@ public class BookService {
     private Book createBook(BookImportData importData, String requestId) {
         Book book = new Book();
         book.setTitle(importData.getTitle());
+        book.setTitleTranslations(importData.getTitleTranslations());
         book.setAuthor(importData.getAuthor());
         DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(importData
                 .getOriginalTextLevel().toUpperCase());
@@ -203,6 +204,7 @@ public class BookService {
         return BookResponse.builder()
             .id(book.getId())
             .title(book.getTitle())
+            .titleTranslations(book.getTitleTranslations())
             .author(book.getAuthor())
             .coverImageUrl(book.getCoverImageUrl())
             .difficultyLevel(book.getDifficultyLevel())

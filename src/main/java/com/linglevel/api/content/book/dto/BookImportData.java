@@ -1,16 +1,19 @@
 package com.linglevel.api.content.book.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.linglevel.api.content.common.TitleTranslations;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
 public class BookImportData {
-    
+
     @JsonProperty("novel_id")
     private String novelId;
     private String title;
+    @JsonProperty("title_translations")
+    private TitleTranslations titleTranslations;
     private String author;
     @JsonProperty("original_text_level")
     private String originalTextLevel;
