@@ -210,7 +210,6 @@ public class BookService {
         return BookResponse.builder()
             .id(book.getId())
             .title(selectedTitle)
-            .titleTranslations(book.getTitleTranslations())
             .author(book.getAuthor())
             .coverImageUrl(book.getCoverImageUrl())
             .difficultyLevel(book.getDifficultyLevel())
