@@ -1,6 +1,7 @@
 package com.linglevel.api.content.book.entity;
 
 import com.linglevel.api.content.common.DifficultyLevel;
+import com.linglevel.api.content.common.TitleTranslations;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -18,6 +19,8 @@ public class Book {
     private String id;
 
     private String title;
+
+    private TitleTranslations titleTranslations;
 
     private String author;
 
