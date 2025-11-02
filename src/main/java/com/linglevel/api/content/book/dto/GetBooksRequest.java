@@ -1,5 +1,6 @@
 package com.linglevel.api.content.book.dto;
 
+import com.linglevel.api.i18n.LanguageCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
@@ -18,6 +19,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Schema(description = "책 목록 조회 요청")
 public class GetBooksRequest {
+
+    @Schema(description = "언어 코드 (책 제목 번역)",
+            example = "EN",
+            defaultValue = "EN")
+    @Builder.Default
+    private LanguageCode languageCode = LanguageCode.EN;
 
     @Schema(description = "정렬 기준",
             example = "created_at",
