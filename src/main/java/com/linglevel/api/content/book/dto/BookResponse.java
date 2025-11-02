@@ -1,6 +1,7 @@
 package com.linglevel.api.content.book.dto;
 
 import com.linglevel.api.content.common.DifficultyLevel;
+import com.linglevel.api.content.common.TitleTranslations;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,9 +19,12 @@ import java.util.List;
 public class BookResponse {
     @Schema(description = "책 ID", example = "60d0fe4f5311236168a109ca")
     private String id;
-    
-    @Schema(description = "책 제목", example = "The Little Prince")
+
+    @Schema(description = "책 제목 (영문 원제)", example = "The Little Prince")
     private String title;
+
+    @Schema(description = "책 제목 번역 (한국어, 일본어)")
+    private TitleTranslations titleTranslations;
     
     @Schema(description = "저자", example = "Antoine de Saint-Exupéry")
     private String author;

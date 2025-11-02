@@ -11,6 +11,7 @@ import com.linglevel.api.content.book.repository.BookRepository;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
 import com.linglevel.api.s3.service.S3UrlService;
@@ -90,6 +91,7 @@ public class BookService {
     private Book createBook(BookImportData importData, String requestId) {
         Book book = new Book();
         book.setTitle(importData.getTitle());
+        book.setTitleTranslations(importData.getTitleTranslations());
         book.setAuthor(importData.getAuthor());
         DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(importData
                 .getOriginalTextLevel().toUpperCase());
@@ -124,18 +126,19 @@ public class BookService {
         // QueryDSL Custom Repository를 사용하여 필터링 + 페이지네이션 통합 처리
         Page<Book> bookPage = bookRepository.findBooksWithFilters(request, userId, pageable);
 
+        LanguageCode languageCode = request.getLanguageCode();
         List<BookResponse> bookResponses = bookPage.getContent().stream()
-            .map(book -> convertToBookResponse(book, userId))
+            .map(book -> convertToBookResponse(book, userId, languageCode))
             .collect(Collectors.toList());
 
         return new PageResponse<>(bookResponses, bookPage);
     }
 
-    public BookResponse getBook(String bookId, String userId) {
+    public BookResponse getBook(String bookId, String userId, LanguageCode languageCode) {
         Book book = bookRepository.findById(bookId)
             .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
-        
-        return convertToBookResponse(book, userId);
+
+        return convertToBookResponse(book, userId, languageCode);
     }
 
     public boolean existsById(String bookId) { 
@@ -176,7 +179,7 @@ public class BookService {
             .collect(Collectors.toList());
     }
 
-    private BookResponse convertToBookResponse(Book book, String userId) {
+    private BookResponse convertToBookResponse(Book book, String userId, LanguageCode languageCode) {
         // 진도 정보 조회
         int currentReadChapterNumber = 0;
         double progressPercentage = 0.0;
@@ -200,9 +203,14 @@ public class BookService {
                 isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
             }
         }
+
+        // 언어 코드에 따라 title 선택
+        String selectedTitle = selectTitleByLanguage(book, languageCode);
+
         return BookResponse.builder()
             .id(book.getId())
-            .title(book.getTitle())
+            .title(selectedTitle)
+            .titleTranslations(book.getTitleTranslations())
             .author(book.getAuthor())
             .coverImageUrl(book.getCoverImageUrl())
             .difficultyLevel(book.getDifficultyLevel())
@@ -217,6 +225,30 @@ public class BookService {
             .tags(book.getTags())
             .createdAt(book.getCreatedAt())
             .build();
+    }
+
+    private String selectTitleByLanguage(Book book, LanguageCode languageCode) {
+        if (languageCode == null) {
+            return book.getTitle();
+        }
+
+        return switch (languageCode) {
+            case EN -> book.getTitle();
+            case KO -> {
+                if (book.getTitleTranslations() != null &&
+                    StringUtils.hasText(book.getTitleTranslations().getKo())) {
+                    yield book.getTitleTranslations().getKo();
+                }
+                yield book.getTitle();
+            }
+            case JA -> {
+                if (book.getTitleTranslations() != null &&
+                    StringUtils.hasText(book.getTitleTranslations().getJa())) {
+                    yield book.getTitleTranslations().getJa();
+                }
+                yield book.getTitle();
+            }
+        };
     }
 
 
