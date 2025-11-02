@@ -22,7 +22,6 @@ public class GetBooksRequest {
 
     @Schema(description = "언어 코드 (책 제목 번역)",
             example = "EN",
-            allowableValues = {"EN", "KO", "JA"},
             defaultValue = "EN")
     @Builder.Default
     private LanguageCode languageCode = LanguageCode.EN;
