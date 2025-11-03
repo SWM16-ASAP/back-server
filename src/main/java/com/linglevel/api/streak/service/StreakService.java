@@ -618,12 +618,9 @@ public class StreakService {
         }
 
         // 저장된 streakCount 가져오기
-        Integer streakCount = null;
+        Integer streakCount = 0;
         if (completion != null && completion.getStreakCount() != null) {
             streakCount = completion.getStreakCount();
-        } else if (status == StreakStatus.MISSED) {
-            // MISSED 상태는 0으로 표시
-            streakCount = 0;
         }
 
         RewardInfo rewards = null;
