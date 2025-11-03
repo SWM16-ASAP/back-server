@@ -25,7 +25,9 @@ public class CrawlingDsl {
     private String titleDsl;
     
     private String contentDsl;
-    
+
+    private String thumbnailDsl;
+
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;

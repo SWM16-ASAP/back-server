@@ -27,7 +27,10 @@ public class UpdateDslResponse {
     
     @Schema(description = "업데이트된 본문 추출 DSL 규칙")
     private String contentDsl;
-    
+
+    @Schema(description = "업데이트된 섬네일 추출 DSL 규칙")
+    private String thumbnailDsl;
+
     @Schema(description = "응답 메시지", example = "DSL updated successfully.")
     private String message;
 }
