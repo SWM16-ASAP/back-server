@@ -95,7 +95,7 @@ public class StreakService {
                 .availableFreezes(report.getAvailableFreezes())
                 .totalReadingTimeSeconds(report.getTotalReadingTimeSeconds())
                 .percentile(calculatePercentile(report))
-                .encouragementMessage(getEncouragementMessage(report.getCurrentStreak(), languageCode))
+                .encouragementMessage(getEncouragementMessage(report.getCurrentStreak(), todayStatus, languageCode))
                 .expectedRewards(expectedRewards)
                 .build();
     }
@@ -313,7 +313,11 @@ public class StreakService {
         return Math.round(percentile * 10.0) / 10.0;
     }
 
-    private EncouragementMessage getEncouragementMessage(int currentStreak, LanguageCode languageCode) {
+    private EncouragementMessage getEncouragementMessage(int currentStreak, StreakStatus todayStatus, LanguageCode languageCode) {
+        if (todayStatus != StreakStatus.COMPLETED) {
+            return EncouragementMessage.builder().build();
+        }
+
         // Default to EN if null
         if (languageCode == null) {
             languageCode = LanguageCode.EN;
