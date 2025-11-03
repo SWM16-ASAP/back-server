@@ -23,6 +23,6 @@ public class UpdateDslRequest {
     @Schema(description = "업데이트할 본문 추출 DSL 규칙", example = ".new-product-description", required = true)
     private String contentDsl;
 
-    @Schema(description = "업데이트할 섬네일 추출 DSL 규칙", example = "meta[property='og:image']", required = false)
-    private String thumbnailDsl;
+    @Schema(description = "업데이트할 커버 이미지 추출 DSL 규칙", example = "meta[property='og:image']", required = false)
+    private String coverImageDsl;
 }

@@ -45,7 +45,7 @@ public class CrawlingService {
                         .domain(domain)
                         .titleDsl(crawlingDsl.get().getTitleDsl())
                         .contentDsl(crawlingDsl.get().getContentDsl())
-                        .thumbnailDsl(crawlingDsl.get().getThumbnailDsl())
+                        .coverImageDsl(crawlingDsl.get().getCoverImageDsl())
                         .valid(true)
                         .build();
             }
@@ -79,7 +79,7 @@ public class CrawlingService {
                 .name(request.getName())
                 .titleDsl(request.getTitleDsl())
                 .contentDsl(request.getContentDsl())
-                .thumbnailDsl(request.getThumbnailDsl())
+                .coverImageDsl(request.getCoverImageDsl())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -100,7 +100,7 @@ public class CrawlingService {
         crawlingDsl.setName(request.getName());
         crawlingDsl.setTitleDsl(request.getTitleDsl());
         crawlingDsl.setContentDsl(request.getContentDsl());
-        crawlingDsl.setThumbnailDsl(request.getThumbnailDsl());
+        crawlingDsl.setCoverImageDsl(request.getCoverImageDsl());
         crawlingDsl.setUpdatedAt(LocalDateTime.now());
 
         CrawlingDsl updated = crawlingDslRepository.save(crawlingDsl);
@@ -111,7 +111,7 @@ public class CrawlingService {
                 .name(updated.getName())
                 .titleDsl(updated.getTitleDsl())
                 .contentDsl(updated.getContentDsl())
-                .thumbnailDsl(updated.getThumbnailDsl())
+                .coverImageDsl(updated.getCoverImageDsl())
                 .message("DSL updated successfully.")
                 .build();
     }
