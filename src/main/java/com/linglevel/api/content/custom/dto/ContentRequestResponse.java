@@ -36,7 +36,10 @@ public class ContentRequestResponse {
     
     @Schema(description = "원본 저자", example = "작가명")
     private String originAuthor;
-    
+
+    @Schema(description = "커버 이미지 URL", example = "https://example.com/image.jpg")
+    private String coverImageUrl;
+
     @Schema(description = "처리 상태", example = "PROCESSING")
     private String status;
     

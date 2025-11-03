@@ -63,6 +63,7 @@ public class CustomContentRequestService {
                 .originUrl(request.getOriginUrl())
                 .originDomain(extractedDomain)
                 .originAuthor(request.getOriginAuthor())
+                .coverImageUrl(request.getCoverImageUrl())
                 .status(ContentRequestStatus.PENDING)
                 .progress(0)
                 .build();
@@ -111,6 +112,9 @@ public class CustomContentRequestService {
             Map<String, Object> aiInputData = new HashMap<>();
             aiInputData.put("type", "custom");
             aiInputData.put("content", request.getOriginalContent());
+            if (request.getCoverImageUrl() != null) {
+                aiInputData.put("coverImageUrl", request.getCoverImageUrl());
+            }
 
             s3AiService.uploadJsonToInputBucket(contentRequest.getId(), aiInputData, pathStrategy);
             log.info("Successfully uploaded AI input data for request: {}", contentRequest.getId());
@@ -174,6 +178,7 @@ public class CustomContentRequestService {
         response.setOriginUrl(contentRequest.getOriginUrl());
         response.setOriginDomain(contentRequest.getOriginDomain());
         response.setOriginAuthor(contentRequest.getOriginAuthor());
+        response.setCoverImageUrl(contentRequest.getCoverImageUrl());
         response.setStatus(contentRequest.getStatus().getCode());
         response.setProgress(contentRequest.getProgress());
         response.setCreatedAt(contentRequest.getCreatedAt());

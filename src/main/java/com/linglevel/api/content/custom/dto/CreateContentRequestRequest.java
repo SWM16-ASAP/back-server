@@ -32,7 +32,10 @@ public class CreateContentRequestRequest {
     
     @Schema(description = "원본 링크 URL (링크 타입인 경우)", example = "https://example.com/article")
     private String originUrl;
-    
+
     @Schema(description = "원본 저자", example = "작가명")
     private String originAuthor;
+
+    @Schema(description = "커버 이미지 URL (옵셔널)", example = "https://example.com/image.jpg")
+    private String coverImageUrl;
 }

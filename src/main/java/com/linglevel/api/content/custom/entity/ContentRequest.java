@@ -43,6 +43,8 @@ public class ContentRequest {
 
     private String originDomain;
 
+    private String coverImageUrl;
+
     @NotNull
     @Builder.Default
     private ContentRequestStatus status = ContentRequestStatus.PENDING;
