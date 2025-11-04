@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -34,5 +34,5 @@ public class ContentAccessLog {
 
     private ContentCategory category;
 
-    private LocalDateTime accessedAt;
+    private Instant accessedAt;
 }

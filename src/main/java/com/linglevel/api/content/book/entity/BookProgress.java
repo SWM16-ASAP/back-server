@@ -11,7 +11,6 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +59,7 @@ public class BookProgress {
     private Instant completedAt;
 
     @LastModifiedDate
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     /**
      * 챕터 진행률 정보를 담는 내부 클래스

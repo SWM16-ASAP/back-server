@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Getter
@@ -66,6 +66,6 @@ public class ArticleResponse {
     @Schema(description = "타깃 언어 코드 목록", example = "[\"KO\", \"EN\", \"JA\"]")
     private List<LanguageCode> targetLanguageCode;
 
-    @Schema(description = "생성 날짜", example = "2024-01-15T00:00:00")
-    private LocalDateTime createdAt;
+    @Schema(description = "생성 날짜", example = "2024-01-15T00:00:00Z")
+    private Instant createdAt;
 }

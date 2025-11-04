@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Getter
@@ -46,11 +46,11 @@ public class ContentRequestResponse {
     @Schema(description = "진행률 (0-100)", example = "45")
     private Integer progress;
     
-    @Schema(description = "생성일시", example = "2024-01-15T10:00:00")
-    private LocalDateTime createdAt;
-    
-    @Schema(description = "완료일시", example = "2024-01-15T10:05:00")
-    private LocalDateTime completedAt;
+    @Schema(description = "생성일시", example = "2024-01-15T10:00:00Z")
+    private Instant createdAt;
+
+    @Schema(description = "완료일시", example = "2024-01-15T10:05:00Z")
+    private Instant completedAt;
     
     @Schema(description = "에러 메시지", example = "error_message")
     private String errorMessage;

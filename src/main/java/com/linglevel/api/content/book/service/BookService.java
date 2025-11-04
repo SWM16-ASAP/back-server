@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -104,7 +104,7 @@ public class BookService {
         book.setAverageRating(0.0);
         book.setReviewCount(0);
         book.setReadingTime(0);
-        book.setCreatedAt(LocalDateTime.now());
+        book.setCreatedAt(Instant.now());
         
         int chapterCount = importData.getLeveledResults().isEmpty() ? 0 :
                           importData.getLeveledResults().get(0).getChapters().size();

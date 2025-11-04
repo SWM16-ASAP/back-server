@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Getter
@@ -67,9 +67,9 @@ public class CustomContentResponse {
     @Schema(description = "출처 도메인", example = "example.com")
     private String originDomain;
     
-    @Schema(description = "생성일시", example = "2024-01-15T10:05:00")
-    private LocalDateTime createdAt;
-    
-    @Schema(description = "수정일시", example = "2024-01-15T10:05:00")
-    private LocalDateTime updatedAt;
+    @Schema(description = "생성일시", example = "2024-01-15T10:05:00Z")
+    private Instant createdAt;
+
+    @Schema(description = "수정일시", example = "2024-01-15T10:05:00Z")
+    private Instant updatedAt;
 }

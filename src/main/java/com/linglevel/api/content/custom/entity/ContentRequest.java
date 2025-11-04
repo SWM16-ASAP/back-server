@@ -9,7 +9,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Getter
@@ -53,16 +53,16 @@ public class ContentRequest {
     private Integer progress = 0;
 
     @CreatedDate
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
-    private LocalDateTime completedAt;
+    private Instant completedAt;
 
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 
     private String errorMessage;
 
     private String resultCustomContentId;
 
     @LastModifiedDate
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 }

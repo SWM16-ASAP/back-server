@@ -30,7 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -178,7 +178,7 @@ public class ArticleService {
         }
 
         article.setOriginUrl(importData.getOriginUrl());
-        article.setCreatedAt(LocalDateTime.now());
+        article.setCreatedAt(Instant.now());
 
         return article;
     }

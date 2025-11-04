@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -32,6 +32,6 @@ public class BooksProgressResponse {
     @Schema(description = "챕터 진행률", example = "15.5")
     private Double progressPercentage;
     
-    @Schema(description = "업데이트 일시", example = "2024-01-15T10:30:00")
-    private LocalDateTime updatedAt;
+    @Schema(description = "업데이트 일시", example = "2024-01-15T10:30:00Z")
+    private Instant updatedAt;
 } 

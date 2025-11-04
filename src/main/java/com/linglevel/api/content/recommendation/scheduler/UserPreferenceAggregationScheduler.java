@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.Map.Entry;
@@ -25,14 +26,14 @@ public class UserPreferenceAggregationScheduler {
 
     @Scheduled(cron = "0 0 3 * * *")
     public void aggregateUserPreferences() {
-        LocalDateTime startTime = LocalDateTime.now();
+        Instant startTime = Instant.now();
         log.info("Starting user preference aggregation batch job at {}", startTime);
 
         int successCount = 0;
         int failureCount = 0;
 
         try {
-            LocalDateTime cutoffDate = LocalDateTime.now().minusDays(90);
+            Instant cutoffDate = Instant.now().minus(90, java.time.temporal.ChronoUnit.DAYS);
             List<ContentAccessLog> recentLogs = contentAccessLogRepository.findByAccessedAtAfter(cutoffDate);
 
             if (recentLogs.isEmpty()) {
@@ -61,7 +62,7 @@ public class UserPreferenceAggregationScheduler {
                 }
             }
 
-            LocalDateTime endTime = LocalDateTime.now();
+            Instant endTime = Instant.now();
             long durationMillis = java.time.Duration.between(startTime, endTime).toMillis();
 
             log.info("User preference aggregation completed. Success: {}, Failure: {}, Duration: {}ms",
@@ -78,9 +79,9 @@ public class UserPreferenceAggregationScheduler {
 
     private void updateUserPreference(String userId, List<ContentAccessLog> logs) {
         // 시간 감쇠 가중치 계산
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime sevenDaysAgo = now.minusDays(7);
-        LocalDateTime thirtyDaysAgo = now.minusDays(30);
+        Instant now = Instant.now();
+        Instant sevenDaysAgo = now.minus(7, java.time.temporal.ChronoUnit.DAYS);
+        Instant thirtyDaysAgo = now.minus(30, java.time.temporal.ChronoUnit.DAYS);
 
         Map<ContentCategory, Double> categoryScores = new HashMap<>();
         Map<ContentCategory, Integer> rawCounts = new HashMap<>();
@@ -134,7 +135,7 @@ public class UserPreferenceAggregationScheduler {
         }
     }
 
-    private double calculateTimeDecayWeight(LocalDateTime accessedAt, LocalDateTime sevenDaysAgo, LocalDateTime thirtyDaysAgo) {
+    private double calculateTimeDecayWeight(Instant accessedAt, Instant sevenDaysAgo, Instant thirtyDaysAgo) {
         if (accessedAt.isAfter(sevenDaysAgo)) {
             return 1.0; // 최근 7일: 최대 가중치
         } else if (accessedAt.isAfter(thirtyDaysAgo)) {
@@ -144,9 +145,9 @@ public class UserPreferenceAggregationScheduler {
         }
     }
 
-    private void deleteOldLogs(LocalDateTime cutoffDate) {
+    private void deleteOldLogs(Instant cutoffDate) {
         try {
-            LocalDateTime deleteBeforeDate = cutoffDate.minusDays(30); // 120일 이전 로그 삭제
+            Instant deleteBeforeDate = cutoffDate.minus(30, java.time.temporal.ChronoUnit.DAYS); // 120일 이전 로그 삭제
             contentAccessLogRepository.deleteByAccessedAtBefore(deleteBeforeDate);
             log.info("Deleted old access logs before {}", deleteBeforeDate);
         } catch (Exception e) {

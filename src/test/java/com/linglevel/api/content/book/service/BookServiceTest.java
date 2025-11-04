@@ -22,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -277,7 +278,7 @@ class BookServiceTest {
         book.setAverageRating(4.5);
         book.setReviewCount(100);
         book.setViewCount(1000);
-        book.setCreatedAt(LocalDateTime.now());
+        book.setCreatedAt(Instant.now());
         return book;
     }
 
@@ -296,7 +297,7 @@ class BookServiceTest {
         progress.setCurrentReadChapterNumber(isCompleted ? 20 : 10);
         progress.setMaxReadChapterNumber(isCompleted ? 20 : 10);
         progress.setIsCompleted(isCompleted);
-        progress.setUpdatedAt(LocalDateTime.now());
+        progress.setUpdatedAt(Instant.now());
         return progress;
     }
 }

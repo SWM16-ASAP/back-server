@@ -5,7 +5,7 @@ import com.linglevel.api.content.common.ContentType;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -33,5 +33,5 @@ public class RecentContentResponse {
     private String originUrl;
     private String originDomain;
 
-    private LocalDateTime lastStudiedAt;
+    private Instant lastStudiedAt;
 }

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -70,7 +70,7 @@ public class CustomContentWebhookService {
             // 7. Update ContentRequest status
             contentRequest.setResultCustomContentId(savedContent.getId());
             contentRequest.setStatus(ContentRequestStatus.COMPLETED);
-            contentRequest.setCompletedAt(LocalDateTime.now());
+            contentRequest.setCompletedAt(Instant.now());
             contentRequestRepository.save(contentRequest);
 
             // 8. Send notification

@@ -7,7 +7,7 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Getter
@@ -43,5 +43,5 @@ public class Article {
 
     private List<LanguageCode> targetLanguageCode;
 
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 }

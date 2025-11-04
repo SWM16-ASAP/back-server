@@ -8,7 +8,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
@@ -26,7 +26,7 @@ public class ContentAccessEventListener {
                     .contentId(event.getContentId())
                     .contentType(event.getContentType())
                     .category(event.getCategory())
-                    .accessedAt(LocalDateTime.now())
+                    .accessedAt(Instant.now())
                     .build();
 
             contentAccessLogRepository.save(accessLog);

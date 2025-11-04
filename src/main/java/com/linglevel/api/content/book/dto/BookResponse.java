@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -58,6 +58,6 @@ public class BookResponse {
     @Schema(description = "태그 목록", example = "[\"philosophy\", \"children\"]")
     private List<String> tags;
     
-    @Schema(description = "생성일자", example = "2024-01-15T00:00:00")
-    private LocalDateTime createdAt;
+    @Schema(description = "생성일자", example = "2024-01-15T00:00:00Z")
+    private Instant createdAt;
 } 

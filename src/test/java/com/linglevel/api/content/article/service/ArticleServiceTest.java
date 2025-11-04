@@ -24,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -220,7 +221,7 @@ class ArticleServiceTest {
         article.setAverageRating(4.5);
         article.setReviewCount(100);
         article.setViewCount(1000);
-        article.setCreatedAt(LocalDateTime.now());
+        article.setCreatedAt(Instant.now());
         return article;
     }
 
@@ -245,7 +246,7 @@ class ArticleServiceTest {
         progress.setArticleId(articleId);
         progress.setChunkId("test-chunk-id");
         progress.setIsCompleted(isCompleted);
-        progress.setUpdatedAt(LocalDateTime.now());
+        progress.setUpdatedAt(Instant.now());
         return progress;
     }
 }
