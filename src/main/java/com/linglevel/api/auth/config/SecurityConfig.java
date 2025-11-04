@@ -46,6 +46,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/version").permitAll()
                         .requestMatchers("/api/v1/auth/oauth/login").permitAll()
                         .requestMatchers("/api/v1/auth/refresh").permitAll()
+                        .requestMatchers("/api/v1/push-logs/opened").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/custom-contents/webhooks/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

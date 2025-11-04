@@ -1,5 +1,6 @@
 package com.linglevel.api.crawling.service;
 
+import com.linglevel.api.content.feed.entity.FeedContentType;
 import com.linglevel.api.crawling.dto.*;
 import com.linglevel.api.crawling.entity.CrawlingDsl;
 import com.linglevel.api.crawling.exception.CrawlingErrorCode;
@@ -15,8 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +49,7 @@ public class CrawlingService {
                         .domain(domain)
                         .titleDsl(crawlingDsl.get().getTitleDsl())
                         .contentDsl(crawlingDsl.get().getContentDsl())
+                        .coverImageDsl(crawlingDsl.get().getCoverImageDsl())
                         .valid(true)
                         .build();
             }
@@ -57,14 +62,21 @@ public class CrawlingService {
         }
     }
 
-    public Page<DomainsResponse> getDomains(int page, int limit) {
+    public Page<DomainsResponse> getDomains(int page, int limit, List<FeedContentType> contentTypes) {
         Pageable pageable = PageRequest.of(page - 1, limit);
-        Page<CrawlingDsl> domains = crawlingDslRepository.findAll(pageable);
-        
+        Page<CrawlingDsl> domains;
+
+        if (contentTypes == null || contentTypes.isEmpty()) {
+            domains = crawlingDslRepository.findAll(pageable);
+        } else {
+            domains = crawlingDslRepository.findByContentTypeIn(contentTypes, pageable);
+        }
+
         return domains.map(dsl -> DomainsResponse.builder()
                 .id(dsl.getId())
                 .domain(dsl.getDomain())
                 .name(dsl.getName())
+                .contentType(dsl.getContentType())
                 .build());
     }
 
@@ -76,10 +88,12 @@ public class CrawlingService {
         CrawlingDsl crawlingDsl = CrawlingDsl.builder()
                 .domain(request.getDomain())
                 .name(request.getName())
+                .contentType(request.getContentType())
                 .titleDsl(request.getTitleDsl())
                 .contentDsl(request.getContentDsl())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .coverImageDsl(request.getCoverImageDsl())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
 
         CrawlingDsl saved = crawlingDslRepository.save(crawlingDsl);
@@ -98,7 +112,14 @@ public class CrawlingService {
         crawlingDsl.setName(request.getName());
         crawlingDsl.setTitleDsl(request.getTitleDsl());
         crawlingDsl.setContentDsl(request.getContentDsl());
-        crawlingDsl.setUpdatedAt(LocalDateTime.now());
+        crawlingDsl.setCoverImageDsl(request.getCoverImageDsl());
+
+        // contentType은 옵셔널 - null이 아닐 경우에만 업데이트
+        if (request.getContentType() != null) {
+            crawlingDsl.setContentType(request.getContentType());
+        }
+
+        crawlingDsl.setUpdatedAt(Instant.now());
 
         CrawlingDsl updated = crawlingDslRepository.save(crawlingDsl);
 
@@ -108,6 +129,7 @@ public class CrawlingService {
                 .name(updated.getName())
                 .titleDsl(updated.getTitleDsl())
                 .contentDsl(updated.getContentDsl())
+                .coverImageDsl(updated.getCoverImageDsl())
                 .message("DSL updated successfully.")
                 .build();
     }
@@ -127,11 +149,14 @@ public class CrawlingService {
         try {
             URL parsedUrl = new URL(url);
             String host = parsedUrl.getHost().toLowerCase();
-            
-            if (host.startsWith("www.")) {
-                host = host.substring(4);
+
+            Pattern pattern = Pattern.compile("([^.]+\\.[^.]+)$");
+            Matcher matcher = pattern.matcher(host);
+
+            if (matcher.find()) {
+                return matcher.group(1);
             }
-            
+
             return host;
         } catch (MalformedURLException e) {
             throw new CrawlingException(CrawlingErrorCode.INVALID_URL_FORMAT);

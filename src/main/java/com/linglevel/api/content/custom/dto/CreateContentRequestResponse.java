@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -26,6 +26,6 @@ public class CreateContentRequestResponse {
     @Schema(description = "요청 상태", example = "PENDING")
     private String status;
     
-    @Schema(description = "생성일시", example = "2024-01-15T10:00:00")
-    private LocalDateTime createdAt;
+    @Schema(description = "생성일시", example = "2024-01-15T10:00:00Z")
+    private Instant createdAt;
 }

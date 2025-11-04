@@ -95,11 +95,8 @@ public class CustomContentReadingProgressService {
             }
 
             streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.CUSTOM, customId));
-
-            // 스트릭 업데이트 (세션이 유효할 때만)
-            if (readingSessionService.isReadingSessionValid(userId, ContentType.CUSTOM, customId)) {
-                streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
-            }
+            streakService.addCompletedContent(userId, ContentType.CUSTOM, customId);
+            streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
         }
 
         readingSessionService.deleteReadingSession(userId);

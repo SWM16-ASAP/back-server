@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -102,7 +102,7 @@ public class CustomContentService {
 
         // Soft delete the main content
         content.setIsDeleted(true);
-        content.setDeletedAt(LocalDateTime.now());
+        content.setDeletedAt(Instant.now());
         customContentRepository.save(content);
 
         // Cascade soft delete to all related chunks
@@ -110,7 +110,7 @@ public class CustomContentService {
         if (!chunks.isEmpty()) {
             chunks.forEach(chunk -> {
                 chunk.setIsDeleted(true);
-                chunk.setDeletedAt(LocalDateTime.now());
+                chunk.setDeletedAt(Instant.now());
             });
             customContentChunkRepository.saveAll(chunks);
             log.info("Soft deleted {} related chunks for custom content: {}", chunks.size(), customContentId);

@@ -13,6 +13,8 @@ public interface DailyCompletionRepository extends MongoRepository<DailyCompleti
 
     Optional<DailyCompletion> findByUserIdAndCompletionDate(String userId, LocalDate completionDate);
 
+    Optional<DailyCompletion> findTopByUserIdAndCompletionDateBeforeOrderByCompletionDateDesc(String userId, LocalDate date);
+
     long countByUserId(String userId);
 
     /**

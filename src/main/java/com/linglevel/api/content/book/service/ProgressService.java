@@ -129,11 +129,8 @@ public class ProgressService {
                 chapter.getChapterNumber(), bookId, isFirstCompletion);
 
             streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.BOOK, chapter.getId()));
-
-            // 2. 스트릭 업데이트
-            if (readingSessionService.isReadingSessionValid(userId, ContentType.BOOK, chapter.getId())) {
-                streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, chapter.getId());
-            }
+            streakService.addCompletedContent(userId, ContentType.BOOK, chapter.getId());
+            streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, chapter.getId());
 
             // 3. 책 전체 완료 확인 (모든 챕터 완료 시)
             boolean allChaptersCompleted = getCompletedChapterCount(bookProgress) >= totalChapters;

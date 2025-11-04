@@ -35,11 +35,16 @@ public class CustomContentImportService {
     public CustomContent createCustomContent(ContentRequest contentRequest, AiResultDto aiResult) {
         String title = StringUtils.hasText(aiResult.getTitle()) ? aiResult.getTitle() : "Untitled Content";
 
+        // ContentRequest의 coverImageUrl이 있으면 우선 사용, 없으면 AI 결과의 coverImageUrl 사용
+        String coverImageUrl = StringUtils.hasText(contentRequest.getCoverImageUrl())
+                ? contentRequest.getCoverImageUrl()
+                : aiResult.getCoverImageUrl();
+
         CustomContent content = CustomContent.builder()
                 .userId(contentRequest.getUserId())
                 .title(title)
                 .author(aiResult.getAuthor())
-                .coverImageUrl(aiResult.getCoverImageUrl())
+                .coverImageUrl(coverImageUrl)
                 .difficultyLevel(DifficultyLevel.fromCode(aiResult.getOriginalTextLevel()))
                 .targetDifficultyLevels(aiResult.getLeveledResults().stream().map(level -> DifficultyLevel.fromCode(level.getTextLevel())).collect(Collectors.toList()))
                 .readingTime(0) // Placeholder, can be calculated later
@@ -74,12 +79,30 @@ public class CustomContentImportService {
             return;
         }
 
+        boolean hasCoverImage = StringUtils.hasText(customContent.getCoverImageUrl());
+
         for (AiResultDto.LeveledResult leveledResult : aiResult.getLeveledResults()) {
             DifficultyLevel difficulty = DifficultyLevel.fromCode(leveledResult.getTextLevel());
             int chapterCounter = 1;
 
             for (AiResultDto.Chapter chapter : leveledResult.getChapters()) {
                 int chunkCounter = 1;
+
+                if (hasCoverImage && chapterCounter == 1) {
+                    CustomContentChunk coverImageChunk = CustomContentChunk.builder()
+                            .customContentId(customContent.getId())
+                            .userId(customContent.getUserId())
+                            .difficultyLevel(difficulty)
+                            .chapterNum(chapterCounter)
+                            .chunkNum(chunkCounter++)
+                            .type(ChunkType.IMAGE)
+                            .chunkText(customContent.getCoverImageUrl())
+                            .description("Cover Image")
+                            .build();
+                    allChunks.add(coverImageChunk);
+                    log.debug("Added cover image chunk for difficulty {} at chapter {}", difficulty, chapterCounter);
+                }
+
                 for (AiResultDto.Chunk chunkData : chapter.getChunks()) {
                     CustomContentChunk newChunk = createCustomContentChunk(chunkData, customContent.getId(), customContent.getUserId(), difficulty, chapterCounter, chunkCounter++);
                     allChunks.add(newChunk);

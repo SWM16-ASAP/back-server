@@ -1,6 +1,7 @@
 package com.linglevel.api.crawling.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.linglevel.api.content.feed.entity.FeedContentType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,4 +22,7 @@ public class DomainsResponse {
 
     @Schema(description = "사이트명", example = "쿠팡")
     private String name;
+
+    @Schema(description = "Feed 콘텐츠 타입", example = "BLOG")
+    private FeedContentType contentType;
 }

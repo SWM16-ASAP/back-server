@@ -15,7 +15,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -37,18 +38,18 @@ class UserPreferenceAggregationSchedulerTest {
     @InjectMocks
     private UserPreferenceAggregationScheduler scheduler;
 
-    private LocalDateTime now;
+    private Instant now;
 
     @BeforeEach
     void setUp() {
-        now = LocalDateTime.now();
+        now = Instant.now();
     }
 
     @Test
     @DisplayName("로그가 없으면 집계를 건너뛴다")
     void skipAggregationWhenNoLogs() {
         // Given
-        when(contentAccessLogRepository.findByAccessedAtAfter(any(LocalDateTime.class)))
+        when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class)))
                 .thenReturn(new ArrayList<>());
 
         // When
@@ -64,12 +65,12 @@ class UserPreferenceAggregationSchedulerTest {
         // Given
         String userId = "user123";
         List<ContentAccessLog> logs = List.of(
-                createLog(userId, "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minusDays(1)),
-                createLog(userId, "article2", ContentType.ARTICLE, ContentCategory.TECH, now.minusDays(2)),
-                createLog(userId, "article3", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minusDays(3))
+                createLog(userId, "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(1, ChronoUnit.DAYS)),
+                createLog(userId, "article2", ContentType.ARTICLE, ContentCategory.TECH, now.minus(2, ChronoUnit.DAYS)),
+                createLog(userId, "article3", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minus(3, ChronoUnit.DAYS))
         );
 
-        when(contentAccessLogRepository.findByAccessedAtAfter(any(LocalDateTime.class)))
+        when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class)))
                 .thenReturn(logs);
         when(userCategoryPreferenceRepository.findByUserId(userId))
                 .thenReturn(Optional.empty());
@@ -95,11 +96,11 @@ class UserPreferenceAggregationSchedulerTest {
         // Given
         String userId = "user456";
         List<ContentAccessLog> logs = List.of(
-                createLog(userId, "book1", ContentType.BOOK, null, now.minusDays(1)),
-                createLog(userId, "book2", ContentType.BOOK, null, now.minusDays(2))
+                createLog(userId, "book1", ContentType.BOOK, null, now.minus(1, ChronoUnit.DAYS)),
+                createLog(userId, "book2", ContentType.BOOK, null, now.minus(2, ChronoUnit.DAYS))
         );
 
-        when(contentAccessLogRepository.findByAccessedAtAfter(any(LocalDateTime.class)))
+        when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class)))
                 .thenReturn(logs);
         when(userCategoryPreferenceRepository.findByUserId(userId))
                 .thenReturn(Optional.empty());
@@ -125,15 +126,15 @@ class UserPreferenceAggregationSchedulerTest {
         String userId = "user789";
         List<ContentAccessLog> logs = List.of(
                 // 최근 7일 - 가중치 1.0
-                createLog(userId, "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minusDays(3)),
+                createLog(userId, "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(3, ChronoUnit.DAYS)),
                 // 7~30일 - 가중치 0.5
-                createLog(userId, "article2", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minusDays(15)),
-                createLog(userId, "article3", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minusDays(20)),
+                createLog(userId, "article2", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minus(15, ChronoUnit.DAYS)),
+                createLog(userId, "article3", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minus(20, ChronoUnit.DAYS)),
                 // 30일 이전 - 가중치 0.2
-                createLog(userId, "article4", ContentType.ARTICLE, ContentCategory.SPORTS, now.minusDays(60))
+                createLog(userId, "article4", ContentType.ARTICLE, ContentCategory.SPORTS, now.minus(60, ChronoUnit.DAYS))
         );
 
-        when(contentAccessLogRepository.findByAccessedAtAfter(any(LocalDateTime.class)))
+        when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class)))
                 .thenReturn(logs);
         when(userCategoryPreferenceRepository.findByUserId(userId))
                 .thenReturn(Optional.empty());
@@ -160,12 +161,12 @@ class UserPreferenceAggregationSchedulerTest {
     void aggregateMultipleUsers() {
         // Given
         List<ContentAccessLog> logs = List.of(
-                createLog("user1", "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minusDays(1)),
-                createLog("user2", "article2", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minusDays(1)),
-                createLog("user3", "book1", ContentType.BOOK, null, now.minusDays(1))
+                createLog("user1", "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(1, ChronoUnit.DAYS)),
+                createLog("user2", "article2", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minus(1, ChronoUnit.DAYS)),
+                createLog("user3", "book1", ContentType.BOOK, null, now.minus(1, ChronoUnit.DAYS))
         );
 
-        when(contentAccessLogRepository.findByAccessedAtAfter(any(LocalDateTime.class)))
+        when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class)))
                 .thenReturn(logs);
         when(userCategoryPreferenceRepository.findByUserId(anyString()))
                 .thenReturn(Optional.empty());
@@ -184,12 +185,12 @@ class UserPreferenceAggregationSchedulerTest {
     void continueProcessingOnIndividualFailure() {
         // Given
         List<ContentAccessLog> logs = List.of(
-                createLog("user1", "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minusDays(1)),
-                createLog("user2", "article2", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minusDays(1)),
-                createLog("user3", "article3", ContentType.ARTICLE, ContentCategory.SPORTS, now.minusDays(1))
+                createLog("user1", "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(1, ChronoUnit.DAYS)),
+                createLog("user2", "article2", ContentType.ARTICLE, ContentCategory.BUSINESS, now.minus(1, ChronoUnit.DAYS)),
+                createLog("user3", "article3", ContentType.ARTICLE, ContentCategory.SPORTS, now.minus(1, ChronoUnit.DAYS))
         );
 
-        when(contentAccessLogRepository.findByAccessedAtAfter(any(LocalDateTime.class)))
+        when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class)))
                 .thenReturn(logs);
 
         // user2 처리 시 에러 발생
@@ -223,10 +224,10 @@ class UserPreferenceAggregationSchedulerTest {
                 .build();
 
         List<ContentAccessLog> newLogs = List.of(
-                createLog(userId, "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minusDays(1))
+                createLog(userId, "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(1, ChronoUnit.DAYS))
         );
 
-        when(contentAccessLogRepository.findByAccessedAtAfter(any(LocalDateTime.class)))
+        when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class)))
                 .thenReturn(newLogs);
         when(userCategoryPreferenceRepository.findByUserId(userId))
                 .thenReturn(Optional.of(existingPreference));
@@ -246,7 +247,7 @@ class UserPreferenceAggregationSchedulerTest {
 
     // Helper method
     private ContentAccessLog createLog(String userId, String contentId, ContentType contentType,
-                                       ContentCategory category, LocalDateTime accessedAt) {
+                                       ContentCategory category, Instant accessedAt) {
         return ContentAccessLog.builder()
                 .userId(userId)
                 .contentId(contentId)

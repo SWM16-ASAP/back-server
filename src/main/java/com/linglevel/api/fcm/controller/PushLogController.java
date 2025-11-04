@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,16 +22,10 @@ public class PushLogController {
     @PostMapping("/opened")
     @Operation(
             summary = "푸시 알림 오픈 리포트",
-            description = "클라이언트에서 사용자가 푸시 알림을 탭하여 열었을 때 서버에 리포트합니다."
+            description = "클라이언트에서 사용자가 푸시 알림을 탭하여 열었을 때 서버에 리포트합니다. 인증 불필요 (userId는 요청 본문에 포함)."
     )
-    public ResponseEntity<Void> logOpened(
-            @AuthenticationPrincipal String userId,
-            @Valid @RequestBody PushOpenedRequest request) {
-
-        log.debug("Push opened report received - userId: {}, campaignId: {}", userId, request.getCampaignId());
-
-        pushLogService.logOpened(userId, request.getCampaignId(), request.getOpenedAt());
-
+    public ResponseEntity<Void> logOpened(@Valid @RequestBody PushOpenedRequest request) {
+        pushLogService.logOpened(request.getUserId(), request.getCampaignId(), request.getOpenedAt());
         return ResponseEntity.ok().build();
     }
 }

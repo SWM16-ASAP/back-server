@@ -26,6 +26,7 @@ import com.linglevel.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -52,7 +53,7 @@ public class ContentService {
     private final ArticleChunkRepository articleChunkRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
 
-    private record GenericProgress(String contentId, ContentType contentType, LocalDateTime lastStudiedAt, boolean isCompleted, Object originalProgress) {}
+    private record GenericProgress(String contentId, ContentType contentType, Instant lastStudiedAt, boolean isCompleted, Object originalProgress) {}
 
     public PageResponse<RecentContentResponse> getRecentContents(String userId, GetRecentContentsRequest request) {
         List<BookProgress> bookProgresses = bookProgressRepository.findAllByUserId(userId);

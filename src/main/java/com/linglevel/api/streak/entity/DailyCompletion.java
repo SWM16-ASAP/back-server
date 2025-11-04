@@ -41,6 +41,8 @@ public class DailyCompletion {
 
     private Integer streakCount;
 
+    private StreakStatus streakStatus;
+
     private Instant createdAt;
 
     @Getter
@@ -56,5 +58,6 @@ public class DailyCompletion {
         private Integer readingTime;
         private String category;
         private String difficultyLevel;
+        private StreakStatus streakStatus;
     }
 }

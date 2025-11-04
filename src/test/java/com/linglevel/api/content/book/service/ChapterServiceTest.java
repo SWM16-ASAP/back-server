@@ -25,6 +25,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -74,7 +75,7 @@ class ChapterServiceTest {
         testBook.setAuthor("Test Author");
         testBook.setDifficultyLevel(DifficultyLevel.A1);
         testBook.setChapterCount(10);
-        testBook.setCreatedAt(LocalDateTime.now());
+        testBook.setCreatedAt(Instant.now());
 
         when(bookService.findById(anyString())).thenReturn(testBook);
 
@@ -104,7 +105,7 @@ class ChapterServiceTest {
         progress.setCurrentReadChapterNumber(5);
         progress.setMaxReadChapterNumber(5);
         progress.setIsCompleted(false);
-        progress.setUpdatedAt(LocalDateTime.now());
+        progress.setUpdatedAt(Instant.now());
 
         com.linglevel.api.content.book.entity.Chunk mockChunk = new com.linglevel.api.content.book.entity.Chunk();
         mockChunk.setId("test-chunk-id");
@@ -146,7 +147,7 @@ class ChapterServiceTest {
         progress.setCurrentReadChapterNumber(5);
         progress.setMaxReadChapterNumber(5);
         progress.setIsCompleted(false);
-        progress.setUpdatedAt(LocalDateTime.now());
+        progress.setUpdatedAt(Instant.now());
 
         com.linglevel.api.content.book.entity.Chunk mockChunk = new com.linglevel.api.content.book.entity.Chunk();
         mockChunk.setId("test-chunk-id");
@@ -188,7 +189,7 @@ class ChapterServiceTest {
         progress.setCurrentReadChapterNumber(5);
         progress.setMaxReadChapterNumber(5);
         progress.setIsCompleted(false);
-        progress.setUpdatedAt(LocalDateTime.now());
+        progress.setUpdatedAt(Instant.now());
 
         com.linglevel.api.content.book.entity.Chunk mockChunk = new com.linglevel.api.content.book.entity.Chunk();
         mockChunk.setId("test-chunk-id");

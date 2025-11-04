@@ -1,11 +1,12 @@
 package com.linglevel.api.crawling.entity;
 
+import com.linglevel.api.content.feed.entity.FeedContentType;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -22,11 +23,15 @@ public class CrawlingDsl {
 
     private String name;
 
+    private FeedContentType contentType;
+
     private String titleDsl;
     
     private String contentDsl;
-    
-    private LocalDateTime createdAt;
-    
-    private LocalDateTime updatedAt;
+
+    private String coverImageDsl;
+
+    private Instant createdAt;
+
+    private Instant updatedAt;
 }
