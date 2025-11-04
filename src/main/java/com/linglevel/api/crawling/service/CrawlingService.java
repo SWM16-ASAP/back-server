@@ -15,8 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -80,8 +82,8 @@ public class CrawlingService {
                 .titleDsl(request.getTitleDsl())
                 .contentDsl(request.getContentDsl())
                 .coverImageDsl(request.getCoverImageDsl())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
 
         CrawlingDsl saved = crawlingDslRepository.save(crawlingDsl);
@@ -101,7 +103,7 @@ public class CrawlingService {
         crawlingDsl.setTitleDsl(request.getTitleDsl());
         crawlingDsl.setContentDsl(request.getContentDsl());
         crawlingDsl.setCoverImageDsl(request.getCoverImageDsl());
-        crawlingDsl.setUpdatedAt(LocalDateTime.now());
+        crawlingDsl.setUpdatedAt(Instant.now());
 
         CrawlingDsl updated = crawlingDslRepository.save(crawlingDsl);
 
@@ -131,11 +133,14 @@ public class CrawlingService {
         try {
             URL parsedUrl = new URL(url);
             String host = parsedUrl.getHost().toLowerCase();
-            
-            if (host.startsWith("www.")) {
-                host = host.substring(4);
+
+            Pattern pattern = Pattern.compile("([^.]+\\.[^.]+)$");
+            Matcher matcher = pattern.matcher(host);
+
+            if (matcher.find()) {
+                return matcher.group(1);
             }
-            
+
             return host;
         } catch (MalformedURLException e) {
             throw new CrawlingException(CrawlingErrorCode.INVALID_URL_FORMAT);
