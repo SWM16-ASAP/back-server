@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/openjdk/jdk:17-ubuntu
+FROM amazoncorretto:17-alpine-jdk
 
 WORKDIR /app
 
