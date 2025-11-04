@@ -87,11 +87,8 @@ public class ArticleProgressService {
             }
 
             streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.ARTICLE, articleId));
-
-            // 스트릭 업데이트 (세션이 유효할 때만)
-            if (readingSessionService.isReadingSessionValid(userId, ContentType.ARTICLE, articleId)) {
-                streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
-            }
+            streakService.addCompletedContent(userId, ContentType.ARTICLE, articleId);
+            streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
         }
 
         readingSessionService.deleteReadingSession(userId);

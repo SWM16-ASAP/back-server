@@ -62,6 +62,7 @@ public class StreakService {
     private final TicketService ticketService;
     private final FreezeTransactionRepository freezeTransactionRepository;
     private final TicketTransactionRepository ticketTransactionRepository;
+    private final ReadingSessionService readingSessionService;
 
     @Transactional
     public StreakResponse getStreakInfo(String userId, LanguageCode languageCode) {
@@ -107,8 +108,9 @@ public class StreakService {
         LocalDate today = getKstToday();
 
         // 오늘 이미 완료했는지 체크 (중복 방지)
-        if (hasCompletedStreakToday(userId, today)) {
-            log.info("User {} has already completed a streak today.", userId);
+        // 읽기 시간 검사
+        if (hasCompletedStreakToday(userId, today)
+            || !readingSessionService.isReadingSessionValid(userId, contentType, contentId)) {
             return false;
         }
 
@@ -165,8 +167,20 @@ public class StreakService {
         report.setLastLearningTimestamp(Instant.now());
         report.setUpdatedAt(Instant.now());
 
-        saveDailyCompletion(report, today, contentType, contentId);
+        // DailyCompletion 생성 (스트릭 기록용, 콘텐츠는 포함하지 않음)
+        DailyCompletion dailyCompletion = dailyCompletionRepository
+                .findByUserIdAndCompletionDate(userId, today)
+                .orElse(DailyCompletion.builder()
+                        .userId(userId)
+                        .completionDate(today)
+                        .firstCompletionCount(0)
+                        .totalCompletionCount(0)
+                        .completedContents(new java.util.ArrayList<>())
+                        .streakCount(report.getCurrentStreak())
+                        .createdAt(Instant.now())
+                        .build());
 
+        dailyCompletionRepository.save(dailyCompletion);
         userStudyReportRepository.save(report);
 
         log.info("Streak updated for user: {}. Current streak: {}", userId, report.getCurrentStreak());
@@ -402,6 +416,62 @@ public class StreakService {
 
         report.setTotalReadingTimeSeconds(report.getTotalReadingTimeSeconds() + studyTimeSeconds);
         userStudyReportRepository.save(report);
+    }
+
+    @Transactional
+    public void addCompletedContent(String userId, ContentType contentType, String contentId) {
+        LocalDate today = getKstToday();
+
+        UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+                .orElseGet(() -> createNewUserStudyReport(userId));
+
+        // completedContentIds 초기화
+        if (report.getCompletedContentIds() == null) {
+            report.setCompletedContentIds(new HashSet<>());
+        }
+
+        // 이미 완료한 콘텐츠면 무시
+        if (report.getCompletedContentIds().contains(contentId)) {
+            return;
+        }
+
+        // UserStudyReport에 콘텐츠 ID 추가
+        report.getCompletedContentIds().add(contentId);
+        userStudyReportRepository.save(report);
+
+        // DailyCompletion 업데이트
+        DailyCompletion.CompletedContent completedContent = DailyCompletion.CompletedContent.builder()
+                .type(contentType)
+                .contentId(contentId)
+                .completedAt(Instant.now())
+                .build();
+
+        DailyCompletion dailyCompletion = dailyCompletionRepository
+                .findByUserIdAndCompletionDate(userId, today)
+                .orElse(null);
+
+        if (dailyCompletion != null) {
+            // 기존 DailyCompletion이 있는 경우
+            if (dailyCompletion.getCompletedContents() == null) {
+                dailyCompletion.setCompletedContents(new ArrayList<>());
+            }
+            dailyCompletion.getCompletedContents().add(completedContent);
+            dailyCompletion.setFirstCompletionCount(dailyCompletion.getFirstCompletionCount() + 1);
+            dailyCompletion.setTotalCompletionCount(dailyCompletion.getTotalCompletionCount() + 1);
+        } else {
+            // 새로 DailyCompletion 생성
+            dailyCompletion = DailyCompletion.builder()
+                    .userId(userId)
+                    .completionDate(today)
+                    .firstCompletionCount(1)
+                    .totalCompletionCount(1)
+                    .completedContents(new ArrayList<>(Collections.singletonList(completedContent)))
+                    .streakCount(report.getCurrentStreak())
+                    .createdAt(Instant.now())
+                    .build();
+        }
+
+        dailyCompletionRepository.save(dailyCompletion);
     }
 
     /**
