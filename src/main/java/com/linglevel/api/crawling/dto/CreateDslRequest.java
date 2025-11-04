@@ -1,5 +1,6 @@
 package com.linglevel.api.crawling.dto;
 
+import com.linglevel.api.content.feed.entity.FeedContentType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -18,6 +19,9 @@ public class CreateDslRequest {
     @NotBlank(message = "Name is required")
     @Schema(description = "사이트명", example = "쿠팡", required = true)
     private String name;
+
+    @Schema(description = "Feed 콘텐츠 타입", example = "BLOG", required = false)
+    private FeedContentType contentType;
 
     @NotBlank(message = "Title DSL is required")
     @Schema(description = "제목 추출 DSL 규칙", example = "h1.product-title", required = true)

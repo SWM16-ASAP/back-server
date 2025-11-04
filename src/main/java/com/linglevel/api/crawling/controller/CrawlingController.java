@@ -2,6 +2,7 @@ package com.linglevel.api.crawling.controller;
 
 import com.linglevel.api.common.dto.ExceptionResponse;
 import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.feed.entity.FeedContentType;
 import com.linglevel.api.crawling.dto.DslLookupResponse;
 import com.linglevel.api.crawling.dto.DomainsResponse;
 import com.linglevel.api.crawling.exception.CrawlingException;
@@ -20,6 +21,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -48,7 +51,7 @@ public class CrawlingController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "등록된 도메인 목록 조회", description = "시스템에 등록된 모든 도메인 목록을 조회합니다.")
+    @Operation(summary = "등록된 도메인 목록 조회", description = "시스템에 등록된 모든 도메인 목록을 조회합니다. contentTypes 파라미터로 특정 콘텐츠 타입들만 필터링할 수 있습니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true)
     })
@@ -60,10 +63,12 @@ public class CrawlingController {
             @Parameter(description = "페이지 당 항목 수 (최대 200)", example = "10")
             @Min(value = 1, message = "페이지 당 항목 수는 1 이상이어야 합니다.")
             @Max(value = 200, message = "페이지 당 항목 수는 200 이하여야 합니다.")
-            @RequestParam(defaultValue = "10") int limit) {
-        
-        
-        Page<DomainsResponse> domains = crawlingService.getDomains(page, limit);
+            @RequestParam(defaultValue = "10") int limit,
+            @Parameter(description = "필터링할 콘텐츠 타입 목록 (선택 사항)", example = "[\"BLOG\", \"NEWS\"]")
+            @RequestParam(required = false) List<FeedContentType> contentTypes) {
+
+
+        Page<DomainsResponse> domains = crawlingService.getDomains(page, limit, contentTypes);
         return ResponseEntity.ok(new PageResponse<>(domains.getContent(), domains));
     }
 

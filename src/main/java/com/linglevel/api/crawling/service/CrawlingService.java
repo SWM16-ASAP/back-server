@@ -1,5 +1,6 @@
 package com.linglevel.api.crawling.service;
 
+import com.linglevel.api.content.feed.entity.FeedContentType;
 import com.linglevel.api.crawling.dto.*;
 import com.linglevel.api.crawling.entity.CrawlingDsl;
 import com.linglevel.api.crawling.exception.CrawlingErrorCode;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,14 +62,21 @@ public class CrawlingService {
         }
     }
 
-    public Page<DomainsResponse> getDomains(int page, int limit) {
+    public Page<DomainsResponse> getDomains(int page, int limit, List<FeedContentType> contentTypes) {
         Pageable pageable = PageRequest.of(page - 1, limit);
-        Page<CrawlingDsl> domains = crawlingDslRepository.findAll(pageable);
-        
+        Page<CrawlingDsl> domains;
+
+        if (contentTypes == null || contentTypes.isEmpty()) {
+            domains = crawlingDslRepository.findAll(pageable);
+        } else {
+            domains = crawlingDslRepository.findByContentTypeIn(contentTypes, pageable);
+        }
+
         return domains.map(dsl -> DomainsResponse.builder()
                 .id(dsl.getId())
                 .domain(dsl.getDomain())
                 .name(dsl.getName())
+                .contentType(dsl.getContentType())
                 .build());
     }
 
@@ -79,6 +88,7 @@ public class CrawlingService {
         CrawlingDsl crawlingDsl = CrawlingDsl.builder()
                 .domain(request.getDomain())
                 .name(request.getName())
+                .contentType(request.getContentType())
                 .titleDsl(request.getTitleDsl())
                 .contentDsl(request.getContentDsl())
                 .coverImageDsl(request.getCoverImageDsl())
@@ -103,6 +113,12 @@ public class CrawlingService {
         crawlingDsl.setTitleDsl(request.getTitleDsl());
         crawlingDsl.setContentDsl(request.getContentDsl());
         crawlingDsl.setCoverImageDsl(request.getCoverImageDsl());
+
+        // contentType은 옵셔널 - null이 아닐 경우에만 업데이트
+        if (request.getContentType() != null) {
+            crawlingDsl.setContentType(request.getContentType());
+        }
+
         crawlingDsl.setUpdatedAt(Instant.now());
 
         CrawlingDsl updated = crawlingDslRepository.save(crawlingDsl);

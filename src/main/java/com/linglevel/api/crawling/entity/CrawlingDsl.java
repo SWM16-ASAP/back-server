@@ -1,5 +1,6 @@
 package com.linglevel.api.crawling.entity;
 
+import com.linglevel.api.content.feed.entity.FeedContentType;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -21,6 +22,8 @@ public class CrawlingDsl {
     private String domain;
 
     private String name;
+
+    private FeedContentType contentType;
 
     private String titleDsl;
     
