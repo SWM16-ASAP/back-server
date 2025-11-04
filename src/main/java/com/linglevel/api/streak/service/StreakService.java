@@ -167,20 +167,28 @@ public class StreakService {
         report.setLastLearningTimestamp(Instant.now());
         report.setUpdatedAt(Instant.now());
 
-        // DailyCompletion 생성 (스트릭 기록용, 콘텐츠는 포함하지 않음)
+        // DailyCompletion 업데이트 (스트릭 카운트만 저장)
         DailyCompletion dailyCompletion = dailyCompletionRepository
                 .findByUserIdAndCompletionDate(userId, today)
-                .orElse(DailyCompletion.builder()
-                        .userId(userId)
-                        .completionDate(today)
-                        .firstCompletionCount(0)
-                        .totalCompletionCount(0)
-                        .completedContents(new java.util.ArrayList<>())
-                        .streakCount(report.getCurrentStreak())
-                        .createdAt(Instant.now())
-                        .build());
+                .orElse(null);
 
-        dailyCompletionRepository.save(dailyCompletion);
+        if (dailyCompletion == null) {
+            // 새로 생성 (스트릭만 완료, 콘텐츠는 아직 없음)
+            dailyCompletion = DailyCompletion.builder()
+                    .userId(userId)
+                    .completionDate(today)
+                    .firstCompletionCount(0)
+                    .totalCompletionCount(0)
+                    .completedContents(new java.util.ArrayList<>())
+                    .streakCount(report.getCurrentStreak())
+                    .createdAt(Instant.now())
+                    .build();
+            dailyCompletionRepository.save(dailyCompletion);
+        } else {
+            // 기존 것이 있으면 streakCount만 업데이트
+            dailyCompletion.setStreakCount(report.getCurrentStreak());
+            dailyCompletionRepository.save(dailyCompletion);
+        }
         userStudyReportRepository.save(report);
 
         log.info("Streak updated for user: {}. Current streak: {}", userId, report.getCurrentStreak());

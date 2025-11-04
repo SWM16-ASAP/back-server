@@ -15,6 +15,7 @@ import com.linglevel.api.user.ticket.service.TicketService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 
 import java.time.*;
@@ -42,6 +43,9 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 
     @Autowired
     private TicketTransactionRepository ticketTransactionRepository;
+
+    @MockBean
+    private ReadingSessionService readingSessionService;
 
     private static final String TEST_USER_ID = "backfill-test-user";
     private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
