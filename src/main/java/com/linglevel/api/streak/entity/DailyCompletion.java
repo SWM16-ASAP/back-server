@@ -41,6 +41,8 @@ public class DailyCompletion {
 
     private Integer streakCount;
 
+    private StreakStatus streakStatus;
+
     private Instant createdAt;
 
     @Getter

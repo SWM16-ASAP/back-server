@@ -73,6 +73,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
                     .firstCompletionCount(1)
                     .completedContents(new ArrayList<>())
                     .streakCount(null)  // null!
+                    .streakStatus(StreakStatus.COMPLETED)
                     .createdAt(Instant.now())
                     .build();
             dailyCompletionRepository.save(completion);
