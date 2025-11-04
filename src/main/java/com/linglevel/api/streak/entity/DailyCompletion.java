@@ -58,5 +58,6 @@ public class DailyCompletion {
         private Integer readingTime;
         private String category;
         private String difficultyLevel;
+        private StreakStatus streakStatus;
     }
 }

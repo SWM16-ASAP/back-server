@@ -261,61 +261,6 @@ public class StreakService {
         return report;
     }
 
-    private void saveDailyCompletion(UserStudyReport report, LocalDate today, ContentType contentType, String contentId) {
-        DailyCompletion.CompletedContent completedContent = DailyCompletion.CompletedContent.builder()
-                .type(contentType)
-                .contentId(contentId)
-                .completedAt(Instant.now())
-                .build();
-
-        // 전체 기간에서 첫 완료인지 확인
-        boolean isFirstCompletion = !report.getCompletedContentIds().contains(contentId);
-
-        // 해당 날짜에 이미 DailyCompletion이 있는지 확인
-        DailyCompletion dailyCompletion = dailyCompletionRepository
-                .findByUserIdAndCompletionDate(report.getUserId(), today)
-                .orElse(null);
-
-        if (dailyCompletion != null) {
-            // 기존 레코드가 있는 경우
-            if (dailyCompletion.getCompletedContents() == null) {
-                dailyCompletion.setCompletedContents(new java.util.ArrayList<>());
-            }
-
-            // 총 완료 개수 증가 (복습 포함)
-            dailyCompletion.setTotalCompletionCount(dailyCompletion.getTotalCompletionCount() + 1);
-
-            // 첫 완료인 경우만 firstCompletionCount 증가
-            if (isFirstCompletion) {
-                dailyCompletion.setFirstCompletionCount(dailyCompletion.getFirstCompletionCount() + 1);
-                report.getCompletedContentIds().add(contentId);
-            }
-
-            // 현재 스트릭 카운트 저장
-            dailyCompletion.setStreakCount(report.getCurrentStreak());
-
-            // 모든 완료 기록을 completedContents에 추가
-            dailyCompletion.getCompletedContents().add(completedContent);
-        } else {
-            // 새로운 레코드 생성
-            dailyCompletion = DailyCompletion.builder()
-                    .userId(report.getUserId())
-                    .completionDate(today)
-                    .firstCompletionCount(isFirstCompletion ? 1 : 0)
-                    .totalCompletionCount(1)
-                    .completedContents(new java.util.ArrayList<>(Collections.singletonList(completedContent)))
-                    .streakCount(report.getCurrentStreak())
-                    .createdAt(Instant.now())
-                    .build();
-
-            if (isFirstCompletion) {
-                report.getCompletedContentIds().add(contentId);
-            }
-        }
-
-        dailyCompletionRepository.save(dailyCompletion);
-    }
-
     private LocalDate getKstToday() {
         return LocalDate.now(KST_ZONE);
     }
@@ -446,17 +391,13 @@ public class StreakService {
                 .orElse(null);
 
         if (dailyCompletion != null) {
-            // 기존 DailyCompletion이 있는 경우
             if (dailyCompletion.getCompletedContents() == null) {
                 dailyCompletion.setCompletedContents(new ArrayList<>());
             }
             dailyCompletion.getCompletedContents().add(completedContent);
             dailyCompletion.setFirstCompletionCount(dailyCompletion.getFirstCompletionCount() + 1);
             dailyCompletion.setTotalCompletionCount(dailyCompletion.getTotalCompletionCount() + 1);
-            // 콘텐츠 완료 시에는 항상 COMPLETED 상태로 변경 (FREEZE_USED에서 COMPLETED로 변경 가능)
-            dailyCompletion.setStreakStatus(StreakStatus.COMPLETED);
         } else {
-            // 새로 DailyCompletion 생성
             dailyCompletion = DailyCompletion.builder()
                     .userId(userId)
                     .completionDate(today)
@@ -464,7 +405,7 @@ public class StreakService {
                     .totalCompletionCount(1)
                     .completedContents(new ArrayList<>(Collections.singletonList(completedContent)))
                     .streakCount(report.getCurrentStreak())
-                    .streakStatus(StreakStatus.COMPLETED)
+                    .streakStatus(StreakStatus.MISSED)
                     .createdAt(Instant.now())
                     .build();
         }
@@ -577,16 +518,13 @@ public class StreakService {
 
         StreakStatus status;
 
-        // 실제 학습 활동이 있는 경우
         if (completion.getTotalCompletionCount() != null && completion.getTotalCompletionCount() > 0) {
             status = StreakStatus.COMPLETED;
         }
-        // streakCount는 있지만 totalCompletionCount=0 (중복 학습 또는 프리즈)
         else if (completion.getStreakCount() != null && completion.getStreakCount() > 0) {
             boolean hasFreeze = hasFreezeTransaction(completion.getUserId(), completion.getCompletionDate());
             status = hasFreeze ? StreakStatus.FREEZE_USED : StreakStatus.COMPLETED;
         }
-        // 나머지
         else {
             status = StreakStatus.MISSED;
         }

@@ -191,24 +191,40 @@ public class AdminService {
 
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
 
-        // 1. Delete today's DailyCompletion record
         dailyCompletionRepository.findByUserIdAndCompletionDate(userId, today)
-                .ifPresent(dailyCompletionRepository::delete);
+                .ifPresent(todayCompletion -> {
+                    List<String> todayContentIds = todayCompletion.getCompletedContents() != null
+                            ? todayCompletion.getCompletedContents().stream()
+                                .map(c -> c.getContentId())
+                                .toList()
+                            : List.of();
 
-        // 2. Revert UserStudyReport if today was the last completion
-        userStudyReportRepository.findByUserId(userId).ifPresent(report -> {
-            if (report.getLastCompletionDate() != null && report.getLastCompletionDate().isEqual(today)) {
-                // Decrement streak
-                if (report.getCurrentStreak() > 0) {
-                    report.setCurrentStreak(report.getCurrentStreak() - 1);
-                }
-                // Revert last completion date to yesterday.
-                report.setLastCompletionDate(today.minusDays(1));
+                    dailyCompletionRepository.delete(todayCompletion);
+                    log.info("Deleted today's DailyCompletion for user: {}", userId);
 
-                // Note: This doesn't revert longestStreak or rewards, as it's a debug tool.
-                userStudyReportRepository.save(report);
-                log.info("UserStudyReport reverted for user: {}", userId);
-            }
-        });
+                    userStudyReportRepository.findByUserId(userId).ifPresent(report -> {
+                        if (report.getCompletedContentIds() != null && !todayContentIds.isEmpty()) {
+                            report.getCompletedContentIds().removeAll(todayContentIds);
+                        }
+
+                        if (report.getLastCompletionDate() != null && report.getLastCompletionDate().isEqual(today)) {
+                            dailyCompletionRepository.findTopByUserIdAndCompletionDateBeforeOrderByCompletionDateDesc(userId, today)
+                                    .ifPresentOrElse(
+                                            lastCompletion -> {
+                                                report.setLastCompletionDate(lastCompletion.getCompletionDate());
+                                                report.setCurrentStreak(lastCompletion.getStreakCount() != null ? lastCompletion.getStreakCount() : 0);
+                                            },
+                                            () -> {
+                                                report.setLastCompletionDate(null);
+                                                report.setCurrentStreak(0);
+                                                report.setStreakStartDate(null);
+                                            }
+                                    );
+                        }
+
+                        userStudyReportRepository.save(report);
+                        log.info("UserStudyReport reverted for user: {}", userId);
+                    });
+                });
     }
 }
