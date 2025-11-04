@@ -39,13 +39,15 @@ public class FcmMessagingService {
         String campaignId = messageRequest.getCampaignId();
 
         try {
+            Map<String, String> data = buildDataWithUserId(messageRequest, userId);
+
             Message.Builder messageBuilder = Message.builder()
                     .setToken(fcmToken)
                     .setNotification(Notification.builder()
                             .setTitle(messageRequest.getTitle())
                             .setBody(messageRequest.getBody())
                             .build())
-                    .putAllData(messageRequest.getData() != null ? messageRequest.getData() : Map.of());
+                    .putAllData(data);
 
             // Google Analytics 추적을 위한 FcmOptions 설정
             if (campaignId != null) {
@@ -78,7 +80,7 @@ public class FcmMessagingService {
     }
 
     /**
-     * 여러 사용자에게 동시 알림 전송 (기본 우선순위)
+     * 여러 사용자에게 동시 알림 전송 (각 토큰마다 userId 포함)
      */
     public BatchResponse sendMulticastMessage(List<String> fcmTokens, FcmMessageRequest messageRequest) {
         String campaignId = messageRequest.getCampaignId();
@@ -88,24 +90,39 @@ public class FcmMessagingService {
                 throw new FcmException(FcmErrorCode.MESSAGE_SEND_FAILED);
             }
 
-            MulticastMessage.Builder messageBuilder = MulticastMessage.builder()
-                    .setNotification(Notification.builder()
-                            .setTitle(messageRequest.getTitle())
-                            .setBody(messageRequest.getBody())
-                            .build())
-                    .putAllData(messageRequest.getData() != null ? messageRequest.getData() : Map.of())
-                    .addAllTokens(fcmTokens);
+            // 각 토큰마다 userId를 포함한 개별 메시지 생성
+            Map<String, String> tokenToUserId = getTokenToUserIdMap(fcmTokens);
+            List<Message> messages = new ArrayList<>();
 
             // Google Analytics 추적을 위한 FcmOptions 설정
             String analyticsLabel = null;
+            FcmOptions fcmOptions = null;
             if (campaignId != null) {
                 analyticsLabel = ANALYTICS_LABEL_PREFIX + campaignId;
-                messageBuilder.setFcmOptions(FcmOptions.withAnalyticsLabel(analyticsLabel));
+                fcmOptions = FcmOptions.withAnalyticsLabel(analyticsLabel);
             }
 
-            MulticastMessage message = messageBuilder.build();
-            BatchResponse response = firebaseMessaging.sendMulticast(message);
-            log.info("Multicast message sent to {} tokens - Success: {}, Failed: {} (Analytics: {})",
+            for (String fcmToken : fcmTokens) {
+                String userId = tokenToUserId.get(fcmToken);
+                Map<String, String> data = buildDataWithUserId(messageRequest, userId);
+
+                Message.Builder messageBuilder = Message.builder()
+                        .setToken(fcmToken)
+                        .setNotification(Notification.builder()
+                                .setTitle(messageRequest.getTitle())
+                                .setBody(messageRequest.getBody())
+                                .build())
+                        .putAllData(data);
+
+                if (fcmOptions != null) {
+                    messageBuilder.setFcmOptions(fcmOptions);
+                }
+
+                messages.add(messageBuilder.build());
+            }
+
+            BatchResponse response = firebaseMessaging.sendAll(messages);
+            log.info("Batch messages sent to {} tokens - Success: {}, Failed: {} (Analytics: {})",
                      fcmTokens.size(), response.getSuccessCount(), response.getFailureCount(),
                      analyticsLabel != null ? analyticsLabel : "N/A");
 
@@ -217,6 +234,19 @@ public class FcmMessagingService {
     private String getUserIdFromToken(String fcmToken) {
         Optional<FcmToken> tokenOpt = fcmTokenRepository.findFirstByFcmToken(fcmToken);
         return tokenOpt.map(FcmToken::getUserId).orElse(null);
+    }
+
+    /**
+     * 메시지 요청의 data에 userId 추가
+     */
+    private Map<String, String> buildDataWithUserId(FcmMessageRequest messageRequest, String userId) {
+        Map<String, String> data = messageRequest.getData() != null
+                ? new java.util.HashMap<>(messageRequest.getData())
+                : new java.util.HashMap<>();
+        if (userId != null) {
+            data.put("userId", userId);
+        }
+        return data;
     }
 
 }
