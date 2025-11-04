@@ -374,6 +374,7 @@ public class StreakService {
     private StreakStatus calculateTodayStatus(String userId, LocalDate date) {
         DailyCompletion completion = dailyCompletionRepository
                 .findByUserIdAndCompletionDate(userId, date)
+                .map(this::ensureStreakStatus)  // Lazy 업데이트
                 .orElse(null);
 
         if (completion != null && completion.getStreakStatus() != null) {
@@ -498,7 +499,7 @@ public class StreakService {
         int unprocessedDays = 0;
         for (int i = 1; i <= daysMissed; i++) {
             LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
-            if (!wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
+            if (wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
                 unprocessedDays++;
             }
         }
@@ -517,7 +518,7 @@ public class StreakService {
             // 각 누락일에 대해 FreezeTransaction 기록
             for (int i = 1; i <= daysMissed; i++) {
                 LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
-                if (!wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
+                if (wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
                     consumeFreezeForDate(report, missedDate);
                 }
             }
@@ -534,7 +535,7 @@ public class StreakService {
             int processedDays = 0;
             for (int i = 1; i <= daysMissed && processedDays < remainingFreezes; i++) {
                 LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
-                if (!wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
+                if (wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
                     consumeFreezeForDate(report, missedDate);
                     processedDays++;
                 }
@@ -557,6 +558,46 @@ public class StreakService {
                 .findByUserIdAndCompletionDate(userId, date)
                 .map(completion -> completion.getStreakStatus() == StreakStatus.FREEZE_USED)
                 .orElse(false);
+    }
+
+    private boolean hasFreezeTransaction(String userId, LocalDate date) {
+        Instant dayStart = date.atStartOfDay(KST_ZONE).toInstant();
+        Instant dayEnd = date.plusDays(1).atStartOfDay(KST_ZONE).toInstant();
+
+        return freezeTransactionRepository.existsByUserIdAndAmountAndCreatedAtBetween(
+                userId, -1, dayStart, dayEnd
+        );
+    }
+
+    @Transactional
+    protected DailyCompletion ensureStreakStatus(DailyCompletion completion) {
+        if (completion == null || completion.getStreakStatus() != null) {
+            return completion;
+        }
+
+        StreakStatus status;
+
+        // 실제 학습 활동이 있는 경우
+        if (completion.getTotalCompletionCount() != null && completion.getTotalCompletionCount() > 0) {
+            status = StreakStatus.COMPLETED;
+        }
+        // streakCount는 있지만 totalCompletionCount=0 (중복 학습 또는 프리즈)
+        else if (completion.getStreakCount() != null && completion.getStreakCount() > 0) {
+            boolean hasFreeze = hasFreezeTransaction(completion.getUserId(), completion.getCompletionDate());
+            status = hasFreeze ? StreakStatus.FREEZE_USED : StreakStatus.COMPLETED;
+        }
+        // 나머지
+        else {
+            status = StreakStatus.MISSED;
+        }
+
+        completion.setStreakStatus(status);
+        dailyCompletionRepository.save(completion);
+
+        log.debug("Lazy updated streakStatus for user {} on {}: {}",
+                completion.getUserId(), completion.getCompletionDate(), status);
+
+        return completion;
     }
 
     private void consumeFreezeForDate(UserStudyReport report, LocalDate missedDate) {
@@ -633,6 +674,11 @@ public class StreakService {
 
         List<DailyCompletion> completions = dailyCompletionRepository
                 .findByUserIdAndCompletionDateBetween(userId, startDate, endDate);
+
+        completions = completions.stream()
+                .map(this::ensureStreakStatus)
+                .toList();
+
         Map<LocalDate, DailyCompletion> completionMap = completions.stream()
                 .collect(Collectors.toMap(DailyCompletion::getCompletionDate, c -> c));
 
@@ -780,9 +826,9 @@ public class StreakService {
             boolean hasStreakActivity = completion != null && completion.getStreakStatus() != null;
 
             if (!hasStreakActivity) {
-                // completionMap에 없으면 DB에서 직접 조회
                 completion = dailyCompletionRepository
                         .findByUserIdAndCompletionDate(userId, currentDate)
+                        .map(this::ensureStreakStatus)
                         .orElse(null);
                 hasStreakActivity = completion != null && completion.getStreakStatus() != null;
             }
