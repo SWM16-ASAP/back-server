@@ -113,8 +113,8 @@ class ProgressServiceIntegrationTest {
 
         // then - 세 가지 메서드가 순서대로 호출됨
         verify(streakService).addStudyTime(TEST_USER_ID, 120L);
-        verify(streakService).addCompletedContent(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
         verify(streakService).updateStreak(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
+        verify(streakService).addCompletedContent(eq(TEST_USER_ID), eq(ContentType.BOOK), eq(TEST_CHAPTER_ID), anyBoolean());
     }
 
     @Test
@@ -141,8 +141,8 @@ class ProgressServiceIntegrationTest {
 
         // then - addCompletedContent는 여전히 호출됨
         verify(streakService).addStudyTime(TEST_USER_ID, 120L);
-        verify(streakService).addCompletedContent(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
         verify(streakService).updateStreak(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
+        verify(streakService).addCompletedContent(eq(TEST_USER_ID), eq(ContentType.BOOK), eq(TEST_CHAPTER_ID), anyBoolean());
     }
 
     @Test
@@ -169,8 +169,8 @@ class ProgressServiceIntegrationTest {
 
         // then - 학습 시간과 완료 기록은 정상 처리됨
         verify(streakService).addStudyTime(TEST_USER_ID, 30L);
-        verify(streakService).addCompletedContent(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
         verify(streakService).updateStreak(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
+        verify(streakService).addCompletedContent(eq(TEST_USER_ID), eq(ContentType.BOOK), eq(TEST_CHAPTER_ID), anyBoolean());
     }
 
     @Test
@@ -196,7 +196,7 @@ class ProgressServiceIntegrationTest {
 
         // then - 마지막 청크가 아니므로 세 메서드 모두 호출 안됨
         verify(streakService, never()).addStudyTime(any(), anyLong());
-        verify(streakService, never()).addCompletedContent(any(), any(), any());
+        verify(streakService, never()).addCompletedContent(any(), any(), any(), anyBoolean());
         verify(streakService, never()).updateStreak(any(), any(), any());
     }
 }

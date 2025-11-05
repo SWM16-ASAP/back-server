@@ -1,26 +1,27 @@
 package com.linglevel.api.streak.service;
 
 import com.linglevel.api.common.AbstractDatabaseTest;
-import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.streak.dto.CalendarResponse;
 import com.linglevel.api.streak.entity.DailyCompletion;
 import com.linglevel.api.streak.entity.FreezeTransaction;
 import com.linglevel.api.streak.entity.StreakStatus;
-import com.linglevel.api.streak.entity.UserStudyReport;
 import com.linglevel.api.streak.repository.DailyCompletionRepository;
 import com.linglevel.api.streak.repository.FreezeTransactionRepository;
 import com.linglevel.api.streak.repository.UserStudyReportRepository;
 import com.linglevel.api.user.ticket.repository.TicketTransactionRepository;
 import com.linglevel.api.user.ticket.service.TicketService;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.time.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,7 +45,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
     @Autowired
     private TicketTransactionRepository ticketTransactionRepository;
 
-    @MockBean
+    @MockitoBean
     private ReadingSessionService readingSessionService;
 
     private static final String TEST_USER_ID = "backfill-test-user";
