@@ -95,8 +95,8 @@ public class CustomContentReadingProgressService {
             }
 
             streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.CUSTOM, customId));
-            streakService.addCompletedContent(userId, ContentType.CUSTOM, customId);
             streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
+            streakService.addCompletedContent(userId, ContentType.CUSTOM, customId, streakUpdated);
         }
 
         readingSessionService.deleteReadingSession(userId);

@@ -87,8 +87,8 @@ public class ArticleProgressService {
             }
 
             streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.ARTICLE, articleId));
-            streakService.addCompletedContent(userId, ContentType.ARTICLE, articleId);
             streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
+            streakService.addCompletedContent(userId, ContentType.ARTICLE, articleId, streakUpdated);
         }
 
         readingSessionService.deleteReadingSession(userId);

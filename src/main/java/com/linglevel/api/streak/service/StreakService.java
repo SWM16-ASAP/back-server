@@ -2,26 +2,14 @@ package com.linglevel.api.streak.service;
 
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.i18n.LanguageCode;
-import com.linglevel.api.streak.dto.CalendarDayResponse;
-import com.linglevel.api.streak.dto.CalendarResponse;
-import com.linglevel.api.streak.dto.EncouragementMessage;
-import com.linglevel.api.streak.dto.FreezeTransactionResponse;
-import com.linglevel.api.streak.dto.RewardInfo;
-import com.linglevel.api.streak.dto.StreakResponse;
-import com.linglevel.api.streak.dto.WeekDayResponse;
-import com.linglevel.api.streak.dto.WeekStreakResponse;
-import com.linglevel.api.streak.entity.DailyCompletion;
-import com.linglevel.api.streak.entity.InspirationQuote;
-import com.linglevel.api.streak.entity.StreakMilestone;
-import com.linglevel.api.streak.entity.StreakStatus;
-import com.linglevel.api.streak.entity.UserStudyReport;
+import com.linglevel.api.streak.dto.*;
+import com.linglevel.api.streak.entity.*;
 import com.linglevel.api.streak.repository.DailyCompletionRepository;
-import com.linglevel.api.streak.repository.UserStudyReportRepository;
-import com.linglevel.api.user.ticket.service.TicketService;
 import com.linglevel.api.streak.repository.FreezeTransactionRepository;
-import com.linglevel.api.streak.entity.FreezeTransaction;
-import com.linglevel.api.user.ticket.repository.TicketTransactionRepository;
+import com.linglevel.api.streak.repository.UserStudyReportRepository;
 import com.linglevel.api.user.ticket.entity.TicketTransaction;
+import com.linglevel.api.user.ticket.repository.TicketTransactionRepository;
+import com.linglevel.api.user.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -30,19 +18,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -107,8 +86,7 @@ public class StreakService {
     public boolean updateStreak(String userId, ContentType contentType, String contentId) {
         LocalDate today = getKstToday();
 
-        // 오늘 이미 완료했는지 체크 (중복 방지)
-        // 읽기 시간 검사
+        // 유효성 검사
         if (hasCompletedStreakToday(userId, today)
             || !readingSessionService.isReadingSessionValid(userId, contentType, contentId)) {
             return false;
@@ -118,39 +96,32 @@ public class StreakService {
                 .orElseGet(() -> createNewUserStudyReport(userId));
 
         if (report.getLastCompletionDate() == null) {
-            // 첫 완료
             report.setCurrentStreak(1);
             report.setLongestStreak(1);
             report.setStreakStartDate(today);
-        } else {
-            long daysBetween = ChronoUnit.DAYS.between(report.getLastCompletionDate(), today);
+            report.setLastCompletionDate(today);
+        }
 
-            if (daysBetween == 1) {
-                // 연속 완료 → 스트릭 증가
-                report.setCurrentStreak(report.getCurrentStreak() + 1);
-            } else if (daysBetween == 0) {
-                // 오늘 이미 완료 (hasCompletedStreakToday에서 걸러져야 함)
-                log.warn("User {} completed multiple times today. Should have been prevented.", userId);
-                return false;
+        long daysBetween = ChronoUnit.DAYS.between(report.getLastCompletionDate(), today);
+
+        if (daysBetween == 1) {
+            // 연속 완료 → 스트릭 증가
+            report.setCurrentStreak(report.getCurrentStreak() + 1);
+        } else if (daysBetween > 1) {
+            boolean streakWasReset = processMissedDays(report, today);
+
+            if (streakWasReset) {
+                // 스트릭이 리셋됨 -> 오늘부터 다시 시작
+                report.setCurrentStreak(1);
+                report.setStreakStartDate(today);
             } else {
-                // daysBetween > 1: 여러 날 누락 (배치 실패 대비 방어적 처리)
-                log.warn("User {} has {} days gap. Processing defensively.", userId, daysBetween);
-
-                boolean streakWasReset = processMissedDays(report, today);
-
-                if (streakWasReset) {
-                    // 스트릭이 리셋됨 -> 오늘부터 다시 시작
+                // 프리즈로 스트릭 유지됨 또는 이미 배치 처리됨 -> 오늘 완료로 스트릭 증가
+                if (report.getCurrentStreak() > 0) {
+                    report.setCurrentStreak(report.getCurrentStreak() + 1);
+                } else {
+                    // 배치에서 이미 리셋됨 -> 새로 시작
                     report.setCurrentStreak(1);
                     report.setStreakStartDate(today);
-                } else {
-                    // 프리즈로 스트릭 유지됨 또는 이미 배치 처리됨 -> 오늘 완료로 스트릭 증가
-                    if (report.getCurrentStreak() > 0) {
-                        report.setCurrentStreak(report.getCurrentStreak() + 1);
-                    } else {
-                        // 배치에서 이미 리셋됨 -> 새로 시작
-                        report.setCurrentStreak(1);
-                        report.setStreakStartDate(today);
-                    }
                 }
             }
         }
@@ -166,31 +137,6 @@ public class StreakService {
         report.setLastCompletionDate(today);
         report.setLastLearningTimestamp(Instant.now());
         report.setUpdatedAt(Instant.now());
-
-        // DailyCompletion 업데이트 (스트릭 카운트만 저장)
-        DailyCompletion dailyCompletion = dailyCompletionRepository
-                .findByUserIdAndCompletionDate(userId, today)
-                .orElse(null);
-
-        if (dailyCompletion == null) {
-            // 새로 생성 (스트릭만 완료, 콘텐츠는 아직 없음)
-            dailyCompletion = DailyCompletion.builder()
-                    .userId(userId)
-                    .completionDate(today)
-                    .firstCompletionCount(0)
-                    .totalCompletionCount(0)
-                    .completedContents(new java.util.ArrayList<>())
-                    .streakCount(report.getCurrentStreak())
-                    .streakStatus(StreakStatus.COMPLETED)
-                    .createdAt(Instant.now())
-                    .build();
-            dailyCompletionRepository.save(dailyCompletion);
-        } else {
-            // 기존 것이 있으면 streakCount만 업데이트
-            dailyCompletion.setStreakCount(report.getCurrentStreak());
-            dailyCompletion.setStreakStatus(StreakStatus.COMPLETED);
-            dailyCompletionRepository.save(dailyCompletion);
-        }
         userStudyReportRepository.save(report);
 
         log.info("Streak updated for user: {}. Current streak: {}", userId, report.getCurrentStreak());
@@ -359,7 +305,7 @@ public class StreakService {
     }
 
     @Transactional
-    public void addCompletedContent(String userId, ContentType contentType, String contentId) {
+    public void addCompletedContent(String userId, ContentType contentType, String contentId, boolean streakUpdated) {
         LocalDate today = getKstToday();
 
         UserStudyReport report = userStudyReportRepository.findByUserId(userId)
@@ -370,15 +316,6 @@ public class StreakService {
             report.setCompletedContentIds(new HashSet<>());
         }
 
-        // 이미 완료한 콘텐츠면 무시
-        if (report.getCompletedContentIds().contains(contentId)) {
-            return;
-        }
-
-        // UserStudyReport에 콘텐츠 ID 추가
-        report.getCompletedContentIds().add(contentId);
-        userStudyReportRepository.save(report);
-
         // DailyCompletion 업데이트
         DailyCompletion.CompletedContent completedContent = DailyCompletion.CompletedContent.builder()
                 .type(contentType)
@@ -388,28 +325,34 @@ public class StreakService {
 
         DailyCompletion dailyCompletion = dailyCompletionRepository
                 .findByUserIdAndCompletionDate(userId, today)
-                .orElse(null);
+                .orElse(DailyCompletion.builder()
+                        .userId(userId)
+                        .completionDate(today)
+                        .firstCompletionCount(0)
+                        .totalCompletionCount(0)
+                        .streakCount(report.getCurrentStreak())
+                        .streakStatus(StreakStatus.MISSED)
+                        .createdAt(Instant.now())
+                        .build()
+                );
 
-        if (dailyCompletion != null) {
-            if (dailyCompletion.getCompletedContents() == null) {
-                dailyCompletion.setCompletedContents(new ArrayList<>());
-            }
-            dailyCompletion.getCompletedContents().add(completedContent);
-            dailyCompletion.setFirstCompletionCount(dailyCompletion.getFirstCompletionCount() + 1);
-            dailyCompletion.setTotalCompletionCount(dailyCompletion.getTotalCompletionCount() + 1);
-        } else {
-            dailyCompletion = DailyCompletion.builder()
-                    .userId(userId)
-                    .completionDate(today)
-                    .firstCompletionCount(1)
-                    .totalCompletionCount(1)
-                    .completedContents(new ArrayList<>(Collections.singletonList(completedContent)))
-                    .streakCount(report.getCurrentStreak())
-                    .streakStatus(StreakStatus.MISSED)
-                    .createdAt(Instant.now())
-                    .build();
+        if (dailyCompletion.getCompletedContents() == null) {
+            dailyCompletion.setCompletedContents(new ArrayList<>());
         }
 
+        dailyCompletion.getCompletedContents().add(completedContent);
+        dailyCompletion.setTotalCompletionCount(dailyCompletion.getTotalCompletionCount() + 1);
+
+        if (!report.getCompletedContentIds().contains(contentId)) {
+            report.getCompletedContentIds().add(contentId);
+            dailyCompletion.setFirstCompletionCount(dailyCompletion.getFirstCompletionCount() + 1);
+        }
+
+        if (streakUpdated) {
+            dailyCompletion.setStreakStatus(StreakStatus.COMPLETED);
+        }
+
+        userStudyReportRepository.save(report);
         dailyCompletionRepository.save(dailyCompletion);
     }
 
