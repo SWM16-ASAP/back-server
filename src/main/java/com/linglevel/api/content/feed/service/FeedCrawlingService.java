@@ -152,19 +152,40 @@ public class FeedCrawlingService {
                     if (element instanceof org.jdom2.Element) {
                         org.jdom2.Element elem = (org.jdom2.Element) element;
                         // media:group > media:thumbnail 태그 찾기
-                        if ("group".equals(elem.getName()) && elem.getNamespaceURI().contains("media")) {
+                        if ("group".equals(elem.getName()) && elem.getNamespaceURI() != null &&
+                            elem.getNamespaceURI().contains("media")) {
+
+                            log.debug("Found media:group, searching for thumbnail...");
+
+                            // 방법 1: 같은 namespace로 찾기
                             org.jdom2.Element thumbnail = elem.getChild("thumbnail", elem.getNamespace());
                             if (thumbnail != null && thumbnail.getAttributeValue("url") != null) {
                                 String thumbnailUrl = thumbnail.getAttributeValue("url");
-                                log.debug("Thumbnail found in media module: {}", thumbnailUrl);
+                                log.info("Thumbnail found in media module: {}", thumbnailUrl);
                                 return thumbnailUrl;
                             }
+
+                            // 방법 2: 모든 자식 요소 탐색
+                            for (Object child : elem.getChildren()) {
+                                if (child instanceof org.jdom2.Element) {
+                                    org.jdom2.Element childElem = (org.jdom2.Element) child;
+                                    if ("thumbnail".equals(childElem.getName())) {
+                                        String thumbnailUrl = childElem.getAttributeValue("url");
+                                        if (thumbnailUrl != null) {
+                                            log.info("Thumbnail found via children search: {}", thumbnailUrl);
+                                            return thumbnailUrl;
+                                        }
+                                    }
+                                }
+                            }
+
+                            log.debug("media:group found but no thumbnail child");
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            log.debug("Failed to extract thumbnail from media module", e);
+            log.warn("Failed to extract thumbnail from media module", e);
         }
 
         // 2. RSS에 썸네일이 없고, coverImageDsl이 설정되어 있으면 크롤링
