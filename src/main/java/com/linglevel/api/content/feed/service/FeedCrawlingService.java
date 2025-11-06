@@ -127,7 +127,8 @@ public class FeedCrawlingService {
     /**
      * RSS Entry에서 썸네일 URL 추출 (RSS -> DSL fallback)
      * 1. RSS enclosures에서 이미지 찾기
-     * 2. 실패하면 coverImageDsl을 사용하여 article 페이지에서 크롤링
+     * 2. Media 모듈에서 썸네일 찾기 (YouTube 등)
+     * 3. 실패하면 coverImageDsl을 사용하여 article 페이지에서 크롤링
      */
     private String extractThumbnailUrl(SyndEntry entry, String articleUrl, FeedSource feedSource) {
         // 1. Enclosures에서 이미지 찾기
@@ -142,6 +143,28 @@ public class FeedCrawlingService {
                 log.debug("Thumbnail found in RSS enclosures: {}", rssThumbnail);
                 return rssThumbnail;
             }
+        }
+
+        // 2. Media 모듈에서 썸네일 찾기 (YouTube의 media:thumbnail)
+        try {
+            if (entry.getForeignMarkup() != null) {
+                for (Object element : entry.getForeignMarkup()) {
+                    if (element instanceof org.jdom2.Element) {
+                        org.jdom2.Element elem = (org.jdom2.Element) element;
+                        // media:group > media:thumbnail 태그 찾기
+                        if ("group".equals(elem.getName()) && elem.getNamespaceURI().contains("media")) {
+                            org.jdom2.Element thumbnail = elem.getChild("thumbnail", elem.getNamespace());
+                            if (thumbnail != null && thumbnail.getAttributeValue("url") != null) {
+                                String thumbnailUrl = thumbnail.getAttributeValue("url");
+                                log.debug("Thumbnail found in media module: {}", thumbnailUrl);
+                                return thumbnailUrl;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Failed to extract thumbnail from media module", e);
         }
 
         // 2. RSS에 썸네일이 없고, coverImageDsl이 설정되어 있으면 크롤링
