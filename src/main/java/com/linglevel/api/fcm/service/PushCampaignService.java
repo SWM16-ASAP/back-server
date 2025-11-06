@@ -22,14 +22,14 @@ public class PushCampaignService {
     private final PushLogRepository pushLogRepository;
 
     /**
-     * 특정 캠페인의 상세 통계 조회
+     * 특정 캠페인 그룹의 상세 통계 조회
      */
-    public PushCampaignStats getStats(String campaignId) {
-        List<PushLog> logs = pushLogRepository.findByCampaignId(campaignId);
+    public PushCampaignStats getStats(String campaignGroup) {
+        List<PushLog> logs = pushLogRepository.findByCampaignGroup(campaignGroup);
 
         if (logs.isEmpty()) {
             return PushCampaignStats.builder()
-                    .campaignId(campaignId)
+                    .campaignId(campaignGroup)
                     .totalSent(0)
                     .sentSuccess(0)
                     .totalOpened(0)
@@ -55,7 +55,7 @@ public class PushCampaignService {
                 .orElse(null);
 
         return PushCampaignStats.builder()
-                .campaignId(campaignId)
+                .campaignId(campaignGroup)
                 .firstSentAt(firstSentAt)
                 .totalSent(totalSent)
                 .sentSuccess(sentSuccess)
@@ -66,7 +66,7 @@ public class PushCampaignService {
     }
 
     /**
-     * 캠페인 목록 조회 (기간 필터링 가능)
+     * 캠페인 그룹 목록 조회 (기간 필터링 가능)
      */
     public List<PushCampaignSummary> getCampaignSummaries(LocalDateTime startDate, LocalDateTime endDate) {
         List<PushLog> logs;
@@ -77,13 +77,14 @@ public class PushCampaignService {
             logs = pushLogRepository.findAll();
         }
 
-        // campaignId로 그룹핑하여 통계 계산
+        // campaignGroup으로 그룹핑하여 통계 계산
         Map<String, List<PushLog>> logsByCampaign = logs.stream()
-                .collect(Collectors.groupingBy(PushLog::getCampaignId));
+                .filter(log -> log.getCampaignGroup() != null)  // null 체크
+                .collect(Collectors.groupingBy(PushLog::getCampaignGroup));
 
         return logsByCampaign.entrySet().stream()
                 .map(entry -> {
-                    String campaignId = entry.getKey();
+                    String campaignGroup = entry.getKey();
                     List<PushLog> campaignLogs = entry.getValue();
 
                     int totalSent = campaignLogs.size();
@@ -101,10 +102,10 @@ public class PushCampaignService {
                             .min(Comparator.naturalOrder())
                             .orElse(null);
 
-                    String campaignType = extractCampaignType(campaignId);
+                    String campaignType = extractCampaignType(campaignGroup);
 
                     return PushCampaignSummary.builder()
-                            .campaignId(campaignId)
+                            .campaignId(campaignGroup)
                             .campaignType(campaignType)
                             .firstSentAt(firstSentAt)
                             .totalSent(totalSent)
@@ -118,16 +119,16 @@ public class PushCampaignService {
     }
 
     /**
-     * campaignId에서 타입 추출 (예: "article-tech-123" -> "article")
+     * campaignGroup에서 타입 추출 (예: "article-tech-123" -> "article")
      */
-    private String extractCampaignType(String campaignId) {
-        if (campaignId == null) {
+    private String extractCampaignType(String campaignGroup) {
+        if (campaignGroup == null) {
             return "unknown";
         }
 
-        int firstDash = campaignId.indexOf('-');
+        int firstDash = campaignGroup.indexOf('-');
         if (firstDash > 0) {
-            return campaignId.substring(0, firstDash);
+            return campaignGroup.substring(0, firstDash);
         }
 
         return "unknown";

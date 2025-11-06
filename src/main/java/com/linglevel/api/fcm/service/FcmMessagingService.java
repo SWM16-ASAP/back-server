@@ -36,7 +36,7 @@ public class FcmMessagingService {
      */
     public String sendMessage(String fcmToken, FcmMessageRequest messageRequest) {
         String userId = getUserIdFromToken(fcmToken);
-        String campaignId = messageRequest.getCampaignId();
+        String campaignGroup = messageRequest.getCampaignId();  // 원래의 campaignId를 그룹으로 사용
 
         try {
             Map<String, String> data = buildDataWithUserId(messageRequest, userId);
@@ -50,29 +50,30 @@ public class FcmMessagingService {
                     .putAllData(data);
 
             // Google Analytics 추적을 위한 FcmOptions 설정
-            if (campaignId != null) {
-                String analyticsLabel = ANALYTICS_LABEL_PREFIX + campaignId;
+            if (campaignGroup != null) {
+                String analyticsLabel = ANALYTICS_LABEL_PREFIX + campaignGroup;
                 messageBuilder.setFcmOptions(FcmOptions.withAnalyticsLabel(analyticsLabel));
                 log.debug("Analytics label set: {}", analyticsLabel);
             }
 
             Message message = messageBuilder.build();
-            String response = firebaseMessaging.send(message);
-            log.debug("FCM message sent successfully: {}", response);
+            String messageId = firebaseMessaging.send(message);  // FCM이 반환하는 고유 messageId
+            log.debug("FCM message sent successfully - messageId: {}", messageId);
 
-            // 송신 성공 로그 저장
-            if (campaignId != null && userId != null) {
-                pushLogService.logSent(campaignId, userId, true);
+            // 송신 성공 로그 저장 (messageId를 campaignId로 사용)
+            if (messageId != null && userId != null) {
+                pushLogService.logSent(messageId, userId, true, campaignGroup);
             }
 
-            return response;
+            return messageId;
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send FCM message: {}", e.getMessage());
 
-            // 송신 실패 로그 저장
-            if (campaignId != null && userId != null) {
-                pushLogService.logSent(campaignId, userId, false);
+            // 송신 실패 시에는 임시 ID 생성
+            if (userId != null) {
+                String tempMessageId = "failed-" + System.currentTimeMillis() + "-" + userId;
+                pushLogService.logSent(tempMessageId, userId, false, campaignGroup);
             }
 
             throw new FcmException(FcmErrorCode.MESSAGE_SEND_FAILED);
@@ -83,7 +84,7 @@ public class FcmMessagingService {
      * 여러 사용자에게 동시 알림 전송 (각 토큰마다 userId 포함)
      */
     public BatchResponse sendMulticastMessage(List<String> fcmTokens, FcmMessageRequest messageRequest) {
-        String campaignId = messageRequest.getCampaignId();
+        String campaignGroup = messageRequest.getCampaignId();  // 원래의 campaignId를 그룹으로 사용
 
         try {
             if (fcmTokens == null || fcmTokens.isEmpty()) {
@@ -97,8 +98,8 @@ public class FcmMessagingService {
             // Google Analytics 추적을 위한 FcmOptions 설정
             String analyticsLabel = null;
             FcmOptions fcmOptions = null;
-            if (campaignId != null) {
-                analyticsLabel = ANALYTICS_LABEL_PREFIX + campaignId;
+            if (campaignGroup != null) {
+                analyticsLabel = ANALYTICS_LABEL_PREFIX + campaignGroup;
                 fcmOptions = FcmOptions.withAnalyticsLabel(analyticsLabel);
             }
 
@@ -126,10 +127,8 @@ public class FcmMessagingService {
                      fcmTokens.size(), response.getSuccessCount(), response.getFailureCount(),
                      analyticsLabel != null ? analyticsLabel : "N/A");
 
-            // 배치로 로그 저장
-            if (campaignId != null) {
-                savePushLogsBatch(fcmTokens, campaignId, response);
-            }
+            // 배치로 로그 저장 (각 응답의 messageId 사용)
+            savePushLogsBatch(fcmTokens, campaignGroup, response);
 
             return response;
 
@@ -137,9 +136,7 @@ public class FcmMessagingService {
             log.error("Failed to send multicast FCM message: {}", e.getMessage());
 
             // 전체 실패 로그 배치 저장
-            if (campaignId != null) {
-                savePushLogsAllFailed(fcmTokens, campaignId);
-            }
+            savePushLogsAllFailed(fcmTokens, campaignGroup);
 
             throw new FcmException(FcmErrorCode.MESSAGE_SEND_FAILED);
         }
@@ -148,7 +145,7 @@ public class FcmMessagingService {
     /**
      * 푸시 로그를 배치로 저장 (성공/실패 혼합)
      */
-    private void savePushLogsBatch(List<String> fcmTokens, String campaignId, BatchResponse response) {
+    private void savePushLogsBatch(List<String> fcmTokens, String campaignGroup, BatchResponse response) {
         try {
             Map<String, String> tokenToUserId = getTokenToUserIdMap(fcmTokens);
             List<PushLog> logsToSave = new ArrayList<>();
@@ -157,38 +154,45 @@ public class FcmMessagingService {
             for (int i = 0; i < response.getResponses().size(); i++) {
                 String fcmToken = fcmTokens.get(i);
                 String userId = tokenToUserId.get(fcmToken);
-                boolean success = response.getResponses().get(i).isSuccessful();
+                SendResponse sendResponse = response.getResponses().get(i);
+                boolean success = sendResponse.isSuccessful();
 
                 if (userId != null) {
-                    logsToSave.add(createPushLog(campaignId, userId, success, now));
+                    // FCM messageId를 campaignId로 사용
+                    String messageId = success ? sendResponse.getMessageId()
+                            : "failed-" + System.currentTimeMillis() + "-" + i + "-" + userId;
+                    logsToSave.add(createPushLog(messageId, userId, success, campaignGroup, now));
                 }
             }
 
-            savePushLogsIfNotEmpty(logsToSave, campaignId);
+            savePushLogsIfNotEmpty(logsToSave, campaignGroup);
         } catch (Exception e) {
-            log.error("Failed to batch save push logs for campaign: {}", campaignId, e);
+            log.error("Failed to batch save push logs for campaignGroup: {}", campaignGroup, e);
         }
     }
 
     /**
      * 전체 실패 시 푸시 로그를 배치로 저장
      */
-    private void savePushLogsAllFailed(List<String> fcmTokens, String campaignId) {
+    private void savePushLogsAllFailed(List<String> fcmTokens, String campaignGroup) {
         try {
             Map<String, String> tokenToUserId = getTokenToUserIdMap(fcmTokens);
             List<PushLog> logsToSave = new ArrayList<>();
             LocalDateTime now = LocalDateTime.now();
 
+            int index = 0;
             for (String fcmToken : fcmTokens) {
                 String userId = tokenToUserId.get(fcmToken);
                 if (userId != null) {
-                    logsToSave.add(createPushLog(campaignId, userId, false, now));
+                    String tempMessageId = "failed-" + System.currentTimeMillis() + "-" + index + "-" + userId;
+                    logsToSave.add(createPushLog(tempMessageId, userId, false, campaignGroup, now));
+                    index++;
                 }
             }
 
-            savePushLogsIfNotEmpty(logsToSave, campaignId);
+            savePushLogsIfNotEmpty(logsToSave, campaignGroup);
         } catch (Exception e) {
-            log.error("Failed to batch save failed push logs for campaign: {}", campaignId, e);
+            log.error("Failed to batch save failed push logs for campaignGroup: {}", campaignGroup, e);
         }
     }
 
@@ -208,9 +212,10 @@ public class FcmMessagingService {
     /**
      * PushLog 객체 생성
      */
-    private PushLog createPushLog(String campaignId, String userId, boolean success, LocalDateTime now) {
+    private PushLog createPushLog(String messageId, String userId, boolean success, String campaignGroup, LocalDateTime now) {
         return PushLog.builder()
-                .campaignId(campaignId)
+                .campaignId(messageId)  // FCM messageId를 campaignId로 사용
+                .campaignGroup(campaignGroup)  // 원래의 campaignId를 그룹으로 사용
                 .userId(userId)
                 .sentAt(now)
                 .sentSuccess(success)
@@ -221,10 +226,10 @@ public class FcmMessagingService {
     /**
      * PushLog 목록이 비어있지 않으면 배치 저장
      */
-    private void savePushLogsIfNotEmpty(List<PushLog> logsToSave, String campaignId) {
+    private void savePushLogsIfNotEmpty(List<PushLog> logsToSave, String campaignGroup) {
         if (!logsToSave.isEmpty()) {
             pushLogRepository.saveAll(logsToSave);
-            log.debug("Batch saved {} push logs for campaign: {}", logsToSave.size(), campaignId);
+            log.debug("Batch saved {} push logs for campaignGroup: {}", logsToSave.size(), campaignGroup);
         }
     }
 

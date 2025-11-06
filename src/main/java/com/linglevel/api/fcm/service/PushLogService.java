@@ -20,11 +20,16 @@ public class PushLogService {
 
     /**
      * 푸시 알림 송신 로그 저장
+     * @param campaignId 각 메시지의 고유 ID
+     * @param userId 사용자 ID
+     * @param success 발송 성공 여부
+     * @param campaignGroup 캠페인 그룹 (선택적, 내부 그룹화용)
      */
-    public void logSent(String campaignId, String userId, boolean success) {
+    public void logSent(String campaignId, String userId, boolean success, String campaignGroup) {
         try {
             PushLog pushLog = PushLog.builder()
                     .campaignId(campaignId)
+                    .campaignGroup(campaignGroup)
                     .userId(userId)
                     .sentAt(LocalDateTime.now())
                     .sentSuccess(success)
@@ -40,11 +45,22 @@ public class PushLogService {
 
     /**
      * 푸시 알림 오픈 로그 업데이트 (낙관적 락을 통한 동시성 제어)
+     * @param userId 사용자 ID
+     * @param campaignId 메시지 고유 ID
+     * @param openedAt 오픈 시간
      */
     public void logOpened(String userId, String campaignId, LocalDateTime openedAt) {
         try {
-            PushLog pushLog = pushLogRepository.findByCampaignIdAndUserId(campaignId, userId)
+            // campaignId가 유니크하므로 campaignId만으로 조회
+            PushLog pushLog = pushLogRepository.findByCampaignId(campaignId)
                     .orElseThrow(() -> new FcmException(FcmErrorCode.PUSH_LOG_NOT_FOUND));
+
+            // userId 검증: 다른 사용자의 푸시를 오픈할 수 없음
+            if (!pushLog.getUserId().equals(userId)) {
+                log.warn("User mismatch - campaignId: {}, expected userId: {}, actual userId: {}",
+                        campaignId, pushLog.getUserId(), userId);
+                throw new FcmException(FcmErrorCode.PUSH_LOG_NOT_FOUND);
+            }
 
             // 멱등성 보장: 이미 오픈되었으면 무시
             if (pushLog.getOpenedAt() != null) {
@@ -59,8 +75,10 @@ public class PushLogService {
 
         } catch (OptimisticLockingFailureException e) {
             // 낙관적 락 충돌: 다른 요청이 먼저 업데이트함 (정상 케이스)
-            log.debug("Optimistic lock conflict on push opened - campaignId: {}, userId: {} (already updated by another request)",
-                    campaignId, userId);
+            log.debug("Optimistic lock conflict on push opened - campaignId: {} (already updated by another request)",
+                    campaignId);
+        } catch (FcmException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to update push opened log - campaignId: {}, userId: {}", campaignId, userId, e);
             throw new FcmException(FcmErrorCode.PUSH_LOG_SAVE_FAILED);
