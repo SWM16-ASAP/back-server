@@ -30,6 +30,8 @@ public class UserCategoryPreference {
 
     private Map<ContentCategory, Integer> rawAccessCounts;
 
+    private Map<String, Double> tagScores;
+
     private Integer totalAccessCount;
 
     private Instant lastUpdatedAt;
