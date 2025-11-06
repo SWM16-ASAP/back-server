@@ -39,6 +39,7 @@ public class FeedCrawlingService {
             log.info("Crawling RSS FeedSource: {} ({})", feedSource.getName(), feedSource.getUrl());
 
             SyndFeedInput input = new SyndFeedInput();
+            input.setAllowDoctypes(true);
             SyndFeed rssFeed = input.build(new XmlReader(new URL(feedSource.getUrl())));
 
             List<SyndEntry> entries = rssFeed.getEntries();
@@ -98,14 +99,18 @@ public class FeedCrawlingService {
             // 발행일 추출
             Instant publishedAt = extractPublishedDate(entry);
 
+            // 작성자 추출
+            String author = entry.getAuthor();
+
             return Feed.builder()
                 .contentType(feedSource.getContentType())
                 .title(title.trim())
                 .url(url)
                 .thumbnailUrl(thumbnailUrl)
+                .author(author != null && !author.trim().isEmpty() ? author.trim() : null)
                 .category(feedSource.getCategory())
                 .tags(feedSource.getTags())
-                .sourceProvider(feedSource.getDomain())
+                .sourceProvider(extractDomainFromUrl(url))
                 .publishedAt(publishedAt != null ? publishedAt : Instant.now())
                 .displayOrder(0)
                 .viewCount(0)
@@ -178,5 +183,18 @@ public class FeedCrawlingService {
         }
 
         return null;
+    }
+
+    /**
+     * URL에서 도메인 추출
+     */
+    private String extractDomainFromUrl(String urlString) {
+        try {
+            URL url = new URL(urlString);
+            return url.getHost();
+        } catch (Exception e) {
+            log.warn("Failed to extract domain from URL: {}", urlString, e);
+            return null;
+        }
     }
 }
