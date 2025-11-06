@@ -20,15 +20,17 @@ public class PushLogService {
 
     /**
      * 푸시 알림 송신 로그 저장
-     * @param campaignId 각 메시지의 고유 ID
+     * @param campaignId 각 메시지의 고유 ID (자체 UUID)
      * @param userId 사용자 ID
      * @param success 발송 성공 여부
      * @param campaignGroup 캠페인 그룹 (선택적, 내부 그룹화용)
+     * @param fcmMessageId FCM messageId (선택적, FCM 추적용)
      */
-    public void logSent(String campaignId, String userId, boolean success, String campaignGroup) {
+    public void logSent(String campaignId, String userId, boolean success, String campaignGroup, String fcmMessageId) {
         try {
             PushLog pushLog = PushLog.builder()
                     .campaignId(campaignId)
+                    .fcmMessageId(fcmMessageId)
                     .campaignGroup(campaignGroup)
                     .userId(userId)
                     .sentAt(LocalDateTime.now())
@@ -54,13 +56,6 @@ public class PushLogService {
             // campaignId가 유니크하므로 campaignId만으로 조회
             PushLog pushLog = pushLogRepository.findByCampaignId(campaignId)
                     .orElseThrow(() -> new FcmException(FcmErrorCode.PUSH_LOG_NOT_FOUND));
-
-            // userId 검증: 다른 사용자의 푸시를 오픈할 수 없음
-            if (!pushLog.getUserId().equals(userId)) {
-                log.warn("User mismatch - campaignId: {}, expected userId: {}, actual userId: {}",
-                        campaignId, pushLog.getUserId(), userId);
-                throw new FcmException(FcmErrorCode.PUSH_LOG_NOT_FOUND);
-            }
 
             // 멱등성 보장: 이미 오픈되었으면 무시
             if (pushLog.getOpenedAt() != null) {

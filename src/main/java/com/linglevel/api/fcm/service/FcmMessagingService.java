@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,9 +38,11 @@ public class FcmMessagingService {
     public String sendMessage(String fcmToken, FcmMessageRequest messageRequest) {
         String userId = getUserIdFromToken(fcmToken);
         String campaignGroup = messageRequest.getCampaignId();  // 원래의 campaignId를 그룹으로 사용
+        String pushId = UUID.randomUUID().toString();
 
         try {
             Map<String, String> data = buildDataWithUserId(messageRequest, userId);
+            data.put("pushId", pushId);
 
             Message.Builder messageBuilder = Message.builder()
                     .setToken(fcmToken)
@@ -57,23 +60,20 @@ public class FcmMessagingService {
             }
 
             Message message = messageBuilder.build();
-            String messageId = firebaseMessaging.send(message);  // FCM이 반환하는 고유 messageId
-            log.debug("FCM message sent successfully - messageId: {}", messageId);
+            String fcmMessageId = firebaseMessaging.send(message);
+            log.debug("FCM message sent successfully - pushId: {}, fcmMessageId: {}", pushId, fcmMessageId);
 
-            // 송신 성공 로그 저장 (messageId를 campaignId로 사용)
-            if (messageId != null && userId != null) {
-                pushLogService.logSent(messageId, userId, true, campaignGroup);
+            if (userId != null) {
+                pushLogService.logSent(pushId, userId, true, campaignGroup, fcmMessageId);
             }
 
-            return messageId;
+            return pushId;  // 자체 UUID 반환
 
         } catch (FirebaseMessagingException e) {
-            log.error("Failed to send FCM message: {}", e.getMessage());
+            log.error("Failed to send FCM message - pushId: {}", pushId, e);
 
-            // 송신 실패 시에는 임시 ID 생성
             if (userId != null) {
-                String tempMessageId = "failed-" + System.currentTimeMillis() + "-" + userId;
-                pushLogService.logSent(tempMessageId, userId, false, campaignGroup);
+                pushLogService.logSent(pushId, userId, false, campaignGroup, null);
             }
 
             throw new FcmException(FcmErrorCode.MESSAGE_SEND_FAILED);
@@ -94,6 +94,7 @@ public class FcmMessagingService {
             // 각 토큰마다 userId를 포함한 개별 메시지 생성
             Map<String, String> tokenToUserId = getTokenToUserIdMap(fcmTokens);
             List<Message> messages = new ArrayList<>();
+            Map<Integer, String> indexToPushId = new java.util.HashMap<>();  // 인덱스별 pushId 매핑
 
             // Google Analytics 추적을 위한 FcmOptions 설정
             String analyticsLabel = null;
@@ -103,9 +104,14 @@ public class FcmMessagingService {
                 fcmOptions = FcmOptions.withAnalyticsLabel(analyticsLabel);
             }
 
+            int index = 0;
             for (String fcmToken : fcmTokens) {
                 String userId = tokenToUserId.get(fcmToken);
+                String pushId = UUID.randomUUID().toString();
+                indexToPushId.put(index, pushId);
+
                 Map<String, String> data = buildDataWithUserId(messageRequest, userId);
+                data.put("pushId", pushId);
 
                 Message.Builder messageBuilder = Message.builder()
                         .setToken(fcmToken)
@@ -120,6 +126,7 @@ public class FcmMessagingService {
                 }
 
                 messages.add(messageBuilder.build());
+                index++;
             }
 
             BatchResponse response = firebaseMessaging.sendAll(messages);
@@ -127,15 +134,14 @@ public class FcmMessagingService {
                      fcmTokens.size(), response.getSuccessCount(), response.getFailureCount(),
                      analyticsLabel != null ? analyticsLabel : "N/A");
 
-            // 배치로 로그 저장 (각 응답의 messageId 사용)
-            savePushLogsBatch(fcmTokens, campaignGroup, response);
+            // 배치로 로그 저장 (자체 UUID와 FCM messageId 함께 저장)
+            savePushLogsBatch(fcmTokens, campaignGroup, response, indexToPushId);
 
             return response;
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send multicast FCM message: {}", e.getMessage());
 
-            // 전체 실패 로그 배치 저장
             savePushLogsAllFailed(fcmTokens, campaignGroup);
 
             throw new FcmException(FcmErrorCode.MESSAGE_SEND_FAILED);
@@ -145,7 +151,7 @@ public class FcmMessagingService {
     /**
      * 푸시 로그를 배치로 저장 (성공/실패 혼합)
      */
-    private void savePushLogsBatch(List<String> fcmTokens, String campaignGroup, BatchResponse response) {
+    private void savePushLogsBatch(List<String> fcmTokens, String campaignGroup, BatchResponse response, Map<Integer, String> indexToPushId) {
         try {
             Map<String, String> tokenToUserId = getTokenToUserIdMap(fcmTokens);
             List<PushLog> logsToSave = new ArrayList<>();
@@ -156,12 +162,11 @@ public class FcmMessagingService {
                 String userId = tokenToUserId.get(fcmToken);
                 SendResponse sendResponse = response.getResponses().get(i);
                 boolean success = sendResponse.isSuccessful();
+                String pushId = indexToPushId.get(i);  // 미리 생성된 UUID
 
-                if (userId != null) {
-                    // FCM messageId를 campaignId로 사용
-                    String messageId = success ? sendResponse.getMessageId()
-                            : "failed-" + System.currentTimeMillis() + "-" + i + "-" + userId;
-                    logsToSave.add(createPushLog(messageId, userId, success, campaignGroup, now));
+                if (userId != null && pushId != null) {
+                    String fcmMessageId = success ? sendResponse.getMessageId() : null;
+                    logsToSave.add(createPushLog(pushId, userId, success, campaignGroup, fcmMessageId, now));
                 }
             }
 
@@ -180,13 +185,11 @@ public class FcmMessagingService {
             List<PushLog> logsToSave = new ArrayList<>();
             LocalDateTime now = LocalDateTime.now();
 
-            int index = 0;
             for (String fcmToken : fcmTokens) {
                 String userId = tokenToUserId.get(fcmToken);
                 if (userId != null) {
-                    String tempMessageId = "failed-" + System.currentTimeMillis() + "-" + index + "-" + userId;
-                    logsToSave.add(createPushLog(tempMessageId, userId, false, campaignGroup, now));
-                    index++;
+                    String pushId = UUID.randomUUID().toString();
+                    logsToSave.add(createPushLog(pushId, userId, false, campaignGroup, null, now));
                 }
             }
 
@@ -212,10 +215,11 @@ public class FcmMessagingService {
     /**
      * PushLog 객체 생성
      */
-    private PushLog createPushLog(String messageId, String userId, boolean success, String campaignGroup, LocalDateTime now) {
+    private PushLog createPushLog(String pushId, String userId, boolean success, String campaignGroup, String fcmMessageId, LocalDateTime now) {
         return PushLog.builder()
-                .campaignId(messageId)  // FCM messageId를 campaignId로 사용
-                .campaignGroup(campaignGroup)  // 원래의 campaignId를 그룹으로 사용
+                .campaignId(pushId)  // 자체 UUID를 campaignId로 사용
+                .fcmMessageId(fcmMessageId)  // FCM messageId (선택적)
+                .campaignGroup(campaignGroup)  // 캠페인 그룹
                 .userId(userId)
                 .sentAt(now)
                 .sentSuccess(success)
