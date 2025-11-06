@@ -5,8 +5,6 @@ import com.linglevel.api.content.feed.entity.FeedSource;
 import com.linglevel.api.content.feed.repository.FeedRepository;
 import com.linglevel.api.content.feed.repository.FeedSourceRepository;
 import com.linglevel.api.crawling.dsl.CrawlerDsl;
-import com.linglevel.api.crawling.entity.CrawlingDsl;
-import com.linglevel.api.crawling.repository.CrawlingDslRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -26,7 +24,6 @@ public class FeedCrawlingService {
 
     private final FeedRepository feedRepository;
     private final FeedSourceRepository feedSourceRepository;
-    private final CrawlingDslRepository crawlingDslRepository;
 
     /**
      * FeedSource를 크롤링하여 Feed 생성/업데이트
@@ -38,10 +35,11 @@ public class FeedCrawlingService {
         try {
             log.info("Crawling FeedSource: {} ({})", feedSource.getName(), feedSource.getUrl());
 
-            // 1. CrawlingDsl 조회
-            CrawlingDsl dsl = crawlingDslRepository.findByDomain(feedSource.getDomain())
-                .orElseThrow(() -> new IllegalStateException(
-                    "CrawlingDsl not found for domain: " + feedSource.getDomain()));
+            // 1. DSL 검증
+            if (feedSource.getTitleDsl() == null || feedSource.getTitleDsl().trim().isEmpty()) {
+                log.error("FeedSource has no titleDsl: {}", feedSource.getId());
+                return 0;
+            }
 
             // 2. HTML 가져오기 및 파싱
             Document doc = Jsoup.connect(feedSource.getUrl())
@@ -67,7 +65,7 @@ public class FeedCrawlingService {
                         continue;
                     }
 
-                    Feed feed = crawlSingleFeed(feedUrl, dsl, feedSource);
+                    Feed feed = crawlSingleFeed(feedUrl, feedSource);
                     if (feed != null) {
                         feedRepository.save(feed);
                         crawledCount++;
@@ -95,17 +93,19 @@ public class FeedCrawlingService {
     /**
      * 단일 URL을 크롤링하여 Feed 생성
      */
-    private Feed crawlSingleFeed(String url, CrawlingDsl dsl, FeedSource feedSource) {
+    private Feed crawlSingleFeed(String url, FeedSource feedSource) {
         try {
             Document doc = Jsoup.connect(url)
                 .timeout(10000)
                 .userAgent("Mozilla/5.0")
                 .get();
 
-            // CrawlerDsl을 사용하여 데이터 추출
+            // FeedSource의 DSL을 사용하여 데이터 추출
             CrawlerDsl crawler = new CrawlerDsl(doc);
-            String title = crawler.executeAsString(dsl.getTitleDsl());
-            String thumbnailUrl = crawler.executeAsString(dsl.getCoverImageDsl());
+            String title = crawler.executeAsString(feedSource.getTitleDsl());
+            String thumbnailUrl = feedSource.getCoverImageDsl() != null
+                ? crawler.executeAsString(feedSource.getCoverImageDsl())
+                : null;
 
             if (title == null || title.trim().isEmpty()) {
                 log.warn("Title not found for URL: {}", url);

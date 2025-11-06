@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, fix/fcm-multi-404 ]
+    branches: [ develop, feat/feed ]
 
 jobs:
   build:
