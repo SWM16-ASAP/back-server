@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -20,48 +20,83 @@ public class FeedService {
 
     private final FeedRepository feedRepository;
 
-    /**
-     * Feed 목록 조회 (필터링 + 정렬)
-     *
-     * TODO: 실제 구현 필요
-     * - contentTypes 필터링
-     * - category 필터링
-     * - sortOrder에 따른 정렬 (RECOMMENDED: 추천 알고리즘, LATEST: publishedAt desc, POPULAR: viewCount desc)
-     * - 페이징 처리
-     */
     public PageResponse<FeedResponse> getFeeds(GetFeedsRequest request, String userId) {
-        log.info("getFeeds called with request: {}, userId: {}", request, userId);
+        List<Feed> allFeeds = feedRepository.findAll();
 
-        // TODO: 실제 구현 필요
-        // 임시로 빈 응답 반환
+        if (request.getContentTypes() != null && !request.getContentTypes().isEmpty()) {
+            allFeeds = allFeeds.stream()
+                    .filter(feed -> request.getContentTypes().contains(feed.getContentType()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        if (request.getCategory() != null) {
+            allFeeds = allFeeds.stream()
+                    .filter(feed -> request.getCategory().equals(feed.getCategory()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        List<Feed> sortedFeeds = sortFeeds(allFeeds, request.getSortOrder());
+
+        int totalCount = sortedFeeds.size();
+        int totalPages = (int) Math.ceil((double) totalCount / request.getLimit());
+        int offset = (request.getPage() - 1) * request.getLimit();
+
+        List<Feed> pagedFeeds = sortedFeeds.stream()
+                .skip(offset)
+                .limit(request.getLimit())
+                .collect(java.util.stream.Collectors.toList());
+
+        List<FeedResponse> feedResponses = pagedFeeds.stream()
+                .map(this::mapToResponse)
+                .collect(java.util.stream.Collectors.toList());
+
         return PageResponse.<FeedResponse>builder()
-                .data(Collections.emptyList())
-                .totalCount(0)
-                .totalPages(0)
+                .data(feedResponses)
+                .totalCount(totalCount)
+                .totalPages(totalPages)
                 .currentPage(request.getPage())
-                .hasNext(false)
-                .hasPrevious(false)
+                .hasNext(request.getPage() < totalPages)
+                .hasPrevious(request.getPage() > 1)
                 .build();
     }
 
     /**
-     * 단일 Feed 조회
-     *
-     * TODO: 실제 구현 필요
-     * - Feed 조회
-     * - FeedResponse로 변환
-     * - 조회수 증가 (비동기)
+     * Feed 정렬
      */
+    private List<Feed> sortFeeds(List<Feed> feeds, GetFeedsRequest.SortOrder sortOrder) {
+        switch (sortOrder) {
+            case POPULAR:
+                return feeds.stream()
+                        .sorted((f1, f2) -> {
+                            int v1 = f1.getViewCount() != null ? f1.getViewCount() : 0;
+                            int v2 = f2.getViewCount() != null ? f2.getViewCount() : 0;
+                            return Integer.compare(v2, v1);
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+
+            case LATEST:
+            case RECOMMENDED:  // TODO: 추후 추천 알고리즘 구현, 현재는 LATEST와 동일
+            default:
+                // 최신순: createdAt 내림차순
+                return feeds.stream()
+                        .sorted((f1, f2) -> {
+                            if (f1.getCreatedAt() == null) return 1;
+                            if (f2.getCreatedAt() == null) return -1;
+                            return f2.getCreatedAt().compareTo(f1.getCreatedAt());
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+        }
+    }
+
     public FeedResponse getFeed(String feedId, String userId) {
-        log.info("getFeed called with feedId: {}, userId: {}", feedId, userId);
 
         Feed feed = feedRepository.findById(feedId)
                 .orElseThrow(() -> new FeedException(FeedErrorCode.FEED_NOT_FOUND));
 
-        // TODO: 조회수 증가 로직 추가 (비동기)
-        // TODO: FeedResponse로 변환 로직 추가
+        return mapToResponse(feed);
+    }
 
-        // 임시로 빈 응답 반환
+    private FeedResponse mapToResponse(Feed feed) {
         FeedResponse response = new FeedResponse();
         response.setId(feed.getId());
         response.setContentType(feed.getContentType());
@@ -76,7 +111,6 @@ public class FeedService {
         response.setViewCount(feed.getViewCount());
         response.setAvgReadTimeSeconds(feed.getAvgReadTimeSeconds());
         response.setCreatedAt(feed.getCreatedAt());
-
         return response;
     }
 }
