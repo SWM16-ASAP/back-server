@@ -20,18 +20,14 @@ import java.util.List;
 public class CreateFeedSourceRequest {
 
     @NotBlank(message = "URL is required")
-    @Schema(description = "크롤링할 URL", example = "https://www.bbc.com/news/technology")
+    @Schema(description = "RSS Feed URL", example = "https://www.bbc.com/news/technology/rss.xml")
     private String url;
 
     @NotBlank(message = "Name is required")
     @Schema(description = "FeedSource 이름", example = "BBC Technology News")
     private String name;
 
-    @NotBlank(message = "Title DSL is required")
-    @Schema(description = "제목 추출 DSL", example = "doc > h1.title")
-    private String titleDsl;
-
-    @Schema(description = "커버 이미지 추출 DSL (선택)", example = "doc > img.cover @ src")
+    @Schema(description = "커버 이미지 추출 DSL (선택, RSS에 썸네일이 없을 경우)", example = "doc > meta[property=og:image] @ content")
     private String coverImageDsl;
 
     @NotNull(message = "Content type is required")

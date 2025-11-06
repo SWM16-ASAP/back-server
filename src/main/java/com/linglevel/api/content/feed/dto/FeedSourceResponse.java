@@ -19,7 +19,7 @@ public class FeedSourceResponse {
     @Schema(description = "FeedSource ID")
     private String id;
 
-    @Schema(description = "크롤링할 URL")
+    @Schema(description = "RSS Feed URL")
     private String url;
 
     @Schema(description = "도메인")
@@ -27,9 +27,6 @@ public class FeedSourceResponse {
 
     @Schema(description = "FeedSource 이름")
     private String name;
-
-    @Schema(description = "제목 추출 DSL")
-    private String titleDsl;
 
     @Schema(description = "커버 이미지 추출 DSL")
     private String coverImageDsl;

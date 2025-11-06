@@ -27,8 +27,6 @@ public class FeedSource {
 
     private String name;
 
-    // 크롤링 규칙 (CrawlingDsl과 독립)
-    private String titleDsl;
     private String coverImageDsl;
 
     private FeedContentType contentType;
