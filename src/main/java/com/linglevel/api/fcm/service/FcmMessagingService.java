@@ -129,7 +129,7 @@ public class FcmMessagingService {
                 index++;
             }
 
-            BatchResponse response = firebaseMessaging.sendAll(messages);
+            BatchResponse response = firebaseMessaging.sendEach(messages);
             log.info("Batch messages sent to {} tokens - Success: {}, Failed: {} (Analytics: {})",
                      fcmTokens.size(), response.getSuccessCount(), response.getFailureCount(),
                      analyticsLabel != null ? analyticsLabel : "N/A");
