@@ -148,12 +148,16 @@ public class FeedCrawlingService {
         // 2. Media 모듈에서 썸네일 찾기 (YouTube의 media:thumbnail)
         try {
             if (entry.getForeignMarkup() != null) {
+                log.debug("ForeignMarkup size: {}", entry.getForeignMarkup().size());
                 for (Object element : entry.getForeignMarkup()) {
                     if (element instanceof org.jdom2.Element) {
                         org.jdom2.Element elem = (org.jdom2.Element) element;
+                        log.debug("Element name: {}, namespace: {}, namespaceURI: {}",
+                            elem.getName(), elem.getNamespace(), elem.getNamespaceURI());
+
                         // media:group > media:thumbnail 태그 찾기
                         if ("group".equals(elem.getName()) && elem.getNamespaceURI() != null &&
-                            elem.getNamespaceURI().contains("media")) {
+                            (elem.getNamespaceURI().contains("media") || elem.getNamespaceURI().contains("mrss"))) {
 
                             log.debug("Found media:group, searching for thumbnail...");
 
