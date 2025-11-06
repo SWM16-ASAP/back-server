@@ -20,8 +20,11 @@ public class PushLog {
     @Id
     private String id;
 
+    @Indexed(unique = true)
+    private String campaignId;  // 각 메시지의 고유 ID (messageId 역할)
+
     @Indexed
-    private String campaignId;
+    private String campaignGroup;  // 내부 그룹화용 (선택적)
 
     @Indexed
     private String userId;

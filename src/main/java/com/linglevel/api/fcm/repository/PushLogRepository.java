@@ -11,11 +11,11 @@ import java.util.Optional;
 @Repository
 public interface PushLogRepository extends MongoRepository<PushLog, String> {
 
-    List<PushLog> findByCampaignId(String campaignId);
+    Optional<PushLog> findByCampaignId(String campaignId);
+
+    List<PushLog> findByCampaignGroup(String campaignGroup);
 
     List<PushLog> findByUserId(String userId);
-
-    Optional<PushLog> findByCampaignIdAndUserId(String campaignId, String userId);
 
     List<PushLog> findBySentAtBetween(LocalDateTime startDate, LocalDateTime endDate);
 }
