@@ -4,6 +4,7 @@ import com.linglevel.api.fcm.dto.PushCampaignStats;
 import com.linglevel.api.fcm.dto.PushCampaignSummary;
 import com.linglevel.api.fcm.service.PushCampaignService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Admin - Push Campaigns", description = "어드민 전용 푸시 캠페인 통계 API")
+@SecurityRequirement(name = "adminApiKey")
 public class PushCampaignController {
 
     private final PushCampaignService pushCampaignService;
