@@ -29,8 +29,6 @@ public class Feed {
 
     private String thumbnailUrl;
 
-    private String description;
-
     private String author;
 
     @Indexed

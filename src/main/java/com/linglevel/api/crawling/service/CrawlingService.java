@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class CrawlingService {
+public class  CrawlingService {
 
     private final CrawlingDslRepository crawlingDslRepository;
 

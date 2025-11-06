@@ -105,7 +105,6 @@ public class FeedCrawlingService {
             // CrawlerDsl을 사용하여 데이터 추출
             CrawlerDsl crawler = new CrawlerDsl(doc);
             String title = crawler.executeAsString(dsl.getTitleDsl());
-            String content = crawler.executeAsString(dsl.getContentDsl());
             String thumbnailUrl = crawler.executeAsString(dsl.getCoverImageDsl());
 
             if (title == null || title.trim().isEmpty()) {
@@ -121,10 +120,9 @@ public class FeedCrawlingService {
                 .title(title)
                 .url(url)
                 .thumbnailUrl(thumbnailUrl)
-                .description(content != null ? content.substring(0, Math.min(200, content.length())) : null)
                 .category(feedSource.getCategory())
                 .tags(feedSource.getTags())
-                .sourceProvider(feedSource.getName())
+                .sourceProvider(feedSource.getDomain())
                 .publishedAt(publishedAt != null ? publishedAt : Instant.now())
                 .displayOrder(0)
                 .viewCount(0)
