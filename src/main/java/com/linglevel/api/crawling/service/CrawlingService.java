@@ -141,11 +141,7 @@ public class  CrawlingService {
         crawlingDslRepository.deleteByDomain(domain);
     }
 
-    public boolean isValidUrl(String url) {
-        return extractDomain(url) != null;
-    }
-
-    private String extractDomain(String url) {
+    public String extractDomain(String url) {
         try {
             URL parsedUrl = new URL(url);
             String host = parsedUrl.getHost().toLowerCase();
@@ -159,7 +155,7 @@ public class  CrawlingService {
 
             return host;
         } catch (MalformedURLException e) {
-            throw new CrawlingException(CrawlingErrorCode.INVALID_URL_FORMAT);
+            return null;
         }
     }
 }
