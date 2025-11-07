@@ -19,9 +19,9 @@ public class FeedCrawlingScheduler {
     private final FeedCrawlingService feedCrawlingService;
 
     /**
-     * 매일 새벽 3시에 활성화된 모든 FeedSource 크롤링
+     * 매일 새벽 3시에 활성화된 모든 FeedSource 크롤링 (한국 시간 기준)
      */
-    @Scheduled(cron = "0 0 3 * * *")
+    @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     public void scheduledCrawling() {
         log.info("Scheduled crawling started at 3 AM");
 
