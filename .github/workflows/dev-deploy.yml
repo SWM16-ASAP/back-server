@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/feed ]
+    branches: [ develop, feat/enhance-recommendation ]
 
 jobs:
   build:

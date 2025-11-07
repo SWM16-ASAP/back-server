@@ -19,6 +19,7 @@ import java.util.List;
 public class FeedService {
 
     private final FeedRepository feedRepository;
+    private final FeedRecommendationService feedRecommendationService;
 
     public PageResponse<FeedResponse> getFeeds(GetFeedsRequest request, String userId) {
         List<Feed> allFeeds = feedRepository.findAll();
@@ -35,7 +36,7 @@ public class FeedService {
                     .collect(java.util.stream.Collectors.toList());
         }
 
-        List<Feed> sortedFeeds = sortFeeds(allFeeds, request.getSortOrder());
+        List<Feed> sortedFeeds = sortFeeds(allFeeds, request.getSortOrder(), userId);
 
         int totalCount = sortedFeeds.size();
         int totalPages = (int) Math.ceil((double) totalCount / request.getLimit());
@@ -63,7 +64,7 @@ public class FeedService {
     /**
      * Feed 정렬
      */
-    private List<Feed> sortFeeds(List<Feed> feeds, GetFeedsRequest.SortOrder sortOrder) {
+    private List<Feed> sortFeeds(List<Feed> feeds, GetFeedsRequest.SortOrder sortOrder, String userId) {
         switch (sortOrder) {
             case POPULAR:
                 return feeds.stream()
@@ -74,8 +75,10 @@ public class FeedService {
                         })
                         .collect(java.util.stream.Collectors.toList());
 
+            case RECOMMENDED:
+                return feedRecommendationService.sortByRecommendation(feeds, userId);
+
             case LATEST:
-            case RECOMMENDED:  // TODO: 추후 추천 알고리즘 구현, 현재는 LATEST와 동일
             default:
                 // 최신순: createdAt 내림차순
                 return feeds.stream()
@@ -104,6 +107,7 @@ public class FeedService {
         response.setUrl(feed.getUrl());
         response.setThumbnailUrl(feed.getThumbnailUrl());
         response.setAuthor(feed.getAuthor());
+        response.setDescription(feed.getDescription());
         response.setCategory(feed.getCategory());
         response.setTags(feed.getTags());
         response.setSourceProvider(feed.getSourceProvider());

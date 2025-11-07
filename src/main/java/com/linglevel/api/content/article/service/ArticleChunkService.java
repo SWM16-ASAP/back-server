@@ -28,19 +28,9 @@ public class ArticleChunkService {
 
     private final ArticleChunkRepository articleChunkRepository;
     private final ArticleRepository articleRepository;
-    private final ApplicationEventPublisher eventPublisher;
 
     public PageResponse<ArticleChunkResponse> getArticleChunks(String articleId, GetArticleChunksRequest request, String userId) {
-        Article article = articleRepository.findById(articleId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
-
         articleRepository.incrementViewCount(articleId);
-
-        if (userId != null && article.getCategory() != null) {
-            eventPublisher.publishEvent(new ContentAccessEvent(
-                    this, userId, articleId, ContentType.ARTICLE, article.getCategory()
-            ));
-        }
 
         DifficultyLevel difficulty = request.getDifficultyLevel();
 

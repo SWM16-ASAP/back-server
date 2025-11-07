@@ -12,12 +12,14 @@ public class ContentAccessEvent extends ApplicationEvent {
     private final String contentId;
     private final ContentType contentType;
     private final ContentCategory category;  // nullable
+    private final Integer readTimeSeconds;  // nullable
 
-    public ContentAccessEvent(Object source, String userId, String contentId, ContentType contentType, ContentCategory category) {
+    public ContentAccessEvent(Object source, String userId, String contentId, ContentType contentType, ContentCategory category, Integer readTimeSeconds) {
         super(source);
         this.userId = userId;
         this.contentId = contentId;
         this.contentType = contentType;
         this.category = category;
+        this.readTimeSeconds = readTimeSeconds;
     }
 }

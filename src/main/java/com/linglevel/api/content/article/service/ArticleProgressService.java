@@ -2,6 +2,7 @@ package com.linglevel.api.content.article.service;
 
 import com.linglevel.api.content.article.dto.ArticleProgressResponse;
 import com.linglevel.api.content.article.dto.ArticleProgressUpdateRequest;
+import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
@@ -10,7 +11,7 @@ import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ public class ArticleProgressService {
     private final ArticleProgressRepository articleProgressRepository;
     private final ArticleChunkRepository articleChunkRepository;
     private final ProgressCalculationService progressCalculationService;
-    private final ReadingSessionService readingSessionService;
+    private final ReadingCompletionService readingCompletionService;
     private final StreakService streakService;
 
     @Transactional
@@ -77,6 +78,15 @@ public class ArticleProgressService {
             articleProgress.setMaxNormalizedProgress(normalizedProgress);
         }
 
+        // 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
+        Article article = articleService.findById(articleId);
+        Long readTimeSeconds = readingCompletionService.processReadingCompletion(
+                userId,
+                ContentType.ARTICLE,
+                articleId,
+                article.getCategory()
+        );
+
         // 스트릭 검사 및 완료 처리 로직
         boolean streakUpdated = false;
         if (isLastChunk(chunk)) {
@@ -86,12 +96,14 @@ public class ArticleProgressService {
                 articleProgress.setCompletedAt(java.time.Instant.now());
             }
 
-            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.ARTICLE, articleId));
-            streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
-            streakService.addCompletedContent(userId, ContentType.ARTICLE, articleId, streakUpdated);
+            // 스트릭 업데이트 (30초 이상 읽은 경우에만)
+            if (readTimeSeconds != null && readTimeSeconds >= 30) {
+                streakService.addStudyTime(userId, readTimeSeconds);
+                streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
+                streakService.addCompletedContent(userId, ContentType.ARTICLE, articleId, streakUpdated);
+            }
         }
 
-        readingSessionService.deleteReadingSession(userId);
         articleProgressRepository.save(articleProgress);
 
         return convertToArticleProgressResponse(articleProgress, streakUpdated);

@@ -7,7 +7,7 @@ import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,7 @@ class CustomContentReadingProgressServiceTest {
     private ProgressCalculationService progressCalculationService;
 
     @Mock
-    private ReadingSessionService readingSessionService;
+    private ReadingCompletionService readingCompletionService;
 
     @Mock
     private StreakService streakService;
