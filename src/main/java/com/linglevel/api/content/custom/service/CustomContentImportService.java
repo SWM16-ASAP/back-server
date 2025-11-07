@@ -43,7 +43,7 @@ public class CustomContentImportService {
         CustomContent content = CustomContent.builder()
                 .userId(contentRequest.getUserId())
                 .title(title)
-                .author(aiResult.getAuthor())
+                .author(contentRequest.getOriginAuthor())
                 .coverImageUrl(coverImageUrl)
                 .difficultyLevel(DifficultyLevel.fromCode(aiResult.getOriginalTextLevel()))
                 .targetDifficultyLevels(aiResult.getLeveledResults().stream().map(level -> DifficultyLevel.fromCode(level.getTextLevel())).collect(Collectors.toList()))
