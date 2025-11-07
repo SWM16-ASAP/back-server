@@ -78,24 +78,7 @@ public class CustomContentRequestService {
     }
 
     private String validateUrlForCrawling(String originUrl) {
-        try {
-            // URL 형식 및 크롤링 가능 여부 검증
-            if (!crawlingService.isValidUrl(originUrl)) {
-                throw new CustomContentException(CustomContentErrorCode.INVALID_URL_FORMAT);
-            }
-
-            // DSL 존재 여부 확인 (크롤링 가능한 도메인인지 검증)
-            var lookupResult = crawlingService.lookupDsl(originUrl, true);
-            if (!lookupResult.isValid()) {
-                throw new CustomContentException(CustomContentErrorCode.URL_NOT_SUPPORTED);
-            }
-
-            // 도메인 반환
-            return lookupResult.getDomain();
-
-        } catch (com.linglevel.api.crawling.exception.CrawlingException e) {
-            return null;
-        }
+        return crawlingService.extractDomain(originUrl);
     }
 
     private void uploadToAiInput(ContentRequest contentRequest, CreateContentRequestRequest request) {

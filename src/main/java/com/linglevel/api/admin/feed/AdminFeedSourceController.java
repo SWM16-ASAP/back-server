@@ -52,9 +52,7 @@ public class AdminFeedSourceController {
     public ResponseEntity<FeedSourceResponse> createFeedSource(@Valid @RequestBody CreateFeedSourceRequest request) {
         log.info("Creating FeedSource: {}", request.getName());
 
-        String domain = crawlingService.isValidUrl(request.getUrl())
-                ? extractDomain(request.getUrl())
-                : null;
+        String domain = extractDomain(request.getUrl());
 
         if (domain == null) {
             throw new IllegalArgumentException("Invalid URL format");
