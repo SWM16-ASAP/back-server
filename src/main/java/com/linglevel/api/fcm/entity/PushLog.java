@@ -20,8 +20,13 @@ public class PushLog {
     @Id
     private String id;
 
+    @Indexed(unique = true)
+    private String campaignId;  // 각 메시지의 고유 ID (자체 UUID)
+
+    private String fcmMessageId;  // FCM messageId (선택적, FCM 추적용)
+
     @Indexed
-    private String campaignId;
+    private String campaignGroup;  // 내부 그룹화용 (선택적)
 
     @Indexed
     private String userId;

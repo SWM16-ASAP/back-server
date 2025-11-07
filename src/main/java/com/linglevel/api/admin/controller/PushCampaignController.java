@@ -4,6 +4,7 @@ import com.linglevel.api.fcm.dto.PushCampaignStats;
 import com.linglevel.api.fcm.dto.PushCampaignSummary;
 import com.linglevel.api.fcm.service.PushCampaignService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,14 +20,15 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Admin - Push Campaigns", description = "어드민 전용 푸시 캠페인 통계 API")
+@SecurityRequirement(name = "adminApiKey")
 public class PushCampaignController {
 
     private final PushCampaignService pushCampaignService;
 
     @GetMapping
     @Operation(
-            summary = "캠페인 목록 조회",
-            description = "푸시 캠페인 목록을 조회합니다. 기간 필터링이 가능합니다."
+            summary = "캠페인 그룹 목록 조회",
+            description = "푸시 캠페인 그룹 목록을 조회합니다. 기간 필터링이 가능합니다."
     )
     public ResponseEntity<List<PushCampaignSummary>> getCampaigns(
             @RequestParam(required = false)
@@ -37,22 +39,22 @@ public class PushCampaignController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
             LocalDateTime endDate) {
 
-        log.debug("Get campaigns request - startDate: {}, endDate: {}", startDate, endDate);
+        log.debug("Get campaign groups request - startDate: {}, endDate: {}", startDate, endDate);
 
         List<PushCampaignSummary> summaries = pushCampaignService.getCampaignSummaries(startDate, endDate);
 
         return ResponseEntity.ok(summaries);
     }
 
-    @GetMapping("/{campaignId}/stats")
+    @GetMapping("/{campaignGroup}/stats")
     @Operation(
-            summary = "캠페인 상세 통계 조회",
-            description = "특정 캠페인의 상세 통계를 조회합니다."
+            summary = "캠페인 그룹 상세 통계 조회",
+            description = "특정 캠페인 그룹의 상세 통계를 조회합니다."
     )
-    public ResponseEntity<PushCampaignStats> getCampaignStats(@PathVariable String campaignId) {
-        log.debug("Get campaign stats request - campaignId: {}", campaignId);
+    public ResponseEntity<PushCampaignStats> getCampaignStats(@PathVariable String campaignGroup) {
+        log.debug("Get campaign group stats request - campaignGroup: {}", campaignGroup);
 
-        PushCampaignStats stats = pushCampaignService.getStats(campaignId);
+        PushCampaignStats stats = pushCampaignService.getStats(campaignGroup);
 
         return ResponseEntity.ok(stats);
     }
