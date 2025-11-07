@@ -17,7 +17,7 @@ public class CreateContentRequestRequest {
     @Schema(description = "콘텐츠 제목", example = "My Custom Article")
     private String title;
     
-    @Schema(description = "콘텐츠 타입", example = "TEXT", allowableValues = {"TEXT", "LINK", "PDF"})
+    @Schema(description = "콘텐츠 타입", example = "TEXT")
     @NotNull(message = "콘텐츠 타입은 필수입니다.")
     private ContentType contentType;
     

@@ -8,7 +8,8 @@ import lombok.Getter;
 public enum ContentType {
     TEXT("text", "텍스트", "사용자가 직접 입력한 텍스트"),
     LINK("link", "링크", "외부 링크"),
-    PDF("pdf", "PDF 파일", "PDF 문서");
+    PDF("pdf", "PDF 파일", "PDF 문서"),
+    YOUTUBE("youtube", "유튜브", "유튜브에서 가져온 자료");
 
     private final String code;
     private final String name;
