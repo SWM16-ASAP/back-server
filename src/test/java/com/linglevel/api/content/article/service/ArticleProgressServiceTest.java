@@ -1,13 +1,14 @@
 package com.linglevel.api.content.article.service;
 
 import com.linglevel.api.content.article.dto.ArticleProgressUpdateRequest;
+import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.entity.ArticleChunk;
 import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,7 @@ class ArticleProgressServiceTest {
     private ProgressCalculationService progressCalculationService;
 
     @Mock
-    private ReadingSessionService readingSessionService;
+    private ReadingCompletionService readingCompletionService;
 
     @Mock
     private StreakService streakService;
@@ -77,11 +78,15 @@ class ArticleProgressServiceTest {
         currentChunk.setChunkNumber(10);
         currentChunk.setDifficultyLevel(DifficultyLevel.B1);
 
+        Article article = new Article();
+        article.setId(articleId);
+
         ArticleProgressUpdateRequest request = new ArticleProgressUpdateRequest();
         request.setChunkId(chunkId);
 
         // Mocking
         when(articleService.existsById(articleId)).thenReturn(true);
+        when(articleService.findById(articleId)).thenReturn(article);
         when(articleProgressRepository.findByUserIdAndArticleId(userId, articleId)).thenReturn(Optional.of(legacyProgress));
         when(articleChunkService.findById(chunkId)).thenReturn(currentChunk);
         when(articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId, DifficultyLevel.B1)).thenReturn(100L);

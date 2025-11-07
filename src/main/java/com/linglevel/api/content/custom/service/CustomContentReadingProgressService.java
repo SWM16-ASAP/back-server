@@ -12,14 +12,12 @@ import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.exception.UsersErrorCode;
 import com.linglevel.api.user.exception.UsersException;
 
-import com.linglevel.api.content.common.ContentType;
-import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +33,7 @@ public class CustomContentReadingProgressService {
     private final CustomContentProgressRepository customContentProgressRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
     private final ProgressCalculationService progressCalculationService;
-    private final ReadingSessionService readingSessionService;
+    private final ReadingCompletionService readingCompletionService;
     private final StreakService streakService;
 
 
@@ -85,6 +83,15 @@ public class CustomContentReadingProgressService {
             customProgress.setMaxNormalizedProgress(normalizedProgress);
         }
 
+        // 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
+        // CustomContent는 Feed에서 생성되므로 category는 null, EventListener에서 Feed 업데이트 처리
+        Long readTimeSeconds = readingCompletionService.processReadingCompletion(
+                userId,
+                ContentType.CUSTOM,
+                customId,
+                null
+        );
+
         // 스트릭 검사 및 완료 처리 로직
         boolean streakUpdated = false;
         if (isLastChunk(chunk)) {
@@ -94,12 +101,14 @@ public class CustomContentReadingProgressService {
                 customProgress.setCompletedAt(java.time.Instant.now());
             }
 
-            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.CUSTOM, customId));
-            streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
-            streakService.addCompletedContent(userId, ContentType.CUSTOM, customId, streakUpdated);
+            // 스트릭 업데이트 (30초 이상 읽은 경우에만)
+            if (readTimeSeconds != null) {
+                streakService.addStudyTime(userId, readTimeSeconds);
+                streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
+                streakService.addCompletedContent(userId, ContentType.CUSTOM, customId, streakUpdated);
+            }
         }
 
-        readingSessionService.deleteReadingSession(userId);
         customContentProgressRepository.save(customProgress);
 
         return convertToCustomContentReadingProgressResponse(customProgress, streakUpdated);

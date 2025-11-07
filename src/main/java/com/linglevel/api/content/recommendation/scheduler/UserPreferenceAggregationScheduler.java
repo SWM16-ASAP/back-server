@@ -94,8 +94,15 @@ public class UserPreferenceAggregationScheduler {
             rawCounts.merge(category, 1, Integer::sum);
 
             // 시간 감쇠 가중치 적용
-            double weight = calculateTimeDecayWeight(log.getAccessedAt(), sevenDaysAgo, thirtyDaysAgo);
-            categoryScores.merge(category, weight, Double::sum);
+            double timeDecayWeight = calculateTimeDecayWeight(log.getAccessedAt(), sevenDaysAgo, thirtyDaysAgo);
+
+            // 읽기 시간 가중치 적용
+            double readTimeWeight = calculateReadTimeWeight(log.getReadTimeSeconds());
+
+            // 최종 가중치 = 시간 감쇠 × 읽기 시간
+            double finalWeight = timeDecayWeight * readTimeWeight;
+
+            categoryScores.merge(category, finalWeight, Double::sum);
         }
 
         double totalScore = categoryScores.values().stream().mapToDouble(Double::doubleValue).sum();
@@ -142,6 +149,22 @@ public class UserPreferenceAggregationScheduler {
             return 0.5; // 7~30일: 중간 가중치
         } else {
             return 0.2; // 30일 이전: 낮은 가중치
+        }
+    }
+
+    /**
+     * 읽기 시간 기반 가중치 계산
+     * 읽기 시간이 길수록 콘텐츠에 대한 진정한 관심도가 높다고 판단
+     */
+    private double calculateReadTimeWeight(Integer readTimeSeconds) {
+        if (readTimeSeconds == null || readTimeSeconds < 30) {
+            return 0.1; // 30초 미만: 거의 안 읽음 (매우 낮은 관심도)
+        } else if (readTimeSeconds < 180) {  // 3분
+            return 0.5; // 30초~3분: 짧게 읽음 (낮은 관심도)
+        } else if (readTimeSeconds < 600) {  // 10분
+            return 1.0; // 3분~10분: 정상적으로 읽음 (보통 관심도)
+        } else {
+            return 1.5; // 10분 이상: 깊게 읽음 (높은 관심도)
         }
     }
 
