@@ -39,11 +39,7 @@ public class CustomContentRequestService {
     public CreateContentRequestResponse createContentRequest(String userId, CreateContentRequestRequest request) {
         log.info("Creating content request for user: {}", userId);
 
-        // URL 유효성 검증 (LINK 타입인 경우) 및 도메인 추출
-        String extractedDomain = null;
-        if (request.getContentType() == com.linglevel.api.content.custom.entity.ContentType.LINK) {
-            extractedDomain = validateUrlForCrawling(request.getOriginUrl());
-        }
+        String extractedDomain = validateUrlForCrawling(request.getOriginUrl());
 
         // 🎫 티켓 소비 (1개 티켓 필요)
         try {
@@ -82,10 +78,6 @@ public class CustomContentRequestService {
     }
 
     private String validateUrlForCrawling(String originUrl) {
-        if (originUrl == null || originUrl.trim().isEmpty()) {
-            throw new CustomContentException(CustomContentErrorCode.URL_REQUIRED);
-        }
-
         try {
             // URL 형식 및 크롤링 가능 여부 검증
             if (!crawlingService.isValidUrl(originUrl)) {
@@ -102,8 +94,7 @@ public class CustomContentRequestService {
             return lookupResult.getDomain();
 
         } catch (com.linglevel.api.crawling.exception.CrawlingException e) {
-            // CrawlingException을 CustomContentException으로 변환
-            throw new CustomContentException(CustomContentErrorCode.INVALID_REQUEST, e.getMessage());
+            return null;
         }
     }
 
