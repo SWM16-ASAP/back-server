@@ -99,12 +99,11 @@ public class ContentAccessEventListener {
             Integer currentViewCount = feed.getViewCount() != null ? feed.getViewCount() : 0;
             Double currentAvg = feed.getAvgReadTimeSeconds() != null ? feed.getAvgReadTimeSeconds() : 0.0;
 
-            if (currentViewCount == 0) {
-                // 첫 읽기
+            if (currentViewCount <= 1) {
                 feed.setAvgReadTimeSeconds(readTimeSeconds.doubleValue());
             } else {
-                // 이동 평균 계산
-                Double newAvg = ((currentAvg * currentViewCount) + readTimeSeconds) / (currentViewCount + 1.0);
+                // 이동 평균 계산: (기존평균 × (현재횟수-1) + 새값) / 현재횟수
+                Double newAvg = ((currentAvg * (currentViewCount - 1)) + readTimeSeconds) / currentViewCount.doubleValue();
                 feed.setAvgReadTimeSeconds(newAvg);
             }
 
