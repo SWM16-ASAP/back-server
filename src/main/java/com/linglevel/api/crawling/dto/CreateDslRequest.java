@@ -33,4 +33,7 @@ public class CreateDslRequest {
 
     @Schema(description = "커버 이미지 추출 DSL 규칙", example = "meta[property='og:image']", required = false)
     private String coverImageDsl;
+
+    @Schema(description = "접근 조회용 URL", example = "https://www.coupang.com", required = false)
+    private String accessUrl;
 }
