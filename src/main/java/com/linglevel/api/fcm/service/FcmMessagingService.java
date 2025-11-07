@@ -42,7 +42,7 @@ public class FcmMessagingService {
 
         try {
             Map<String, String> data = buildDataWithUserId(messageRequest, userId);
-            data.put("pushId", pushId);
+            data.put("campaignId", pushId);
 
             Message.Builder messageBuilder = Message.builder()
                     .setToken(fcmToken)
@@ -111,7 +111,7 @@ public class FcmMessagingService {
                 indexToPushId.put(index, pushId);
 
                 Map<String, String> data = buildDataWithUserId(messageRequest, userId);
-                data.put("pushId", pushId);
+                data.put("campaignId", pushId);
 
                 Message.Builder messageBuilder = Message.builder()
                         .setToken(fcmToken)
