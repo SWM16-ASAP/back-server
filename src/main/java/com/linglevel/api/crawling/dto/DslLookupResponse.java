@@ -26,6 +26,9 @@ public class DslLookupResponse {
     @Schema(description = "커버 이미지 추출 DSL 규칙 (validate_only=true인 경우 포함되지 않음)")
     private String coverImageDsl;
 
+    @Schema(description = "접근 조회용 URL (validate_only=true인 경우 포함되지 않음)")
+    private String accessUrl;
+
     @Schema(description = "유효성 여부", example = "true")
     private boolean valid;
     

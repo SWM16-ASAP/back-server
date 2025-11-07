@@ -31,6 +31,8 @@ public class CrawlingDsl {
 
     private String coverImageDsl;
 
+    private String accessUrl;
+
     private Instant createdAt;
 
     private Instant updatedAt;
