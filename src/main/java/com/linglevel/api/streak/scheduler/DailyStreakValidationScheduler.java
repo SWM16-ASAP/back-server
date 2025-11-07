@@ -39,8 +39,7 @@ public class DailyStreakValidationScheduler {
         LocalDate today = LocalDate.now(KST);
         LocalDate yesterday = today.minusDays(1);
 
-        log.info("[Streak Validation] Starting daily streak validation at {} for date: {}",
-                startTime, yesterday);
+        log.info("[Streak Validation] Starting daily streak validation for date: {}", yesterday);
 
         int processedCount = 0;
         int freezeUsedCount = 0;
@@ -61,8 +60,6 @@ public class DailyStreakValidationScheduler {
 
                     if (wasReset) {
                         streakResetCount++;
-                        // TODO: FCM 알림 전송 (Phase 2)
-                        // notificationService.sendStreakResetNotification(report.getUserId());
                     } else {
                         // 스트릭 유지됨 (어제 완료 또는 프리즈 소진)
                         long daysSinceLastCompletion = ChronoUnit.DAYS.between(
@@ -71,10 +68,7 @@ public class DailyStreakValidationScheduler {
                         if (daysSinceLastCompletion == 1) {
                             maintainedCount++;
                         } else if (daysSinceLastCompletion > 1) {
-                            // 프리즈 소진으로 스트릭 유지
                             freezeUsedCount++;
-                            // TODO: FCM 알림 전송 (Phase 2)
-                            // notificationService.sendFreezeConsumedNotification(report.getUserId());
                         }
                     }
 
