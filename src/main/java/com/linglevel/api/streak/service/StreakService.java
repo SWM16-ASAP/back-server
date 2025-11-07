@@ -379,62 +379,39 @@ public class StreakService {
         int daysMissed = (int) daysSinceLastCompletion - 1;
         log.warn("User {} missed {} days. Processing gap.", report.getUserId(), daysMissed);
 
-        // 각 누락일에 대해 배치가 이미 처리했는지 확인
-        int unprocessedDays = 0;
+        int consumed = 0;
+
         for (int i = 1; i <= daysMissed; i++) {
             LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
+
             if (wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
-                unprocessedDays++;
+                continue;
+            }
+
+            if (consumed < report.getAvailableFreezes()) {
+                consumeFreezeForDate(report, missedDate);
+                consumed++;
+            } else {
+                resetStreak(report, consumed);
+                return true;
             }
         }
 
-        if (unprocessedDays == 0) {
-            log.info("All missed days already processed for user {}", report.getUserId());
-            return false;
-        }
+        report.setAvailableFreezes(report.getAvailableFreezes() - consumed);
+        log.info("Consumed {} freezes for user {}. Streak maintained at {}.",
+                consumed, report.getUserId(), report.getCurrentStreak());
+        return false;
+    }
 
-        log.info("User {} has {} unprocessed missed days.", report.getUserId(), unprocessedDays);
+    private void resetStreak(UserStudyReport report, int freezesConsumed) {
+        int previousStreak = report.getCurrentStreak();
+        report.setCurrentStreak(0);
+        report.setLastCompletionDate(null);
+        report.setStreakStartDate(null);
+        report.setAvailableFreezes(0);
 
-        if (report.getAvailableFreezes() >= unprocessedDays) {
-            // 프리즈 충분 -> 소진하고 스트릭 유지
-            report.setAvailableFreezes(report.getAvailableFreezes() - unprocessedDays);
-
-            // 각 누락일에 대해 FreezeTransaction 기록
-            for (int i = 1; i <= daysMissed; i++) {
-                LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
-                if (wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
-                    consumeFreezeForDate(report, missedDate);
-                }
-            }
-
-            log.info("Consumed {} freezes for user {}. Streak maintained at {}.",
-                    unprocessedDays, report.getUserId(), report.getCurrentStreak());
-            return false;
-        } else {
-            // 프리즈 부족 -> 남은 프리즈 모두 소진하고 스트릭 리셋
-            int remainingFreezes = report.getAvailableFreezes();
-            report.setAvailableFreezes(0);
-
-            // 소진 가능한 프리즈에 대해 트랜잭션 기록
-            int processedDays = 0;
-            for (int i = 1; i <= daysMissed && processedDays < remainingFreezes; i++) {
-                LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
-                if (wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
-                    consumeFreezeForDate(report, missedDate);
-                    processedDays++;
-                }
-            }
-
-            // 스트릭 리셋
-            int previousStreak = report.getCurrentStreak();
-            report.setCurrentStreak(0);
-            report.setLastCompletionDate(null);
-            report.setStreakStartDate(null);
-
-            log.warn("Insufficient freezes for user {}. Streak reset from {} to 0. Consumed {} freezes.",
-                    report.getUserId(), previousStreak, remainingFreezes);
-            return true;
-        }
+        log.warn("Insufficient freezes for user {}. Streak reset from {} to 0. Consumed {} freezes.",
+                report.getUserId(), previousStreak, freezesConsumed);
     }
 
     private boolean wasFreezeProcessedForDate(String userId, LocalDate date) {
