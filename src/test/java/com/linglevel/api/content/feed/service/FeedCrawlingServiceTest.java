@@ -19,7 +19,7 @@ class FeedCrawlingServiceTest {
     @DisplayName("BBC Technology RSS 피드 파싱")
     void parseBbcTechnologyRss() throws Exception {
         // given: BBC Technology RSS URL
-        String rssUrl = "http://feeds.bbci.co.uk/news/technology/rss.xml";
+        String rssUrl = "https://feeds.bbci.co.uk/news/technology/rss.xml";
 
         // when: RSS 피드 파싱
         SyndFeedInput input = new SyndFeedInput();
@@ -180,7 +180,7 @@ class FeedCrawlingServiceTest {
     void extractThumbnailsFromRss() throws Exception {
         // given: 다양한 RSS 피드들
         String[] rssUrls = {
-            "http://feeds.bbci.co.uk/news/technology/rss.xml",
+            "https://feeds.bbci.co.uk/news/technology/rss.xml",
             "https://techcrunch.com/feed/",
             "https://www.theverge.com/rss/index.xml"
         };
@@ -219,7 +219,7 @@ class FeedCrawlingServiceTest {
     @DisplayName("RSS 피드 발행일 포맷 확인")
     void checkPublishDateFormats() throws Exception {
         // given: BBC RSS URL
-        String rssUrl = "http://feeds.bbci.co.uk/news/technology/rss.xml";
+        String rssUrl = "https://feeds.bbci.co.uk/news/technology/rss.xml";
 
         // when: RSS 피드 파싱
         SyndFeedInput input = new SyndFeedInput();
