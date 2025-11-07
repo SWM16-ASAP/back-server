@@ -32,7 +32,7 @@ public class ReadingCompletionService {
      * @param category 카테고리 (nullable, Book은 null)
      * @return 읽은 시간(초), 30초 미만이면 null
      */
-    public Long processReadingCompletion(
+    public Long processReadingCompletion (
             String userId,
             ContentType contentType,
             String contentId,

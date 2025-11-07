@@ -97,7 +97,7 @@ public class ArticleProgressService {
             }
 
             // 스트릭 업데이트 (30초 이상 읽은 경우에만)
-            if (readTimeSeconds != null) {
+            if (readTimeSeconds != null && readTimeSeconds >= 30) {
                 streakService.addStudyTime(userId, readTimeSeconds);
                 streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
                 streakService.addCompletedContent(userId, ContentType.ARTICLE, articleId, streakUpdated);

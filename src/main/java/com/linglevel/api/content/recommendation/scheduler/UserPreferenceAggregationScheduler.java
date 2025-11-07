@@ -158,13 +158,13 @@ public class UserPreferenceAggregationScheduler {
      */
     private double calculateReadTimeWeight(Integer readTimeSeconds) {
         if (readTimeSeconds == null || readTimeSeconds < 30) {
-            return 0.1; // 30초 미만: 거의 안 읽음 (매우 낮은 관심도)
-        } else if (readTimeSeconds < 180) {  // 3분
-            return 0.5; // 30초~3분: 짧게 읽음 (낮은 관심도)
-        } else if (readTimeSeconds < 600) {  // 10분
-            return 1.0; // 3분~10분: 정상적으로 읽음 (보통 관심도)
+            return 0.1;
+        } else if (readTimeSeconds < 60) {  // 1분
+            return 0.5;
+        } else if (readTimeSeconds < 90) {  // 1.5분
+            return 0.8;
         } else {
-            return 1.5; // 10분 이상: 깊게 읽음 (높은 관심도)
+            return 1.0;
         }
     }
 
