@@ -107,6 +107,7 @@ public class FeedService {
         response.setUrl(feed.getUrl());
         response.setThumbnailUrl(feed.getThumbnailUrl());
         response.setAuthor(feed.getAuthor());
+        response.setDescription(feed.getDescription());
         response.setCategory(feed.getCategory());
         response.setTags(feed.getTags());
         response.setSourceProvider(feed.getSourceProvider());

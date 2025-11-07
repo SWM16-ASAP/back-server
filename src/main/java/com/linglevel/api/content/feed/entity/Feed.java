@@ -31,6 +31,8 @@ public class Feed {
 
     private String author;
 
+    private String description;
+
     @Indexed
     private ContentCategory category;
 

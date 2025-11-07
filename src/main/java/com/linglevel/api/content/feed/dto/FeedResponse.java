@@ -32,6 +32,9 @@ public class FeedResponse {
     @Schema(description = "작성자", example = "John Doe")
     private String author;
 
+    @Schema(description = "설명", example = "AI 기술의 최신 동향과 2024년 전망에 대해 알아봅니다.")
+    private String description;
+
     @Schema(description = "카테고리", example = "TECH")
     private ContentCategory category;
 
