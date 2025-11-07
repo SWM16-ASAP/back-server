@@ -1,5 +1,6 @@
 package com.linglevel.api.content.recommendation.event;
 
+import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
@@ -28,12 +29,18 @@ public class ContentAccessEventListener {
     @EventListener
     public void handleContentAccessEvent(ContentAccessEvent event) {
         try {
+            // CustomContent인 경우 Feed에서 category 가져오기
+            var category = event.getCategory();
+            if (event.getContentType() == ContentType.CUSTOM && category == null) {
+                category = getCategoryFromFeed(event.getContentId());
+            }
+
             // 1. ContentAccessLog 저장 (readTimeSeconds 포함)
             ContentAccessLog accessLog = ContentAccessLog.builder()
                     .userId(event.getUserId())
                     .contentId(event.getContentId())
                     .contentType(event.getContentType())
-                    .category(event.getCategory())
+                    .category(category)
                     .readTimeSeconds(event.getReadTimeSeconds())
                     .accessedAt(Instant.now())
                     .build();
@@ -41,7 +48,7 @@ public class ContentAccessEventListener {
             contentAccessLogRepository.save(accessLog);
             log.debug("Content access logged: userId={}, contentId={}, contentType={}, category={}, readTimeSeconds={}",
                     event.getUserId(), event.getContentId(), event.getContentType(),
-                    event.getCategory(), event.getReadTimeSeconds());
+                    category, event.getReadTimeSeconds());
 
             // 2. CustomContent인 경우 Feed의 avgReadTimeSeconds 업데이트
             if (event.getContentType() == ContentType.CUSTOM && event.getReadTimeSeconds() != null) {
@@ -49,6 +56,28 @@ public class ContentAccessEventListener {
             }
         } catch (Exception e) {
             log.error("Failed to log content access", e);
+        }
+    }
+
+    /**
+     * CustomContent의 originUrl로 Feed의 category를 가져옴
+     */
+    private ContentCategory getCategoryFromFeed(String customContentId) {
+        try {
+            CustomContent customContent = customContentRepository.findById(customContentId).orElse(null);
+            if (customContent == null || customContent.getOriginUrl() == null || customContent.getOriginUrl().isEmpty()) {
+                return null;
+            }
+
+            Feed feed = feedRepository.findByUrl(customContent.getOriginUrl()).orElse(null);
+            if (feed == null) {
+                return null;
+            }
+
+            return feed.getCategory();
+        } catch (Exception e) {
+            log.error("Failed to get category from Feed for customContentId: {}", customContentId, e);
+            return null;
         }
     }
 
