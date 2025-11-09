@@ -6,11 +6,13 @@ import com.linglevel.api.content.custom.dto.GetCustomContentsRequest;
 import com.linglevel.api.content.custom.dto.UpdateCustomContentRequest;
 import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.entity.CustomContentChunk;
+import com.linglevel.api.content.custom.entity.UserCustomContent;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.content.custom.repository.CustomContentProgressRepository;
+import com.linglevel.api.content.custom.repository.UserCustomContentRepository;
 import com.linglevel.api.content.custom.entity.CustomContentProgress;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.user.entity.User;
@@ -37,7 +39,7 @@ public class CustomContentService {
     private final CustomContentRepository customContentRepository;
     private final CustomContentChunkRepository customContentChunkRepository;
     private final CustomContentProgressRepository customContentProgressRepository;
-    private final UserCustomContentService userCustomContentService;
+    private final UserCustomContentRepository userCustomContentRepository;
     private final CustomContentChunkService customContentChunkService;
 
     public PageResponse<CustomContentResponse> getCustomContents(String userId, GetCustomContentsRequest request) {
@@ -54,8 +56,8 @@ public class CustomContentService {
 
         Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
 
-        // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
-        Page<CustomContent> page = customContentRepository.findCustomContentsWithFilters(userId, request, pageable);
+        // UserCustomContent와 CustomContent를 aggregation으로 조인하여 한 번에 조회
+        Page<CustomContent> page = customContentRepository.findCustomContentsByUserWithFilters(userId, request, pageable);
 
         List<CustomContentResponse> responses = page.getContent().stream()
                 .map(content -> mapToResponse(content, userId))
@@ -67,7 +69,7 @@ public class CustomContentService {
     public CustomContentResponse getCustomContent(String userId, String customContentId) {
         log.info("Getting custom content {} for user: {}", customContentId, userId);
 
-        if (!userCustomContentService.hasAccess(userId, customContentId)) {
+        if (!userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId)) {
             throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
         }
 
@@ -81,7 +83,7 @@ public class CustomContentService {
     public CustomContentResponse updateCustomContent(String userId, String customContentId, UpdateCustomContentRequest request) {
         log.info("Updating custom content {} for user: {}", customContentId, userId);
 
-        if (!userCustomContentService.hasAccess(userId, customContentId)) {
+        if (!userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId)) {
             throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
         }
 
@@ -103,11 +105,12 @@ public class CustomContentService {
     public void deleteCustomContent(String userId, String customContentId) {
         log.info("Deleting custom content {} for user: {}", customContentId, userId);
 
-        if (!userCustomContentService.hasAccess(userId, customContentId)) {
-            throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
-        }
+        UserCustomContent userCustomContent = userCustomContentRepository
+                .findByUserIdAndCustomContentId(userId, customContentId)
+                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-        userCustomContentService.deleteMapping(userId, customContentId);
+        userCustomContentRepository.delete(userCustomContent);
+        log.info("Deleted UserCustomContent mapping for user: {} and content: {}", userId, customContentId);
     }
 
     private CustomContentResponse mapToResponse(CustomContent content, String userId) {

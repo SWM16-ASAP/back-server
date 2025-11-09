@@ -7,12 +7,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.*;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -188,6 +191,81 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
                 .stream()
                 .map(doc -> doc.getString("customId"))
                 .toList();
+    }
+
+    @Override
+    public Page<CustomContent> findCustomContentsByUserWithFilters(String userId, GetCustomContentsRequest request, Pageable pageable) {
+        List<AggregationOperation> operations = new ArrayList<>();
+
+        // 1. UserCustomContent에서 userId로 필터링
+        operations.add(Aggregation.match(Criteria.where("userId").is(userId)));
+
+        // 2. CustomContent와 조인 (lookup)
+        operations.add(Aggregation.lookup(
+                "customContents",           // from collection
+                "customContentId",          // localField
+                "id",                       // foreignField
+                "customContent"             // as
+        ));
+
+        // 3. 배열을 객체로 변환 (lookup 결과는 배열이므로)
+        operations.add(Aggregation.unwind("customContent"));
+
+        // 4. customContent를 root로 올림
+        operations.add(Aggregation.replaceRoot("customContent"));
+
+        // 5. isDeleted = false 필터링
+        operations.add(Aggregation.match(Criteria.where("isDeleted").is(false)));
+
+        // 6. 키워드 필터 적용
+        if (StringUtils.hasText(request.getKeyword())) {
+            Criteria keywordCriteria = new Criteria().orOperator(
+                    Criteria.where("title").regex(request.getKeyword(), "i"),
+                    Criteria.where("author").regex(request.getKeyword(), "i")
+            );
+            operations.add(Aggregation.match(keywordCriteria));
+        }
+
+        // 7. 태그 필터 적용
+        if (StringUtils.hasText(request.getTags())) {
+            String[] tagArray = request.getTags().split(",");
+            operations.add(Aggregation.match(Criteria.where("tags").all((Object[]) tagArray)));
+        }
+
+        // 8. 진도 필터 적용 (별도 처리 필요)
+        if (request.getProgress() != null) {
+            List<String> contentIds = getContentIdsByProgress(userId, request.getProgress());
+            if (contentIds.isEmpty()) {
+                return new PageImpl<>(List.of(), pageable, 0);
+            }
+            operations.add(Aggregation.match(Criteria.where("id").in(contentIds)));
+        }
+
+        // 총 개수 조회용 aggregation (정렬 및 페이징 전, $count 사용)
+        List<AggregationOperation> countOps = new ArrayList<>(operations);
+        countOps.add(Aggregation.count().as("total"));
+        Aggregation countAggregation = Aggregation.newAggregation(countOps);
+
+        long total = 0;
+        var countResult = mongoTemplate.aggregate(countAggregation, "userCustomContents", org.bson.Document.class)
+                .getUniqueMappedResult();
+        if (countResult != null && countResult.containsKey("total")) {
+            total = ((Number) countResult.get("total")).longValue();
+        }
+
+        // 9. 정렬
+        operations.add(Aggregation.sort(pageable.getSort()));
+
+        // 10. 페이지네이션
+        operations.add(Aggregation.skip(pageable.getOffset()));
+        operations.add(Aggregation.limit(pageable.getPageSize()));
+
+        // 최종 aggregation
+        Aggregation aggregation = Aggregation.newAggregation(operations);
+        List<CustomContent> contents = mongoTemplate.aggregate(aggregation, "userCustomContents", CustomContent.class)
+                .getMappedResults();
+
+        return new PageImpl<>(contents, pageable, total);
     }
 
     @Override
