@@ -50,4 +50,9 @@ public class Feed {
     private Double avgReadTimeSeconds;
 
     private Instant createdAt;
+
+    @Builder.Default
+    private Boolean deleted = false;
+
+    private Instant deletedAt;
 }
