@@ -13,5 +13,7 @@ public interface FeedRepository extends MongoRepository<Feed, String> {
 
     Optional<Feed> findByUrl(String url);
 
-    List<Feed> findByPublishedAtAfter(Instant after);
+    List<Feed> findByDeletedFalse();
+
+    Optional<Feed> findByIdAndDeletedFalse(String id);
 }

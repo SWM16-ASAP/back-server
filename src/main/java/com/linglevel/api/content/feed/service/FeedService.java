@@ -22,7 +22,7 @@ public class FeedService {
     private final FeedRecommendationService feedRecommendationService;
 
     public PageResponse<FeedResponse> getFeeds(GetFeedsRequest request, String userId) {
-        List<Feed> allFeeds = feedRepository.findAll();
+        List<Feed> allFeeds = feedRepository.findByDeletedFalse();
 
         if (request.getContentTypes() != null && !request.getContentTypes().isEmpty()) {
             allFeeds = allFeeds.stream()
@@ -92,8 +92,7 @@ public class FeedService {
     }
 
     public FeedResponse getFeed(String feedId, String userId) {
-
-        Feed feed = feedRepository.findById(feedId)
+        Feed feed = feedRepository.findByIdAndDeletedFalse(feedId)
                 .orElseThrow(() -> new FeedException(FeedErrorCode.FEED_NOT_FOUND));
 
         return mapToResponse(feed);

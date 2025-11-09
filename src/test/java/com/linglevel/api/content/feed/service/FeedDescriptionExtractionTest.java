@@ -30,7 +30,7 @@ class FeedDescriptionExtractionTest {
         System.out.println("\n=== BBC RSS Description 추출 테스트 ===\n");
 
         // FeedCrawlingService의 extractDescription 메서드를 리플렉션으로 호출
-        FeedCrawlingService service = new FeedCrawlingService(null, null);
+        FeedCrawlingService service = new FeedCrawlingService(null, null, null);
         Method extractDescriptionMethod = FeedCrawlingService.class.getDeclaredMethod("extractDescription", SyndEntry.class);
         extractDescriptionMethod.setAccessible(true);
 
@@ -70,7 +70,7 @@ class FeedDescriptionExtractionTest {
         System.out.println();
 
         // FeedCrawlingService의 extractDescription 메서드를 리플렉션으로 호출
-        FeedCrawlingService service = new FeedCrawlingService(null, null);
+        FeedCrawlingService service = new FeedCrawlingService(null, null, null);
         Method extractDescriptionMethod = FeedCrawlingService.class.getDeclaredMethod("extractDescription", SyndEntry.class);
         extractDescriptionMethod.setAccessible(true);
 
@@ -113,7 +113,7 @@ class FeedDescriptionExtractionTest {
         System.out.println("\n=== Medium RSS Description 추출 테스트 ===\n");
 
         // FeedCrawlingService의 extractDescription 메서드를 리플렉션으로 호출
-        FeedCrawlingService service = new FeedCrawlingService(null, null);
+        FeedCrawlingService service = new FeedCrawlingService(null, null, null);
         Method extractDescriptionMethod = FeedCrawlingService.class.getDeclaredMethod("extractDescription", SyndEntry.class);
         extractDescriptionMethod.setAccessible(true);
 
@@ -152,7 +152,7 @@ class FeedDescriptionExtractionTest {
 
         System.out.println("\n=== 통합 테스트: 3가지 RSS 소스 Description 추출 ===\n");
 
-        FeedCrawlingService service = new FeedCrawlingService(null, null);
+        FeedCrawlingService service = new FeedCrawlingService(null, null, null);
         Method extractDescriptionMethod = FeedCrawlingService.class.getDeclaredMethod("extractDescription", SyndEntry.class);
         extractDescriptionMethod.setAccessible(true);
 
