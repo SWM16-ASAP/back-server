@@ -8,7 +8,7 @@ import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,7 +52,7 @@ class ProgressServiceTest {
     private ProgressCalculationService progressCalculationService;
 
     @Mock
-    private ReadingSessionService readingSessionService;
+    private ReadingCompletionService readingCompletionService;
 
     @Mock
     private StreakService streakService;

@@ -1,18 +1,19 @@
 package com.linglevel.api.content.custom.service;
 
 import com.linglevel.api.common.dto.PageResponse;
-import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.DifficultyLevel;
-import com.linglevel.api.content.custom.dto.*;
+import com.linglevel.api.content.custom.dto.CustomContentChunkResponse;
+import com.linglevel.api.content.custom.dto.GetCustomContentChunksRequest;
+import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.entity.CustomContentChunk;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
-import com.linglevel.api.content.recommendation.event.ContentAccessEvent;
+import com.linglevel.api.content.custom.repository.UserCustomContentRepository;
+import com.linglevel.api.content.feed.repository.FeedRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,20 +28,23 @@ public class CustomContentChunkService {
 
     private final CustomContentChunkRepository customContentChunkRepository;
     private final CustomContentRepository customContentRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final UserCustomContentRepository userCustomContentRepository;
+    private final FeedRepository feedRepository;
 
     public PageResponse<CustomContentChunkResponse> getCustomContentChunks(String userId, String customContentId, GetCustomContentChunksRequest request) {
         log.info("Getting custom content chunks for content {} and user: {}", customContentId, userId);
 
-        validateCustomContentAccess(customContentId, userId);
+        CustomContent customContent = validateCustomContentAccess(customContentId, userId);
 
         customContentRepository.incrementViewCount(customContentId);
 
-        // 사용자 콘텐츠 접근 로깅 (비동기)
-        if (userId != null) {
-            eventPublisher.publishEvent(new ContentAccessEvent(
-                    this, userId, customContentId, ContentType.CUSTOM, null
-            ));
+        // Feed 조회수도 함께 증가 (originUrl 기반)
+        if (customContent.getOriginUrl() != null && !customContent.getOriginUrl().isEmpty()) {
+            feedRepository.findByUrl(customContent.getOriginUrl()).ifPresent(feed -> {
+                feed.setViewCount((feed.getViewCount() != null ? feed.getViewCount() : 0) + 1);
+                feedRepository.save(feed);
+                log.debug("Incremented Feed viewCount for url: {}", customContent.getOriginUrl());
+            });
         }
 
         DifficultyLevel difficulty = request.getDifficultyLevel();
@@ -70,9 +74,15 @@ public class CustomContentChunkService {
         return convertToCustomContentChunkResponse(chunk);
     }
 
-    private void validateCustomContentAccess(String customContentId, String userId) {
-        customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
+    private CustomContent validateCustomContentAccess(String customContentId, String userId) {
+
+        CustomContent customContent = customContentRepository.findById(customContentId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
+
+        userCustomContentRepository.findByUserIdAndCustomContentId(userId, customContentId)
+            .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_ACCESS_DENIED));
+
+        return customContent;
     }
 
 

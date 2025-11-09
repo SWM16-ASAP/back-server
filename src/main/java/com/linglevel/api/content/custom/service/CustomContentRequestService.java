@@ -1,17 +1,22 @@
 package com.linglevel.api.content.custom.service;
 
 import com.linglevel.api.common.dto.PageResponse;
-import com.linglevel.api.content.custom.dto.*;
+import com.linglevel.api.common.util.UrlNormalizer;
+import com.linglevel.api.content.custom.dto.ContentRequestResponse;
+import com.linglevel.api.content.custom.dto.CreateContentRequestRequest;
+import com.linglevel.api.content.custom.dto.CreateContentRequestResponse;
+import com.linglevel.api.content.custom.dto.GetContentRequestsRequest;
 import com.linglevel.api.content.custom.entity.ContentRequest;
 import com.linglevel.api.content.custom.entity.ContentRequestStatus;
+import com.linglevel.api.content.custom.entity.ContentType;
+import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.ContentRequestRepository;
+import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.crawling.service.CrawlingService;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.strategy.CustomContentPathStrategy;
-import com.linglevel.api.user.entity.User;
-
 import com.linglevel.api.user.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +25,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -30,30 +39,40 @@ import java.util.Map;
 public class CustomContentRequestService {
 
     private final ContentRequestRepository contentRequestRepository;
-
+    private final CustomContentRepository customContentRepository;
+    private final UserCustomContentService userCustomContentService;
     private final S3AiService s3AiService;
     private final CustomContentPathStrategy pathStrategy;
     private final CrawlingService crawlingService;
     private final TicketService ticketService;
 
+    @Transactional
     public CreateContentRequestResponse createContentRequest(String userId, CreateContentRequestRequest request) {
         log.info("Creating content request for user: {}", userId);
 
-        // URL 유효성 검증 (LINK 타입인 경우) 및 도메인 추출
-        String extractedDomain = null;
-        if (request.getContentType() == com.linglevel.api.content.custom.entity.ContentType.LINK) {
-            extractedDomain = validateUrlForCrawling(request.getOriginUrl());
+        String extractedDomain = validateUrlForCrawling(request.getOriginUrl());
+
+        // URL 기반 캐시 검사 (LINK, YOUTUBE만 해당)
+        Optional<CustomContent> cachedContent = Optional.empty();
+        if (isUrlBasedContentType(request.getContentType())) {
+            cachedContent = checkCachedContent(request.getOriginUrl());
+            if (cachedContent.isPresent()) {
+                if (!userCustomContentService.validateNotOwned(userId, cachedContent.get().getId())) {
+                   throw new CustomContentException(CustomContentErrorCode.CONTENT_ALREADY_OWNED);
+                }
+            }
         }
 
-        // 🎫 티켓 소비 (1개 티켓 필요)
+        // 티켓 소비 (캐시 히트/미스 무관하게 소비, 단 이미 소유한 경우는 제외)
         try {
             ticketService.spendTicket(userId, 1, "Custom content creation");
             log.info("Ticket spent for user: {} (Custom content: {})", userId, request.getTitle());
         } catch (Exception e) {
-            log.info("Failed to spend ticket for user: {}", userId, e);
+            log.error("Failed to spend ticket for user: {}", userId, e);
             throw new CustomContentException(CustomContentErrorCode.INSUFFICIENT_TICKETS);
         }
 
+        // ContentRequest 생성
         ContentRequest contentRequest = ContentRequest.builder()
                 .userId(userId)
                 .title(request.getTitle())
@@ -71,40 +90,73 @@ public class CustomContentRequestService {
         ContentRequest savedRequest = contentRequestRepository.save(contentRequest);
         log.info("Content request created with ID: {}", savedRequest.getId());
 
+        // 캐시 히트 시: 즉시 완료 처리
+        if (cachedContent.isPresent()) {
+            return handleCacheHit(savedRequest, cachedContent.get());
+        }
+
+        // 캐시 미스 시: AI 처리 진행
         uploadToAiInput(savedRequest, request);
 
         return CreateContentRequestResponse.builder()
                 .requestId(savedRequest.getId())
                 .title(savedRequest.getTitle())
                 .status(savedRequest.getStatus().getCode())
+                .cached(false)
                 .createdAt(savedRequest.getCreatedAt())
                 .build();
     }
 
+    private Optional<CustomContent> checkCachedContent(String originUrl) {
+        if (!StringUtils.hasText(originUrl)) {
+            return Optional.empty();
+        }
+
+        String normalizedUrl = UrlNormalizer.normalize(originUrl);
+        Optional<CustomContent> existingContent = customContentRepository.findByOriginUrlAndIsDeletedFalse(normalizedUrl);
+
+        if (existingContent.isPresent()) {
+            log.info("Cache HIT: Found existing content for URL: {} -> Content ID: {}",
+                    normalizedUrl, existingContent.get().getId());
+        } else {
+            log.debug("Cache MISS: No existing content for URL: {}", normalizedUrl);
+        }
+
+        return existingContent;
+    }
+
+    private CreateContentRequestResponse handleCacheHit(ContentRequest contentRequest, CustomContent cachedContent) {
+        // 1. UserCustomContent 매핑 생성
+        userCustomContentService.createMapping(contentRequest, cachedContent);
+
+        // 2. ContentRequest 즉시 완료 처리
+        contentRequest.setResultCustomContentId(cachedContent.getId());
+        contentRequest.setStatus(ContentRequestStatus.COMPLETED);
+        contentRequest.setProgress(100);
+        contentRequest.setCompletedAt(Instant.now());
+        contentRequestRepository.save(contentRequest);
+
+        return CreateContentRequestResponse.builder()
+                .requestId(contentRequest.getId())
+                .title(contentRequest.getTitle())
+                .status(ContentRequestStatus.COMPLETED.getCode())
+                .cached(true)
+                .customContentId(cachedContent.getId())
+                .customContentTitle(cachedContent.getTitle())
+                .createdAt(contentRequest.getCreatedAt())
+                .build();
+    }
+
+    /**
+     * URL 기반 캐싱이 가능한 ContentType인지 확인
+     * TEXT, PDF는 사용자가 직접 입력한 고유 콘텐츠이므로 캐싱 불가
+     */
+    private boolean isUrlBasedContentType(ContentType contentType) {
+        return contentType == ContentType.LINK || contentType == ContentType.YOUTUBE;
+    }
+
     private String validateUrlForCrawling(String originUrl) {
-        if (originUrl == null || originUrl.trim().isEmpty()) {
-            throw new CustomContentException(CustomContentErrorCode.URL_REQUIRED);
-        }
-
-        try {
-            // URL 형식 및 크롤링 가능 여부 검증
-            if (!crawlingService.isValidUrl(originUrl)) {
-                throw new CustomContentException(CustomContentErrorCode.INVALID_URL_FORMAT);
-            }
-
-            // DSL 존재 여부 확인 (크롤링 가능한 도메인인지 검증)
-            var lookupResult = crawlingService.lookupDsl(originUrl, true);
-            if (!lookupResult.isValid()) {
-                throw new CustomContentException(CustomContentErrorCode.URL_NOT_SUPPORTED);
-            }
-
-            // 도메인 반환
-            return lookupResult.getDomain();
-
-        } catch (com.linglevel.api.crawling.exception.CrawlingException e) {
-            // CrawlingException을 CustomContentException으로 변환
-            throw new CustomContentException(CustomContentErrorCode.INVALID_REQUEST, e.getMessage());
-        }
+        return crawlingService.extractDomain(originUrl);
     }
 
     private void uploadToAiInput(ContentRequest contentRequest, CreateContentRequestRequest request) {

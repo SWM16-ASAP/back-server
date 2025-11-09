@@ -10,7 +10,7 @@ springBoot {
 }
 
 group = 'com.linglevel'
-version = '2.6.3-SNAPSHOT'
+version = '3.0.0-SNAPSHOT'
 
 java {
 	toolchain {
@@ -50,6 +50,8 @@ dependencies {
 	implementation 'com.bucket4j:bucket4j_jdk17-core:8.15.0'
 	implementation 'com.bucket4j:bucket4j_jdk17-redis-common:8.15.0'
 	implementation 'com.bucket4j:bucket4j_jdk17-lettuce:8.15.0'
+	implementation 'org.jsoup:jsoup:1.17.2'
+	implementation 'com.rometools:rome:2.1.0'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'

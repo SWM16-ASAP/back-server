@@ -12,7 +12,7 @@ import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +32,7 @@ public class ProgressService {
     private final BookProgressRepository bookProgressRepository;
     private final ChunkRepository chunkRepository;
     private final ProgressCalculationService progressCalculationService;
-    private final ReadingSessionService readingSessionService;
+    private final ReadingCompletionService readingCompletionService;
     private final StreakService streakService;
     private final ChapterRepository chapterRepository;
 
@@ -109,6 +109,15 @@ public class ProgressService {
         // maxNormalizedProgress는 완료된 챕터 기반으로 설정
         bookProgress.setMaxNormalizedProgress(bookProgress_normalizedProgress);
 
+        // 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
+        // Book은 category가 없으므로 null 전달 (추천 시스템 집계에서 자동 제외됨)
+        Long readTimeSeconds = readingCompletionService.processReadingCompletion(
+                userId,
+                ContentType.BOOK,
+                chapter.getId(),
+                null
+        );
+
         // 스트릭 검사 및 완료 처리 로직
         boolean streakUpdated = false;
         if (isLastChunkInChapter(chunk)) {
@@ -128,9 +137,12 @@ public class ProgressService {
             log.info("Chapter {} completed for book {} (first completion: {})",
                 chapter.getChapterNumber(), bookId, isFirstCompletion);
 
-            streakService.addStudyTime(userId, readingSessionService.getReadingSessionSeconds(userId, ContentType.BOOK, chapter.getId()));
-            streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, chapter.getId());
-            streakService.addCompletedContent(userId, ContentType.BOOK, chapter.getId(), streakUpdated);
+            // 스트릭 업데이트 (30초 이상 읽은 경우에만)
+            if (readTimeSeconds != null && readTimeSeconds >= 30) {
+                streakService.addStudyTime(userId, readTimeSeconds);
+                streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, chapter.getId());
+                streakService.addCompletedContent(userId, ContentType.BOOK, chapter.getId(), streakUpdated);
+            }
 
             // 3. 책 전체 완료 확인 (모든 챕터 완료 시)
             boolean allChaptersCompleted = getCompletedChapterCount(bookProgress) >= totalChapters;
@@ -141,7 +153,6 @@ public class ProgressService {
             }
         }
 
-        readingSessionService.deleteReadingSession(userId);
         bookProgressRepository.save(bookProgress);
 
         return convertToProgressResponse(bookProgress, streakUpdated);

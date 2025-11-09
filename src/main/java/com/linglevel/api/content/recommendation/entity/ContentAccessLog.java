@@ -34,5 +34,7 @@ public class ContentAccessLog {
 
     private ContentCategory category;
 
+    private Integer readTimeSeconds;
+
     private Instant accessedAt;
 }

@@ -109,12 +109,12 @@ class ReadingSessionServiceTest extends AbstractRedisTest {
     }
 
     @Test
-    @DisplayName("읽기 세션 검증 - 30초 미만 경과 시 false")
-    void isReadingSessionValid_Before30Seconds() {
+    @DisplayName("읽기 세션 검증 - 5초 미만 경과 시 false")
+    void isReadingSessionValid_Before5Seconds() {
         // given - 10초 전에 시작한 세션을 직접 생성
         ContentType contentType = ContentType.BOOK;
         String contentId = TEST_BOOK_ID;
-        long tenSecondsAgo = System.currentTimeMillis() - 10_000;
+        long tenSecondsAgo = System.currentTimeMillis() - 1_000;
 
         ReadingSession session = ReadingSession.builder()
                 .contentType(contentType)

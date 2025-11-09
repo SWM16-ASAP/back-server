@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class CrawlingService {
+public class  CrawlingService {
 
     private final CrawlingDslRepository crawlingDslRepository;
 
@@ -50,6 +50,7 @@ public class CrawlingService {
                         .titleDsl(crawlingDsl.get().getTitleDsl())
                         .contentDsl(crawlingDsl.get().getContentDsl())
                         .coverImageDsl(crawlingDsl.get().getCoverImageDsl())
+                        .accessUrl(crawlingDsl.get().getAccessUrl())
                         .valid(true)
                         .build();
             }
@@ -77,6 +78,7 @@ public class CrawlingService {
                 .domain(dsl.getDomain())
                 .name(dsl.getName())
                 .contentType(dsl.getContentType())
+                .accessUrl(dsl.getAccessUrl())
                 .build());
     }
 
@@ -92,6 +94,7 @@ public class CrawlingService {
                 .titleDsl(request.getTitleDsl())
                 .contentDsl(request.getContentDsl())
                 .coverImageDsl(request.getCoverImageDsl())
+                .accessUrl(request.getAccessUrl())
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -119,6 +122,11 @@ public class CrawlingService {
             crawlingDsl.setContentType(request.getContentType());
         }
 
+        // accessUrl은 옵셔널 - null이 아닐 경우에만 업데이트
+        if (request.getAccessUrl() != null) {
+            crawlingDsl.setAccessUrl(request.getAccessUrl());
+        }
+
         crawlingDsl.setUpdatedAt(Instant.now());
 
         CrawlingDsl updated = crawlingDslRepository.save(crawlingDsl);
@@ -130,6 +138,7 @@ public class CrawlingService {
                 .titleDsl(updated.getTitleDsl())
                 .contentDsl(updated.getContentDsl())
                 .coverImageDsl(updated.getCoverImageDsl())
+                .accessUrl(updated.getAccessUrl())
                 .message("DSL updated successfully.")
                 .build();
     }
@@ -141,11 +150,7 @@ public class CrawlingService {
         crawlingDslRepository.deleteByDomain(domain);
     }
 
-    public boolean isValidUrl(String url) {
-        return extractDomain(url) != null;
-    }
-
-    private String extractDomain(String url) {
+    public String extractDomain(String url) {
         try {
             URL parsedUrl = new URL(url);
             String host = parsedUrl.getHost().toLowerCase();
@@ -159,7 +164,7 @@ public class CrawlingService {
 
             return host;
         } catch (MalformedURLException e) {
-            throw new CrawlingException(CrawlingErrorCode.INVALID_URL_FORMAT);
+            return null;
         }
     }
 }

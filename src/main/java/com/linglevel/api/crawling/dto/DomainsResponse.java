@@ -25,4 +25,7 @@ public class DomainsResponse {
 
     @Schema(description = "Feed 콘텐츠 타입", example = "BLOG")
     private FeedContentType contentType;
+
+    @Schema(description = "접근 조회용 URL")
+    private String accessUrl;
 }

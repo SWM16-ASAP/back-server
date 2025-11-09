@@ -21,7 +21,7 @@ public class ReadingSessionService {
     private static final String READING_SESSION_KEY_PREFIX = "user:";
     private static final String READING_SESSION_KEY_SUFFIX = ":reading_session";
     private static final Duration READING_SESSION_TTL = Duration.ofHours(6);
-    private static final Duration MIN_READING_DURATION = Duration.ofSeconds(30);
+    private static final Duration MIN_READING_DURATION = Duration.ofSeconds(5);
 
     public void startReadingSession(String userId, ContentType contentType, String contentId) {
         String key = READING_SESSION_KEY_PREFIX + userId + READING_SESSION_KEY_SUFFIX;

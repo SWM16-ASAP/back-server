@@ -7,12 +7,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.*;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -42,8 +45,16 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
     private Query buildQuery(String userId, GetCustomContentsRequest request) {
         Query query = new Query();
 
-        // 기본 필터 (userId, isDeleted)
-        query.addCriteria(Criteria.where("userId").is(userId));
+        // UserCustomContent를 통한 유저별 콘텐츠 조회
+        List<String> userContentIds = getUserCustomContentIds(userId);
+
+        if (userContentIds.isEmpty()) {
+            query.addCriteria(Criteria.where("_id").is(null));
+            return query;
+        }
+
+        // 기본 필터 (유저가 해금한 콘텐츠 ID 목록, isDeleted)
+        query.addCriteria(Criteria.where("id").in(userContentIds));
         query.addCriteria(Criteria.where("isDeleted").is(false));
 
         // 각 필터를 독립적인 메서드로 분리
@@ -52,6 +63,20 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
         applyProgressFilter(query, request.getProgress(), userId);
 
         return query;
+    }
+
+    /**
+     * 유저가 해금한 콘텐츠 ID 목록 조회
+     */
+    private List<String> getUserCustomContentIds(String userId) {
+        Query query = new Query();
+        query.addCriteria(Criteria.where("userId").is(userId));
+        query.fields().include("customContentId");
+
+        return mongoTemplate.find(query, org.bson.Document.class, "userCustomContents")
+                .stream()
+                .map(doc -> doc.getString("customContentId"))
+                .toList();
     }
 
     /**
@@ -113,14 +138,8 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
      * 시작하지 않은 콘텐츠 ID 목록 조회
      */
     private List<String> getNotStartedContentIds(String userId) {
-        // 해당 사용자의 모든 콘텐츠 ID 조회
-        Query userContentQuery = new Query();
-        userContentQuery.addCriteria(Criteria.where("userId").is(userId));
-        userContentQuery.addCriteria(Criteria.where("isDeleted").is(false));
-
-        List<String> allContentIds = mongoTemplate.find(userContentQuery, CustomContent.class).stream()
-                .map(CustomContent::getId)
-                .toList();
+        // 해당 사용자가 해금한 모든 콘텐츠 ID 조회
+        List<String> allContentIds = getUserCustomContentIds(userId);
 
         // 진도가 있는 콘텐츠 ID 조회
         List<String> progressContentIds = findProgressContentIds(userId);
@@ -138,7 +157,7 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
         Query query = new Query();
         query.addCriteria(Criteria.where("userId").is(userId));
         query.addCriteria(Criteria.where("isCompleted").is(false));
-        query.addCriteria(Criteria.where("currentReadChunkNumber").gt(0));
+        query.addCriteria(Criteria.where("normalizedProgress").gt(0));
 
         return findContentIdsFromProgress(query);
     }
@@ -168,10 +187,95 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
      * CustomContentProgress 컬렉션에서 customId 추출
      */
     private List<String> findContentIdsFromProgress(Query query) {
-        return mongoTemplate.find(query, org.bson.Document.class, "customContentProgress")
+        return mongoTemplate.find(query, org.bson.Document.class, "customProgress")
                 .stream()
                 .map(doc -> doc.getString("customId"))
                 .toList();
+    }
+
+    @Override
+    public Page<CustomContent> findCustomContentsByUserWithFilters(String userId, GetCustomContentsRequest request, Pageable pageable) {
+        List<AggregationOperation> operations = new ArrayList<>();
+
+        // 1. UserCustomContent에서 userId로 필터링
+        operations.add(Aggregation.match(Criteria.where("userId").is(userId)));
+
+        // 2. customContentId를 ObjectId로 변환
+        operations.add(Aggregation.addFields()
+                .addField("customContentIdObj")
+                .withValueOf(org.springframework.data.mongodb.core.aggregation.ConvertOperators.ToObjectId.toObjectId("$customContentId"))
+                .build());
+
+        // 3. CustomContent와 조인 (lookup) - ObjectId로 변환된 필드 사용
+        operations.add(Aggregation.lookup(
+                "customContents",           // from collection
+                "customContentIdObj",       // localField (ObjectId로 변환된 필드)
+                "_id",                      // foreignField (MongoDB의 _id 필드)
+                "customContent"             // as
+        ));
+
+        // 4. 배열을 객체로 변환 (lookup 결과는 배열이므로)
+        operations.add(Aggregation.unwind("customContent"));
+
+        // 5. customContent를 root로 올림
+        operations.add(Aggregation.replaceRoot("customContent"));
+
+        // 6. isDeleted = false 필터링
+        operations.add(Aggregation.match(Criteria.where("isDeleted").is(false)));
+
+        // 7. 키워드 필터 적용
+        if (StringUtils.hasText(request.getKeyword())) {
+            Criteria keywordCriteria = new Criteria().orOperator(
+                    Criteria.where("title").regex(request.getKeyword(), "i"),
+                    Criteria.where("author").regex(request.getKeyword(), "i")
+            );
+            operations.add(Aggregation.match(keywordCriteria));
+        }
+
+        // 8. 태그 필터 적용
+        if (StringUtils.hasText(request.getTags())) {
+            String[] tagArray = request.getTags().split(",");
+            operations.add(Aggregation.match(Criteria.where("tags").all((Object[]) tagArray)));
+        }
+
+        // 9. 진도 필터 적용 (별도 처리 필요)
+        if (request.getProgress() != null) {
+            List<String> contentIds = getContentIdsByProgress(userId, request.getProgress());
+            if (contentIds.isEmpty()) {
+                return new PageImpl<>(List.of(), pageable, 0);
+            }
+            // _id는 ObjectId이므로 String을 ObjectId로 변환해서 비교
+            List<org.bson.types.ObjectId> objectIds = contentIds.stream()
+                    .map(org.bson.types.ObjectId::new)
+                    .toList();
+            operations.add(Aggregation.match(Criteria.where("_id").in(objectIds)));
+        }
+
+        // 총 개수 조회용 aggregation (정렬 및 페이징 전, $count 사용)
+        List<AggregationOperation> countOps = new ArrayList<>(operations);
+        countOps.add(Aggregation.count().as("total"));
+        Aggregation countAggregation = Aggregation.newAggregation(countOps);
+
+        long total = 0;
+        var countResult = mongoTemplate.aggregate(countAggregation, "userCustomContents", org.bson.Document.class)
+                .getUniqueMappedResult();
+        if (countResult != null && countResult.containsKey("total")) {
+            total = ((Number) countResult.get("total")).longValue();
+        }
+
+        // 10. 정렬
+        operations.add(Aggregation.sort(pageable.getSort()));
+
+        // 11. 페이지네이션
+        operations.add(Aggregation.skip(pageable.getOffset()));
+        operations.add(Aggregation.limit(pageable.getPageSize()));
+
+        // 최종 aggregation
+        Aggregation aggregation = Aggregation.newAggregation(operations);
+        List<CustomContent> contents = mongoTemplate.aggregate(aggregation, "userCustomContents", CustomContent.class)
+                .getMappedResults();
+
+        return new PageImpl<>(contents, pageable, total);
     }
 
     @Override

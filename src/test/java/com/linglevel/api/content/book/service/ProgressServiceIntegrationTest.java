@@ -10,7 +10,7 @@ import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.service.ProgressCalculationService;
-import com.linglevel.api.streak.service.ReadingSessionService;
+import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,7 +50,7 @@ class ProgressServiceIntegrationTest {
     private ProgressCalculationService progressCalculationService;
 
     @Mock
-    private ReadingSessionService readingSessionService;
+    private ReadingCompletionService readingCompletionService;
 
     @Mock
     private StreakService streakService;
@@ -105,7 +105,7 @@ class ProgressServiceIntegrationTest {
                 .thenReturn(5L); // 마지막 청크 (5/5)
         when(chapterRepository.countByBookId(TEST_BOOK_ID))
                 .thenReturn(10); // 총 10개 챕터
-        when(readingSessionService.getReadingSessionSeconds(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID))
+        when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
                 .thenReturn(120L);
 
         // when
@@ -133,7 +133,7 @@ class ProgressServiceIntegrationTest {
                 .thenReturn(5L);
         when(chapterRepository.countByBookId(TEST_BOOK_ID))
                 .thenReturn(10);
-        when(readingSessionService.getReadingSessionSeconds(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID))
+        when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
                 .thenReturn(120L);
 
         // when
@@ -161,7 +161,7 @@ class ProgressServiceIntegrationTest {
                 .thenReturn(5L);
         when(chapterRepository.countByBookId(TEST_BOOK_ID))
                 .thenReturn(10);
-        when(readingSessionService.getReadingSessionSeconds(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID))
+        when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
                 .thenReturn(30L); // 짧은 시간
 
         // when
@@ -190,6 +190,8 @@ class ProgressServiceIntegrationTest {
                 .thenReturn(5L); // 총 5개 중 3번째
         when(chapterRepository.countByBookId(TEST_BOOK_ID))
                 .thenReturn(10);
+        when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
+                .thenReturn(null); // 마지막 청크가 아니므로 세션 처리 없음
 
         // when
         progressService.updateProgress(TEST_BOOK_ID, request, TEST_USER_ID);
