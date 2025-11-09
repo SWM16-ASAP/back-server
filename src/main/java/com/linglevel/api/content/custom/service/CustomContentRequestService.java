@@ -45,7 +45,6 @@ public class CustomContentRequestService {
     private final CustomContentPathStrategy pathStrategy;
     private final CrawlingService crawlingService;
     private final TicketService ticketService;
-    private final CustomContentNotificationService notificationService;
 
     @Transactional
     public CreateContentRequestResponse createContentRequest(String userId, CreateContentRequestRequest request) {
@@ -57,6 +56,11 @@ public class CustomContentRequestService {
         Optional<CustomContent> cachedContent = Optional.empty();
         if (isUrlBasedContentType(request.getContentType())) {
             cachedContent = checkCachedContent(request.getOriginUrl());
+            if (cachedContent.isPresent()) {
+                if (!userCustomContentService.validateNotOwned(userId, cachedContent.get().getId())) {
+                   throw new CustomContentException(CustomContentErrorCode.CONTENT_ALREADY_OWNED);
+                }
+            }
         }
 
         // 티켓 소비 (캐시 히트/미스 무관하게 소비, 단 이미 소유한 경우는 제외)

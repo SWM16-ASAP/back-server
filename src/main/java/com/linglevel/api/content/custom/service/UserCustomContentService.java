@@ -18,8 +18,8 @@ public class UserCustomContentService {
 
     private final UserCustomContentRepository userCustomContentRepository;
 
-    public boolean hasAccess(String userId, String customContentId) {
-        return userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId);
+    public boolean validateNotOwned(String userId, String customContentId) {
+        return !userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId);
     }
 
     @Transactional
@@ -33,13 +33,6 @@ public class UserCustomContentService {
 
     @Transactional
     public void createMapping(String userId, String customContentId, String contentRequestId) {
-        // 이미 소유한 콘텐츠인 경우 예외 발생
-        if (userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId)) {
-            log.warn("User {} already owns content {}, rejecting duplicate mapping request",
-                    userId, customContentId);
-            throw new CustomContentException(CustomContentErrorCode.CONTENT_ALREADY_OWNED);
-        }
-
         UserCustomContent userCustomContent = UserCustomContent.builder()
                 .userId(userId)
                 .customContentId(customContentId)
@@ -49,15 +42,5 @@ public class UserCustomContentService {
         userCustomContentRepository.save(userCustomContent);
         log.info("Created UserCustomContent mapping for user: {} and content: {}",
                 userId, customContentId);
-    }
-
-    @Transactional
-    public void deleteMapping(String userId, String customContentId) {
-        UserCustomContent userCustomContent = userCustomContentRepository
-                .findByUserIdAndCustomContentId(userId, customContentId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
-
-        userCustomContentRepository.delete(userCustomContent);
-        log.info("Deleted UserCustomContent mapping for user: {} and content: {}", userId, customContentId);
     }
 }
