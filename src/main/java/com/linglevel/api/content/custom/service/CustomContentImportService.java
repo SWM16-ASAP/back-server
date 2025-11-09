@@ -97,7 +97,7 @@ public class CustomContentImportService {
                             .chunkNum(chunkCounter++)
                             .type(ChunkType.IMAGE)
                             .chunkText(customContent.getCoverImageUrl())
-                            .description("Cover Image")
+                            .description("")
                             .build();
                     allChunks.add(coverImageChunk);
                     log.debug("Added cover image chunk for difficulty {} at chapter {}", difficulty, chapterCounter);
