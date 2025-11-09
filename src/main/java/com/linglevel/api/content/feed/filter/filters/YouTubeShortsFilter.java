@@ -25,10 +25,10 @@ public class YouTubeShortsFilter implements FeedFilter {
             return FeedFilterResult.pass();
         }
 
-        // TODO: YouTube Shorts 판별 로직 구현
-        // 1. URL 패턴 체크: youtube.com/shorts/xxx
-        // 2. Video Duration 체크 (60초 이하)
-        // 3. Media RSS의 duration 속성 체크
+        // YouTube URL이 아니면 패스
+        if (!url.contains("youtube.com")) {
+            return FeedFilterResult.pass();
+        }
 
         if (isYouTubeShorts(url, entry)) {
             return FeedFilterResult.fail(FILTER_NAME, "YouTube Shorts video detected");
@@ -38,9 +38,12 @@ public class YouTubeShortsFilter implements FeedFilter {
     }
 
     private boolean isYouTubeShorts(String url, SyndEntry entry) {
-        // TODO: 실제 구현
-        // - URL 패턴 매칭
-        // - Duration 체크 (media:content의 duration 속성)
+        // YouTube Shorts는 /shorts/ 경로 사용
+        if (url.contains("/shorts/")) {
+            log.debug("YouTube Shorts detected by URL pattern: {}", url);
+            return true;
+        }
+
         return false;
     }
 

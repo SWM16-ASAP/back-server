@@ -118,7 +118,7 @@ class ContentCrawlabilityFilterTest {
     }
 
     @Test
-    @DisplayName("CrawlingDsl이 없는 도메인은 통과")
+    @DisplayName("CrawlingDsl이 없는 도메인은 불통과")
     void testNoCrawlingDsl() {
         // given: DSL이 없는 도메인
         when(crawlingService.extractDomain("https://unknown.com/article")).thenReturn("unknown.com");
@@ -133,8 +133,32 @@ class ContentCrawlabilityFilterTest {
         // when: 필터 실행
         FeedFilterResult result = filter.filter(entry, feedSource);
 
-        // then: 통과해야 함
-        assertTrue(result.isPassed(), "DSL이 없으면 선택적 체크이므로 통과");
+        // then: 불통과해야 함
+        assertFalse(result.isPassed(), "DSL이 없으면 불통과");
+        assertEquals("ContentCrawlabilityFilter", result.getFilterName());
+    }
+
+    @Test
+    @DisplayName("YouTube 도메인은 크롤링 체크 없이 통과")
+    void testYouTubeDomainPass() {
+        // given: YouTube URL
+        String youtubeUrl = "https://www.youtube.com/watch?v=test123";
+
+        when(crawlingService.extractDomain(youtubeUrl)).thenReturn("youtube.com");
+
+        SyndEntry entry = mock(SyndEntry.class);
+        when(entry.getLink()).thenReturn(youtubeUrl);
+
+        FeedSource feedSource = mock(FeedSource.class);
+
+        // when: 필터 실행
+        FeedFilterResult result = filter.filter(entry, feedSource);
+
+        // then: 통과해야 함 (YouTube는 RSS에서 description 제공)
+        assertTrue(result.isPassed(), "YouTube는 크롤링 체크 없이 통과");
+
+        // CrawlingDslRepository는 호출되지 않아야 함
+        verify(crawlingDslRepository, never()).findByDomain(any());
     }
 
     @Test

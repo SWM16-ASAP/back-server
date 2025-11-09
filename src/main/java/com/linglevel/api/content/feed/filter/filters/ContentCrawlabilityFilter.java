@@ -41,6 +41,12 @@ public class ContentCrawlabilityFilter implements FeedFilter {
             return FeedFilterResult.pass(); // 도메인 추출 실패는 패스
         }
 
+        // YouTube는 프론트에서 검수
+        if (domain.equals("youtube.com")) {
+            log.debug("YouTube URL detected, skipping crawlability check: {}", url);
+            return FeedFilterResult.pass();
+        }
+
         if (!isCrawlable(url, domain)) {
             return FeedFilterResult.fail(FILTER_NAME,
                 "Unable to extract content from URL: " + url);
