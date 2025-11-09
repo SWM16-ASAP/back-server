@@ -35,13 +35,6 @@ public class ContentCrawlabilityFilter implements FeedFilter {
             return FeedFilterResult.fail(FILTER_NAME, "URL is null");
         }
 
-        // TODO: CrawlingDsl을 사용하여 콘텐츠 추출 가능 여부 확인
-        // 1. URL에서 도메인 추출
-        // 2. 해당 도메인의 CrawlingDsl 조회
-        // 3. DSL이 없으면 패스 (선택적 체크)
-        // 4. DSL이 있으면 실제 크롤링 시도
-        // 5. 텍스트가 하나도 추출되지 않으면 필터링
-
         String domain = extractDomain(url);
         if (domain == null) {
             log.warn("Failed to extract domain from URL: {}", url);
@@ -57,8 +50,6 @@ public class ContentCrawlabilityFilter implements FeedFilter {
     }
 
     private boolean isCrawlable(String url, String domain) {
-        // TODO: 실제 구현
-        // 1. CrawlingDsl 조회
         CrawlingDsl crawlingDsl = crawlingDslRepository.findByDomain(domain).orElse(null);
 
         if (crawlingDsl == null) {
@@ -91,8 +82,8 @@ public class ContentCrawlabilityFilter implements FeedFilter {
                 return false;
             }
 
-            // 콘텐츠가 너무 짧으면 (예: 10자 미만) 실패
-            if (extractedContent.trim().length() < 10) {
+            // 콘텐츠가 너무 짧거나 길면 실패
+            if (extractedContent.trim().length() < 100 || extractedContent.trim().length() > 15_000) {
                 log.warn("Extracted content too short ({} chars) from URL: {}",
                     extractedContent.trim().length(), url);
                 return false;
@@ -104,9 +95,8 @@ public class ContentCrawlabilityFilter implements FeedFilter {
 
         } catch (Exception e) {
             log.warn("Failed to test crawlability for URL: {}", url, e);
-            // 크롤링 실패는 일단 패스 (네트워크 문제일 수 있음)
-            // TODO: 재시도 로직 추가 고려
-            return true;
+            // 크롤링 실패는 soft-delete 처리 (콘텐츠를 추출할 수 없음)
+            return false;
         }
     }
 
