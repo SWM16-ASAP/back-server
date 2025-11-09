@@ -86,9 +86,8 @@ public class StreakService {
     public boolean updateStreak(String userId, ContentType contentType, String contentId) {
         LocalDate today = getKstToday();
 
-        // 유효성 검사
-        if (hasCompletedStreakToday(userId, today)
-            || !readingSessionService.isReadingSessionValid(userId, contentType, contentId)) {
+        // 유효성 검사: 오늘 이미 스트릭 완료했는지만 확인
+        if (hasCompletedStreakToday(userId, today)) {
             return false;
         }
 
