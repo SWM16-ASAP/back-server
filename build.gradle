@@ -10,7 +10,7 @@ springBoot {
 }
 
 group = 'com.linglevel'
-version = '2.6.3-SNAPSHOT'
+version = '3.0.0-SNAPSHOT'
 
 java {
 	toolchain {
