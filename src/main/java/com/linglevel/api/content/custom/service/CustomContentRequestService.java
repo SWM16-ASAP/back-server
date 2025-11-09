@@ -137,6 +137,8 @@ public class CustomContentRequestService {
                 .title(contentRequest.getTitle())
                 .status(ContentRequestStatus.COMPLETED.getCode())
                 .cached(true)
+                .customContentId(cachedContent.getId())
+                .customContentTitle(cachedContent.getTitle())
                 .createdAt(contentRequest.getCreatedAt())
                 .build();
     }

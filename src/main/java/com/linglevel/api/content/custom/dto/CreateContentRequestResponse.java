@@ -29,6 +29,12 @@ public class CreateContentRequestResponse {
     @Schema(description = "캐시 히트 여부", example = "true")
     private boolean cached;
 
+    @Schema(description = "캐시된 커스텀 콘텐츠 ID", example = "60d0fe4f5311236162332939")
+    private String customContentId;
+
+    @Schema(description = "캐시된 커스텀 콘텐츠 타이틀", example = "Article Real Title")
+    private String customContentTitle;
+
     @Schema(description = "생성일시", example = "2024-01-15T10:00:00Z")
     private Instant createdAt;
 }

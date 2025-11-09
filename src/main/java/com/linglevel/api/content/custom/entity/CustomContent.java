@@ -59,7 +59,6 @@ public class CustomContent {
 
     private List<String> tags;
 
-    @Indexed
     private String originUrl;
 
     private String originDomain;
