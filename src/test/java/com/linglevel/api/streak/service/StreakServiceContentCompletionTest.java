@@ -202,22 +202,6 @@ class StreakServiceContentCompletionTest {
         assertThat(testReport.getCompletedContentIds()).contains(CONTENT_ID_1);
     }
 
-    @Test
-    @DisplayName("updateStreak: 세션 유효하지 않으면 false 반환")
-    void updateStreak_InvalidSession_ReturnsFalse() {
-        // given
-        when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, today))
-                .thenReturn(Optional.empty());
-        when(readingSessionService.isReadingSessionValid(TEST_USER_ID, CONTENT_TYPE, CONTENT_ID_1))
-                .thenReturn(false);
-
-        // when
-        boolean result = streakService.updateStreak(TEST_USER_ID, CONTENT_TYPE, CONTENT_ID_1);
-
-        // then
-        assertThat(result).isFalse();
-        verify(userStudyReportRepository, never()).save(any());
-    }
 
     @Test
     @DisplayName("updateStreak: 같은 날 두 번 호출 시 두 번째는 false 반환")
@@ -230,6 +214,7 @@ class StreakServiceContentCompletionTest {
                 .totalCompletionCount(1) // 이미 오늘 완료함
                 .completedContents(new ArrayList<>())
                 .streakCount(1)
+                .streakStatus(StreakStatus.COMPLETED) // 이미 스트릭 완료
                 .createdAt(Instant.now())
                 .build();
 
@@ -277,9 +262,6 @@ class StreakServiceContentCompletionTest {
                 .thenReturn(Optional.of(dailyAfterFirstStreak))  // 2. 두 번째 스트릭 체크 (이미 완료)
                 .thenReturn(Optional.of(dailyAfterFirstStreak))  // 3. 첫 완료 기록
                 .thenReturn(Optional.of(dailyAfterFirstContent)); // 4. 두 번째 완료 기록
-
-        when(readingSessionService.isReadingSessionValid(eq(TEST_USER_ID), eq(CONTENT_TYPE), any()))
-                .thenReturn(true);
 
         // when - 첫 번째 콘텐츠로 스트릭 업데이트
         boolean firstStreakResult = streakService.updateStreak(TEST_USER_ID, CONTENT_TYPE, CONTENT_ID_1);
