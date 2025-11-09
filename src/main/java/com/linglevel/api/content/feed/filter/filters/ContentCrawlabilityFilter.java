@@ -53,9 +53,7 @@ public class ContentCrawlabilityFilter implements FeedFilter {
         CrawlingDsl crawlingDsl = crawlingDslRepository.findByDomain(domain).orElse(null);
 
         if (crawlingDsl == null) {
-            // DSL이 없으면 패스 (선택적 체크)
-            log.debug("No CrawlingDsl found for domain: {}", domain);
-            return true;
+            return false;
         }
 
         // 2. contentDsl이 없으면 패스
