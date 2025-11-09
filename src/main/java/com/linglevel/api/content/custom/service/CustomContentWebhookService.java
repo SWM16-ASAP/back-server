@@ -28,6 +28,7 @@ public class CustomContentWebhookService {
 
     private final ContentRequestRepository contentRequestRepository;
     private final CustomContentRepository customContentRepository;
+    private final UserCustomContentService userCustomContentService;
     private final CustomContentImportService customContentImportService;
     private final CustomContentReadingTimeService customContentReadingTimeService;
     private final S3AiService s3AiService;
@@ -55,9 +56,12 @@ public class CustomContentWebhookService {
             // 2. Create the main CustomContent entity
             CustomContent savedContent = customContentImportService.createCustomContent(contentRequest, aiResult);
 
-            // 3. Transfer S3 images from AI temp location to static location (outside transaction for performance)
+            // 3. Create UserCustomContent mapping for this user
+            userCustomContentService.createMapping(contentRequest, savedContent);
+
+            // 4. Transfer S3 images from AI temp location to static location
             transferS3ImagesAndUpdateCoverUrl(request.getRequestId(), savedContent, aiResult);
-            
+
             // Save updated content with permanent cover image URL
             savedContent = customContentRepository.save(savedContent);
 

@@ -42,8 +42,16 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
     private Query buildQuery(String userId, GetCustomContentsRequest request) {
         Query query = new Query();
 
-        // 기본 필터 (userId, isDeleted)
-        query.addCriteria(Criteria.where("userId").is(userId));
+        // UserCustomContent를 통한 유저별 콘텐츠 조회
+        List<String> userContentIds = getUserCustomContentIds(userId);
+
+        if (userContentIds.isEmpty()) {
+            query.addCriteria(Criteria.where("_id").is(null));
+            return query;
+        }
+
+        // 기본 필터 (유저가 해금한 콘텐츠 ID 목록, isDeleted)
+        query.addCriteria(Criteria.where("id").in(userContentIds));
         query.addCriteria(Criteria.where("isDeleted").is(false));
 
         // 각 필터를 독립적인 메서드로 분리
@@ -52,6 +60,20 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
         applyProgressFilter(query, request.getProgress(), userId);
 
         return query;
+    }
+
+    /**
+     * 유저가 해금한 콘텐츠 ID 목록 조회
+     */
+    private List<String> getUserCustomContentIds(String userId) {
+        Query query = new Query();
+        query.addCriteria(Criteria.where("userId").is(userId));
+        query.fields().include("customContentId");
+
+        return mongoTemplate.find(query, org.bson.Document.class, "userCustomContents")
+                .stream()
+                .map(doc -> doc.getString("customContentId"))
+                .toList();
     }
 
     /**
@@ -113,14 +135,8 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
      * 시작하지 않은 콘텐츠 ID 목록 조회
      */
     private List<String> getNotStartedContentIds(String userId) {
-        // 해당 사용자의 모든 콘텐츠 ID 조회
-        Query userContentQuery = new Query();
-        userContentQuery.addCriteria(Criteria.where("userId").is(userId));
-        userContentQuery.addCriteria(Criteria.where("isDeleted").is(false));
-
-        List<String> allContentIds = mongoTemplate.find(userContentQuery, CustomContent.class).stream()
-                .map(CustomContent::getId)
-                .toList();
+        // 해당 사용자가 해금한 모든 콘텐츠 ID 조회
+        List<String> allContentIds = getUserCustomContentIds(userId);
 
         // 진도가 있는 콘텐츠 ID 조회
         List<String> progressContentIds = findProgressContentIds(userId);

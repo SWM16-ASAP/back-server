@@ -41,18 +41,9 @@ public class CustomContentImportService {
                 ? contentRequest.getCoverImageUrl()
                 : aiResult.getCoverImageUrl();
 
-        // URL 정규화 및 중복 체크
         String normalizedUrl = null;
         if (StringUtils.hasText(contentRequest.getOriginUrl())) {
             normalizedUrl = UrlNormalizer.normalize(contentRequest.getOriginUrl());
-
-            // 정규화된 URL로 기존 콘텐츠 검색
-            var existingContent = customContentRepository.findByOriginUrlAndIsDeletedFalse(normalizedUrl);
-            if (existingContent.isPresent()) {
-                log.info("Found existing content for URL: {} -> reusing content ID: {}",
-                        normalizedUrl, existingContent.get().getId());
-                return existingContent.get();
-            }
         }
 
         CustomContent content = CustomContent.builder()
