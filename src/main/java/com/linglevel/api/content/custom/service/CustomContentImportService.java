@@ -1,11 +1,12 @@
 package com.linglevel.api.content.custom.service;
 
+import com.linglevel.api.common.util.UrlNormalizer;
+import com.linglevel.api.content.common.ChunkType;
+import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.custom.dto.AiResultDto;
 import com.linglevel.api.content.custom.entity.ContentRequest;
 import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.entity.CustomContentChunk;
-import com.linglevel.api.content.common.ChunkType;
-import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.s3.service.ImageResizeService;
@@ -40,6 +41,20 @@ public class CustomContentImportService {
                 ? contentRequest.getCoverImageUrl()
                 : aiResult.getCoverImageUrl();
 
+        // URL 정규화 및 중복 체크
+        String normalizedUrl = null;
+        if (StringUtils.hasText(contentRequest.getOriginUrl())) {
+            normalizedUrl = UrlNormalizer.normalize(contentRequest.getOriginUrl());
+
+            // 정규화된 URL로 기존 콘텐츠 검색
+            var existingContent = customContentRepository.findByOriginUrlAndIsDeletedFalse(normalizedUrl);
+            if (existingContent.isPresent()) {
+                log.info("Found existing content for URL: {} -> reusing content ID: {}",
+                        normalizedUrl, existingContent.get().getId());
+                return existingContent.get();
+            }
+        }
+
         CustomContent content = CustomContent.builder()
                 .userId(contentRequest.getUserId())
                 .title(title)
@@ -48,7 +63,7 @@ public class CustomContentImportService {
                 .difficultyLevel(DifficultyLevel.fromCode(aiResult.getOriginalTextLevel()))
                 .targetDifficultyLevels(aiResult.getLeveledResults().stream().map(level -> DifficultyLevel.fromCode(level.getTextLevel())).collect(Collectors.toList()))
                 .readingTime(0) // Placeholder, can be calculated later
-                .originUrl(contentRequest.getOriginUrl())
+                .originUrl(normalizedUrl != null ? normalizedUrl : contentRequest.getOriginUrl())
                 .originDomain(contentRequest.getOriginDomain())
                 .build();
 
