@@ -157,7 +157,7 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
         Query query = new Query();
         query.addCriteria(Criteria.where("userId").is(userId));
         query.addCriteria(Criteria.where("isCompleted").is(false));
-        query.addCriteria(Criteria.where("currentReadChunkNumber").gt(0));
+        query.addCriteria(Criteria.where("normalizedProgress").gt(0));
 
         return findContentIdsFromProgress(query);
     }
@@ -187,7 +187,7 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
      * CustomContentProgress 컬렉션에서 customId 추출
      */
     private List<String> findContentIdsFromProgress(Query query) {
-        return mongoTemplate.find(query, org.bson.Document.class, "customContentProgress")
+        return mongoTemplate.find(query, org.bson.Document.class, "customProgress")
                 .stream()
                 .map(doc -> doc.getString("customId"))
                 .toList();
@@ -200,24 +200,30 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
         // 1. UserCustomContent에서 userId로 필터링
         operations.add(Aggregation.match(Criteria.where("userId").is(userId)));
 
-        // 2. CustomContent와 조인 (lookup)
+        // 2. customContentId를 ObjectId로 변환
+        operations.add(Aggregation.addFields()
+                .addField("customContentIdObj")
+                .withValueOf(org.springframework.data.mongodb.core.aggregation.ConvertOperators.ToObjectId.toObjectId("$customContentId"))
+                .build());
+
+        // 3. CustomContent와 조인 (lookup) - ObjectId로 변환된 필드 사용
         operations.add(Aggregation.lookup(
                 "customContents",           // from collection
-                "customContentId",          // localField
-                "id",                       // foreignField
+                "customContentIdObj",       // localField (ObjectId로 변환된 필드)
+                "_id",                      // foreignField (MongoDB의 _id 필드)
                 "customContent"             // as
         ));
 
-        // 3. 배열을 객체로 변환 (lookup 결과는 배열이므로)
+        // 4. 배열을 객체로 변환 (lookup 결과는 배열이므로)
         operations.add(Aggregation.unwind("customContent"));
 
-        // 4. customContent를 root로 올림
+        // 5. customContent를 root로 올림
         operations.add(Aggregation.replaceRoot("customContent"));
 
-        // 5. isDeleted = false 필터링
+        // 6. isDeleted = false 필터링
         operations.add(Aggregation.match(Criteria.where("isDeleted").is(false)));
 
-        // 6. 키워드 필터 적용
+        // 7. 키워드 필터 적용
         if (StringUtils.hasText(request.getKeyword())) {
             Criteria keywordCriteria = new Criteria().orOperator(
                     Criteria.where("title").regex(request.getKeyword(), "i"),
@@ -226,19 +232,23 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
             operations.add(Aggregation.match(keywordCriteria));
         }
 
-        // 7. 태그 필터 적용
+        // 8. 태그 필터 적용
         if (StringUtils.hasText(request.getTags())) {
             String[] tagArray = request.getTags().split(",");
             operations.add(Aggregation.match(Criteria.where("tags").all((Object[]) tagArray)));
         }
 
-        // 8. 진도 필터 적용 (별도 처리 필요)
+        // 9. 진도 필터 적용 (별도 처리 필요)
         if (request.getProgress() != null) {
             List<String> contentIds = getContentIdsByProgress(userId, request.getProgress());
             if (contentIds.isEmpty()) {
                 return new PageImpl<>(List.of(), pageable, 0);
             }
-            operations.add(Aggregation.match(Criteria.where("id").in(contentIds)));
+            // _id는 ObjectId이므로 String을 ObjectId로 변환해서 비교
+            List<org.bson.types.ObjectId> objectIds = contentIds.stream()
+                    .map(org.bson.types.ObjectId::new)
+                    .toList();
+            operations.add(Aggregation.match(Criteria.where("_id").in(objectIds)));
         }
 
         // 총 개수 조회용 aggregation (정렬 및 페이징 전, $count 사용)
@@ -253,10 +263,10 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
             total = ((Number) countResult.get("total")).longValue();
         }
 
-        // 9. 정렬
+        // 10. 정렬
         operations.add(Aggregation.sort(pageable.getSort()));
 
-        // 10. 페이지네이션
+        // 11. 페이지네이션
         operations.add(Aggregation.skip(pageable.getOffset()));
         operations.add(Aggregation.limit(pageable.getPageSize()));
 
