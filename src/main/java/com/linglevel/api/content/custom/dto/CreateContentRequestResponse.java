@@ -25,7 +25,10 @@ public class CreateContentRequestResponse {
     
     @Schema(description = "요청 상태", example = "PENDING")
     private String status;
-    
+
+    @Schema(description = "캐시 히트 여부", example = "true")
+    private boolean cached;
+
     @Schema(description = "생성일시", example = "2024-01-15T10:00:00Z")
     private Instant createdAt;
 }

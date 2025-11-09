@@ -1,17 +1,21 @@
 package com.linglevel.api.content.custom.service;
 
 import com.linglevel.api.common.dto.PageResponse;
-import com.linglevel.api.content.custom.dto.*;
+import com.linglevel.api.common.util.UrlNormalizer;
+import com.linglevel.api.content.custom.dto.ContentRequestResponse;
+import com.linglevel.api.content.custom.dto.CreateContentRequestRequest;
+import com.linglevel.api.content.custom.dto.CreateContentRequestResponse;
+import com.linglevel.api.content.custom.dto.GetContentRequestsRequest;
 import com.linglevel.api.content.custom.entity.ContentRequest;
 import com.linglevel.api.content.custom.entity.ContentRequestStatus;
+import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.ContentRequestRepository;
+import com.linglevel.api.content.custom.repository.CustomContentRepository;
 import com.linglevel.api.crawling.service.CrawlingService;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.strategy.CustomContentPathStrategy;
-import com.linglevel.api.user.entity.User;
-
 import com.linglevel.api.user.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +24,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -30,26 +38,33 @@ import java.util.Map;
 public class CustomContentRequestService {
 
     private final ContentRequestRepository contentRequestRepository;
-
+    private final CustomContentRepository customContentRepository;
+    private final UserCustomContentService userCustomContentService;
     private final S3AiService s3AiService;
     private final CustomContentPathStrategy pathStrategy;
     private final CrawlingService crawlingService;
     private final TicketService ticketService;
+    private final CustomContentNotificationService notificationService;
 
+    @Transactional
     public CreateContentRequestResponse createContentRequest(String userId, CreateContentRequestRequest request) {
         log.info("Creating content request for user: {}", userId);
 
         String extractedDomain = validateUrlForCrawling(request.getOriginUrl());
 
-        // 🎫 티켓 소비 (1개 티켓 필요)
+        // URL 정규화 및 캐시 검사
+        Optional<CustomContent> cachedContent = checkCachedContent(request.getOriginUrl());
+
+        // 티켓 소비 (캐시 히트/미스 무관하게 소비, 단 이미 소유한 경우는 제외)
         try {
             ticketService.spendTicket(userId, 1, "Custom content creation");
             log.info("Ticket spent for user: {} (Custom content: {})", userId, request.getTitle());
         } catch (Exception e) {
-            log.info("Failed to spend ticket for user: {}", userId, e);
+            log.error("Failed to spend ticket for user: {}", userId, e);
             throw new CustomContentException(CustomContentErrorCode.INSUFFICIENT_TICKETS);
         }
 
+        // ContentRequest 생성
         ContentRequest contentRequest = ContentRequest.builder()
                 .userId(userId)
                 .title(request.getTitle())
@@ -67,13 +82,58 @@ public class CustomContentRequestService {
         ContentRequest savedRequest = contentRequestRepository.save(contentRequest);
         log.info("Content request created with ID: {}", savedRequest.getId());
 
+        // 캐시 히트 시: 즉시 완료 처리
+        if (cachedContent.isPresent()) {
+            return handleCacheHit(savedRequest, cachedContent.get());
+        }
+
+        // 캐시 미스 시: AI 처리 진행
         uploadToAiInput(savedRequest, request);
 
         return CreateContentRequestResponse.builder()
                 .requestId(savedRequest.getId())
                 .title(savedRequest.getTitle())
                 .status(savedRequest.getStatus().getCode())
+                .cached(false)
                 .createdAt(savedRequest.getCreatedAt())
+                .build();
+    }
+
+    private Optional<CustomContent> checkCachedContent(String originUrl) {
+        if (!StringUtils.hasText(originUrl)) {
+            return Optional.empty();
+        }
+
+        String normalizedUrl = UrlNormalizer.normalize(originUrl);
+        Optional<CustomContent> existingContent = customContentRepository.findByOriginUrlAndIsDeletedFalse(normalizedUrl);
+
+        if (existingContent.isPresent()) {
+            log.info("Cache HIT: Found existing content for URL: {} -> Content ID: {}",
+                    normalizedUrl, existingContent.get().getId());
+        } else {
+            log.debug("Cache MISS: No existing content for URL: {}", normalizedUrl);
+        }
+
+        return existingContent;
+    }
+
+    private CreateContentRequestResponse handleCacheHit(ContentRequest contentRequest, CustomContent cachedContent) {
+        // 1. UserCustomContent 매핑 생성
+        userCustomContentService.createMapping(contentRequest, cachedContent);
+
+        // 2. ContentRequest 즉시 완료 처리
+        contentRequest.setResultCustomContentId(cachedContent.getId());
+        contentRequest.setStatus(ContentRequestStatus.COMPLETED);
+        contentRequest.setProgress(100);
+        contentRequest.setCompletedAt(Instant.now());
+        contentRequestRepository.save(contentRequest);
+
+        return CreateContentRequestResponse.builder()
+                .requestId(contentRequest.getId())
+                .title(contentRequest.getTitle())
+                .status(ContentRequestStatus.COMPLETED.getCode())
+                .cached(true)
+                .createdAt(contentRequest.getCreatedAt())
                 .build();
     }
 
