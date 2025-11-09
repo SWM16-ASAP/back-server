@@ -8,6 +8,7 @@ import com.linglevel.api.content.custom.dto.CreateContentRequestResponse;
 import com.linglevel.api.content.custom.dto.GetContentRequestsRequest;
 import com.linglevel.api.content.custom.entity.ContentRequest;
 import com.linglevel.api.content.custom.entity.ContentRequestStatus;
+import com.linglevel.api.content.custom.entity.ContentType;
 import com.linglevel.api.content.custom.entity.CustomContent;
 import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
@@ -52,8 +53,11 @@ public class CustomContentRequestService {
 
         String extractedDomain = validateUrlForCrawling(request.getOriginUrl());
 
-        // URL 정규화 및 캐시 검사
-        Optional<CustomContent> cachedContent = checkCachedContent(request.getOriginUrl());
+        // URL 기반 캐시 검사 (LINK, YOUTUBE만 해당)
+        Optional<CustomContent> cachedContent = Optional.empty();
+        if (isUrlBasedContentType(request.getContentType())) {
+            cachedContent = checkCachedContent(request.getOriginUrl());
+        }
 
         // 티켓 소비 (캐시 히트/미스 무관하게 소비, 단 이미 소유한 경우는 제외)
         try {
@@ -135,6 +139,14 @@ public class CustomContentRequestService {
                 .cached(true)
                 .createdAt(contentRequest.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * URL 기반 캐싱이 가능한 ContentType인지 확인
+     * TEXT, PDF는 사용자가 직접 입력한 고유 콘텐츠이므로 캐싱 불가
+     */
+    private boolean isUrlBasedContentType(ContentType contentType) {
+        return contentType == ContentType.LINK || contentType == ContentType.YOUTUBE;
     }
 
     private String validateUrlForCrawling(String originUrl) {
