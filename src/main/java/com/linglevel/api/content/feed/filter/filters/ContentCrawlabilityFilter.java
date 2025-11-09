@@ -6,14 +6,13 @@ import com.linglevel.api.content.feed.entity.FeedSource;
 import com.linglevel.api.crawling.dsl.CrawlerDsl;
 import com.linglevel.api.crawling.entity.CrawlingDsl;
 import com.linglevel.api.crawling.repository.CrawlingDslRepository;
+import com.linglevel.api.crawling.service.CrawlingService;
 import com.rometools.rome.feed.synd.SyndEntry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Component;
-
-import java.net.URL;
 
 /**
  * 콘텐츠 크롤링 가능성 필터
@@ -26,6 +25,7 @@ public class ContentCrawlabilityFilter implements FeedFilter {
 
     private static final String FILTER_NAME = "ContentCrawlabilityFilter";
     private final CrawlingDslRepository crawlingDslRepository;
+    private final CrawlingService crawlingService;
 
     @Override
     public FeedFilterResult filter(SyndEntry entry, FeedSource feedSource) {
@@ -101,13 +101,7 @@ public class ContentCrawlabilityFilter implements FeedFilter {
     }
 
     private String extractDomain(String urlString) {
-        try {
-            URL url = new URL(urlString);
-            return url.getHost();
-        } catch (Exception e) {
-            log.warn("Failed to extract domain from URL: {}", urlString, e);
-            return null;
-        }
+        return crawlingService.extractDomain(urlString);
     }
 
     @Override

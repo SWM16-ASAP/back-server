@@ -4,6 +4,7 @@ import com.linglevel.api.content.feed.entity.FeedSource;
 import com.linglevel.api.content.feed.filter.FeedFilterResult;
 import com.linglevel.api.crawling.entity.CrawlingDsl;
 import com.linglevel.api.crawling.repository.CrawlingDslRepository;
+import com.linglevel.api.crawling.service.CrawlingService;
 import com.rometools.rome.feed.synd.SyndEntry;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -28,9 +29,12 @@ class ContentCrawlabilityFilterTest {
     @Mock
     private CrawlingDslRepository crawlingDslRepository;
 
+    @Mock
+    private CrawlingService crawlingService;
+
     @BeforeEach
     void setUp() {
-        filter = new ContentCrawlabilityFilter(crawlingDslRepository);
+        filter = new ContentCrawlabilityFilter(crawlingDslRepository, crawlingService);
     }
 
     @Test
@@ -45,6 +49,7 @@ class ContentCrawlabilityFilterTest {
             .contentDsl("D'''article p.pw-post-body-paragraph'''>#")
             .build();
 
+        when(crawlingService.extractDomain(mediumUrl)).thenReturn("medium.com");
         when(crawlingDslRepository.findByDomain("medium.com"))
             .thenReturn(Optional.of(mediumDsl));
 
@@ -116,6 +121,7 @@ class ContentCrawlabilityFilterTest {
     @DisplayName("CrawlingDsl이 없는 도메인은 통과")
     void testNoCrawlingDsl() {
         // given: DSL이 없는 도메인
+        when(crawlingService.extractDomain("https://unknown.com/article")).thenReturn("unknown.com");
         when(crawlingDslRepository.findByDomain("unknown.com"))
             .thenReturn(Optional.empty());
 
@@ -140,6 +146,7 @@ class ContentCrawlabilityFilterTest {
             .contentDsl(null)
             .build();
 
+        when(crawlingService.extractDomain("https://example.com/article")).thenReturn("example.com");
         when(crawlingDslRepository.findByDomain("example.com"))
             .thenReturn(Optional.of(dsl));
 
