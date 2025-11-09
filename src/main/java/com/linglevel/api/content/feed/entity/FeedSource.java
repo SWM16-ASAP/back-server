@@ -39,6 +39,13 @@ public class FeedSource {
     @Indexed
     private Boolean isActive;
 
+    /**
+     * 적용할 필터 목록
+     * 예: ["YouTubeShortsFilter", "LanguageFilter", "ContentCrawlabilityFilter"]
+     * null이면 모든 필터 적용 안함
+     */
+    private List<String> enabledFilters;
+
     private Instant createdAt;
 
     private Instant updatedAt;

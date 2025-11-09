@@ -4,6 +4,8 @@ import com.linglevel.api.content.feed.entity.Feed;
 import com.linglevel.api.content.feed.entity.FeedSource;
 import com.linglevel.api.content.feed.repository.FeedRepository;
 import com.linglevel.api.content.feed.repository.FeedSourceRepository;
+import com.linglevel.api.content.feed.filter.FeedFilterChain;
+import com.linglevel.api.content.feed.filter.FeedFilterResult;
 import com.linglevel.api.crawling.dsl.CrawlerDsl;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
@@ -28,6 +30,7 @@ public class FeedCrawlingService {
 
     private final FeedRepository feedRepository;
     private final FeedSourceRepository feedSourceRepository;
+    private final FeedFilterChain feedFilterChain;
 
     /**
      * RSS FeedSource를 파싱하여 Feed 생성/업데이트
@@ -48,6 +51,7 @@ public class FeedCrawlingService {
             log.info("Found {} entries in RSS feed: {}", entries.size(), feedSource.getName());
 
             int crawledCount = 0;
+            int filteredCount = 0;
 
             for (SyndEntry entry : entries) {
                 try {
@@ -58,11 +62,19 @@ public class FeedCrawlingService {
                         continue;
                     }
 
+                    // 필터링 체크
+                    FeedFilterResult filterResult = feedFilterChain.executeFilters(entry, feedSource);
+
                     Feed feed = convertEntryToFeed(entry, feedSource);
                     if (feed != null) {
+                        if (!filterResult.isPassed()) {
+                            feed.setDeleted(true);
+                            feed.setDeletedAt(Instant.now());
+                            filteredCount++;
+                        }
+
                         feedRepository.save(feed);
                         crawledCount++;
-                        log.info("Feed created: {}", feed.getTitle());
                     }
                 } catch (Exception e) {
                     log.error("Failed to convert RSS entry to Feed: {}", entry.getLink(), e);
@@ -72,8 +84,8 @@ public class FeedCrawlingService {
             feedSource.setUpdatedAt(Instant.now());
             feedSourceRepository.save(feedSource);
 
-            log.info("RSS crawling completed: {} feeds collected from {}",
-                crawledCount, feedSource.getName());
+            log.info("RSS crawling completed: {} feeds collected, {} filtered (soft-deleted) from {}",
+                crawledCount, filteredCount, feedSource.getName());
             return crawledCount;
 
         } catch (Exception e) {
