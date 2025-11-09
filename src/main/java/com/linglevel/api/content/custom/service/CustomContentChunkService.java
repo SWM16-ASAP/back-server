@@ -10,6 +10,7 @@ import com.linglevel.api.content.custom.exception.CustomContentErrorCode;
 import com.linglevel.api.content.custom.exception.CustomContentException;
 import com.linglevel.api.content.custom.repository.CustomContentChunkRepository;
 import com.linglevel.api.content.custom.repository.CustomContentRepository;
+import com.linglevel.api.content.custom.repository.UserCustomContentRepository;
 import com.linglevel.api.content.feed.repository.FeedRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class CustomContentChunkService {
 
     private final CustomContentChunkRepository customContentChunkRepository;
     private final CustomContentRepository customContentRepository;
+    private final UserCustomContentRepository userCustomContentRepository;
     private final FeedRepository feedRepository;
 
     public PageResponse<CustomContentChunkResponse> getCustomContentChunks(String userId, String customContentId, GetCustomContentChunksRequest request) {
@@ -73,8 +75,14 @@ public class CustomContentChunkService {
     }
 
     private CustomContent validateCustomContentAccess(String customContentId, String userId) {
-        return customContentRepository.findByIdAndUserIdAndIsDeletedFalse(customContentId, userId)
+
+        CustomContent customContent = customContentRepository.findById(customContentId)
                 .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
+
+        userCustomContentRepository.findByUserIdAndCustomContentId(userId, customContentId)
+            .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_ACCESS_DENIED));
+
+        return customContent;
     }
 
 
