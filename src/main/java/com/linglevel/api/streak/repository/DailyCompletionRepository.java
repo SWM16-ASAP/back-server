@@ -23,4 +23,10 @@ public interface DailyCompletionRepository extends MongoRepository<DailyCompleti
      */
     @Query("{ 'userId': ?0, 'completionDate': { $gte: ?1, $lte: ?2 } }")
     List<DailyCompletion> findByUserIdAndCompletionDateBetween(String userId, LocalDate startDate, LocalDate endDate);
+
+    /**
+     * 최근 N일간의 학습 기록 조회 (학습 시간대 분석용)
+     */
+    @Query("{ 'userId': ?0, 'completionDate': { $gte: ?1 } }")
+    List<DailyCompletion> findByUserIdAndCompletionDateAfter(String userId, LocalDate startDate);
 }
