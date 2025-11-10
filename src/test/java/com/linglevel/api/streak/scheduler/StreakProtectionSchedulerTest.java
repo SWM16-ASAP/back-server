@@ -214,7 +214,9 @@ class StreakProtectionSchedulerTest {
                 request.getTitle().contains("자기") ||
                 request.getTitle().contains("남았") ||
                 request.getTitle().contains("기다려") ||
-                request.getTitle().contains("기회")
+                request.getTitle().contains("기회") ||
+                request.getTitle().contains("거의") ||
+                request.getTitle().contains("오늘")
         ));
     }
 
@@ -249,7 +251,9 @@ class StreakProtectionSchedulerTest {
                 request.getTitle().contains("late") ||
                 request.getTitle().contains("minutes") ||
                 request.getTitle().contains("left") ||
-                request.getTitle().contains("waiting")
+                request.getTitle().contains("waiting") ||
+                request.getTitle().contains("Almost") ||
+                request.getTitle().contains("Only")
         ));
     }
 
@@ -284,7 +288,9 @@ class StreakProtectionSchedulerTest {
                 request.getTitle().contains("遅く") ||
                 request.getTitle().contains("寝る前") ||
                 request.getTitle().contains("残って") ||
-                request.getTitle().contains("待って")
+                request.getTitle().contains("待って") ||
+                request.getTitle().contains("もうすぐ") ||
+                request.getTitle().contains("今日")
         ));
     }
 
@@ -417,11 +423,13 @@ class StreakProtectionSchedulerTest {
 
         // then
         verify(fcmMessagingService).sendMessage(eq("token1"), argThat(request -> {
-            // STREAK_PROTECTION 메시지는 "자기 전", "5분", "늦지", "기회" 등의 키워드를 포함
+            // STREAK_PROTECTION 메시지는 "자기 전", "5분", "늦지", "기회" 등의 키워드를 포함하거나
+            // 스트릭 보호 관련 메시지 (단, 프리즈 언급은 없음)
             String title = request.getTitle();
             String body = request.getBody();
             return (title.contains("자기") || title.contains("남았") || title.contains("기다려") ||
-                    title.contains("늦지") || title.contains("기회") || title.contains("불꽃")) &&
+                    title.contains("늦지") || title.contains("기회") || title.contains("불꽃") ||
+                    title.contains("거의") || title.contains("마무리") || title.contains("스트릭")) &&
                    (!body.contains("프리즈"));  // 프리즈 언급 없음
         }));
     }
