@@ -94,7 +94,8 @@ public class FeedService {
     public FeedResponse getFeed(String feedId, String userId) {
         Feed feed = feedRepository.findByIdAndDeletedFalse(feedId)
                 .orElseThrow(() -> new FeedException(FeedErrorCode.FEED_NOT_FOUND));
-
+        feed.setViewCount((feed.getViewCount() != null ? feed.getViewCount() : 0) + 1);
+        feedRepository.save(feed);
         return mapToResponse(feed);
     }
 
