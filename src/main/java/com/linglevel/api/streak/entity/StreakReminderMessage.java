@@ -42,6 +42,32 @@ public enum StreakReminderMessage {
     ),
 
     /**
+     * 스트릭 보호 (밤 9시 고정, currentStreak > 0 && 오늘 학습 미완료)
+     */
+    STREAK_PROTECTION(
+            Map.of(
+                    LanguageCode.KO, List.of(
+                            new Message("불꽃🔥을 지켜주세요!", "오늘 학습을 완료하고 %d일 스트릭을 유지하세요!"),
+                            new Message("스트릭이 위험해요!", "자기 전에 학습을 완료하고 %d일 스트릭을 지켜주세요."),
+                            new Message("마지막 기회예요", "오늘이 가기 전에 %d일 스트릭을 이어가세요!"),
+                            new Message("아직 늦지 않았어요!", "지금 학습하고 소중한 %d일 스트릭을 보호하세요.")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("Keep the flame🔥 alive!", "Complete today's lesson and maintain your %d-day streak!"),
+                            new Message("Your streak is at risk!", "Complete your lesson before bed and protect your %d-day streak."),
+                            new Message("Last chance!", "Continue your %d-day streak before the day ends!"),
+                            new Message("Not too late yet!", "Study now and protect your precious %d-day streak.")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("炎🔥を守ろう！", "今日のレッスンを完了して%d日のストリークを維持しましょう！"),
+                            new Message("ストリークが危険です！", "寝る前にレッスンを完了して%d日のストリークを守りましょう。"),
+                            new Message("最後のチャンスです", "今日が終わる前に%d日のストリークを続けましょう！"),
+                            new Message("まだ遅くありません！", "今学習して大切な%d日のストリークを守りましょう。")
+                    )
+            )
+    ),
+
+    /**
      * 시나리오 1: 일반 스트릭 유지 독려 (5가지 변형)
      */
     REGULAR_REMINDER(
