@@ -8,9 +8,11 @@ import com.linglevel.api.fcm.service.FcmMessagingService;
 import com.linglevel.api.i18n.CountryCode;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.streak.entity.DailyCompletion;
+import com.linglevel.api.streak.entity.FreezeTransaction;
 import com.linglevel.api.streak.entity.StreakReminderMessage;
 import com.linglevel.api.streak.entity.UserStudyReport;
 import com.linglevel.api.streak.repository.DailyCompletionRepository;
+import com.linglevel.api.streak.repository.FreezeTransactionRepository;
 import com.linglevel.api.streak.repository.UserStudyReportRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,7 @@ public class StreakProtectionScheduler {
 
     private final UserStudyReportRepository userStudyReportRepository;
     private final DailyCompletionRepository dailyCompletionRepository;
+    private final FreezeTransactionRepository freezeTransactionRepository;
     private final FcmTokenRepository fcmTokenRepository;
     private final FcmMessagingService fcmMessagingService;
     private final com.linglevel.api.fcm.service.FcmTokenService fcmTokenService;
@@ -97,10 +100,15 @@ public class StreakProtectionScheduler {
                 // 2-3. 언어 결정
                 LanguageCode languageCode = determineLanguageFromTokens(tokens);
 
-                // 2-4. 스트릭 보호 메시지 생성
-                StreakReminderMessage.Message message = StreakReminderMessage.STREAK_PROTECTION
-                        .getRandomMessage(languageCode);
+                // 2-4. 어제 프리즈 사용 여부 확인
+                boolean usedFreezeYesterday = checkIfFreezeUsedYesterday(userId, today);
 
+                // 2-5. 메시지 타입 결정 (프리즈 사용 여부에 따라)
+                StreakReminderMessage messageType = usedFreezeYesterday
+                        ? StreakReminderMessage.STREAK_SAVED_BY_FREEZE
+                        : StreakReminderMessage.STREAK_PROTECTION;
+
+                StreakReminderMessage.Message message = messageType.getRandomMessage(languageCode);
                 String body = String.format(message.getBodyFormat(), report.getCurrentStreak());
 
                 FcmMessageRequest messageRequest = FcmMessageRequest.builder()
@@ -116,8 +124,8 @@ public class StreakProtectionScheduler {
                     if (fcmTokens.size() == 1) {
                         fcmMessagingService.sendMessage(fcmTokens.get(0), messageRequest);
                         notificationsSent++;
-                        log.debug("[Streak Protection] Sent to user: {} (streak: {}, lang: {})",
-                                userId, report.getCurrentStreak(), languageCode);
+                        log.debug("[Streak Protection] Sent to user: {} (streak: {}, lang: {}, type: {})",
+                                userId, report.getCurrentStreak(), languageCode, messageType);
                     } else {
                         BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
 
@@ -153,6 +161,21 @@ public class StreakProtectionScheduler {
             log.error("[Streak Protection] Critical error. Candidates: {}, Without completion: {}, Sent: {}, Failed: {}",
                     candidateUsers, usersWithoutCompletion, notificationsSent, notificationsFailed, e);
         }
+    }
+
+    /**
+     * 어제 프리즈가 사용되었는지 확인합니다.
+     * 어제 날짜(00:00 ~ 23:59)에 amount가 -1인 트랜잭션이 있으면 프리즈 사용됨
+     */
+    private boolean checkIfFreezeUsedYesterday(String userId, LocalDate today) {
+        LocalDate yesterday = today.minusDays(1);
+        Instant yesterdayStart = yesterday.atStartOfDay(KST).toInstant();
+        Instant yesterdayEnd = today.atStartOfDay(KST).toInstant();
+
+        List<FreezeTransaction> transactions = freezeTransactionRepository
+                .findByUserIdAndAmountAndCreatedAtBetween(userId, -1, yesterdayStart, yesterdayEnd);
+
+        return !transactions.isEmpty();
     }
 
     /**

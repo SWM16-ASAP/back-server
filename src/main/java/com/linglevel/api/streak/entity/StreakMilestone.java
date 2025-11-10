@@ -33,9 +33,9 @@ public enum StreakMilestone {
                     LanguageCode.JA, "初めの一歩！"
             ),
             Map.of(
-                    LanguageCode.KO, "축하합니다! 첫 스트릭을 달성했습니다.",
-                    LanguageCode.EN, "Congratulations! You've achieved your first streak.",
-                    LanguageCode.JA, "おめでとうございます！最初のストリークを達成しました。"
+                    LanguageCode.KO, "첫 스트릭을 달성했어요. 작은 시작이 큰 변화를 만들어요.",
+                    LanguageCode.EN, "First streak achieved. Small starts lead to big changes.",
+                    LanguageCode.JA, "最初のストリークを達成しました。小さな始まりが大きな変化を生みます。"
             )
     ),
     DAY_3(3,
@@ -45,9 +45,9 @@ public enum StreakMilestone {
                     LanguageCode.JA, "3日連続！"
             ),
             Map.of(
-                    LanguageCode.KO, "멋진 시작입니다! 꾸준함의 힘을 느끼고 있나요?",
-                    LanguageCode.EN, "Great start! Can you feel the power of consistency?",
-                    LanguageCode.JA, "素晴らしいスタートです！継続の力を感じていますか？"
+                    LanguageCode.KO, "3일째 함께하고 있어요. 습관이 만들어지기 시작했어요!",
+                    LanguageCode.EN, "Three days together. A habit is starting to form!",
+                    LanguageCode.JA, "3日間一緒にやっています。習慣が形成され始めました！"
             )
     ),
     DAY_7(7,
@@ -57,9 +57,9 @@ public enum StreakMilestone {
                     LanguageCode.JA, "一週間達成！"
             ),
             Map.of(
-                    LanguageCode.KO, "대단합니다! 첫 주를 완료했습니다. 습관이 만들어지고 있어요!",
-                    LanguageCode.EN, "Amazing! You've completed your first week. A habit is forming!",
-                    LanguageCode.JA, "素晴らしい！最初の一週間を完了しました。習慣が形成されつつあります！"
+                    LanguageCode.KO, "7일 동안 매일 학습했어요. 이제 루틴이 되어가고 있네요!",
+                    LanguageCode.EN, "Seven days of daily learning. It's becoming a routine now!",
+                    LanguageCode.JA, "7日間毎日学習しました。もうルーティンになりつつありますね！"
             )
     ),
     DAY_14(14,
@@ -69,9 +69,9 @@ public enum StreakMilestone {
                     LanguageCode.JA, "2週間達成！"
             ),
             Map.of(
-                    LanguageCode.KO, "놀라워요! 2주 연속 스트릭! 이제 진짜 습관이 되어가고 있습니다.",
-                    LanguageCode.EN, "Incredible! Two weeks in a row! This is becoming a real habit.",
-                    LanguageCode.JA, "信じられない！2週間連続！これは本当の習慣になりつつあります。"
+                    LanguageCode.KO, "2주째 꾸준히 해오고 있어요. 이제 습관으로 자리잡았네요.",
+                    LanguageCode.EN, "Two weeks of consistency. It's now part of your routine.",
+                    LanguageCode.JA, "2週間着実に続けています。もう習慣として定着しましたね。"
             )
     ),
     DAY_30(30,
@@ -81,9 +81,9 @@ public enum StreakMilestone {
                     LanguageCode.JA, "1ヶ月達成！"
             ),
             Map.of(
-                    LanguageCode.KO, "축하합니다! 한 달 연속 스트릭 달성! 당신의 헌신이 대단합니다!",
-                    LanguageCode.EN, "Congratulations! One month streak achieved! Your dedication is outstanding!",
-                    LanguageCode.JA, "おめでとうございます！1ヶ月連続ストリーク達成！あなたの献身は素晴らしい！"
+                    LanguageCode.KO, "30일 동안 하루도 빠짐없이 학습했어요. 대단한 꾸준함이에요!",
+                    LanguageCode.EN, "30 days without missing a single day. That's remarkable consistency!",
+                    LanguageCode.JA, "30日間一日も欠かさず学習しました。素晴らしい継続力です！"
             )
     ),
     DAY_50(50,
@@ -93,9 +93,9 @@ public enum StreakMilestone {
                     LanguageCode.JA, "50日突破！"
             ),
             Map.of(
-                    LanguageCode.KO, "놀라운 성취입니다! 50일 연속 스트릭! 진정한 학습자입니다!",
-                    LanguageCode.EN, "Remarkable achievement! 50 days in a row! You're a true learner!",
-                    LanguageCode.JA, "驚くべき成果！50日連続！真の学習者です！"
+                    LanguageCode.KO, "벌써 50일째 함께하고 있어요. 학습이 일상의 한 부분이 됐네요.",
+                    LanguageCode.EN, "Already 50 days together. Learning has become part of your daily life.",
+                    LanguageCode.JA, "もう50日間一緒にやっています。学習が日常の一部になりましたね。"
             )
     ),
     DAY_100(100,
@@ -105,9 +105,9 @@ public enum StreakMilestone {
                     LanguageCode.JA, "100日記念！"
             ),
             Map.of(
-                    LanguageCode.KO, "백일 기념! 대단한 성취입니다! 당신은 정말 특별합니다!",
-                    LanguageCode.EN, "100 days milestone! Extraordinary achievement! You are truly special!",
-                    LanguageCode.JA, "100日マイルストーン！並外れた成果！あなたは本当に特別です！"
+                    LanguageCode.KO, "100일 동안 매일 학습했어요. 누구나 할 수 있는 일은 아니에요.",
+                    LanguageCode.EN, "100 days of daily learning. Not everyone can do this.",
+                    LanguageCode.JA, "100日間毎日学習しました。誰にでもできることではありません。"
             )
     ),
     DAY_365(365,
@@ -117,9 +117,9 @@ public enum StreakMilestone {
                     LanguageCode.JA, "1年達成！"
             ),
             Map.of(
-                    LanguageCode.KO, "전설이 탄생했습니다! 365일 연속 스트릭! 당신은 영감 그 자체입니다!",
-                    LanguageCode.EN, "A legend is born! 365 days streak! You are an inspiration!",
-                    LanguageCode.JA, "伝説が誕生しました！365日連続ストリーク！あなたはインスピレーションそのものです！"
+                    LanguageCode.KO, "365일 동안 하루도 빠짐없이 함께했어요. 정말 대단한 여정이었어요.",
+                    LanguageCode.EN, "365 days together, never missing a day. What an incredible journey.",
+                    LanguageCode.JA, "365日間一日も欠かさず一緒にやってきました。本当に素晴らしい旅でした。"
             )
     );
 
