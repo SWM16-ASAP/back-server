@@ -16,6 +16,32 @@ import java.util.Random;
 @RequiredArgsConstructor
 public enum StreakReminderMessage {
     /**
+     * 시나리오 0: 학습 권장 (활성 유저 대상, 평소 학습 시간에 발송)
+     */
+    LEARNING_ENCOURAGEMENT(
+            Map.of(
+                    LanguageCode.KO, List.of(
+                            new Message("학습할 시간이에요!", "오늘도 작은 한 걸음을 시작해 볼까요?"),
+                            new Message("평소 학습 시간이에요", "매일의 꾸준함이 실력을 만들어요. 지금 시작해 보세요!"),
+                            new Message("학습 시간입니다", "익숙한 이 시간, 오늘도 함께해요!"),
+                            new Message("준비되셨나요?", "평소처럼 학습할 시간이에요. 시작해 볼까요?")
+                    ),
+                    LanguageCode.EN, List.of(
+                            new Message("Time to learn!", "How about taking a small step today?"),
+                            new Message("Your usual study time", "Daily consistency builds skills. Start now!"),
+                            new Message("Study time", "This familiar time, let's do it together today!"),
+                            new Message("Ready?", "It's your usual study time. Shall we start?")
+                    ),
+                    LanguageCode.JA, List.of(
+                            new Message("学習の時間です！", "今日も小さな一歩を始めてみませんか？"),
+                            new Message("いつもの学習時間です", "毎日の継続が実力を作ります。今すぐ始めましょう！"),
+                            new Message("学習時間です", "慣れ親しんだこの時間、今日も一緒に！"),
+                            new Message("準備はいいですか？", "いつもの学習時間です。始めてみませんか？")
+                    )
+            )
+    ),
+
+    /**
      * 시나리오 1: 일반 스트릭 유지 독려 (5가지 변형)
      */
     REGULAR_REMINDER(

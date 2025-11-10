@@ -37,6 +37,10 @@ public class UserStudyReport {
 
     private Set<String> completedContentIds = new HashSet<>();
 
+    private Integer preferredStudyHour;
+
+    private Instant preferredStudyHourUpdatedAt;
+
     private Instant createdAt;
     private Instant updatedAt;
 }
