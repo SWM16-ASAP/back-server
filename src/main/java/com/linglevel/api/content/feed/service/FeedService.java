@@ -80,12 +80,12 @@ public class FeedService {
 
             case LATEST:
             default:
-                // 최신순: createdAt 내림차순
+                // 최신순: publishedAt 내림차순
                 return feeds.stream()
                         .sorted((f1, f2) -> {
-                            if (f1.getCreatedAt() == null) return 1;
-                            if (f2.getCreatedAt() == null) return -1;
-                            return f2.getCreatedAt().compareTo(f1.getCreatedAt());
+                            if (f1.getPublishedAt() == null) return 1;
+                            if (f2.getPublishedAt() == null) return -1;
+                            return f2.getPublishedAt().compareTo(f1.getPublishedAt());
                         })
                         .collect(java.util.stream.Collectors.toList());
         }

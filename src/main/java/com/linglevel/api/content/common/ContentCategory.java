@@ -8,6 +8,7 @@ public enum ContentCategory {
     SCIENCE("Science"),
     TECH("Technology"),
     BUSINESS("Business"),
+    EDU("Education"),
     CULTURE("Culture");
 
     private final String displayName;
