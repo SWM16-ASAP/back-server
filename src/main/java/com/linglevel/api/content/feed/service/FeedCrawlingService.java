@@ -113,6 +113,12 @@ public class FeedCrawlingService {
             // 발행일 추출
             Instant publishedAt = extractPublishedDate(entry);
 
+            // 필수 필드 검증: thumbnailUrl이 null이면 null 반환 (소프트 딜리트 처리됨)
+            if (thumbnailUrl == null) {
+                log.warn("RSS entry missing thumbnailUrl: {}", url);
+                return null;
+            }
+
             // 작성자 추출
             String author = entry.getAuthor();
 
