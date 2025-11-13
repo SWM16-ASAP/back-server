@@ -122,10 +122,14 @@ public class CustomContentWebhookService {
                 log.error("Failed to refund ticket for request: {}. Error: {}", request.getRequestId(), ticketE.getMessage());
             }
 
+            String titleForNotification = StringUtils.hasText(contentRequest.getTitle())
+                    ? contentRequest.getTitle()
+                    : "Untitled Content";
+
             notificationService.sendContentFailedNotification(
                     contentRequest.getUserId(),
                     request.getRequestId(),
-                    contentRequest.getTitle(),
+                    titleForNotification,
                     request.getErrorMessage()
             );
 
