@@ -524,6 +524,18 @@ class StreakServiceRecoveryTest {
                     return sorted;
                 });
 
+        // recalculateAllStreakCounts용 mock - startDate 이후 조회
+        lenient().when(dailyCompletionRepository.findByUserIdAndCompletionDateGreaterThanEqualOrderByCompletionDateAsc(
+                eq(TEST_USER_ID), any(LocalDate.class)))
+                .thenAnswer(invocation -> {
+                    LocalDate startDate = invocation.getArgument(1);
+                    List<DailyCompletion> sorted = new ArrayList<>(completionMap.values());
+                    sorted.sort((a, b) -> a.getCompletionDate().compareTo(b.getCompletionDate()));
+                    return sorted.stream()
+                            .filter(dc -> !dc.getCompletionDate().isBefore(startDate))
+                            .toList();
+                });
+
         // saveAll mock
         lenient().when(dailyCompletionRepository.saveAll(anyList()))
                 .thenAnswer(invocation -> {

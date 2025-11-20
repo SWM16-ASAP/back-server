@@ -932,20 +932,17 @@ public class StreakService {
             endDate = today;
         }
 
-        // 1. 시작 전날 확인 (streakCount 기준 계산)
-        LocalDate dayBeforeStart = startDate.minusDays(1);
-        int baseStreakCount = dailyCompletionRepository
-                .findByUserIdAndCompletionDate(userId, dayBeforeStart)
-                .map(DailyCompletion::getStreakCount)
-                .orElse(0);
+        // 복구 전 프리즈 개수 저장
+        UserStudyReport beforeReport = userStudyReportRepository.findByUserId(userId).orElse(null);
+        int freezesBeforeRecovery = beforeReport != null && beforeReport.getAvailableFreezes() != null
+            ? beforeReport.getAvailableFreezes() : 0;
 
-        // 2. 복구 처리 및 프리즈 보상 수집
+        // 1. 복구 처리 및 프리즈 보상 수집
         List<DailyCompletion> completionsToSave = new ArrayList<>();
         List<FreezeTransaction> freezeTransactions = new ArrayList<>();
-        int currentStreakCount = baseStreakCount;
         int earnedFreezes = 0;
 
-        // 복구 범위 처리
+        // 복구 범위 처리 (streakCount는 나중에 재계산)
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             Optional<DailyCompletion> existingOpt = dailyCompletionRepository
                     .findByUserIdAndCompletionDate(userId, date);
@@ -953,16 +950,7 @@ public class StreakService {
             if (existingOpt.isPresent()) {
                 DailyCompletion existing = existingOpt.get();
 
-                if (existing.getStreakStatus() == StreakStatus.COMPLETED) {
-                    // 이미 완료됨 - 그대로 유지
-                    currentStreakCount++;
-                } else if (existing.getStreakStatus() == StreakStatus.FREEZE_USED) {
-                    // FREEZE_USED → COMPLETED로 변경 + 프리즈 보상
-                    existing.setStreakStatus(StreakStatus.COMPLETED);
-                    currentStreakCount++;
-                    existing.setStreakCount(currentStreakCount);
-                    completionsToSave.add(existing);
-
+                if (existing.getStreakStatus() == StreakStatus.FREEZE_USED) {
                     // 프리즈 보상
                     FreezeTransaction rewardTx = FreezeTransaction.builder()
                             .userId(userId)
@@ -975,21 +963,20 @@ public class StreakService {
 
                     log.info("Recovered FREEZE_USED to COMPLETED for user {} on {}. Rewarded 1 freeze.",
                             userId, date);
-                } else {
-                    // MISSED 또는 기타 → COMPLETED로 변경
-                    existing.setStreakStatus(StreakStatus.COMPLETED);
-                    currentStreakCount++;
-                    existing.setStreakCount(currentStreakCount);
-                    completionsToSave.add(existing);
                 }
+
+                // streakCount는 나중에 재계산할 것이므로 null로 설정
+                existing.setStreakStatus(StreakStatus.COMPLETED);
+                existing.setStreakCount(null);
+                completionsToSave.add(existing);
+
             } else {
                 // 레코드 없음 (MISSED) → 새로 생성
-                currentStreakCount++;
                 DailyCompletion newCompletion = DailyCompletion.builder()
                         .userId(userId)
                         .completionDate(date)
                         .streakStatus(StreakStatus.COMPLETED)
-                        .streakCount(currentStreakCount)
+                        .streakCount(null)  // 나중에 재계산
                         .firstCompletionCount(0)
                         .totalCompletionCount(0)
                         .completedContents(new ArrayList<>())
@@ -997,17 +984,15 @@ public class StreakService {
                         .build();
                 completionsToSave.add(newCompletion);
 
-                log.info("Created new COMPLETED record for user {} on {}. StreakCount: {}",
-                        userId, date, currentStreakCount);
+                log.info("Created new COMPLETED record for user {} on {}.", userId, date);
             }
         }
 
-        // 3. 복구 범위 이후 날짜들 처리 (프리즈 자동 사용)
-        LocalDate yesterday = today.minusDays(1);
+        // 2. 복구 범위 이후 날짜들 처리 (프리즈 자동 사용)
         LocalDate currentDate = endDate.plusDays(1);
         int availableFreezes = earnedFreezes;
 
-        while (!currentDate.isAfter(yesterday)) {
+        while (currentDate.isBefore(today)) {  // 오늘은 제외
             Optional<DailyCompletion> existingOpt = dailyCompletionRepository
                     .findByUserIdAndCompletionDate(userId, currentDate);
 
@@ -1015,21 +1000,20 @@ public class StreakService {
                 DailyCompletion existing = existingOpt.get();
 
                 if (existing.getStreakStatus() == StreakStatus.COMPLETED) {
-                    // 완료됨 - 스트릭 계속 증가
-                    currentStreakCount++;
-                    existing.setStreakCount(currentStreakCount);
+                    // 이미 완료됨 - 그대로 유지 (streakCount는 재계산)
+                    existing.setStreakCount(null);
                     completionsToSave.add(existing);
                     currentDate = currentDate.plusDays(1);
                 } else if (existing.getStreakStatus() == StreakStatus.FREEZE_USED) {
-                    // 이미 프리즈 사용됨 - 스트릭 유지
-                    existing.setStreakCount(currentStreakCount);
+                    // 이미 프리즈 사용됨 - 유지
+                    existing.setStreakCount(null);
                     completionsToSave.add(existing);
                     currentDate = currentDate.plusDays(1);
                 } else {
                     // MISSED - 프리즈로 커버 시도
                     if (availableFreezes > 0) {
                         existing.setStreakStatus(StreakStatus.FREEZE_USED);
-                        existing.setStreakCount(currentStreakCount);
+                        existing.setStreakCount(null);
                         completionsToSave.add(existing);
 
                         // 프리즈 사용
@@ -1060,7 +1044,7 @@ public class StreakService {
                             .userId(userId)
                             .completionDate(currentDate)
                             .streakStatus(StreakStatus.FREEZE_USED)
-                            .streakCount(currentStreakCount)
+                            .streakCount(null)  // 재계산 예정
                             .firstCompletionCount(0)
                             .totalCompletionCount(0)
                             .completedContents(new ArrayList<>())
@@ -1073,8 +1057,6 @@ public class StreakService {
                             .userId(userId)
                             .amount(-1)
                             .description("Auto-consumed for recovery on " + currentDate)
-
-
                             .createdAt(Instant.now())
                             .build();
                     freezeTransactions.add(usageTx);
@@ -1093,25 +1075,7 @@ public class StreakService {
             }
         }
 
-        // 4. 오늘(today) 처리 - 프리즈 사용은 안 하지만, 학습했다면 streakCount 업데이트
-        Optional<DailyCompletion> todayCompletionOpt = dailyCompletionRepository
-                .findByUserIdAndCompletionDate(userId, today);
-
-        if (todayCompletionOpt.isPresent()) {
-            DailyCompletion todayCompletion = todayCompletionOpt.get();
-
-            if (todayCompletion.getStreakStatus() == StreakStatus.COMPLETED) {
-                // 오늘 학습함 - streakCount 업데이트
-                currentStreakCount++;
-                todayCompletion.setStreakCount(currentStreakCount);
-                completionsToSave.add(todayCompletion);
-
-                log.info("Updated today's completion for user {} with streakCount: {}", userId, currentStreakCount);
-            }
-            // MISSED나 다른 상태면 배치에서 처리하므로 여기서는 스킵
-        }
-
-        // 5. 데이터 저장
+        // 3. 데이터 저장
         if (!completionsToSave.isEmpty()) {
             dailyCompletionRepository.saveAll(completionsToSave);
             log.info("Saved {} DailyCompletion records for user {}", completionsToSave.size(), userId);
@@ -1122,20 +1086,69 @@ public class StreakService {
             log.info("Saved {} FreezeTransaction records for user {}", freezeTransactions.size(), userId);
         }
 
+        // 4. 전체 streakCount 재계산 (startDate 기준)
+        recalculateAllStreakCounts(userId, startDate);
+
         // 5. UserStudyReport 재계산 및 프리즈 반영
         UserStudyReport finalReport = recalculateUserStudyReport(userId);
 
-        // 프리즈 개수 업데이트
-        // availableFreezes는 복구 과정에서 남은 프리즈 개수
-        // 최종 프리즈 = 기존 보유 + 남은 프리즈 (최대 MAX_FREEZE_COUNT)
-        int currentFreezes = finalReport.getAvailableFreezes() != null ? finalReport.getAvailableFreezes() : 0;
-        int usedFreezes = earnedFreezes - availableFreezes;
-        finalReport.setAvailableFreezes(Math.max(0, Math.min(MAX_FREEZE_COUNT, currentFreezes + availableFreezes)));
+        // 최종 프리즈 = 복구 전 + 획득 - 사용 (최대 MAX_FREEZE_COUNT)
+        int finalFreezes = Math.min(MAX_FREEZE_COUNT, freezesBeforeRecovery + availableFreezes);
+        finalReport.setAvailableFreezes(finalFreezes);
         userStudyReportRepository.save(finalReport);
 
+        int usedFreezes = earnedFreezes - availableFreezes;
         log.info("Streak recovery completed for user {} from {} to {}. Earned {} freezes, used {} freezes. Final freezes: {}",
-                userId, startDate, endDate, earnedFreezes, usedFreezes, finalReport.getAvailableFreezes());
+                userId, startDate, endDate, earnedFreezes, usedFreezes, finalFreezes);
+    }
+
+    @Transactional
+    public void recalculateAllStreakCounts(String userId, LocalDate recoveryStartDate) {
+        // 복구 시작일 전날의 streakCount를 기준값으로 가져오기
+        LocalDate dayBeforeStart = recoveryStartDate.minusDays(1);
+        int baseStreakCount = dailyCompletionRepository
+                .findByUserIdAndCompletionDate(userId, dayBeforeStart)
+                .map(DailyCompletion::getStreakCount)
+                .orElse(0);
+
+        log.info("Starting recalculation from {} with base streakCount: {}", recoveryStartDate, baseStreakCount);
+
+        // 복구 시작일부터 모든 DailyCompletion 가져오기
+        List<DailyCompletion> completionsToRecalculate = dailyCompletionRepository
+                .findByUserIdAndCompletionDateGreaterThanEqualOrderByCompletionDateAsc(userId, recoveryStartDate);
+
+        if (completionsToRecalculate.isEmpty()) {
+            log.info("No completions found for user {} from {}. Skipping streakCount recalculation.",
+                    userId, recoveryStartDate);
+            return;
+        }
+
+        int streakCount = baseStreakCount;
+        LocalDate previousDate = dayBeforeStart;
+        List<DailyCompletion> toUpdate = new ArrayList<>();
+
+        for (DailyCompletion completion : completionsToRecalculate) {
+            LocalDate currentDate = completion.getCompletionDate();
+            StreakStatus status = completion.getStreakStatus();
+
+            // 날짜가 연속적이지 않으면 스트릭 리셋
+            if (ChronoUnit.DAYS.between(previousDate, currentDate) > 1 || status == StreakStatus.MISSED) {
+                break;
+            }
+
+            if (status == StreakStatus.COMPLETED) {
+                streakCount++;
+            }
+
+            completion.setStreakCount(streakCount);
+            toUpdate.add(completion);
+            previousDate = currentDate;
+        }
+
+        if (!toUpdate.isEmpty()) {
+            dailyCompletionRepository.saveAll(toUpdate);
+            log.info("Recalculated {} streakCounts for user {} starting from {} (base: {}). Final streakCount: {}",
+                    toUpdate.size(), userId, recoveryStartDate, baseStreakCount, streakCount);
+        }
     }
 }
-
-    
