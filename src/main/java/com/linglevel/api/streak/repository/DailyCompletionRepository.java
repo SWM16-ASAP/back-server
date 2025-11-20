@@ -34,4 +34,10 @@ public interface DailyCompletionRepository extends MongoRepository<DailyCompleti
      * 특정 사용자의 모든 DailyCompletion을 날짜 오름차순으로 조회
      */
     List<DailyCompletion> findByUserIdOrderByCompletionDateAsc(String userId);
+
+    /**
+     * 특정 날짜 이상의 DailyCompletion을 날짜 오름차순으로 조회 (스트릭 복구용)
+     */
+    @Query("{ 'userId': ?0, 'completionDate': { $gte: ?1 } }")
+    List<DailyCompletion> findByUserIdAndCompletionDateGreaterThanEqualOrderByCompletionDateAsc(String userId, LocalDate startDate);
 }
