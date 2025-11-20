@@ -822,6 +822,103 @@ public class StreakService {
         RewardInfo rewards;
         RewardInfo expectedRewards;
     }
+
+    @Transactional
+    public UserStudyReport recalculateUserStudyReport(String userId) {
+        LocalDate today = getKstToday();
+
+        // UserStudyReport 가져오기 (없으면 새로 생성)
+        UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+                .orElseGet(() -> createNewUserStudyReport(userId));
+
+        // 모든 DailyCompletion 가져오기 (날짜 순으로 정렬)
+        List<DailyCompletion> allCompletions = dailyCompletionRepository
+                .findByUserIdOrderByCompletionDateAsc(userId);
+
+        if (allCompletions.isEmpty()) {
+            // 완료 기록이 없으면 모든 값 초기화
+            report.setCurrentStreak(0);
+            report.setLongestStreak(0);
+            report.setLastCompletionDate(null);
+            report.setStreakStartDate(null);
+            report.setUpdatedAt(Instant.now());
+            return userStudyReportRepository.save(report);
+        }
+
+        // 스트릭 재계산
+        int currentStreak = 0;
+        int longestStreak = 0;
+        LocalDate streakStartDate = null;
+        LocalDate lastCompletionDate = null;
+        LocalDate previousDate = null;
+
+        for (DailyCompletion completion : allCompletions) {
+            LocalDate date = completion.getCompletionDate();
+            StreakStatus status = completion.getStreakStatus();
+
+            // 미래 날짜나 상태가 없는 경우 스킵
+            if (date.isAfter(today) || status == null) {
+                continue;
+            }
+
+            if (status == StreakStatus.COMPLETED) {
+                if (previousDate == null) {
+                    // 첫 완료일
+                    currentStreak = 1;
+                    streakStartDate = date;
+                } else {
+                    long daysBetween = ChronoUnit.DAYS.between(previousDate, date);
+
+                    if (daysBetween == 1) {
+                        // 연속 완료
+                        currentStreak++;
+                    } else {
+                        // 연속성 끊김 - 새로운 스트릭 시작
+                        currentStreak = 1;
+                        streakStartDate = date;
+                    }
+                }
+
+                lastCompletionDate = date;
+                previousDate = date;
+
+                // 최장 스트릭 갱신
+                if (currentStreak > longestStreak) {
+                    longestStreak = currentStreak;
+                }
+            } else if (status == StreakStatus.FREEZE_USED) {
+                // 프리즈 사용 - 스트릭 유지, 카운트 증가 없음
+                previousDate = date;
+            } else if (status == StreakStatus.MISSED) {
+                // 놓침 - 스트릭 끊김
+                currentStreak = 0;
+                streakStartDate = null;
+                previousDate = null;
+            }
+        }
+
+        // 오늘 날짜와의 연속성 확인
+        if (lastCompletionDate != null && !lastCompletionDate.equals(today)) {
+            long daysSinceLastCompletion = ChronoUnit.DAYS.between(lastCompletionDate, today);
+            if (daysSinceLastCompletion > 1) {
+                // 오늘까지의 연속성이 끊김 - 스트릭 리셋
+                currentStreak = 0;
+                streakStartDate = null;
+            }
+        }
+
+        // UserStudyReport 업데이트
+        report.setCurrentStreak(currentStreak);
+        report.setLongestStreak(longestStreak);
+        report.setLastCompletionDate(lastCompletionDate);
+        report.setStreakStartDate(streakStartDate);
+        report.setUpdatedAt(Instant.now());
+
+        log.info("Recalculated UserStudyReport for user {}. Current streak: {}, Longest streak: {}",
+                userId, currentStreak, longestStreak);
+
+        return userStudyReportRepository.save(report);
+    }
 }
 
     
