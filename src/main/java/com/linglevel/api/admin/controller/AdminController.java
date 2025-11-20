@@ -8,6 +8,8 @@ import com.linglevel.api.admin.dto.NotificationBroadcastRequest;
 import com.linglevel.api.admin.dto.NotificationBroadcastResponse;
 import com.linglevel.api.admin.dto.NotificationSendResponse;
 import com.linglevel.api.admin.dto.NotificationSendRequest;
+import com.linglevel.api.admin.dto.RecoverStreakRequest;
+import com.linglevel.api.admin.dto.RecoverStreakResponse;
 import com.linglevel.api.admin.dto.ResetTodayStreakRequest;
 import com.linglevel.api.fcm.dto.FcmMessageRequest;
 import com.linglevel.api.admin.dto.UpdateChunkRequest;
@@ -24,6 +26,8 @@ import com.linglevel.api.content.article.dto.ArticleChunkResponse;
 import com.linglevel.api.content.article.dto.ArticleOriginResponse;
 import com.linglevel.api.content.article.dto.GetArticleOriginsRequest;
 import com.linglevel.api.content.article.service.ArticleService;
+import com.linglevel.api.streak.entity.UserStudyReport;
+import com.linglevel.api.streak.service.StreakService;
 import com.linglevel.api.user.entity.User;
 import com.linglevel.api.user.repository.UserRepository;
 import com.linglevel.api.user.ticket.service.TicketService;
@@ -57,6 +61,7 @@ public class AdminController {
     private final TicketService ticketService;
     private final UserRepository userRepository;
     private final ArticleService articleService;
+    private final StreakService streakService;
 
     @Operation(summary = "책 청크 수정", description = "어드민 권한으로 특정 책의 청크 내용을 수정합니다.")
     @PutMapping("/books/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
@@ -197,6 +202,40 @@ public class AdminController {
     public ResponseEntity<MessageResponse> resetTodayStreak(@Valid @RequestBody ResetTodayStreakRequest request) {
         adminService.resetTodayStreak(request.getUserId());
         return ResponseEntity.ok(new MessageResponse("User " + request.getUserId() + "'s streak status for today has been reset."));
+    }
+
+    @Operation(summary = "스트릭 복구", description = "어드민 권한으로 특정 사용자의 누락된 스트릭을 복구합니다. MISSED 날짜는 COMPLETED로 변경하고, FREEZE_USED는 COMPLETED로 변경하며 프리즈를 보상합니다. 복구 범위 이후 날짜들도 프리즈를 사용하여 최대한 연결합니다.")
+    @PostMapping("/streaks/recover")
+    public ResponseEntity<RecoverStreakResponse> recoverStreak(
+            @Parameter(description = "스트릭 복구 요청", required = true) @Valid @RequestBody RecoverStreakRequest request) {
+
+        log.info("Admin recovering streak - userId: {}, startDate: {}, endDate: {}",
+                request.getUserId(), request.getStartDate(), request.getEndDate());
+
+        // 사용자 존재 여부 확인
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "User not found."));
+
+        // 스트릭 복구 실행
+        streakService.recoverStreak(request.getUserId(), request.getStartDate(), request.getEndDate());
+
+        // 복구 후 UserStudyReport 조회
+        UserStudyReport updatedReport = streakService.recalculateUserStudyReport(request.getUserId());
+
+        RecoverStreakResponse response = RecoverStreakResponse.builder()
+                .message("Streak recovered successfully.")
+                .userId(request.getUserId())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .currentStreak(updatedReport.getCurrentStreak())
+                .longestStreak(updatedReport.getLongestStreak())
+                .lastCompletionDate(updatedReport.getLastCompletionDate())
+                .build();
+
+        log.info("Streak recovery completed for user {} - currentStreak: {}, longestStreak: {}",
+                request.getUserId(), updatedReport.getCurrentStreak(), updatedReport.getLongestStreak());
+
+        return ResponseEntity.ok(response);
     }
 
     @ExceptionHandler(TicketException.class)
