@@ -29,4 +29,9 @@ public interface DailyCompletionRepository extends MongoRepository<DailyCompleti
      */
     @Query("{ 'userId': ?0, 'completionDate': { $gte: ?1 } }")
     List<DailyCompletion> findByUserIdAndCompletionDateAfter(String userId, LocalDate startDate);
+
+    /**
+     * 특정 사용자의 모든 DailyCompletion을 날짜 오름차순으로 조회
+     */
+    List<DailyCompletion> findByUserIdOrderByCompletionDateAsc(String userId);
 }
