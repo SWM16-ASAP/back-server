@@ -30,7 +30,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build Docker image
-        run: docker build -t devsolfe/server:latest .
+        run: docker buildx build --platform linux/arm64 -t devsolfe/server:latest .
 
       - name: Push Docker image to Docker Hub
         run: docker push devsolfe/server:latest
