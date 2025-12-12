@@ -63,6 +63,7 @@ jobs:
             
             docker run -d \
               --name server \
+              --restart unless-stopped \
               -e SPRING_PROFILES_ACTIVE=dev \
               -e 'SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}' \
               -e SENTRY_DSN=${{ vars.SENTRY_DSN }} \
@@ -84,7 +85,7 @@ jobs:
               -e FIREBASE_CONFIG_BASE64=${{ secrets.FIREBASE_CONFIG_BASE64 }} \
               -e SWAGGER_USERNAME=${{ secrets.SWAGGER_USERNAME }} \
               -e SWAGGER_PASSWORD=${{ secrets.SWAGGER_PASSWORD }} \
-              -p 80:8080 \
+              -p 8080:8080 \
               devsolfe/server
             
             docker image prune -f
