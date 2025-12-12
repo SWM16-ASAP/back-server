@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Component
-@Profile({"dev", "local"})
+@Profile({"local"})
 public class TestAuthFilter extends OncePerRequestFilter {
 
     private final UserRepository userRepository;

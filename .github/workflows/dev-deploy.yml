@@ -69,9 +69,12 @@ jobs:
               -e 'MONGODB_URI_DEV=${{ secrets.MONGODB_URI_DEV }}' \
               -e MONGODB_DATABASE_DEV=${{ secrets.MONGODB_DATABASE_DEV }} \
               -e S3_REGION=${{ secrets.S3_REGION }} \
-              -e S3_STATIC_NAME=${{ secrets.S3_STATIC_NAME }} \
               -e S3_AI_INPUT_NAME=${{ vars.S3_AI_INPUT_NAME }} \
               -e S3_AI_OUTPUT_NAME=${{ vars.S3_AI_OUTPUT_NAME }} \
+              -e CF_R2_ENDPOINT=${{ vars.CF_R2_ENDPOINT }} \
+              -e CF_R2_ACCESS_KEY=${{ secrets.CF_R2_ACCESS_KEY }} \
+              -e CF_R2_SECRET_KEY=${{ secrets.CF_R2_SECRET_KEY }} \
+              -e CF_R2_STATIC_BUCKET=${{ vars.CF_R2_STATIC_BUCKET }} \
               -e IMPORT_API_KEY=${{ secrets.IMPORT_API_KEY }} \
               -e AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }} \
               -e AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }} \
