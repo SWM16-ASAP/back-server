@@ -7,6 +7,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
 
 import java.net.URI;
 
@@ -63,10 +64,17 @@ public class S3Config {
     public S3Client s3StaticClient() {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(r2AccessKey, r2SecretKey);
 
+        // R2 전용 설정 객체 생성
+        S3Configuration serviceConfiguration = S3Configuration.builder()
+                .pathStyleAccessEnabled(true)
+                .chunkedEncodingEnabled(false)
+                .build();
+
         return S3Client.builder()
                 .endpointOverride(URI.create(r2Endpoint))
-                .region(Region.of("auto")) // R2는 auto region 사용
+                .region(Region.of("auto"))
                 .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                .serviceConfiguration(serviceConfiguration)
                 .build();
     }
 
