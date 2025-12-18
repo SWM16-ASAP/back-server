@@ -45,12 +45,14 @@ public class Feed {
 
     private Integer displayOrder;
 
+    @Indexed
     private Integer viewCount;
 
     private Double avgReadTimeSeconds;
 
     private Instant createdAt;
 
+    @Indexed
     @Builder.Default
     private Boolean deleted = false;
 

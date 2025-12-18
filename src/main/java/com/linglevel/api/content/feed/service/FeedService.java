@@ -22,7 +22,7 @@ public class FeedService {
     private final FeedRecommendationService feedRecommendationService;
 
     public PageResponse<FeedResponse> getFeeds(GetFeedsRequest request, String userId) {
-        List<Feed> allFeeds = feedRepository.findByDeletedFalse();
+        List<Feed> allFeeds = feedRepository.findByDeletedFalseWithProjection();
 
         if (request.getContentTypes() != null && !request.getContentTypes().isEmpty()) {
             allFeeds = allFeeds.stream()

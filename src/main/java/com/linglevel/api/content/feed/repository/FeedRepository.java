@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-public interface FeedRepository extends MongoRepository<Feed, String> {
+public interface FeedRepository extends MongoRepository<Feed, String>, FeedRepositoryCustom {
 
     boolean existsByUrl(String url);
 
