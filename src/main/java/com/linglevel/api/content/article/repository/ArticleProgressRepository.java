@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface ArticleProgressRepository extends MongoRepository<ArticleProgress, String> {
     Optional<ArticleProgress> findByUserIdAndArticleId(String userId, String articleId);
     List<ArticleProgress> findAllByUserId(String userId);
+    List<ArticleProgress> findByUserIdAndArticleIdIn(String userId, List<String> articleIds);
 }

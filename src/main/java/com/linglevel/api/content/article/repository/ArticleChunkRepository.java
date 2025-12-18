@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.Optional;
 
-public interface ArticleChunkRepository extends MongoRepository<ArticleChunk, String> {
+public interface ArticleChunkRepository extends MongoRepository<ArticleChunk, String>, ArticleChunkRepositoryCustom {
     Page<ArticleChunk> findByArticleIdAndDifficultyLevelOrderByChunkNumber(String articleId, DifficultyLevel difficultyLevel, Pageable pageable);
     Optional<ArticleChunk> findByArticleIdAndId(String articleId, String chunkId);
     Optional<ArticleChunk> findFirstByArticleIdOrderByChunkNumber(String articleId);

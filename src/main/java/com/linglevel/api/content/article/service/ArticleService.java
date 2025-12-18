@@ -1,20 +1,20 @@
 package com.linglevel.api.content.article.service;
 
-import com.linglevel.api.common.dto.PageResponse;
-import com.linglevel.api.content.common.ContentCategory;
-import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.article.dto.*;
 import com.linglevel.api.content.article.entity.Article;
 import com.linglevel.api.content.article.entity.ArticleChunk;
+import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.content.article.exception.ArticleErrorCode;
 import com.linglevel.api.content.article.exception.ArticleException;
 import com.linglevel.api.content.article.repository.ArticleRepository;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
-import com.linglevel.api.content.article.entity.ArticleProgress;
+import com.linglevel.api.content.article.repository.dto.ArticleChunkCount;
+import com.linglevel.api.common.dto.PageResponse;
+import com.linglevel.api.content.common.ContentCategory;
+import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.i18n.LanguageCode;
 
-import java.util.stream.Collectors;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
 import com.linglevel.api.s3.service.S3UrlService;
@@ -31,8 +31,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +52,6 @@ public class ArticleService {
     private final ArticleChunkRepository articleChunkRepository;
     private final ArticleImportService articleImportService;
     private final ArticleReadingTimeService articleReadingTimeService;
-    private final ArticleChunkService articleChunkService;
     private final S3AiService s3AiService;
     private final S3TransferService s3TransferService;
     private final S3UrlService s3UrlService;
@@ -61,9 +66,7 @@ public class ArticleService {
         // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
         Page<Article> articlePage = articleRepository.findArticlesWithFilters(request, userId, pageable);
 
-        List<ArticleResponse> articleResponses = articlePage.getContent().stream()
-                .map(article -> convertToArticleResponse(article, userId))
-                .collect(Collectors.toList());
+        List<ArticleResponse> articleResponses = mapArticlesWithAggregations(articlePage.getContent(), userId);
 
         return PageResponse.of(articlePage, articleResponses);
     }
@@ -72,7 +75,9 @@ public class ArticleService {
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
 
-        return convertToArticleResponse(article, userId);
+        return mapArticlesWithAggregations(List.of(article), userId).stream()
+                .findFirst()
+                .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
     }
 
     @Transactional
@@ -214,44 +219,117 @@ public class ArticleService {
         article.setTags(importedTags);
     }
 
-    private ArticleResponse convertToArticleResponse(Article article, String userId) {
-        // 진도 정보 조회
-        int currentReadChunkNumber = 0;
-        double progressPercentage = 0.0;
-        boolean isCompleted = false;
-        DifficultyLevel currentDifficultyLevel = article.getDifficultyLevel(); // Fallback: Article의 난이도
-
-        if (userId != null) {
-            ArticleProgress progress = articleProgressRepository
-                .findByUserIdAndArticleId(userId, article.getId())
-                .orElse(null);
-
-            if (progress != null) {
-                // [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
-                try {
-                    ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
-                    currentReadChunkNumber = chunk.getChunkNumber() != null ? chunk.getChunkNumber() : 0;
-                } catch (Exception e) {
-                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
-                    currentReadChunkNumber = 0;
-                }
-
-                // Progress가 있으면 currentDifficultyLevel 사용
-                if (progress.getCurrentDifficultyLevel() != null) {
-                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
-                }
-
-                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
-                long totalChunksForLevel = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), currentDifficultyLevel);
-
-                if (totalChunksForLevel > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
-                }
-
-                // DB에 저장된 완료 여부 사용
-                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
-            }
+    private List<ArticleResponse> mapArticlesWithAggregations(List<Article> articles, String userId) {
+        if (articles.isEmpty()) {
+            return List.of();
         }
+
+        List<String> articleIds = articles.stream()
+                .map(Article::getId)
+                .toList();
+
+        Map<String, ArticleProgress> progressByArticleId = fetchProgressMap(userId, articleIds);
+        Map<String, ArticleChunk> chunkById = fetchChunksByProgress(progressByArticleId);
+        Map<String, Map<DifficultyLevel, Long>> chunkCountsByArticle = buildChunkCountMap(articleIds);
+
+        return articles.stream()
+                .map(article -> convertToArticleResponse(
+                        article,
+                        progressByArticleId.get(article.getId()),
+                        chunkCountsByArticle,
+                        chunkById
+                ))
+                .toList();
+    }
+
+    private Map<String, ArticleProgress> fetchProgressMap(String userId, List<String> articleIds) {
+        if (userId == null || articleIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<ArticleProgress> progresses = articleProgressRepository.findByUserIdAndArticleIdIn(userId, articleIds);
+
+        return progresses.stream()
+                .collect(Collectors.toMap(
+                        ArticleProgress::getArticleId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    private Map<String, ArticleChunk> fetchChunksByProgress(Map<String, ArticleProgress> progressByArticleId) {
+        if (progressByArticleId.isEmpty()) {
+            return Map.of();
+        }
+
+        List<String> chunkIds = progressByArticleId.values().stream()
+                .map(ArticleProgress::getChunkId)
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (chunkIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return StreamSupport.stream(articleChunkRepository.findAllById(chunkIds).spliterator(), false)
+                .collect(Collectors.toMap(
+                        ArticleChunk::getId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    private Map<String, Map<DifficultyLevel, Long>> buildChunkCountMap(List<String> articleIds) {
+        if (articleIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<ArticleChunkCount> counts = articleChunkRepository.countChunksByArticleIds(articleIds);
+        Map<String, Map<DifficultyLevel, Long>> chunkCountsByArticle = new HashMap<>();
+
+        for (ArticleChunkCount count : counts) {
+            Map<DifficultyLevel, Long> perDifficulty = chunkCountsByArticle.computeIfAbsent(
+                    count.getArticleId(),
+                    id -> new EnumMap<>(DifficultyLevel.class)
+            );
+            perDifficulty.put(count.getDifficultyLevel(), count.getCount());
+        }
+
+        return chunkCountsByArticle;
+    }
+
+    private ArticleResponse convertToArticleResponse(
+            Article article,
+            ArticleProgress progress,
+            Map<String, Map<DifficultyLevel, Long>> chunkCountsByArticle,
+            Map<String, ArticleChunk> chunkById
+    ) {
+        int currentReadChunkNumber = 0;
+        boolean isCompleted = false;
+        DifficultyLevel currentDifficultyLevel = article.getDifficultyLevel();
+
+        if (progress != null) {
+            if (progress.getCurrentDifficultyLevel() != null) {
+                currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+            }
+
+            if (progress.getChunkId() != null) {
+                ArticleChunk chunk = chunkById.get(progress.getChunkId());
+                if (chunk != null && chunk.getChunkNumber() != null) {
+                    currentReadChunkNumber = chunk.getChunkNumber();
+                }
+            }
+
+            isCompleted = progress.getIsCompleted() != null && progress.getIsCompleted();
+        }
+
+        long chunkCount = chunkCountsByArticle
+                .getOrDefault(article.getId(), Map.of())
+                .getOrDefault(currentDifficultyLevel, 0L);
+
+        double progressPercentage = chunkCount > 0
+                ? (double) currentReadChunkNumber / chunkCount * 100.0
+                : 0.0;
 
         ArticleResponse response = new ArticleResponse();
         response.setId(article.getId());
@@ -259,7 +337,7 @@ public class ArticleService {
         response.setAuthor(article.getAuthor());
         response.setCoverImageUrl(article.getCoverImageUrl());
         response.setDifficultyLevel(article.getDifficultyLevel());
-        response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), currentDifficultyLevel));
+        response.setChunkCount((int) chunkCount);
         response.setCurrentReadChunkNumber(currentReadChunkNumber);
         response.setProgressPercentage(progressPercentage);
         response.setCurrentDifficultyLevel(currentDifficultyLevel);
@@ -271,7 +349,6 @@ public class ArticleService {
         response.setCategory(article.getCategory());
         response.setTags(article.getTags());
 
-        // targetLanguageCode가 null이면 모든 언어 코드로 응답
         List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
         response.setTargetLanguageCode(
             (targetLanguageCodes != null && !targetLanguageCodes.isEmpty())

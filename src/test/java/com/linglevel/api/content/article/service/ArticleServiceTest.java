@@ -8,6 +8,7 @@ import com.linglevel.api.content.article.entity.ArticleProgress;
 import com.linglevel.api.content.article.repository.ArticleProgressRepository;
 import com.linglevel.api.content.article.repository.ArticleChunkRepository;
 import com.linglevel.api.content.article.repository.ArticleRepository;
+import com.linglevel.api.content.article.repository.dto.ArticleChunkCount;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.user.entity.User;
@@ -27,7 +28,6 @@ import org.springframework.data.domain.PageRequest;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -44,9 +44,6 @@ class ArticleServiceTest {
 
     @Mock
     private ArticleChunkRepository articleChunkRepository;
-
-    @Mock
-    private ArticleChunkService articleChunkService;
 
     @Mock
     private UserRepository userRepository;
@@ -229,15 +226,24 @@ class ArticleServiceTest {
         com.linglevel.api.content.article.entity.ArticleChunk mockChunk = new com.linglevel.api.content.article.entity.ArticleChunk();
         mockChunk.setId("test-chunk-id");
         mockChunk.setChunkNumber(50);
-        when(articleChunkService.findById(anyString())).thenReturn(mockChunk);
 
-        when(articleChunkRepository.countByArticleIdAndDifficultyLevel(anyString(), any(DifficultyLevel.class))).thenReturn(100L);
+        List<ArticleProgress> progresses = articles.stream()
+                .map(article -> createArticleProgress(testUser.getId(), article.getId(), isCompleted))
+                .toList();
 
-        for (Article article : articles) {
-            ArticleProgress progress = createArticleProgress(testUser.getId(), article.getId(), isCompleted);
-            when(articleProgressRepository.findByUserIdAndArticleId(testUser.getId(), article.getId()))
-                .thenReturn(Optional.of(progress));
-        }
+        when(articleProgressRepository.findByUserIdAndArticleIdIn(eq(testUser.getId()), anyList()))
+                .thenReturn(progresses);
+
+        when(articleChunkRepository.findAllById(anyIterable()))
+                .thenReturn(List.of(mockChunk));
+
+        when(articleChunkRepository.countChunksByArticleIds(anyList()))
+                .thenAnswer(invocation -> {
+                    List<String> ids = invocation.getArgument(0);
+                    return ids.stream()
+                            .map(id -> new ArticleChunkCount(id, DifficultyLevel.A1, 100L))
+                            .toList();
+                });
     }
 
     private ArticleProgress createArticleProgress(String userId, String articleId, boolean isCompleted) {
