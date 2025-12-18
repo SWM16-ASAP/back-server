@@ -13,4 +13,5 @@ public interface BookProgressRepository extends MongoRepository<BookProgress, St
     Page<BookProgress> findAllByUserId(String userId, Pageable pageable);
     List<BookProgress> findAllByUserId(String userId);
     List<BookProgress> findByBookId(String bookId);
+    List<BookProgress> findByUserIdAndBookIdIn(String userId, List<String> bookIds);
 }

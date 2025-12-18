@@ -25,7 +25,6 @@ import org.springframework.data.domain.PageRequest;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -110,11 +109,7 @@ class BookServiceTest {
         when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any()))
             .thenReturn(bookPage);
 
-        for (Book book : books) {
-            BookProgress progress = createBookProgress(testUser.getId(), book.getId(), true);
-            when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), book.getId()))
-                .thenReturn(Optional.of(progress));
-        }
+        mockBookProgress(books, true);
 
         PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
@@ -239,11 +234,7 @@ class BookServiceTest {
         when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any()))
             .thenReturn(bookPage);
 
-        for (Book book : books) {
-            BookProgress progress = createBookProgress(testUser.getId(), book.getId(), false);
-            when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), book.getId()))
-                .thenReturn(Optional.of(progress));
-        }
+        mockBookProgress(books, false);
 
         PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
@@ -283,11 +274,12 @@ class BookServiceTest {
     }
 
     private void mockBookProgress(List<Book> books, boolean isCompleted) {
-        for (Book book : books) {
-            BookProgress progress = createBookProgress(testUser.getId(), book.getId(), isCompleted);
-            when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), book.getId()))
-                .thenReturn(Optional.of(progress));
-        }
+        List<BookProgress> progresses = books.stream()
+            .map(book -> createBookProgress(testUser.getId(), book.getId(), isCompleted))
+            .toList();
+
+        when(bookProgressRepository.findByUserIdAndBookIdIn(eq(testUser.getId()), anyList()))
+            .thenReturn(progresses);
     }
 
     private BookProgress createBookProgress(String userId, String bookId, boolean isCompleted) {

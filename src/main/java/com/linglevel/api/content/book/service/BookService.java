@@ -30,6 +30,8 @@ import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -127,9 +129,7 @@ public class BookService {
         Page<Book> bookPage = bookRepository.findBooksWithFilters(request, userId, pageable);
 
         LanguageCode languageCode = request.getLanguageCode();
-        List<BookResponse> bookResponses = bookPage.getContent().stream()
-            .map(book -> convertToBookResponse(book, userId, languageCode))
-            .collect(Collectors.toList());
+        List<BookResponse> bookResponses = mapBooksWithProgress(bookPage.getContent(), userId, languageCode);
 
         return new PageResponse<>(bookResponses, bookPage);
     }
@@ -138,7 +138,9 @@ public class BookService {
         Book book = bookRepository.findById(bookId)
             .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
 
-        return convertToBookResponse(book, userId, languageCode);
+        return mapBooksWithProgress(List.of(book), userId, languageCode).stream()
+            .findFirst()
+            .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
     }
 
     public boolean existsById(String bookId) { 
@@ -179,29 +181,52 @@ public class BookService {
             .collect(Collectors.toList());
     }
 
-    private BookResponse convertToBookResponse(Book book, String userId, LanguageCode languageCode) {
+    private List<BookResponse> mapBooksWithProgress(List<Book> books, String userId, LanguageCode languageCode) {
+        if (books.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, BookProgress> progressByBookId = fetchProgressMap(userId, books);
+
+        return books.stream()
+            .map(book -> convertToBookResponse(book, progressByBookId.get(book.getId()), languageCode))
+            .toList();
+    }
+
+    private Map<String, BookProgress> fetchProgressMap(String userId, List<Book> books) {
+        if (userId == null || books.isEmpty()) {
+            return Map.of();
+        }
+
+        List<String> bookIds = books.stream()
+            .map(Book::getId)
+            .toList();
+
+        List<BookProgress> progresses = bookProgressRepository.findByUserIdAndBookIdIn(userId, bookIds);
+
+        return progresses.stream()
+            .collect(Collectors.toMap(
+                BookProgress::getBookId,
+                Function.identity(),
+                (existing, replacement) -> existing
+            ));
+    }
+
+    private BookResponse convertToBookResponse(Book book, BookProgress progress, LanguageCode languageCode) {
         // 진도 정보 조회
         int currentReadChapterNumber = 0;
         double progressPercentage = 0.0;
         boolean isCompleted = false;
 
-        if (userId != null) {
-            BookProgress progress = bookProgressRepository
-                .findByUserIdAndBookId(userId, book.getId())
-                .orElse(null);
+        if (progress != null) {
+            currentReadChapterNumber = progress.getCurrentReadChapterNumber() != null
+                ? progress.getCurrentReadChapterNumber() : 0;
 
-            if (progress != null) {
-                currentReadChapterNumber = progress.getCurrentReadChapterNumber() != null
-                    ? progress.getCurrentReadChapterNumber() : 0;
-
-                // 진행률 계산
-                if (book.getChapterCount() != null && book.getChapterCount() > 0) {
-                    progressPercentage = (double) currentReadChapterNumber / book.getChapterCount() * 100.0;
-                }
-
-                // DB에 저장된 완료 여부 사용
-                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+            if (book.getChapterCount() != null && book.getChapterCount() > 0) {
+                progressPercentage = (double) currentReadChapterNumber / book.getChapterCount() * 100.0;
             }
+
+            isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
         }
 
         // 언어 코드에 따라 title 선택
