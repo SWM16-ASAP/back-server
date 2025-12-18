@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.TextCriteria;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
@@ -30,6 +31,8 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
 
         // 총 개수 조회 (필터링 적용 후)
         long total = mongoTemplate.count(query, Article.class);
+
+        applyListProjection(query);
 
         // 페이지네이션 적용
         query.with(pageable);
@@ -76,7 +79,13 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
             return;
         }
 
-        List<String> tagList = Arrays.asList(tags.split(","));
+        List<String> tagList = Arrays.stream(tags.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .toList();
+        if (tagList.isEmpty()) {
+            return;
+        }
         query.addCriteria(Criteria.where("tags").in(tagList));
     }
 
@@ -88,11 +97,9 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
             return;
         }
 
-        Criteria keywordCriteria = new Criteria().orOperator(
-            Criteria.where("title").regex(keyword, "i"),
-            Criteria.where("author").regex(keyword, "i")
-        );
-        query.addCriteria(keywordCriteria);
+        TextCriteria textCriteria = TextCriteria.forDefaultLanguage()
+                .matchingAny(keyword.split("\\s+"));
+        query.addCriteria(textCriteria);
     }
 
     /**
@@ -103,13 +110,35 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
             return;
         }
 
-        List<String> articleIds = getArticleIdsByProgress(userId, progress);
-        if (!articleIds.isEmpty()) {
-            query.addCriteria(Criteria.where("id").in(articleIds));
-        } else {
-            // 조건에 맞는 아티클이 없으면 빈 결과 반환
-            query.addCriteria(Criteria.where("_id").is(null));
+        switch (progress) {
+            case NOT_STARTED -> applyNotStartedFilter(query, userId);
+            case IN_PROGRESS -> applyArticleIdFilter(query, getInProgressArticleIds(userId));
+            case COMPLETED -> applyArticleIdFilter(query, getCompletedArticleIds(userId));
         }
+    }
+
+    /**
+     * NOT_STARTED - 사용자가 진도 등록한 아티클을 제외
+     */
+    private void applyNotStartedFilter(Query query, String userId) {
+        List<String> progressArticleIds = findProgressArticleIds(userId);
+        if (progressArticleIds.isEmpty()) {
+            return; // 진도가 없으면 전체가 NOT_STARTED이므로 추가 필터 불필요
+        }
+
+        query.addCriteria(Criteria.where("id").nin(progressArticleIds));
+    }
+
+    /**
+     * 특정 articleId 목록만 허용
+     */
+    private void applyArticleIdFilter(Query query, List<String> articleIds) {
+        if (articleIds.isEmpty()) {
+            query.addCriteria(Criteria.where("_id").is(null));
+            return;
+        }
+
+        query.addCriteria(Criteria.where("id").in(articleIds));
     }
 
     /**
@@ -120,7 +149,7 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
             return;
         }
 
-        query.addCriteria(Criteria.where("targetLanguageCode").in(targetLanguageCode));
+        query.addCriteria(Criteria.where("targetLanguageCode").is(targetLanguageCode));
     }
 
     /**
@@ -131,36 +160,7 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
             return;
         }
 
-        query.addCriteria(Criteria.where("createdAt").gte(createdAfter));
-    }
-
-    /**
-     * 진도 상태별 아티클 ID 목록 조회
-     */
-    private List<String> getArticleIdsByProgress(String userId, ProgressStatus progressStatus) {
-        return switch (progressStatus) {
-            case NOT_STARTED -> getNotStartedArticleIds(userId);
-            case IN_PROGRESS -> getInProgressArticleIds(userId);
-            case COMPLETED -> getCompletedArticleIds(userId);
-        };
-    }
-
-    /**
-     * 시작하지 않은 아티클 ID 목록 조회
-     */
-    private List<String> getNotStartedArticleIds(String userId) {
-        // 모든 아티클 ID 조회
-        List<String> allArticleIds = mongoTemplate.findAll(Article.class).stream()
-                .map(Article::getId)
-                .toList();
-
-        // 진도가 있는 아티클 ID 조회
-        List<String> progressArticleIds = findProgressArticleIds(userId);
-
-        // 진도가 없는 아티클만 반환
-        return allArticleIds.stream()
-                .filter(articleId -> !progressArticleIds.contains(articleId))
-                .toList();
+        query.addCriteria(Criteria.where("createdAt").gte(createdAfter.toInstant(java.time.ZoneOffset.UTC)));
     }
 
     /**
@@ -170,7 +170,7 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
         Query query = new Query();
         query.addCriteria(Criteria.where("userId").is(userId));
         query.addCriteria(Criteria.where("isCompleted").is(false));
-        query.addCriteria(Criteria.where("currentReadChunkNumber").gt(0));
+        query.addCriteria(Criteria.where("normalizedProgress").gt(0));
 
         return findArticleIdsFromProgress(query);
     }
@@ -200,10 +200,30 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
      * ArticleProgress 컬렉션에서 articleId 추출
      */
     private List<String> findArticleIdsFromProgress(Query query) {
+        query.fields().include("articleId");
         return mongoTemplate.find(query, org.bson.Document.class, "articleProgress")
                 .stream()
                 .map(doc -> doc.getString("articleId"))
                 .toList();
+    }
+
+    /**
+     * 리스트 응답에 필요한 필드만 선택
+     */
+    private void applyListProjection(Query query) {
+        query.fields()
+                .include("title")
+                .include("author")
+                .include("coverImageUrl")
+                .include("difficultyLevel")
+                .include("readingTime")
+                .include("averageRating")
+                .include("reviewCount")
+                .include("viewCount")
+                .include("category")
+                .include("tags")
+                .include("targetLanguageCode")
+                .include("createdAt");
     }
 
     @Override

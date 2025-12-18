@@ -39,6 +39,8 @@ import java.util.List;
 @Slf4j
 public class ArticleService {
 
+    private static final int MAX_PAGE_SIZE = 40;
+
     private final ArticleRepository articleRepository;
     private final ArticleProgressRepository articleProgressRepository;
     private final ArticleChunkRepository articleChunkRepository;
@@ -116,14 +118,15 @@ public class ArticleService {
     }
 
     private void validateGetArticlesRequest(GetArticlesRequest request) {
-        if (request.getSortBy() != null) {
-            if (!isValidSortBy(request.getSortBy())) {
-                throw new ArticleException(ArticleErrorCode.INVALID_SORT_BY);
-            }
+        if (request.getSortBy() != null && !isValidSortBy(request.getSortBy())) {
+            throw new ArticleException(ArticleErrorCode.INVALID_SORT_BY);
         }
-        
-        if (request.getLimit() != null && request.getLimit() > 100) {
-            request.setLimit(100);
+
+        int requestedLimit = request.getLimit() == null ? MAX_PAGE_SIZE : request.getLimit();
+        request.setLimit(Math.min(requestedLimit, MAX_PAGE_SIZE));
+
+        if (request.getPage() == null || request.getPage() < 1) {
+            request.setPage(1);
         }
     }
 
