@@ -23,7 +23,7 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
     private final MongoTemplate mongoTemplate;
     private final FeedRecommendationService feedRecommendationService;
 
-    private static final int RECOMMENDED_FETCH_LIMIT = 100;
+    private static final int RECOMMENDED_FETCH_LIMIT = 40;
 
     @Override
     public List<Feed> findByDeletedFalseWithProjection() {
@@ -68,7 +68,7 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
     }
 
     /**
-     * RECOMMENDED: 최근 100개만 로드 후 메모리에서 스코어링
+     * RECOMMENDED: 최근 50개만 로드 후 메모리에서 스코어링
      */
     private Page<Feed> findRecommendedFeeds(GetFeedsRequest request, String userId, Pageable pageable) {
         Query query = buildBaseQuery(request);
@@ -76,7 +76,7 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         // 필드 프로젝션
         applyFieldProjection(query);
 
-        // 최근 100개만 로드 (publishedAt 내림차순)
+        // 최근 50개만 로드 (publishedAt 내림차순)
         query.with(Sort.by(Sort.Direction.DESC, "publishedAt"))
                 .limit(RECOMMENDED_FETCH_LIMIT);
 

@@ -25,9 +25,14 @@ public class FeedService {
     private final FeedRepository feedRepository;
     private final FeedRecommendationService feedRecommendationService;
 
+    private static final int MAX_PAGE_SIZE = 40;
+
     public PageResponse<FeedResponse> getFeeds(GetFeedsRequest request, String userId) {
+        // 내부적으로 최대 페이지 크기를 50개로 제한
+        int effectiveLimit = Math.min(request.getLimit(), MAX_PAGE_SIZE);
+
         // Pageable 생성 (0-based indexing)
-        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit());
+        Pageable pageable = PageRequest.of(request.getPage() - 1, effectiveLimit);
 
         // DB 레벨 필터링/정렬/페이징 처리
         Page<Feed> feedPage = feedRepository.findFeedsWithFilters(request, userId, pageable);
