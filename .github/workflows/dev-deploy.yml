@@ -2,7 +2,7 @@ name: Dev Deployment
 
 on:
   push:
-    branches: [ develop, feat/migrate-on-premise ]
+    branches: [ main ]
 
 jobs:
   build:
