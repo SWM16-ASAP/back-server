@@ -8,8 +8,9 @@ Ling Level API는 학습 콘텐츠, 단어 학습, 스트릭, 추천, 알림 기
 
 ## 문서
 
-- 프로젝트 문서 허브: `docs/README.md`
-- 의사결정 기록 템플릿: `docs/templates/decision-record-template.md`
+- [프로젝트 문서 허브](docs/README.md)
+- [아키텍처 문서 모음](docs/architecture/)
+- [의사결정 기록 모음](docs/decisions/)
 
 ## 사전 요구사항
 
