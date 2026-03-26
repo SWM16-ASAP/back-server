@@ -19,3 +19,10 @@
 ## 템플릿
 
 - [아키텍처 템플릿](../templates/architecture-template.md)
+
+## 현재 문서
+
+- [프로젝트 전체 구조 개요](overview.md)
+- [Streak 도메인 구조](streak.md)
+- [Word 도메인 구조](word.md)
+- [Book 도메인 구조](content-book.md)
