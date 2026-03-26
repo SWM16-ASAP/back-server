@@ -18,8 +18,8 @@
 
 ## 검증
 
-- [application.properties](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/resources/application.properties) 와 각 프로필 설정에서 MongoDB가 주 저장소로 사용되는 구성을 확인한다.
-- [AbstractDatabaseTest.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/test/java/com/linglevel/api/common/AbstractDatabaseTest.java) 기준으로 MongoDB 로컬/테스트 환경이 먼저 정착된 흐름을 확인한다.
+- [application.properties](../../src/main/resources/application.properties) 와 각 프로필 설정에서 MongoDB가 주 저장소로 사용되는 구성을 확인한다.
+- [AbstractDatabaseTest.java](../../src/test/java/com/linglevel/api/common/AbstractDatabaseTest.java) 기준으로 MongoDB 로컬/테스트 환경이 먼저 정착된 흐름을 확인한다.
 - 콘텐츠, 단어, 추천, 로그 관련 엔티티와 리포지토리들이 MongoDB 문서 모델을 중심으로 구성된 현재 구조를 통해 초기 선택의 방향성을 확인할 수 있다.
 - 실제 운영 관점에서는 스키마 변화와 신규 기능 추가 시 테이블 재설계 부담 없이 빠르게 적응할 수 있었다.
 

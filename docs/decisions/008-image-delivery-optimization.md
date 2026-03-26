@@ -21,7 +21,7 @@ CDN과 Lambda@Edge 기반 WebP 변환 전략을 도입하고, 자주 쓰는 썸�
 ## 검증
 
 - [#160](https://github.com/SWM16-ASAP/back-server/pull/160) 에서 CDN + Lambda@Edge + WebP 전환 방향과 `ImageResizeService` 도입 의도를 확인한다.
-- [ImageResizeService.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/s3/service/ImageResizeService.java) 와 [ImageResizeServiceTest.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/test/java/com/linglevel/api/s3/service/ImageResizeServiceTest.java) 에서 256x256 WebP 썸네일 생성과 업로드 경로를 확인한다.
+- [ImageResizeService.java](../../src/main/java/com/linglevel/api/s3/service/ImageResizeService.java) 와 [ImageResizeServiceTest.java](../../src/test/java/com/linglevel/api/s3/service/ImageResizeServiceTest.java) 에서 256x256 WebP 썸네일 생성과 업로드 경로를 확인한다.
 - 성능 비교는 로컬 환경에서 k6로 동일 시나리오를 반복 실행하고, Grafana로 응답시간과 처리량을 모니터링하는 방식으로 측정했다.
 - 그 기준에서 파일 크기는 1,473KB에서 13KB 수준까지 줄었고, 평균 응답시간은 883ms에서 27ms, 처리량은 23.7 RPS에서 734.3 RPS 수준까지 개선됐다.
 

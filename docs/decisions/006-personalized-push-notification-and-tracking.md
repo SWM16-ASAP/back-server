@@ -20,9 +20,9 @@
 
 ## 검증
 
-- [UserPreferenceAggregationScheduler.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/content/recommendation/scheduler/UserPreferenceAggregationScheduler.java) 에서 최근 90일 로그 기반 선호도 집계와 시간/읽기시간 가중치를 확인한다.
-- [NotificationService.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/admin/service/NotificationService.java) 에서 선호 카테고리 기반 알림 발송과 국가별 메시지 분기를 확인한다.
-- [FcmMessagingService.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/fcm/service/FcmMessagingService.java), [PushLogService.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/fcm/service/PushLogService.java), [PushCampaignService.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/fcm/service/PushCampaignService.java) 에서 `campaignId`, 배치 전송, 송신/오픈 로깅, 통계 집계를 확인한다.
+- [UserPreferenceAggregationScheduler.java](../../src/main/java/com/linglevel/api/content/recommendation/scheduler/UserPreferenceAggregationScheduler.java) 에서 최근 90일 로그 기반 선호도 집계와 시간/읽기시간 가중치를 확인한다.
+- [NotificationService.java](../../src/main/java/com/linglevel/api/admin/service/NotificationService.java) 에서 선호 카테고리 기반 알림 발송과 국가별 메시지 분기를 확인한다.
+- [FcmMessagingService.java](../../src/main/java/com/linglevel/api/fcm/service/FcmMessagingService.java), [PushLogService.java](../../src/main/java/com/linglevel/api/fcm/service/PushLogService.java), [PushCampaignService.java](../../src/main/java/com/linglevel/api/fcm/service/PushCampaignService.java) 에서 `campaignId`, 배치 전송, 송신/오픈 로깅, 통계 집계를 확인한다.
 - 리텐션 수치는 AppsFlyer 기준으로 확인했고, 2025년 10월 27일부터 11월 2일까지의 전체 유저 주간 리텐션을 비교 지표로 사용했다.
 - 그 기준에서 주간 리텐션은 16.67%에서 32.24%까지 개선되었고, FCM 배치 전송 속도와 캠페인 단위 분석 가능성도 함께 좋아졌다.
 

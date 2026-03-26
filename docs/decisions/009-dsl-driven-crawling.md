@@ -20,9 +20,9 @@ HTML 추출 규칙을 코드에 하드코딩하지 않고 자체 DSL로 표현�
 
 ## 검증
 
-- [CrawlerDsl.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/crawling/dsl/CrawlerDsl.java) 에서 셀렉터, 속성, fallback을 포함한 DSL 인터프리터 구조를 확인한다.
-- [CrawlingController.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/crawling/controller/CrawlingController.java) 와 [AdminCrawlingController.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/admin/crawling/AdminCrawlingController.java) 에서 조회/검증/관리 API를 확인한다.
-- [CrawlerDslTest.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/test/java/com/linglevel/api/crawling/dsl/CrawlerDslTest.java) 로 규칙 해석과 fallback 추출이 동작하는지 검증한다.
+- [CrawlerDsl.java](../../src/main/java/com/linglevel/api/crawling/dsl/CrawlerDsl.java) 에서 셀렉터, 속성, fallback을 포함한 DSL 인터프리터 구조를 확인한다.
+- [CrawlingController.java](../../src/main/java/com/linglevel/api/crawling/controller/CrawlingController.java) 와 [AdminCrawlingController.java](../../src/main/java/com/linglevel/api/admin/crawling/AdminCrawlingController.java) 에서 조회/검증/관리 API를 확인한다.
+- [CrawlerDslTest.java](../../src/test/java/com/linglevel/api/crawling/dsl/CrawlerDslTest.java) 로 규칙 해석과 fallback 추출이 동작하는지 검증한다.
 - 운영 기준으로는 사이트 인터페이스가 바뀌어도 앱 강제 업데이트 없이 규칙만 바꿔 대응할 수 있는 구조를 확보했다.
 
 ## 결과와 남은 이슈

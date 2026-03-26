@@ -20,9 +20,9 @@ Spring AI와 Bedrock 기반 단어 분석 파이프라인을 도입하고, `homo
 
 ## 검증
 
-- [WordAiService.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/word/service/WordAiService.java) 에서 homograph, variant, 품사 예외 케이스를 포함한 구조화 프롬프트와 토큰 비용 로깅을 확인한다.
-- [WordService.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/main/java/com/linglevel/api/word/service/WordService.java) 에서 `InvalidWord` 기반 3회 재시도 정책과 성공 시 캐시 제거 흐름을 확인한다.
-- [WordServiceTest.java](/Users/solfe/Desktop/WORK/llv/llv-api/src/test/java/com/linglevel/api/word/service/WordServiceTest.java) 로 원형/변형 저장과 AI 호출 경로를 검증한다.
+- [WordAiService.java](../../src/main/java/com/linglevel/api/word/service/WordAiService.java) 에서 homograph, variant, 품사 예외 케이스를 포함한 구조화 프롬프트와 토큰 비용 로깅을 확인한다.
+- [WordService.java](../../src/main/java/com/linglevel/api/word/service/WordService.java) 에서 `InvalidWord` 기반 3회 재시도 정책과 성공 시 캐시 제거 흐름을 확인한다.
+- [WordServiceTest.java](../../src/test/java/com/linglevel/api/word/service/WordServiceTest.java) 로 원형/변형 저장과 AI 호출 경로를 검증한다.
 - 비용 비교는 테스트 코드를 통해 10개 단어의 평균 input/output 토큰 소비량을 측정한 뒤, 모델별 단가로 환산하는 방식으로 잡았다.
 - 그 기준에서 단어 1개 생성 비용은 약 10원에서 0.5원 수준으로 줄었고, 실패 단어 재호출까지 차단해 비용 누수를 줄였다.
 
