@@ -15,6 +15,8 @@
 - 자잘한 구현 선택은 기록하지 않는다.
 - 문제, 선택, 이유, 검증, 결과와 남은 이슈 중심으로 짧게 정리한다.
 - 기본 원칙은 `미션당 문서 하나`다.
+- 미션은 가능하면 PR 단위로 보고, decision 문서를 그 PR의 상태 저장소처럼 유지한다.
+- 문서 앞부분에는 최소한 `관련 PR/브랜치`, `기준 브랜치`, `현재 상태`, `다음 시작점`을 남긴다.
 - 구현 자체보다 왜 그런 선택을 했는지와 그 결과를 이해할 수 있게 적는다.
 - 구현보다 고민과 판단의 맥락이 먼저 보이게 적는다.
 
@@ -33,4 +35,4 @@
 - [007. 서비스 초기 데이터 저장소를 MongoDB 중심으로 고정](007-choose-mongodb-for-early-flexibility.md)
 - [008. 글로벌 이미지 전달 성능 최적화](008-image-delivery-optimization.md)
 - [009. DSL 기반 크롤링 규칙 관리 구조 도입](009-dsl-driven-crawling.md)
-- [010. 외부 사이트 의존 크롤링 테스트를 기본 테스트 세트에서 분리](010-external-crawling-test-strategy.md)
+- [010. 미션 기반 Codex 에이전트 운영 규칙 정리](010-mission-oriented-agent-guidelines.md)
