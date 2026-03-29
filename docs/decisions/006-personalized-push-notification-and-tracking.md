@@ -1,13 +1,5 @@
 # 개인화된 추천 PUSH와 캠페인 추적 체계 도입
 
-## 미션 메타데이터
-
-- 관련 PR: [#222](https://github.com/SWM16-ASAP/back-server/pull/222), [#253](https://github.com/SWM16-ASAP/back-server/pull/253), [#288](https://github.com/SWM16-ASAP/back-server/pull/288)
-- 작업 브랜치: `미상`
-- 기준 브랜치: `develop`
-- 현재 상태: 개인화 PUSH와 캠페인 추적 체계 도입 회고 정리 완료. 실험 설계와 빈도 제한 정책은 남아 있다.
-- 다음 시작점: 캠페인별 실험 기준과 A/B 구조를 정리하고, 사용자 피로도 기반 알림 빈도 제한 정책을 설계한다.
-
 ## 문제
 
 기존 PUSH 알림은 일괄 리마인드 성격이 강해서 사용자별 선호나 학습 패턴을 충분히 반영하지 못했다.
@@ -37,3 +29,8 @@
 - 리텐션 상승은 제품 전체 변화의 영향도 섞일 수 있으므로, 캠페인별 실험 기준을 더 분리할 필요가 있다.
 - 추천 점수와 메시지 전략을 실험할 A/B 구조는 아직 별도 체계가 없다.
 - 사용자 피로도와 알림 빈도 제한 정책은 추후 rate limit 성격으로 다시 정리할 수 있다.
+
+## 연관 이슈 및 PR
+
+- 관련 이슈: 없음
+- 관련 PR: [#222](https://github.com/SWM16-ASAP/back-server/pull/222), [#253](https://github.com/SWM16-ASAP/back-server/pull/253), [#288](https://github.com/SWM16-ASAP/back-server/pull/288)

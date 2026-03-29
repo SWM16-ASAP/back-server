@@ -12,7 +12,7 @@ description: Use when the user explicitly starts a new backend training mission,
 1. [AGENTS.md](../../../AGENTS.md)를 먼저 읽고 현재 운영 규칙을 따른다.
 2. 현재 브랜치와 작업 상태를 확인한다.
 3. 현재 작업 브랜치가 `develop`에서 갈라진 작업 브랜치라면 `develop...HEAD`와 working tree 변경점을 먼저 리뷰한다.
-4. 직전 미션이나 관련 `docs/decisions` 문서에서 이어서 볼 만한 맥락이 있으면 짧게 상기한다.
+4. 루트 `MISSIONS.md`가 있으면 직전 미션의 상태와 다음 시작점을 먼저 확인하고, 없으면 [docs/templates/mission-state-template.md](../../../docs/templates/mission-state-template.md)를 참고해 상태 파일을 바로 시작한다. 완료된 미션의 맥락이 필요할 때만 관련 `docs/decisions` 문서를 참고한다.
 5. 현재 저장소 기준으로 미션 후보 2~4개를 제안한다.
 6. 각 후보에 대해 아래만 짧게 제시한다.
    - 미션명
@@ -20,7 +20,8 @@ description: Use when the user explicitly starts a new backend training mission,
    - 학습 포인트
    - 난이도
 7. 가능하면 추천 미션 1개를 함께 제시한다.
-8. 현재 PR의 변경점과 직접 연결되는 미션이 있으면 우선순위를 높인다.
+8. 미션이 선택되면 `MISSIONS.md`에 현재 활성 미션 상태를 바로 남길 수 있게 목표와 다음 시작점을 분명하게 정리한다.
+9. 현재 PR의 변경점과 직접 연결되는 미션이 있으면 우선순위를 높인다.
 
 ## 출력 원칙
 

@@ -13,6 +13,7 @@
 - 현재 구조, 도메인 관계, 대표 흐름을 정리할 때: [architecture](architecture/)
 - 미션을 수행하며 내린 큰 판단과 고민을 미션당 문서 하나로 남길 때: [decisions](decisions/)
 - 새 문서를 시작할 때: [templates](templates/)
+- 활성 미션 상태 파일이 필요할 때: [mission-state-template.md](templates/mission-state-template.md) 를 복사해 루트 `MISSIONS.md`로 사용
 
 ## 기본 원칙
 

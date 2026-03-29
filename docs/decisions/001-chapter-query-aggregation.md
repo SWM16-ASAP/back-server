@@ -1,13 +1,5 @@
 # Chapter 조회 N+1 문제를 Aggregation으로 해소
 
-## 미션 메타데이터
-
-- 관련 PR: [#197](https://github.com/SWM16-ASAP/back-server/pull/197)
-- 작업 브랜치: `미상`
-- 기준 브랜치: `develop`
-- 현재 상태: Aggregation 기반 조회 개선 회고 정리 완료. 추가 성능 측정과 주변 조회 패턴 점검은 남아 있다.
-- 다음 시작점: `content/book` 영역의 유사 반복 조회를 점검하고, 쿼리 로그나 부하 테스트로 실제 개선 폭을 측정한다.
-
 ## 문제
 
 `GET /api/books/{bookId}/chapters` 조회 시 챕터 목록을 가져온 뒤 각 챕터별 청크 개수를 다시 조회하는 구조였다.
@@ -35,3 +27,8 @@ Aggregation은 현재 MongoDB 구조를 크게 바꾸지 않으면서도 쿼리 
 - `content/book` 영역 전체에서 비슷한 반복 조회가 더 있는지 추가 점검이 필요하다.
 - 실제 트래픽 기준 성능 개선 폭은 쿼리 로그나 부하 테스트로 별도 측정해두는 편이 좋다.
 - 집계 결과가 더 복잡해지면 응답 조합 로직을 별도 조회 모델로 분리할지 다시 검토할 수 있다.
+
+## 연관 이슈 및 PR
+
+- 관련 이슈: 없음
+- 관련 PR: [#197](https://github.com/SWM16-ASAP/back-server/pull/197)

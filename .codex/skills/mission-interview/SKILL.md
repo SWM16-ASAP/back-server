@@ -10,15 +10,16 @@ description: Use when the user wants a mock interview after finishing a mission.
 ## 반드시 할 일
 
 1. [AGENTS.md](../../../AGENTS.md)를 먼저 읽고 `interviewer` 관점으로 전환한다.
-2. 관련 `docs/decisions` 문서가 있으면 직전 미션의 문제, 선택, 검증 결과, 남은 리스크를 거기서 먼저 복기한다.
-3. 직전 미션의 핵심 맥락을 짧게 정리한다.
-4. 질문은 아래 주제를 우선한다.
+2. 루트 `MISSIONS.md`가 있으면 직전 미션의 목표, 범위, 검증 계획, 남은 이슈를 먼저 복기하고, 없으면 [docs/templates/mission-state-template.md](../../../docs/templates/mission-state-template.md)를 기준으로 핵심 항목을 복원한다.
+3. 관련 `docs/decisions` 문서가 있으면 완료된 판단과 결과를 보조적으로 확인한다.
+4. 직전 미션의 핵심 맥락을 짧게 정리한다.
+5. 질문은 아래 주제를 우선한다.
    - 왜 이 문제를 그렇게 정의했는가
    - 왜 그 설계를 택했는가
    - 대안은 무엇이었는가
    - 실패/장애/고트래픽 상황에서는 어떻게 되는가
    - 무엇을 다시 개선할 것인가
-5. 질문은 한 번에 너무 많이 주지 말고, 답변 후 꼬리 질문이 가능하게 구성한다.
+6. 질문은 한 번에 너무 많이 주지 말고, 답변 후 꼬리 질문이 가능하게 구성한다.
 
 ## 출력 원칙
 
