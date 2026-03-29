@@ -41,6 +41,7 @@ out/
 
 ### env ###
 .env.local
+MISSIONS.md
 
 ### firebase key ###
 firebase.json
