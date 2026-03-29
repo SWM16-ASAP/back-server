@@ -1,6 +1,12 @@
 # 개인화된 추천 PUSH와 캠페인 추적 체계 도입
 
-관련 근거: [#222](https://github.com/SWM16-ASAP/back-server/pull/222), [#253](https://github.com/SWM16-ASAP/back-server/pull/253), [#288](https://github.com/SWM16-ASAP/back-server/pull/288)
+## 미션 메타데이터
+
+- 관련 PR: [#222](https://github.com/SWM16-ASAP/back-server/pull/222), [#253](https://github.com/SWM16-ASAP/back-server/pull/253), [#288](https://github.com/SWM16-ASAP/back-server/pull/288)
+- 작업 브랜치: `미상`
+- 기준 브랜치: `develop`
+- 현재 상태: 개인화 PUSH와 캠페인 추적 체계 도입 회고 정리 완료. 실험 설계와 빈도 제한 정책은 남아 있다.
+- 다음 시작점: 캠페인별 실험 기준과 A/B 구조를 정리하고, 사용자 피로도 기반 알림 빈도 제한 정책을 설계한다.
 
 ## 문제
 

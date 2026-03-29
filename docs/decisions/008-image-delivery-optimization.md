@@ -1,6 +1,12 @@
 # 글로벌 이미지 전달 성능 최적화
 
-관련 PR: [#160](https://github.com/SWM16-ASAP/back-server/pull/160)
+## 미션 메타데이터
+
+- 관련 PR: [#160](https://github.com/SWM16-ASAP/back-server/pull/160)
+- 작업 브랜치: `미상`
+- 기준 브랜치: `develop`
+- 현재 상태: 글로벌 이미지 전달 최적화 회고 정리 완료. 인프라 운영 문서와 포맷 전략 확장은 남아 있다.
+- 다음 시작점: CDN·Lambda@Edge·저장소 운영 문서를 보강하고, 이미지 종류별 전처리 규격과 포맷 대응 범위를 다시 검토한다.
 
 ## 문제
 

@@ -1,6 +1,12 @@
 # DSL 기반 크롤링 규칙 관리 구조 도입
 
-관련 근거: [#100](https://github.com/SWM16-ASAP/back-server/pull/100), [#120](https://github.com/SWM16-ASAP/back-server/pull/120), [#284](https://github.com/SWM16-ASAP/back-server/pull/284)
+## 미션 메타데이터
+
+- 관련 PR: [#100](https://github.com/SWM16-ASAP/back-server/pull/100), [#120](https://github.com/SWM16-ASAP/back-server/pull/120), [#284](https://github.com/SWM16-ASAP/back-server/pull/284)
+- 작업 브랜치: `미상`
+- 기준 브랜치: `develop`
+- 현재 상태: DSL 기반 크롤링 규칙 관리 구조 회고 정리 완료. 변화 탐지와 실패 알림 자동화는 남아 있다.
+- 다음 시작점: 사이트 구조 변화 탐지와 규칙 실패 알림을 자동화하고, 서버·클라이언트·RSS fallback 책임 경계를 더 선명하게 나눈다.
 
 ## 문제
 

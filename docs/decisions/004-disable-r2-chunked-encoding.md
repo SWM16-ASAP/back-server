@@ -1,6 +1,12 @@
 # R2 서명 불일치를 피하기 위해 Chunked Encoding 비활성화
 
-관련 PR: [#314](https://github.com/SWM16-ASAP/back-server/pull/314)
+## 미션 메타데이터
+
+- 관련 PR: [#314](https://github.com/SWM16-ASAP/back-server/pull/314)
+- 작업 브랜치: `미상`
+- 기준 브랜치: `develop`
+- 현재 상태: R2 호환 설정 조정 회고 정리 완료. 대용량 업로드 검증과 외부 스토리지 fallback 전략은 남아 있다.
+- 다음 시작점: 멀티파트와 대용량 업로드 호환성을 점검하고, 스토리지 장애나 지연에 대한 대응 전략을 분리 정리한다.
 
 ## 문제
 

@@ -1,6 +1,12 @@
 # AI 단어 분석 파이프라인의 비용과 안정성 개선
 
-관련 PR: [#185](https://github.com/SWM16-ASAP/back-server/pull/185), [#209](https://github.com/SWM16-ASAP/back-server/pull/209), [#211](https://github.com/SWM16-ASAP/back-server/pull/211)
+## 미션 메타데이터
+
+- 관련 PR: [#185](https://github.com/SWM16-ASAP/back-server/pull/185), [#209](https://github.com/SWM16-ASAP/back-server/pull/209), [#211](https://github.com/SWM16-ASAP/back-server/pull/211)
+- 작업 브랜치: `미상`
+- 기준 브랜치: `develop`
+- 현재 상태: AI 단어 분석 비용·안정성 개선 회고 정리 완료. 실험 자료 분리 관리와 실패 유형 세분화는 남아 있다.
+- 다음 시작점: 비용 측정 자료를 별도 기록으로 분리하고, 단어 분석 실패 유형과 사용자 경험 fallback 전략을 보강한다.
 
 ## 문제
 

@@ -5,8 +5,8 @@
 - 관련 PR: 미정
 - 작업 브랜치: `refactor/strengthen-agent-guidelines`
 - 기준 브랜치: `develop`
-- 현재 상태: `AGENTS.md`, repo-local mission skill, decision 템플릿 규칙 정리 완료
-- 다음 시작점: 기존 decision 문서를 새 메타데이터 포맷으로 리포맷하고, 현재 PR과 연결된 문서를 더 잘 찾는 규칙을 보강한다.
+- 현재 상태: `AGENTS.md`, repo-local mission skill, decision 템플릿 규칙 정리와 기존 decision 문서 메타데이터 backfill 완료
+- 다음 시작점: 현재 PR과 연결된 decision 문서를 더 잘 찾는 규칙을 보강하고, 템플릿과 실제 사용 규칙의 차이를 더 줄인다.
 
 ## 문제
 
