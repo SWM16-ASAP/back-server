@@ -1,6 +1,12 @@
 # Bucket4j와 Redis 기반 Rate Limiting 도입
 
-관련 PR: [#191](https://github.com/SWM16-ASAP/back-server/pull/191)
+## 미션 메타데이터
+
+- 관련 PR: [#191](https://github.com/SWM16-ASAP/back-server/pull/191)
+- 작업 브랜치: `미상`
+- 기준 브랜치: `develop`
+- 현재 상태: Bucket4j와 Redis 기반 rate limit 도입 회고 정리 완료. 응답 형식 통일과 운영 데이터 기반 튜닝은 남아 있다.
+- 다음 시작점: 429 응답을 공통 예외 형식으로 맞추고, rate limit hit 메트릭을 노출해 정책 조정 근거를 만든다.
 
 ## 문제
 

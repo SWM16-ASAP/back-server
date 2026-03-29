@@ -1,6 +1,12 @@
 # Chapter 조회 N+1 문제를 Aggregation으로 해소
 
-관련 PR: [#197](https://github.com/SWM16-ASAP/back-server/pull/197)
+## 미션 메타데이터
+
+- 관련 PR: [#197](https://github.com/SWM16-ASAP/back-server/pull/197)
+- 작업 브랜치: `미상`
+- 기준 브랜치: `develop`
+- 현재 상태: Aggregation 기반 조회 개선 회고 정리 완료. 추가 성능 측정과 주변 조회 패턴 점검은 남아 있다.
+- 다음 시작점: `content/book` 영역의 유사 반복 조회를 점검하고, 쿼리 로그나 부하 테스트로 실제 개선 폭을 측정한다.
 
 ## 문제
 

@@ -1,6 +1,12 @@
 # 개발 배포 환경을 온프레미스 기반으로 전환
 
-관련 PR: [#312](https://github.com/SWM16-ASAP/back-server/pull/312)
+## 미션 메타데이터
+
+- 관련 PR: [#312](https://github.com/SWM16-ASAP/back-server/pull/312)
+- 작업 브랜치: `미상`
+- 기준 브랜치: `develop`
+- 현재 상태: 개발 배포 환경의 온프레미스 전환 회고 정리 완료. 운영 경계와 runbook 보강은 남아 있다.
+- 다음 시작점: 브랜치 트리거와 환경 문서를 정리하고, 백업·재시작·모니터링 기준을 runbook으로 남긴다.
 
 ## 문제
 
