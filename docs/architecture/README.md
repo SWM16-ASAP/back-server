@@ -27,3 +27,4 @@
 - [Streak 도메인 구조](streak.md)
 - [Word 도메인 구조](word.md)
 - [Book 도메인 구조](content-book.md)
+- [MongoDB 논리 ERD (dbdiagram.io용 DBML)](mongodb-logical-erd.dbml)
