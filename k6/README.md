@@ -1,18 +1,5 @@
 # K6 Performance Testing
 
-## 디렉토리 구조
-```
-k6/
-├── docker-compose.yml     # K6 실행 환경
-├── scripts/              # 테스트 스크립트
-│   ├── smoke-test.js     # 기본 연결 테스트
-│   ├── load-test.js      # 부하 테스트
-│   └── stress-test.js    # 스트레스 테스트
-├── data/                 # 테스트 데이터 파일
-├── reports/              # 테스트 결과 리포트
-└── README.md
-```
-
 ## 테스트 실행
 
 ### 기본 연결 테스트 (Smoke Test)
