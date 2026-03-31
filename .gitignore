@@ -55,6 +55,4 @@ monitoring/prometheus-*.yml
 monitoring/alertmanager.yml
 
 ### K6 data ###
-k6/data/**
 k6/reports/**
-k6/scripts/**
