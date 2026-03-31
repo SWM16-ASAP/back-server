@@ -14,8 +14,9 @@
 ## 포함된 스크립트
 
 - `content/book/seed-books-content.mongosh.js`
-  - `user`, `books`, `chapters`, `chunks` 컬렉션에 재실행 가능한 업서트 시드를 넣는다.
+  - `user`, `books`, `chapters`, `chunks`, `bookProgress` 컬렉션에 재실행 가능한 업서트 시드를 넣는다.
   - 기본 분포는 `short / medium / long` 책 구성을 섞고, 챕터 수와 청크 수를 현실적인 범위로 퍼뜨린다.
+  - 같은 콘텐츠 그래프를 기준으로 `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED` 상태가 사용자별로 자연스럽게 섞인 `bookProgress`를 함께 생성한다.
 
 ## 실행
 
@@ -57,8 +58,15 @@ docker compose exec -T mongo mongosh llv_api_local < k6/seed/content/book/seed-b
   - `long`: 34~42
 - 각 책은 기본 난이도 1개를 갖고, 일부는 인접 난이도 청크를 추가로 가진다.
 - 이미지 청크는 소량만 섞어서 응답 shape 를 단조롭게 만들지 않는다.
+- `bookProgress`는 사용자 프로필별로 분포를 다르게 준다.
+  - `mostly-unread`
+  - `balanced`
+  - `active-reader`
+  - `completion-heavy`
+- `NOT_STARTED`는 progress 문서를 만들지 않는 방식으로 표현한다.
+- `IN_PROGRESS`는 `chapterProgresses`와 `maxReadChunkNumber`를 함께 채워서 현재 필터와 V3 응답 계산이 모두 자연스럽게 동작하게 한다.
 
 ## 주의
 
-- `NOT_STARTED` 같은 progress 기반 필터 검증까지 하려면 이후 `bookProgress` 시드를 별도로 추가하는 편이 좋다.
-- 현재 스크립트는 콘텐츠 그래프만 만드는 용도다.
+- 현재 스크립트는 `books` 콘텐츠 그래프와 `bookProgress`를 함께 만든다.
+- 이미 같은 prefix로 넣은 시드를 다시 깔끔하게 만들고 싶으면 `RESET_EXISTING=true`로 재실행한다.

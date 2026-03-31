@@ -12,7 +12,7 @@
  *   RESET_EXISTING=false
  */
 
-(function seedBooksContent() {
+function seedBooksContent() {
   const env = typeof process !== 'undefined' ? process.env : {};
 
   const config = {
@@ -32,6 +32,7 @@
     books: db.getCollection('books'),
     chapters: db.getCollection('chapters'),
     chunks: db.getCollection('chunks'),
+    bookProgresses: db.getCollection('bookProgress'),
   };
 
   print(`[seed] Database: ${databaseName}`);
@@ -44,11 +45,16 @@
 
   const users = buildUsers(config);
   const content = buildContentGraph(config, random);
+  const progressSeed = buildBookProgresses(config, users, content.bookCatalog, createRandom(`${config.seedPrefix}:progress`));
+  print(`[seed] Prepared bookProgress documents: ${progressSeed.bookProgresses.length}`);
 
   upsertUsers(collections.users, users);
   upsertBooks(collections.books, content.books);
   upsertChapters(collections.chapters, content.chapters);
   upsertChunks(collections.chunks, content.chunks);
+  print('[seed] Chunk upserts completed');
+  upsertBookProgresses(collections.bookProgresses, progressSeed.bookProgresses);
+  print('[seed] Book progress upserts completed');
 
   print('[seed] Completed successfully');
   printjson({
@@ -56,19 +62,32 @@
     books: content.books.length,
     chapters: content.chapters.length,
     chunks: content.chunks.length,
+    bookProgresses: progressSeed.bookProgresses.length,
+    progressProfiles: progressSeed.summaryByUser,
   });
-})();
+
+  if (typeof quit === 'function') {
+    quit(0);
+  }
+}
 
 function resetExistingSeed(collections, seedPrefix) {
   const idRegex = new RegExp(`^${escapeRegex(seedPrefix)}-`);
   const usernameRegex = new RegExp(`^${escapeRegex(seedPrefix)}-user-`);
 
+  const deletedProgresses = collections.bookProgresses.deleteMany({
+    $or: [
+      { id: idRegex },
+      { userId: idRegex },
+      { bookId: idRegex },
+    ],
+  }).deletedCount;
   const deletedChunks = collections.chunks.deleteMany({ id: idRegex }).deletedCount;
   const deletedChapters = collections.chapters.deleteMany({ id: idRegex }).deletedCount;
   const deletedBooks = collections.books.deleteMany({ id: idRegex }).deletedCount;
   const deletedUsers = collections.users.deleteMany({ username: usernameRegex }).deletedCount;
 
-  print(`[seed] Reset existing seed docs: users=${deletedUsers}, books=${deletedBooks}, chapters=${deletedChapters}, chunks=${deletedChunks}`);
+  print(`[seed] Reset existing seed docs: users=${deletedUsers}, books=${deletedBooks}, chapters=${deletedChapters}, chunks=${deletedChunks}, bookProgresses=${deletedProgresses}`);
 }
 
 function buildUsers(config) {
@@ -98,6 +117,7 @@ function buildContentGraph(config, random) {
   const books = [];
   const chapters = [];
   const chunks = [];
+  const bookCatalog = [];
 
   for (let bookIndex = 1; bookIndex <= config.bookCount; bookIndex += 1) {
     const profile = pickBookProfile(random);
@@ -106,6 +126,7 @@ function buildContentGraph(config, random) {
     const titleSeed = buildTitleSeed(bookIndex);
     const primaryDifficulty = pickPrimaryDifficulty(random);
     const difficultyLevels = buildDifficultyLevels(primaryDifficulty, config.extraDifficultyRatio, random);
+    const bookChapterCatalog = [];
 
     let totalReadingTime = 0;
     const chapterCount = randomInt(random, profile.chapterRange.min, profile.chapterRange.max);
@@ -114,6 +135,11 @@ function buildContentGraph(config, random) {
       const chapterId = `${bookId}-chapter-${pad(chapterNumber, 2)}`;
       const chunkPlan = buildChunkPlan(profile, chapterNumber, random);
       const chapterReadingTime = estimateChapterReadingTime(chunkPlan.primaryChunkCount, difficultyLevels.length);
+      const chapterCatalog = {
+        id: chapterId,
+        chapterNumber,
+        chunkIdsByDifficulty: {},
+      };
 
       chapters.push({
         id: chapterId,
@@ -137,6 +163,11 @@ function buildContentGraph(config, random) {
           const chunkId = `${chapterId}-${difficultyLevel.toLowerCase()}-chunk-${pad(chunkNumber, 2)}`;
           const isImage = shouldCreateImageChunk(chunkNumber, chapterNumber, random);
 
+          if (!chapterCatalog.chunkIdsByDifficulty[difficultyLevel]) {
+            chapterCatalog.chunkIdsByDifficulty[difficultyLevel] = [];
+          }
+          chapterCatalog.chunkIdsByDifficulty[difficultyLevel].push(chunkId);
+
           chunks.push({
             id: chunkId,
             chapterId,
@@ -152,6 +183,8 @@ function buildContentGraph(config, random) {
           });
         }
       }
+
+      bookChapterCatalog.push(chapterCatalog);
     }
 
     books.push({
@@ -172,9 +205,16 @@ function buildContentGraph(config, random) {
       tags: buildTags(profile, random),
       createdAt,
     });
+
+    bookCatalog.push({
+      id: bookId,
+      primaryDifficulty,
+      chapterCount,
+      chapters: bookChapterCatalog,
+    });
   }
 
-  return { books, chapters, chunks };
+  return { books, chapters, chunks, bookCatalog };
 }
 
 function upsertUsers(collection, users) {
@@ -233,6 +273,208 @@ function upsertChunks(collection, chunks) {
       { ordered: false }
     );
   }
+}
+
+function upsertBookProgresses(collection, bookProgresses) {
+  if (bookProgresses.length === 0) {
+    return;
+  }
+
+  collection.bulkWrite(
+    bookProgresses.map((progress) => ({
+      updateOne: {
+        filter: { userId: progress.userId, bookId: progress.bookId },
+        update: { $set: progress },
+        upsert: true,
+      },
+    })),
+    { ordered: false }
+  );
+}
+
+function buildBookProgresses(config, users, bookCatalog, random) {
+  const progressProfiles = [
+    {
+      name: 'mostly-unread',
+      weights: { NOT_STARTED: 0.72, IN_PROGRESS: 0.18, COMPLETED: 0.10 },
+    },
+    {
+      name: 'balanced',
+      weights: { NOT_STARTED: 0.45, IN_PROGRESS: 0.35, COMPLETED: 0.20 },
+    },
+    {
+      name: 'active-reader',
+      weights: { NOT_STARTED: 0.25, IN_PROGRESS: 0.45, COMPLETED: 0.30 },
+    },
+    {
+      name: 'completion-heavy',
+      weights: { NOT_STARTED: 0.12, IN_PROGRESS: 0.28, COMPLETED: 0.60 },
+    },
+  ];
+
+  const bookProgresses = [];
+  const summaryByUser = [];
+
+  users.forEach((user, userIndex) => {
+    const profile = progressProfiles[userIndex % progressProfiles.length];
+    const counts = {
+      NOT_STARTED: 0,
+      IN_PROGRESS: 0,
+      COMPLETED: 0,
+    };
+
+    bookCatalog.forEach((bookEntry, bookIndex) => {
+      const status = pickWeightedProgressStatus(profile.weights, random);
+      counts[status] += 1;
+
+      if (status === 'NOT_STARTED') {
+        return;
+      }
+
+      const progressId = `${config.seedPrefix}-book-progress-${pad(userIndex + 1, 2)}-${pad(bookIndex + 1, 4)}`;
+
+      if (status === 'COMPLETED') {
+        bookProgresses.push(buildCompletedBookProgress(progressId, user, bookEntry, random));
+        return;
+      }
+
+      bookProgresses.push(buildInProgressBookProgress(progressId, user, bookEntry, random));
+    });
+
+    summaryByUser.push({
+      username: user.username,
+      profile: profile.name,
+      counts,
+    });
+  });
+
+  return { bookProgresses, summaryByUser };
+}
+
+function buildCompletedBookProgress(progressId, user, bookEntry, random) {
+  const completedAgo = randomInt(random, 7, 90);
+  const completedAt = daysAgo(completedAgo);
+  const updatedAt = daysAgo(randomInt(random, 0, completedAgo));
+  const lastChapter = bookEntry.chapters[bookEntry.chapters.length - 1];
+  const lastChunkIds = getChunkIdsForProgress(lastChapter, bookEntry.primaryDifficulty);
+  const lastChunkNumber = lastChunkIds.length;
+
+  return {
+    id: progressId,
+    userId: user.id,
+    bookId: bookEntry.id,
+    chapterId: lastChapter.id,
+    chunkId: lastChunkIds[lastChunkIds.length - 1],
+    currentReadChapterNumber: bookEntry.chapterCount,
+    maxReadChapterNumber: bookEntry.chapterCount,
+    currentReadChunkNumber: lastChunkNumber,
+    maxReadChunkNumber: lastChunkNumber,
+    normalizedProgress: 100,
+    maxNormalizedProgress: 100,
+    currentDifficultyLevel: bookEntry.primaryDifficulty,
+    chapterProgresses: bookEntry.chapters.map((chapter, index) => ({
+      chapterNumber: chapter.chapterNumber,
+      progressPercentage: 100,
+      isCompleted: true,
+      completedAt: daysAgo(completedAgo + (bookEntry.chapterCount - index - 1)),
+    })),
+    isCompleted: true,
+    completedAt,
+    updatedAt,
+  };
+}
+
+function buildInProgressBookProgress(progressId, user, bookEntry, random) {
+  const chapterCount = bookEntry.chapterCount;
+  const minimumCompletedChapters = chapterCount >= 5 ? Math.floor(chapterCount * 0.2) : 0;
+  const maximumCompletedChapters = Math.max(
+    minimumCompletedChapters,
+    Math.min(chapterCount - 1, Math.floor(chapterCount * 0.75))
+  );
+  const completedChapterCount = randomInt(random, minimumCompletedChapters, maximumCompletedChapters);
+  const currentChapterNumber = Math.min(chapterCount, completedChapterCount + 1);
+  const currentChapter = bookEntry.chapters[currentChapterNumber - 1];
+  const currentChunkIds = getChunkIdsForProgress(currentChapter, bookEntry.primaryDifficulty);
+  const minimumChunkNumber = Math.max(1, Math.floor(currentChunkIds.length * 0.25));
+  const maximumChunkNumber = Math.max(
+    minimumChunkNumber,
+    Math.min(currentChunkIds.length - 1, Math.ceil(currentChunkIds.length * 0.85))
+  );
+  const currentReadChunkNumber = randomInt(random, minimumChunkNumber, maximumChunkNumber);
+  const currentChunkId = currentChunkIds[currentReadChunkNumber - 1];
+  const currentChapterProgress = roundToOneDecimal((currentReadChunkNumber * 100) / currentChunkIds.length);
+  const updatedAt = daysAgo(randomInt(random, 0, 21));
+
+  return {
+    id: progressId,
+    userId: user.id,
+    bookId: bookEntry.id,
+    chapterId: currentChapter.id,
+    chunkId: currentChunkId,
+    currentReadChapterNumber: currentChapterNumber,
+    maxReadChapterNumber: currentChapterNumber,
+    currentReadChunkNumber,
+    maxReadChunkNumber: currentReadChunkNumber,
+    normalizedProgress: roundToOneDecimal((completedChapterCount * 100) / chapterCount),
+    maxNormalizedProgress: roundToOneDecimal((completedChapterCount * 100) / chapterCount),
+    currentDifficultyLevel: bookEntry.primaryDifficulty,
+    chapterProgresses: buildInProgressChapterProgresses(
+      bookEntry.chapters,
+      completedChapterCount,
+      currentChapterNumber,
+      currentChapterProgress,
+      random
+    ),
+    isCompleted: false,
+    completedAt: null,
+    updatedAt,
+  };
+}
+
+function buildInProgressChapterProgresses(chapters, completedChapterCount, currentChapterNumber, currentChapterProgress, random) {
+  const chapterProgresses = [];
+
+  for (let index = 0; index < completedChapterCount; index += 1) {
+    chapterProgresses.push({
+      chapterNumber: chapters[index].chapterNumber,
+      progressPercentage: 100,
+      isCompleted: true,
+      completedAt: daysAgo(randomInt(random, 2, 45)),
+    });
+  }
+
+  chapterProgresses.push({
+    chapterNumber: currentChapterNumber,
+    progressPercentage: currentChapterProgress,
+    isCompleted: false,
+    completedAt: null,
+  });
+
+  return chapterProgresses;
+}
+
+function pickWeightedProgressStatus(weights, random) {
+  const value = random();
+
+  if (value < weights.NOT_STARTED) {
+    return 'NOT_STARTED';
+  }
+
+  if (value < weights.NOT_STARTED + weights.IN_PROGRESS) {
+    return 'IN_PROGRESS';
+  }
+
+  return 'COMPLETED';
+}
+
+function getChunkIdsForProgress(chapter, difficultyLevel) {
+  const chunkIds = chapter.chunkIdsByDifficulty[difficultyLevel] || [];
+
+  if (chunkIds.length === 0) {
+    throw new Error(`No chunks found for chapter=${chapter.id}, difficulty=${difficultyLevel}`);
+  }
+
+  return chunkIds;
 }
 
 function pickBookProfile(random) {
@@ -428,6 +670,10 @@ function boundedNumber(value, fallback, min, max) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+function roundToOneDecimal(value) {
+  return Math.round(value * 10) / 10;
+}
+
 function parseBoolean(value) {
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
 }
@@ -445,3 +691,5 @@ function daysAgo(days) {
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+seedBooksContent();
