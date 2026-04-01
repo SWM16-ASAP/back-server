@@ -15,7 +15,7 @@
 - 사용하는 저장소, 캐시, 메시징, 외부 API
 - 의존 시스템이 없다면 생략 가능
 - 가능하면 "왜 붙는지"를 한 줄로 적는다
-- 거시적인 관점에서 architecture context diagram을 포함한다.
+- 거시적인 관점에서 system context diagram을 포함한다.
 
 예시:
 

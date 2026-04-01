@@ -15,7 +15,7 @@
 
 ## 현재 문서
 
-- [프로젝트 전체 컨텍스트](overview.md)
+- [시스템 컨텍스트 다이어그램](overview.md)
 - [Streak 도메인 미니맵](streak.md)
 - [Word 도메인 미니맵](word.md)
 - [Book 도메인 미니맵](content-book.md)
