@@ -7,6 +7,12 @@
 - 단어 데이터가 없을 때 AI 분석으로 보완한다.
 - 실패한 단어를 차단 캐시로 관리한다.
 
+## 도메인 구조
+
+- 원형 단어 본문은 `Word`로 저장된다.
+- 입력 단어와 원형 단어의 연결은 `WordVariant`로 관리된다.
+- 반복 실패 단어는 `InvalidWord`에 저장해 재시도를 줄인다.
+
 ## 외부 시스템 의존성
 
 - MongoDB: 단어 본문, variant, invalid cache 저장
@@ -75,8 +81,9 @@ sequenceDiagram
 ## 핵심 기능 선정 기준
 
 1. 조회처럼 보이지만 캐시, 저장, AI 호출이 함께 묶여 있어 흐름이 길다.
-2. variant와 invalid cache를 함께 이해해야 실제 동작을 읽을 수 있다.
+2. `Word`, `WordVariant`, `InvalidWord`의 역할을 같이 이해해야 실제 동작을 읽을 수 있다.
 3. 외부 AI 의존성이 있어 실패 경로까지 같이 파악해야 한다.
+4. variant와 invalid cache가 조회 흐름 초반에 분기점 역할을 한다.
 
 ## 참고 코드
 
