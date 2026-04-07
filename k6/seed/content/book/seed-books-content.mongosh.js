@@ -77,15 +77,36 @@ function resetExistingSeed(collections, seedPrefix) {
 
   const deletedProgresses = collections.bookProgresses.deleteMany({
     $or: [
+      { _id: idRegex },
       { id: idRegex },
       { userId: idRegex },
       { bookId: idRegex },
     ],
   }).deletedCount;
-  const deletedChunks = collections.chunks.deleteMany({ id: idRegex }).deletedCount;
-  const deletedChapters = collections.chapters.deleteMany({ id: idRegex }).deletedCount;
-  const deletedBooks = collections.books.deleteMany({ id: idRegex }).deletedCount;
-  const deletedUsers = collections.users.deleteMany({ username: usernameRegex }).deletedCount;
+  const deletedChunks = collections.chunks.deleteMany({
+    $or: [
+      { _id: idRegex },
+      { id: idRegex },
+    ],
+  }).deletedCount;
+  const deletedChapters = collections.chapters.deleteMany({
+    $or: [
+      { _id: idRegex },
+      { id: idRegex },
+    ],
+  }).deletedCount;
+  const deletedBooks = collections.books.deleteMany({
+    $or: [
+      { _id: idRegex },
+      { id: idRegex },
+    ],
+  }).deletedCount;
+  const deletedUsers = collections.users.deleteMany({
+    $or: [
+      { _id: idRegex },
+      { username: usernameRegex },
+    ],
+  }).deletedCount;
 
   print(`[seed] Reset existing seed docs: users=${deletedUsers}, books=${deletedBooks}, chapters=${deletedChapters}, chunks=${deletedChunks}, bookProgresses=${deletedProgresses}`);
 }
@@ -221,8 +242,8 @@ function upsertUsers(collection, users) {
   collection.bulkWrite(
     users.map((user) => ({
       updateOne: {
-        filter: { username: user.username },
-        update: { $set: user },
+        filter: { _id: user.id },
+        update: { $set: toPersistedDocument(user) },
         upsert: true,
       },
     })),
@@ -234,8 +255,8 @@ function upsertBooks(collection, books) {
   collection.bulkWrite(
     books.map((book) => ({
       updateOne: {
-        filter: { id: book.id },
-        update: { $set: book },
+        filter: { _id: book.id },
+        update: { $set: toPersistedDocument(book) },
         upsert: true,
       },
     })),
@@ -247,8 +268,8 @@ function upsertChapters(collection, chapters) {
   collection.bulkWrite(
     chapters.map((chapter) => ({
       updateOne: {
-        filter: { id: chapter.id },
-        update: { $set: chapter },
+        filter: { _id: chapter.id },
+        update: { $set: toPersistedDocument(chapter) },
         upsert: true,
       },
     })),
@@ -265,8 +286,8 @@ function upsertChunks(collection, chunks) {
     collection.bulkWrite(
       batch.map((chunk) => ({
         updateOne: {
-          filter: { id: chunk.id },
-          update: { $set: chunk },
+          filter: { _id: chunk.id },
+          update: { $set: toPersistedDocument(chunk) },
           upsert: true,
         },
       })),
@@ -283,8 +304,8 @@ function upsertBookProgresses(collection, bookProgresses) {
   collection.bulkWrite(
     bookProgresses.map((progress) => ({
       updateOne: {
-        filter: { userId: progress.userId, bookId: progress.bookId },
-        update: { $set: progress },
+        filter: { _id: progress.id },
+        update: { $set: toPersistedDocument(progress) },
         upsert: true,
       },
     })),
@@ -349,6 +370,12 @@ function buildBookProgresses(config, users, bookCatalog, random) {
   });
 
   return { bookProgresses, summaryByUser };
+}
+
+function toPersistedDocument(entity) {
+  const document = Object.assign({}, entity);
+  delete document.id;
+  return document;
 }
 
 function buildCompletedBookProgress(progressId, user, bookEntry, random) {

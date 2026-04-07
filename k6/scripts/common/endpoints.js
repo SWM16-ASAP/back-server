@@ -53,7 +53,7 @@ const endpointCatalog = {
       query: buildBooksBaseQuery(),
       variant: 'default_list',
     }),
-    validate: (response) => validateArrayResponse(response, 'content'),
+    validate: (response) => validateArrayResponse(response, 'data'),
   },
   'books.progress_filter': {
     name: 'books.progress_filter',
@@ -69,7 +69,7 @@ const endpointCatalog = {
         variant: `progress_${progress.toLowerCase()}`,
       };
     },
-    validate: (response) => validateArrayResponse(response, 'content'),
+    validate: (response) => validateArrayResponse(response, 'data'),
   },
   'books.pagination': {
     name: 'books.pagination',
@@ -85,7 +85,7 @@ const endpointCatalog = {
         variant: `pagination_limit_${limit}`,
       };
     },
-    validate: (response) => validateArrayResponse(response, 'content'),
+    validate: (response) => validateArrayResponse(response, 'data'),
   },
 };
 
