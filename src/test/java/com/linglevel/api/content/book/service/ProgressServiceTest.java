@@ -242,6 +242,69 @@ class ProgressServiceTest {
     }
 
     @Test
+    @DisplayName("마지막 남은 챕터를 완료하면 책 전체를 완료 상태로 저장하고 streakUpdated를 반영한다")
+    void updateProgress_marksBookCompletedWhenLastRemainingChapterFinishes() {
+        // given
+        String userId = "user-1";
+        String bookId = "book-1";
+        String chunkId = "chunk-4";
+        String chapterId = "chapter-2";
+
+        BookProgress progress = new BookProgress();
+        progress.setId("progress-1");
+        progress.setUserId(userId);
+        progress.setBookId(bookId);
+        progress.setIsCompleted(false);
+        progress.setChapterProgresses(new ArrayList<>());
+        progress.getChapterProgresses().add(BookProgress.ChapterProgressInfo.builder()
+            .chapterNumber(1)
+            .progressPercentage(100.0)
+            .isCompleted(true)
+            .build());
+
+        Chunk chunk = new Chunk();
+        chunk.setId(chunkId);
+        chunk.setChapterId(chapterId);
+        chunk.setChunkNumber(4);
+        chunk.setDifficultyLevel(DifficultyLevel.A1);
+
+        Chapter chapter = new Chapter();
+        chapter.setId(chapterId);
+        chapter.setBookId(bookId);
+        chapter.setChapterNumber(2);
+
+        ProgressUpdateRequest request = new ProgressUpdateRequest();
+        request.setChunkId(chunkId);
+
+        when(bookService.existsById(bookId)).thenReturn(true);
+        when(chunkService.findById(chunkId)).thenReturn(chunk);
+        when(chapterService.findById(chapterId)).thenReturn(chapter);
+        when(bookProgressRepository.findByUserIdAndBookId(userId, bookId)).thenReturn(Optional.of(progress));
+        when(chunkRepository.countByChapterIdAndDifficultyLevel(chapterId, DifficultyLevel.A1)).thenReturn(4L);
+        when(chapterRepository.countByBookId(bookId)).thenReturn(2);
+        when(readingCompletionService.processReadingCompletion(userId, com.linglevel.api.content.common.ContentType.BOOK, chapterId, null))
+            .thenReturn(45L);
+        when(streakService.updateStreak(userId, com.linglevel.api.content.common.ContentType.BOOK, chapterId))
+            .thenReturn(true);
+
+        // when
+        ProgressResponse response = progressService.updateProgress(bookId, request, userId);
+
+        // then
+        verify(bookProgressRepository).save(bookProgressCaptor.capture());
+        BookProgress saved = bookProgressCaptor.getValue();
+
+        assertThat(saved.getChapterProgresses()).hasSize(2);
+        assertThat(saved.getChapterProgresses().get(1).getChapterNumber()).isEqualTo(2);
+        assertThat(saved.getChapterProgresses().get(1).getProgressPercentage()).isEqualTo(100.0);
+        assertThat(saved.getChapterProgresses().get(1).getIsCompleted()).isTrue();
+        assertThat(saved.getIsCompleted()).isTrue();
+        assertThat(saved.getCompletedAt()).isNotNull();
+        assertThat(response.getCurrentReadChunkNumber()).isEqualTo(4);
+        assertThat(response.getStreakUpdated()).isTrue();
+    }
+
+    @Test
     @DisplayName("deleteProgress는 기존 진도 정보를 삭제한다")
     void deleteProgress_deletesExistingProgress() {
         // given

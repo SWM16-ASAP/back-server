@@ -5,11 +5,14 @@ import com.linglevel.api.content.book.dto.*;
 import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.entity.Chapter;
+import com.linglevel.api.content.book.exception.BooksErrorCode;
+import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.BookRepository;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.common.TitleTranslations;
+import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.s3.service.ImageResizeService;
 import com.linglevel.api.s3.service.S3AiService;
 import com.linglevel.api.s3.service.S3TransferService;
@@ -35,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -188,6 +192,72 @@ class BookServiceTest {
 
         verify(bookImportService).createChunksFromLeveledResults(importData, savedChapters, "saved-book-id");
         verify(bookReadingTimeService).updateReadingTimes("saved-book-id", importData);
+    }
+
+    @Test
+    @DisplayName("단일 책 조회 시 요청 언어에 맞는 번역 제목을 우선 사용한다")
+    void getBook_selectsTranslatedTitleByLanguage() {
+        // given
+        Book book = createBook("Original title", "Author", List.of("tag1"));
+        book.setTitleTranslations(new TitleTranslations("번역 제목", "Original title"));
+        when(bookRepository.findById(book.getId())).thenReturn(Optional.of(book));
+
+        // when
+        BookResponse response = bookService.getBook(book.getId(), testUser.getId(), LanguageCode.KO);
+
+        // then
+        assertThat(response.getTitle()).isEqualTo("번역 제목");
+    }
+
+    @Test
+    @DisplayName("번역 제목이 비어 있으면 원본 제목으로 fallback 한다")
+    void getBook_fallsBackToOriginalTitleWhenTranslationMissing() {
+        // given
+        Book book = createBook("Original title", "Author", List.of("tag1"));
+        book.setTitleTranslations(new TitleTranslations(null, "Original title"));
+        when(bookRepository.findById(book.getId())).thenReturn(Optional.of(book));
+
+        // when
+        BookResponse response = bookService.getBook(book.getId(), testUser.getId(), LanguageCode.KO);
+
+        // then
+        assertThat(response.getTitle()).isEqualTo("Original title");
+    }
+
+    @Test
+    @DisplayName("단일 책 조회 시 책이 없으면 BOOK_NOT_FOUND 예외를 던진다")
+    void getBook_throwsWhenBookMissing() {
+        // given
+        when(bookRepository.findById("missing-book")).thenReturn(Optional.empty());
+
+        // when
+        BooksException exception = assertThrows(
+            BooksException.class,
+            () -> bookService.getBook("missing-book", testUser.getId(), LanguageCode.EN)
+        );
+
+        // then
+        assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.BOOK_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 sortBy 값이면 INVALID_SORT_BY 예외를 던진다")
+    void getBooks_throwsWhenSortByInvalid() {
+        // given
+        GetBooksRequest request = GetBooksRequest.builder()
+            .sortBy("unknown-sort")
+            .page(1)
+            .limit(10)
+            .build();
+
+        // when
+        BooksException exception = assertThrows(
+            BooksException.class,
+            () -> bookService.getBooks(request, testUser.getId())
+        );
+
+        // then
+        assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.INVALID_SORT_BY.getMessage());
     }
 
     @Test

@@ -280,6 +280,43 @@ class ChapterServiceTest {
     }
 
     @Test
+    @DisplayName("단일 챕터 조회 시 V3 데이터가 없으면 fallback progress 정보로 응답을 계산한다")
+    void getChapter_usesFallbackProgressInfoWhenV3DataMissing() {
+        // given
+        Chapter chapter = createChapter(testBook.getId(), 2, "Chapter 2");
+
+        BookProgress progress = new BookProgress();
+        progress.setUserId(testUser.getId());
+        progress.setBookId(testBook.getId());
+        progress.setChunkId("progress-chunk");
+        progress.setCurrentReadChapterNumber(2);
+        progress.setCurrentDifficultyLevel(DifficultyLevel.B1);
+        progress.setChapterProgresses(null);
+
+        com.linglevel.api.content.book.entity.Chunk progressChunk = new com.linglevel.api.content.book.entity.Chunk();
+        progressChunk.setId("progress-chunk");
+        progressChunk.setChunkNumber(3);
+
+        when(chapterRepository.findById(chapter.getId())).thenReturn(Optional.of(chapter));
+        when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
+            .thenReturn(Optional.of(progress));
+        when(chunkRepository.findById("progress-chunk")).thenReturn(Optional.of(progressChunk));
+        when(chunkRepository.findChunkCountsByChapterIds(List.of(chapter.getId())))
+            .thenReturn(List.of(new ChunkCountByLevelDto(chapter.getId(), DifficultyLevel.B1, 8L)));
+
+        // when
+        ChapterResponse response = chapterService.getChapter(testBook.getId(), chapter.getId(), testUser.getId());
+
+        // then
+        assertThat(response.getId()).isEqualTo(chapter.getId());
+        assertThat(response.getCurrentDifficultyLevel()).isEqualTo(DifficultyLevel.B1);
+        assertThat(response.getChunkCount()).isEqualTo(8);
+        assertThat(response.getProgressPercentage()).isEqualTo(37.5);
+        assertThat(response.getCurrentReadChunkNumber()).isEqualTo(3);
+        assertThat(response.getIsCompleted()).isFalse();
+    }
+
+    @Test
     @DisplayName("챕터가 다른 책에 속하면 CHAPTER_NOT_FOUND_IN_BOOK 예외를 던진다")
     void getChapter_throwsWhenChapterDoesNotBelongToBook() {
         // given
