@@ -65,7 +65,7 @@ public class ChapterRepositoryImpl implements ChapterRepositoryCustom {
         BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
             .orElse(null);
 
-        List<Integer> chapterNumbers = getChapterNumbersByProgress(bookProgress, progress);
+        List<Integer> chapterNumbers = getChapterNumbersByProgress(bookId, bookProgress, progress);
 
         if (chapterNumbers == null) {
             // null이면 필터링하지 않음 (모든 챕터 반환)
@@ -83,10 +83,10 @@ public class ChapterRepositoryImpl implements ChapterRepositoryCustom {
     /**
      * 진도 상태별 챕터 번호 목록 조회
      */
-    private List<Integer> getChapterNumbersByProgress(BookProgress bookProgress, ProgressStatus progressStatus) {
+    private List<Integer> getChapterNumbersByProgress(String bookId, BookProgress bookProgress, ProgressStatus progressStatus) {
         // 모든 챕터 번호 조회
         List<Chapter> allChapters = mongoTemplate.find(
-            Query.query(Criteria.where("bookId").is(bookProgress.getBookId())),
+            Query.query(Criteria.where("bookId").is(bookId)),
             Chapter.class
         );
         List<Integer> allChapterNumbers = allChapters.stream().map(Chapter::getChapterNumber).toList();

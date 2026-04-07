@@ -94,6 +94,8 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         List<String> bookIds = getBookIdsByProgress(userId, progress);
         if (!bookIds.isEmpty()) {
             query.addCriteria(Criteria.where("id").in(bookIds));
+        } else {
+            query.addCriteria(Criteria.where("_id").is(null));
         }
     }
 
