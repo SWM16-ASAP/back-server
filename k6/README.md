@@ -30,6 +30,7 @@ k6/
 - 테스트용 사용자는 `X-Test-Username` 으로 인증 가능해야 한다.
 - 시드 생성은 [README.md](/Users/solfe/Desktop/WORK/llv/llv-api/k6/seed/README.md)를 따른다.
 - 기본 `BASE_URL` 은 `http://host.docker.internal:8080` 이다.
+- 시계열 결과 저장이 필요하면 먼저 `influxdb` 컨테이너를 실행한다.
 
 ## 기본 엔드포인트 이름
 
@@ -40,6 +41,10 @@ k6/
 새 엔드포인트를 추가할 때는 `k6/scripts/common/endpoints.js` 에 등록한다.
 
 ## 실행 예시
+
+```bash
+docker compose -f k6/docker-compose.yml up -d influxdb
+```
 
 ### Baseline
 낮은 부하로 기준 응답시간과 기본 안정성을 확인한다.
@@ -121,4 +126,4 @@ docker compose -f k6/docker-compose.yml run --rm \
 
 - 콘솔 실시간 출력
 - `/reports` 아래 JSON 결과
-- 필요하면 Grafana / InfluxDB 연동
+- 필요하면 InfluxDB 데이터를 monitoring Grafana에서 조회

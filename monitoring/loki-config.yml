@@ -23,3 +23,7 @@ schema_config:
       index:
         prefix: index_
         period: 24h
+
+limits_config:
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
