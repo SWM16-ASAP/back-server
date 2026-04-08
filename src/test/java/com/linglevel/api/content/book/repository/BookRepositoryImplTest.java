@@ -49,12 +49,12 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
             createBook("book-3", "Gamma", Instant.parse("2026-01-03T00:00:00Z"))
         ));
 
-        mongoTemplate.insert(createProgressDocument("book-2", false, 5), "bookProgress");
-        mongoTemplate.insert(createProgressDocument("book-3", true, 10), "bookProgress");
+        mongoTemplate.insert(createProgressDocument("book-2", false, 40.0), "bookProgress");
+        mongoTemplate.insert(createProgressDocument("book-3", true, 100.0), "bookProgress");
     }
 
     @Test
-    @DisplayName("NOT_STARTED 필터는 progress 문서가 없는 책만 반환한다")
+    @DisplayName("NOT_STARTED 필터는 시작하지 않은 책(문서 없음 또는 normalizedProgress 0)을 반환한다")
     void findBooksWithFilters_returnsNotStartedBooks() {
         GetBooksRequest request = GetBooksRequest.builder()
             .progress(ProgressStatus.NOT_STARTED)
@@ -67,7 +67,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
     }
 
     @Test
-    @DisplayName("IN_PROGRESS 필터는 완료되지 않았고 읽기 기록이 있는 책만 반환한다")
+    @DisplayName("IN_PROGRESS 필터는 normalizedProgress > 0이고 완료되지 않은 책만 반환한다")
     void findBooksWithFilters_returnsInProgressBooks() {
         GetBooksRequest request = GetBooksRequest.builder()
             .progress(ProgressStatus.IN_PROGRESS)
@@ -96,7 +96,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
     @DisplayName("조건에 맞는 progress가 없으면 빈 페이지를 반환한다")
     void findBooksWithFilters_returnsEmptyPageWhenNoProgressMatch() {
         bookProgressRepository.deleteAll();
-        mongoTemplate.insert(createProgressDocument("book-1", false, 0), "bookProgress");
+        mongoTemplate.insert(createProgressDocument("book-1", false, 0.0), "bookProgress");
 
         GetBooksRequest request = GetBooksRequest.builder()
             .progress(ProgressStatus.IN_PROGRESS)
@@ -106,6 +106,21 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("normalizedProgress가 0이고 미완료인 책은 NOT_STARTED로 분류한다")
+    void findBooksWithFilters_includesZeroProgressAsNotStarted() {
+        mongoTemplate.insert(createProgressDocument("book-1", false, 0.0), "bookProgress");
+
+        GetBooksRequest request = GetBooksRequest.builder()
+            .progress(ProgressStatus.NOT_STARTED)
+            .build();
+
+        Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
+
+        assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-1");
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     private Pageable defaultPageable() {
@@ -123,10 +138,10 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
         return book;
     }
 
-    private Document createProgressDocument(String bookId, boolean isCompleted, int maxReadChunkNumber) {
+    private Document createProgressDocument(String bookId, boolean isCompleted, double normalizedProgress) {
         return new Document("userId", USER_ID)
             .append("bookId", bookId)
             .append("isCompleted", isCompleted)
-            .append("maxReadChunkNumber", maxReadChunkNumber);
+            .append("normalizedProgress", normalizedProgress);
     }
 }
