@@ -11,7 +11,6 @@ import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.ContentType;
-import com.linglevel.api.content.common.service.ProgressCalculationService;
 import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +30,6 @@ public class ProgressService {
     private final ChunkService chunkService;
     private final BookProgressRepository bookProgressRepository;
     private final ChunkRepository chunkRepository;
-    private final ProgressCalculationService progressCalculationService;
     private final ReadingCompletionService readingCompletionService;
     private final StreakService streakService;
     private final ChapterRepository chapterRepository;
@@ -268,16 +266,9 @@ public class ProgressService {
         newProgress.setCurrentReadChapterNumber(firstChapter.getChapterNumber());
         newProgress.setMaxReadChapterNumber(firstChapter.getChapterNumber());
 
-        // [V2_CORE] V2 필드: 초기 진행률 계산
-        long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
-            firstChapter.getId(), firstChunk.getDifficultyLevel()
-        );
-        double initialProgress = progressCalculationService.calculateNormalizedProgress(
-            firstChunk.getChunkNumber(), totalChunks
-        );
-
-        newProgress.setNormalizedProgress(initialProgress);
-        newProgress.setMaxNormalizedProgress(initialProgress);
+        // 초기 상태는 완료 챕터가 없으므로 진행률을 0%로 시작한다.
+        newProgress.setNormalizedProgress(0.0);
+        newProgress.setMaxNormalizedProgress(0.0);
         newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
 
         return bookProgressRepository.save(newProgress);

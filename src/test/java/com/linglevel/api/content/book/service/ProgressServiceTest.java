@@ -148,15 +148,13 @@ class ProgressServiceTest {
         savedProgress.setCurrentReadChapterNumber(1);
         savedProgress.setMaxReadChapterNumber(1);
         savedProgress.setCurrentDifficultyLevel(DifficultyLevel.A1);
-        savedProgress.setNormalizedProgress(12.5);
-        savedProgress.setMaxNormalizedProgress(12.5);
+        savedProgress.setNormalizedProgress(0.0);
+        savedProgress.setMaxNormalizedProgress(0.0);
 
         when(bookService.existsById(bookId)).thenReturn(true);
         when(bookProgressRepository.findByUserIdAndBookId(userId, bookId)).thenReturn(Optional.empty());
         when(chapterService.findFirstByBookId(bookId)).thenReturn(firstChapter);
         when(chunkService.findFirstByChapterId("chapter-1")).thenReturn(firstChunk);
-        when(chunkRepository.countByChapterIdAndDifficultyLevel("chapter-1", DifficultyLevel.A1)).thenReturn(8L);
-        when(progressCalculationService.calculateNormalizedProgress(1, 8L)).thenReturn(12.5);
         when(bookProgressRepository.save(any(BookProgress.class))).thenReturn(savedProgress);
         when(chunkService.findById("chunk-1")).thenReturn(firstChunk);
 
@@ -177,7 +175,7 @@ class ProgressServiceTest {
 
         assertThat(response.getId()).isEqualTo("progress-1");
         assertThat(response.getCurrentReadChunkNumber()).isEqualTo(1);
-        assertThat(response.getNormalizedProgress()).isEqualTo(12.5);
+        assertThat(response.getNormalizedProgress()).isEqualTo(0.0);
         assertThat(response.getStreakUpdated()).isFalse();
     }
 
