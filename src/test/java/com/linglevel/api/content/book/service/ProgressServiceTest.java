@@ -11,7 +11,6 @@ import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.DifficultyLevel;
-import com.linglevel.api.content.common.service.ProgressCalculationService;
 import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,9 +54,6 @@ class ProgressServiceTest {
 
     @Mock
     private ChunkService chunkService;
-
-    @Mock
-    private ProgressCalculationService progressCalculationService;
 
     @Mock
     private ReadingCompletionService readingCompletionService;
@@ -123,59 +120,32 @@ class ProgressServiceTest {
     }
 
     @Test
-    @DisplayName("진도 정보가 없으면 첫 챕터와 첫 청크 기준으로 초기 진도를 생성해 반환한다")
-    void getProgress_initializesProgressWhenMissing() {
+    @DisplayName("진도 정보가 없으면 문서를 생성하지 않고 0% 진도를 반환한다")
+    void getProgress_returnsZeroProgressWhenMissing() {
         // given
         String userId = "user-1";
         String bookId = "book-1";
 
-        Chapter firstChapter = new Chapter();
-        firstChapter.setId("chapter-1");
-        firstChapter.setChapterNumber(1);
-
-        Chunk firstChunk = new Chunk();
-        firstChunk.setId("chunk-1");
-        firstChunk.setChapterId("chapter-1");
-        firstChunk.setChunkNumber(1);
-        firstChunk.setDifficultyLevel(DifficultyLevel.A1);
-
-        BookProgress savedProgress = new BookProgress();
-        savedProgress.setId("progress-1");
-        savedProgress.setUserId(userId);
-        savedProgress.setBookId(bookId);
-        savedProgress.setChapterId("chapter-1");
-        savedProgress.setChunkId("chunk-1");
-        savedProgress.setCurrentReadChapterNumber(1);
-        savedProgress.setMaxReadChapterNumber(1);
-        savedProgress.setCurrentDifficultyLevel(DifficultyLevel.A1);
-        savedProgress.setNormalizedProgress(0.0);
-        savedProgress.setMaxNormalizedProgress(0.0);
-
         when(bookService.existsById(bookId)).thenReturn(true);
         when(bookProgressRepository.findByUserIdAndBookId(userId, bookId)).thenReturn(Optional.empty());
-        when(chapterService.findFirstByBookId(bookId)).thenReturn(firstChapter);
-        when(chunkService.findFirstByChapterId("chapter-1")).thenReturn(firstChunk);
-        when(bookProgressRepository.save(any(BookProgress.class))).thenReturn(savedProgress);
-        when(chunkService.findById("chunk-1")).thenReturn(firstChunk);
 
         // when
         ProgressResponse response = progressService.getProgress(bookId, userId);
 
         // then
-        verify(bookProgressRepository).save(bookProgressCaptor.capture());
-        BookProgress initialized = bookProgressCaptor.getValue();
+        verify(bookProgressRepository, never()).save(any(BookProgress.class));
+        verifyNoInteractions(chapterService, chunkService, chunkRepository);
 
-        assertThat(initialized.getUserId()).isEqualTo(userId);
-        assertThat(initialized.getBookId()).isEqualTo(bookId);
-        assertThat(initialized.getChapterId()).isEqualTo("chapter-1");
-        assertThat(initialized.getChunkId()).isEqualTo("chunk-1");
-        assertThat(initialized.getCurrentReadChapterNumber()).isEqualTo(1);
-        assertThat(initialized.getMaxReadChapterNumber()).isEqualTo(1);
-        assertThat(initialized.getCurrentDifficultyLevel()).isEqualTo(DifficultyLevel.A1);
-
-        assertThat(response.getId()).isEqualTo("progress-1");
-        assertThat(response.getCurrentReadChunkNumber()).isEqualTo(1);
+        assertThat(response.getId()).isNull();
+        assertThat(response.getChapterId()).isNull();
+        assertThat(response.getChunkId()).isNull();
+        assertThat(response.getCurrentReadChapterNumber()).isEqualTo(0);
+        assertThat(response.getCurrentReadChunkNumber()).isEqualTo(0);
+        assertThat(response.getMaxReadChapterNumber()).isEqualTo(0);
+        assertThat(response.getMaxReadChunkNumber()).isEqualTo(0);
         assertThat(response.getNormalizedProgress()).isEqualTo(0.0);
+        assertThat(response.getMaxNormalizedProgress()).isEqualTo(0.0);
+        assertThat(response.getIsCompleted()).isFalse();
         assertThat(response.getStreakUpdated()).isFalse();
     }
 

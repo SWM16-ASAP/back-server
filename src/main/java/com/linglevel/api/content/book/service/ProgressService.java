@@ -248,30 +248,9 @@ public class ProgressService {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
-        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
-                .orElseGet(() -> initializeProgress(userId, bookId));
-
-        return convertToProgressResponse(bookProgress, false);
-    }
-
-    private BookProgress initializeProgress(String userId, String bookId) {
-        Chapter firstChapter = chapterService.findFirstByBookId(bookId);
-        Chunk firstChunk = chunkService.findFirstByChapterId(firstChapter.getId());
-
-        BookProgress newProgress = new BookProgress();
-        newProgress.setUserId(userId);
-        newProgress.setBookId(bookId);
-        newProgress.setChapterId(firstChapter.getId());
-        newProgress.setChunkId(firstChunk.getId());
-        newProgress.setCurrentReadChapterNumber(firstChapter.getChapterNumber());
-        newProgress.setMaxReadChapterNumber(firstChapter.getChapterNumber());
-
-        // 초기 상태는 완료 챕터가 없으므로 진행률을 0%로 시작한다.
-        newProgress.setNormalizedProgress(0.0);
-        newProgress.setMaxNormalizedProgress(0.0);
-        newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
-
-        return bookProgressRepository.save(newProgress);
+        return bookProgressRepository.findByUserIdAndBookId(userId, bookId)
+                .map(progress -> convertToProgressResponse(progress, false))
+                .orElseGet(() -> createNotStartedProgressResponse(userId, bookId));
     }
 
     @Transactional
@@ -319,4 +298,19 @@ public class ProgressService {
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }
-} 
+
+    private ProgressResponse createNotStartedProgressResponse(String userId, String bookId) {
+        return ProgressResponse.builder()
+                .userId(userId)
+                .bookId(bookId)
+                .currentReadChapterNumber(0)
+                .currentReadChunkNumber(0)
+                .maxReadChapterNumber(0)
+                .maxReadChunkNumber(0)
+                .isCompleted(false)
+                .normalizedProgress(0.0)
+                .maxNormalizedProgress(0.0)
+                .streakUpdated(false)
+                .build();
+    }
+}
