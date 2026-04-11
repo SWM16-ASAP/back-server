@@ -24,6 +24,9 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 @Slf4j
 public class ProgressService {
+    private static final int CHAPTER_POSITION_SHIFT = 16;
+    private static final int CHAPTER_NUMBER_MAX = 0x7FFF; // 32767
+    private static final int CHUNK_NUMBER_MAX = 0xFFFF; // 65535
 
     private final BookService bookService;
     private final ChapterService chapterService;
@@ -102,6 +105,12 @@ public class ProgressService {
 
         if (maxChapterNum == null || currentChapterNum > maxChapterNum) {
             bookProgress.setMaxReadChapterNumber(currentChapterNum);
+        }
+
+        int currentChunkPosition = toChapterFirstPosition(chapter.getChapterNumber(), chunk.getChunkNumber());
+        Integer maxChunkPosition = bookProgress.getMaxReadChunkNumber();
+        if (maxChunkPosition == null || currentChunkPosition > maxChunkPosition) {
+            bookProgress.setMaxReadChunkNumber(currentChunkPosition);
         }
 
         // maxNormalizedProgress는 완료된 챕터 기반으로 설정
@@ -290,6 +299,7 @@ public class ProgressService {
                 .currentReadChapterNumber(progress.getCurrentReadChapterNumber())
                 .currentReadChunkNumber(chunk.getChunkNumber())
                 .maxReadChapterNumber(progress.getMaxReadChapterNumber())
+                .maxReadChunkNumber(progress.getMaxReadChunkNumber())
                 .isCompleted(progress.getIsCompleted())
                 .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
                 .normalizedProgress(progress.getNormalizedProgress())
@@ -312,5 +322,15 @@ public class ProgressService {
                 .maxNormalizedProgress(0.0)
                 .streakUpdated(false)
                 .build();
+    }
+
+    private int toChapterFirstPosition(Integer chapterNumber, Integer chunkNumber) {
+        if (chapterNumber == null || chapterNumber <= 0 || chunkNumber == null || chunkNumber <= 0) {
+            throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
+        }
+        if (chapterNumber > CHAPTER_NUMBER_MAX || chunkNumber > CHUNK_NUMBER_MAX) {
+            throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
+        }
+        return (chapterNumber << CHAPTER_POSITION_SHIFT) | chunkNumber;
     }
 }

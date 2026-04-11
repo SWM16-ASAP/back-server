@@ -117,6 +117,7 @@ class ProgressServiceTest {
         // ensureMigrated initializes the list, and the subsequent logic adds the first progress info
         assertThat(savedProgress.getChapterProgresses()).hasSize(1);
         assertThat(savedProgress.getChapterProgresses().get(0).getChapterNumber()).isEqualTo(1);
+        assertThat(savedProgress.getMaxReadChunkNumber()).isEqualTo(chapterFirstPosition(1, 1));
     }
 
     @Test
@@ -205,7 +206,9 @@ class ProgressServiceTest {
         assertThat(saved.getChapterProgresses().get(0).getIsCompleted()).isFalse();
         assertThat(saved.getCurrentReadChapterNumber()).isEqualTo(1);
         assertThat(saved.getChunkId()).isEqualTo(chunkId);
+        assertThat(saved.getMaxReadChunkNumber()).isEqualTo(chapterFirstPosition(1, 3));
         assertThat(response.getCurrentReadChunkNumber()).isEqualTo(3);
+        assertThat(response.getMaxReadChunkNumber()).isEqualTo(chapterFirstPosition(1, 3));
         assertThat(response.getStreakUpdated()).isFalse();
     }
 
@@ -268,8 +271,59 @@ class ProgressServiceTest {
         assertThat(saved.getChapterProgresses().get(1).getIsCompleted()).isTrue();
         assertThat(saved.getIsCompleted()).isTrue();
         assertThat(saved.getCompletedAt()).isNotNull();
+        assertThat(saved.getMaxReadChunkNumber()).isEqualTo(chapterFirstPosition(2, 4));
         assertThat(response.getCurrentReadChunkNumber()).isEqualTo(4);
+        assertThat(response.getMaxReadChunkNumber()).isEqualTo(chapterFirstPosition(2, 4));
         assertThat(response.getStreakUpdated()).isTrue();
+    }
+
+    @Test
+    @DisplayName("maxReadChunkNumber는 챕터 우선 순서로 업데이트된다")
+    void updateProgress_updatesMaxReadChunkNumberByChapterPriority() {
+        // given
+        String userId = "user-1";
+        String bookId = "book-1";
+        String chunkId = "chunk-1";
+        String chapterId = "chapter-2";
+
+        BookProgress progress = new BookProgress();
+        progress.setId("progress-1");
+        progress.setUserId(userId);
+        progress.setBookId(bookId);
+        progress.setMaxReadChunkNumber(chapterFirstPosition(1, 100));
+        progress.setChapterProgresses(new ArrayList<>());
+
+        Chunk chunk = new Chunk();
+        chunk.setId(chunkId);
+        chunk.setChapterId(chapterId);
+        chunk.setChunkNumber(1);
+        chunk.setDifficultyLevel(DifficultyLevel.A1);
+
+        Chapter chapter = new Chapter();
+        chapter.setId(chapterId);
+        chapter.setBookId(bookId);
+        chapter.setChapterNumber(2);
+
+        ProgressUpdateRequest request = new ProgressUpdateRequest();
+        request.setChunkId(chunkId);
+
+        when(bookService.existsById(bookId)).thenReturn(true);
+        when(chunkService.findById(chunkId)).thenReturn(chunk);
+        when(chapterService.findById(chapterId)).thenReturn(chapter);
+        when(bookProgressRepository.findByUserIdAndBookId(userId, bookId)).thenReturn(Optional.of(progress));
+        when(chunkRepository.countByChapterIdAndDifficultyLevel(chapterId, DifficultyLevel.A1)).thenReturn(10L);
+        when(chapterRepository.countByBookId(bookId)).thenReturn(5);
+        when(readingCompletionService.processReadingCompletion(userId, com.linglevel.api.content.common.ContentType.BOOK, chapterId, null))
+            .thenReturn(null);
+
+        // when
+        ProgressResponse response = progressService.updateProgress(bookId, request, userId);
+
+        // then
+        verify(bookProgressRepository).save(bookProgressCaptor.capture());
+        BookProgress saved = bookProgressCaptor.getValue();
+        assertThat(saved.getMaxReadChunkNumber()).isEqualTo(chapterFirstPosition(2, 1));
+        assertThat(response.getMaxReadChunkNumber()).isEqualTo(chapterFirstPosition(2, 1));
     }
 
     @Test
@@ -311,5 +365,9 @@ class ProgressServiceTest {
         // then
         assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.PROGRESS_NOT_FOUND.getMessage());
         verify(bookProgressRepository, never()).delete(any(BookProgress.class));
+    }
+
+    private int chapterFirstPosition(int chapterNumber, int chunkNumber) {
+        return (chapterNumber << 16) | chunkNumber;
     }
 }

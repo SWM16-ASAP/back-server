@@ -39,7 +39,7 @@ public class ProgressResponse {
     @Schema(description = "최대 읽은 챕터 번호", example = "3")
     private Integer maxReadChapterNumber;
 
-    @Schema(description = "최대 읽은 청크 번호", example = "8")
+    @Schema(description = "챕터 우선 정렬 기준의 최대 도달 청크 위치값", example = "65544")
     private Integer maxReadChunkNumber;
 
     @Schema(description = "완료 여부", example = "false")
