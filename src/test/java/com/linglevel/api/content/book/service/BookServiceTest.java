@@ -500,6 +500,8 @@ class BookServiceTest {
         progress.setBookId(bookId);
         progress.setCurrentReadChapterNumber(isCompleted ? 20 : 10);
         progress.setMaxReadChapterNumber(isCompleted ? 20 : 10);
+        progress.setNormalizedProgress(isCompleted ? 100.0 : 50.0);
+        progress.setMaxNormalizedProgress(isCompleted ? 100.0 : 50.0);
         progress.setIsCompleted(isCompleted);
         progress.setUpdatedAt(Instant.now());
         return progress;

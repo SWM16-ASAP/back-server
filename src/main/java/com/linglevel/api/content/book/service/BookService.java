@@ -194,10 +194,10 @@ public class BookService {
                 currentReadChapterNumber = progress.getCurrentReadChapterNumber() != null
                     ? progress.getCurrentReadChapterNumber() : 0;
 
-                // 진행률 계산
-                if (book.getChapterCount() != null && book.getChapterCount() > 0) {
-                    progressPercentage = (double) currentReadChapterNumber / book.getChapterCount() * 100.0;
-                }
+                // 진행률은 저장된 normalizedProgress를 단일 소스로 사용한다.
+                progressPercentage = progress.getNormalizedProgress() != null
+                    ? progress.getNormalizedProgress()
+                    : 0.0;
 
                 // DB에 저장된 완료 여부 사용
                 isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
