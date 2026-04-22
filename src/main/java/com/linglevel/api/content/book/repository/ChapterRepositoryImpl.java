@@ -95,36 +95,25 @@ public class ChapterRepositoryImpl implements ChapterRepositoryCustom {
             return progressStatus == ProgressStatus.NOT_STARTED ? allChapterNumbers : List.of();
         }
 
-        // [FIX] V3 마이그레이션된 데이터(chapterProgresses)를 기준으로 필터링
-        if (bookProgress.getChapterProgresses() != null && !bookProgress.getChapterProgresses().isEmpty()) {
-            Map<Integer, BookProgress.ChapterProgressInfo> progressInfoMap = bookProgress.getChapterProgresses().stream()
-                .collect(Collectors.toMap(BookProgress.ChapterProgressInfo::getChapterNumber, Function.identity()));
-
-            return allChapterNumbers.stream()
-                .filter(chapterNumber -> {
-                    BookProgress.ChapterProgressInfo info = progressInfoMap.get(chapterNumber);
-                    boolean isCompleted = info != null && Boolean.TRUE.equals(info.getIsCompleted());
-                    boolean inProgress = info != null && !isCompleted && info.getProgressPercentage() != null && info.getProgressPercentage() > 0;
-
-                    return switch (progressStatus) {
-                        case COMPLETED -> isCompleted;
-                        case IN_PROGRESS -> inProgress;
-                        case NOT_STARTED -> !isCompleted && !inProgress;
-                    };
-                })
-                .toList();
-        }
-
-        // [FALLBACK] 마이그레이션되지 않은 옛날 데이터 기준
-        Integer currentChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
-            ? bookProgress.getCurrentReadChapterNumber() : 0;
+        Map<Integer, BookProgress.ChapterProgressInfo> progressInfoMap =
+            bookProgress.getChapterProgresses() == null
+                ? Map.of()
+                : bookProgress.getChapterProgresses().stream()
+                    .collect(Collectors.toMap(BookProgress.ChapterProgressInfo::getChapterNumber, Function.identity()));
 
         return allChapterNumbers.stream()
             .filter(chapterNumber -> {
+                BookProgress.ChapterProgressInfo info = progressInfoMap.get(chapterNumber);
+                boolean isCompleted = info != null && Boolean.TRUE.equals(info.getIsCompleted());
+                boolean inProgress = info != null
+                    && !isCompleted
+                    && info.getProgressPercentage() != null
+                    && info.getProgressPercentage() > 0;
+
                 return switch (progressStatus) {
-                    case NOT_STARTED -> chapterNumber > currentChapterNumber;
-                    case IN_PROGRESS -> chapterNumber.equals(currentChapterNumber) && currentChapterNumber > 0;
-                    case COMPLETED -> chapterNumber < currentChapterNumber;
+                    case COMPLETED -> isCompleted;
+                    case IN_PROGRESS -> inProgress;
+                    case NOT_STARTED -> !isCompleted && !inProgress;
                 };
             })
             .toList();

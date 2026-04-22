@@ -98,12 +98,12 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
     }
 
     @Test
-    @DisplayName("fallback 데이터에서는 currentReadChapterNumber 기준으로 챕터 상태를 구분한다")
-    void findChaptersWithFilters_usesFallbackProgressData() {
+    @DisplayName("V3 데이터가 없으면 모든 챕터를 NOT_STARTED로 본다")
+    void findChaptersWithFilters_treatsMissingV3DataAsNotStarted() {
         BookProgress progress = new BookProgress();
         progress.setUserId(USER_ID);
         progress.setBookId(BOOK_ID);
-        progress.setCurrentReadChapterNumber(2);
+        progress.setCurrentReadChapterNumber(2); // legacy field only (ignored in V3-only filtering)
         bookProgressRepository.save(progress);
 
         GetChaptersRequest completedRequest = GetChaptersRequest.builder()
@@ -120,9 +120,9 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
         Page<Chapter> inProgress = chapterRepository.findChaptersWithFilters(BOOK_ID, inProgressRequest, USER_ID, defaultPageable());
         Page<Chapter> notStarted = chapterRepository.findChaptersWithFilters(BOOK_ID, notStartedRequest, USER_ID, defaultPageable());
 
-        assertThat(completed.getContent()).extracting(Chapter::getChapterNumber).containsExactly(1);
-        assertThat(inProgress.getContent()).extracting(Chapter::getChapterNumber).containsExactly(2);
-        assertThat(notStarted.getContent()).extracting(Chapter::getChapterNumber).containsExactly(3);
+        assertThat(completed.getContent()).isEmpty();
+        assertThat(inProgress.getContent()).isEmpty();
+        assertThat(notStarted.getContent()).extracting(Chapter::getChapterNumber).containsExactly(1, 2, 3);
     }
 
     private Pageable defaultPageable() {

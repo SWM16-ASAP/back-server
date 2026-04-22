@@ -6,7 +6,6 @@ import com.linglevel.api.content.book.dto.ChunkCountByLevelDto;
 import com.linglevel.api.content.book.dto.GetChaptersRequest;
 import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.book.entity.Chapter;
-import com.linglevel.api.content.book.entity.Chunk;
 import com.linglevel.api.content.book.exception.BooksException;
 import com.linglevel.api.content.book.exception.BooksErrorCode;
 import com.linglevel.api.content.book.repository.BookRepository;
@@ -65,10 +64,6 @@ public class ChapterService {
             .flatMap(id -> bookProgressRepository.findByUserIdAndBookId(id, bookId))
             .orElse(null);
 
-        Chunk progressChunk = (bookProgress != null && bookProgress.getChunkId() != null)
-            ? chunkRepository.findById(bookProgress.getChunkId()).orElse(null)
-            : null;
-
         Map<String, Map<DifficultyLevel, Long>> chunkCountsMap = chunkRepository.findChunkCountsByChapterIds(chapterIds)
             .stream()
             .collect(Collectors.groupingBy(
@@ -77,7 +72,7 @@ public class ChapterService {
             ));
 
         List<ChapterResponse> chapterResponses = chapters.stream()
-            .map(chapter -> convertToChapterResponse(chapter, book, bookProgress, progressChunk, chunkCountsMap))
+            .map(chapter -> convertToChapterResponse(chapter, book, bookProgress, chunkCountsMap))
             .collect(Collectors.toList());
 
         return new PageResponse<>(chapterResponses, chapterPage);
@@ -97,10 +92,6 @@ public class ChapterService {
             .flatMap(id -> bookProgressRepository.findByUserIdAndBookId(id, bookId))
             .orElse(null);
 
-        Chunk progressChunk = (bookProgress != null && bookProgress.getChunkId() != null)
-            ? chunkRepository.findById(bookProgress.getChunkId()).orElse(null)
-            : null;
-
         Map<String, Map<DifficultyLevel, Long>> chunkCountsMap = chunkRepository.findChunkCountsByChapterIds(Collections.singletonList(chapterId))
             .stream()
             .collect(Collectors.groupingBy(
@@ -108,7 +99,7 @@ public class ChapterService {
                 Collectors.toMap(ChunkCountByLevelDto::getDifficultyLevel, ChunkCountByLevelDto::getCount)
             ));
 
-        return convertToChapterResponse(chapter, book, bookProgress, progressChunk, chunkCountsMap);
+        return convertToChapterResponse(chapter, book, bookProgress, chunkCountsMap);
     }
 
     public boolean existsById(String chapterId) {
@@ -153,7 +144,7 @@ public class ChapterService {
             .build();
     }
 
-    private ChapterResponse convertToChapterResponse(Chapter chapter, Book book, BookProgress bookProgress, Chunk progressChunk, Map<String, Map<DifficultyLevel, Long>> chunkCountsMap) {
+    private ChapterResponse convertToChapterResponse(Chapter chapter, Book book, BookProgress bookProgress, Map<String, Map<DifficultyLevel, Long>> chunkCountsMap) {
         int currentReadChunkNumber = 0;
         double progressPercentage = 0.0;
         DifficultyLevel currentDifficultyLevel = book.getDifficultyLevel(); // Fallback: Book's difficulty
@@ -173,7 +164,6 @@ public class ChapterService {
                 : null;
 
             if (chapterProgressInfo != null) {
-                // 배열에서 찾은 경우
                 progressPercentage = chapterProgressInfo.getProgressPercentage() != null
                     ? chapterProgressInfo.getProgressPercentage() : 0.0;
                 isCompleted = Boolean.TRUE.equals(chapterProgressInfo.getIsCompleted());
@@ -182,30 +172,6 @@ public class ChapterService {
                 long totalChunksForLevel = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap())
                     .getOrDefault(currentDifficultyLevel, 0L);
                 currentReadChunkNumber = (int) Math.ceil(progressPercentage * totalChunksForLevel / 100.0);
-
-            } else {
-                // [FALLBACK] 기존 로직 사용 (backward compatibility)
-                Integer progressChapterNumber = bookProgress.getCurrentReadChapterNumber() != null
-                    ? bookProgress.getCurrentReadChapterNumber() : 0;
-
-                Integer progressChunkNumber = (progressChunk != null && progressChunk.getChunkNumber() != null)
-                    ? progressChunk.getChunkNumber() : 0;
-
-                long totalChunksForLevel = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap())
-                    .getOrDefault(currentDifficultyLevel, 0L);
-
-                if (chapter.getChapterNumber() < progressChapterNumber) {
-                    currentReadChunkNumber = (int) totalChunksForLevel;
-                    progressPercentage = 100.0;
-                } else if (chapter.getChapterNumber().equals(progressChapterNumber)) {
-                    currentReadChunkNumber = progressChunkNumber;
-                    if (totalChunksForLevel > 0) {
-                        progressPercentage = (double) progressChunkNumber / totalChunksForLevel * 100.0;
-                    }
-                } else {
-                    currentReadChunkNumber = 0;
-                    progressPercentage = 0.0;
-                }
             }
         }
 
