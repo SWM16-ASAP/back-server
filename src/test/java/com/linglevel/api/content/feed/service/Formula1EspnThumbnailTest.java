@@ -9,6 +9,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 import java.net.URL;
 import java.util.List;
@@ -16,6 +17,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("Formula1 & ESPN 썸네일 추출 DSL 테스트")
+@DisabledIfEnvironmentVariable(
+    named = "CI",
+    matches = "true",
+    disabledReason = "외부 RSS/웹 페이지 의존 통합 테스트는 CI 환경에서 불안정하여 로컬에서만 실행"
+)
 class Formula1EspnThumbnailTest {
 
     // 권장 DSL (다양한 사이트에서 작동)
