@@ -395,7 +395,7 @@ function buildCompletedBookProgress(progressId, user, bookEntry, random) {
     currentReadChapterNumber: bookEntry.chapterCount,
     maxReadChapterNumber: bookEntry.chapterCount,
     currentReadChunkNumber: lastChunkNumber,
-    maxReadChunkNumber: lastChunkNumber,
+    maxReadChunkNumber: encodeChapterFirstPosition(bookEntry.chapterCount, lastChunkNumber),
     normalizedProgress: 100,
     maxNormalizedProgress: 100,
     currentDifficultyLevel: bookEntry.primaryDifficulty,
@@ -441,7 +441,7 @@ function buildInProgressBookProgress(progressId, user, bookEntry, random) {
     currentReadChapterNumber: currentChapterNumber,
     maxReadChapterNumber: currentChapterNumber,
     currentReadChunkNumber,
-    maxReadChunkNumber: currentReadChunkNumber,
+    maxReadChunkNumber: encodeChapterFirstPosition(currentChapterNumber, currentReadChunkNumber),
     normalizedProgress: roundToOneDecimal((completedChapterCount * 100) / chapterCount),
     maxNormalizedProgress: roundToOneDecimal((completedChapterCount * 100) / chapterCount),
     currentDifficultyLevel: bookEntry.primaryDifficulty,
@@ -502,6 +502,12 @@ function getChunkIdsForProgress(chapter, difficultyLevel) {
   }
 
   return chunkIds;
+}
+
+function encodeChapterFirstPosition(chapterNumber, chunkNumber) {
+  const safeChapterNumber = Math.max(1, Number(chapterNumber) || 1);
+  const safeChunkNumber = Math.max(0, Number(chunkNumber) || 0);
+  return (safeChapterNumber * 65536) + safeChunkNumber;
 }
 
 function pickBookProfile(random) {

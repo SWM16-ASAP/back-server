@@ -67,7 +67,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
     }
 
     @Test
-    @DisplayName("IN_PROGRESS 필터는 normalizedProgress > 0이고 완료되지 않은 책만 반환한다")
+    @DisplayName("IN_PROGRESS 필터는 완료되지 않았고 읽기를 시작한 책을 반환한다")
     void findBooksWithFilters_returnsInProgressBooks() {
         GetBooksRequest request = GetBooksRequest.builder()
             .progress(ProgressStatus.IN_PROGRESS)
@@ -76,6 +76,22 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
         Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
 
         assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-2");
+        assertThat(result.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("normalizedProgress가 0이어도 부분 읽기면 IN_PROGRESS로 분류한다")
+    void findBooksWithFilters_includesPartialReadAsInProgress() {
+        bookProgressRepository.deleteAll();
+        mongoTemplate.insert(createPartialInProgressDocument("book-1", 1, 2, 20.0), "bookProgress");
+
+        GetBooksRequest request = GetBooksRequest.builder()
+            .progress(ProgressStatus.IN_PROGRESS)
+            .build();
+
+        Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
+
+        assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-1");
         assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
@@ -123,6 +139,23 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
         assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("부분 읽기 데이터는 NOT_STARTED에서 제외한다")
+    void findBooksWithFilters_excludesPartialReadFromNotStarted() {
+        bookProgressRepository.deleteAll();
+        mongoTemplate.insert(createPartialInProgressDocument("book-1", 1, 2, 20.0), "bookProgress");
+
+        GetBooksRequest request = GetBooksRequest.builder()
+            .progress(ProgressStatus.NOT_STARTED)
+            .build();
+
+        Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
+
+        assertThat(result.getContent()).extracting(Book::getId)
+            .containsExactly("book-2", "book-3");
+        assertThat(result.getTotalElements()).isEqualTo(2);
+    }
+
     private Pageable defaultPageable() {
         return PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "createdAt"));
     }
@@ -143,5 +176,23 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
             .append("bookId", bookId)
             .append("isCompleted", isCompleted)
             .append("normalizedProgress", normalizedProgress);
+    }
+
+    private Document createPartialInProgressDocument(
+        String bookId,
+        int chapterNumber,
+        int chunkNumber,
+        double progressPercentage
+    ) {
+        int encodedPosition = chapterNumber * 65536 + chunkNumber;
+        Document chapterProgress = new Document("chapterNumber", chapterNumber)
+            .append("progressPercentage", progressPercentage)
+            .append("isCompleted", false)
+            .append("completedAt", null);
+
+        return createProgressDocument(bookId, false, 0.0)
+            .append("maxReadChapterNumber", chapterNumber)
+            .append("maxReadChunkNumber", encodedPosition)
+            .append("chapterProgresses", List.of(chapterProgress));
     }
 }

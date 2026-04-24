@@ -136,7 +136,7 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         List<String> startedBookIds = findStartedBookIds(userId);
         Set<String> startedBookIdSet = new HashSet<>(startedBookIds);
 
-        // 시작하지 않은 책(진도 문서 없음 또는 normalizedProgress 0%)만 반환
+        // 시작하지 않은 책(완료/부분 읽기/완료 챕터 진행률이 없는 책)만 반환
         return allBookIds.stream()
                 .filter(bookId -> !startedBookIdSet.contains(bookId))
                 .toList();
@@ -149,7 +149,10 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         Query query = new Query();
         query.addCriteria(Criteria.where("userId").is(userId));
         query.addCriteria(Criteria.where("isCompleted").is(false));
-        query.addCriteria(Criteria.where("normalizedProgress").gt(0));
+        query.addCriteria(new Criteria().orOperator(
+                Criteria.where("normalizedProgress").gt(0),
+                partiallyReadChapterCriteria()
+        ));
 
         return findBookIdsFromProgress(query);
     }
@@ -173,10 +176,18 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         query.addCriteria(Criteria.where("userId").is(userId));
         query.addCriteria(new Criteria().orOperator(
                 Criteria.where("isCompleted").is(true),
-                Criteria.where("normalizedProgress").gt(0)
+                Criteria.where("normalizedProgress").gt(0),
+                partiallyReadChapterCriteria()
         ));
 
         return findBookIdsFromProgress(query);
+    }
+
+    private Criteria partiallyReadChapterCriteria() {
+        return Criteria.where("chapterProgresses").elemMatch(
+                Criteria.where("isCompleted").is(false)
+                        .and("progressPercentage").gt(0)
+        );
     }
 
     /**
