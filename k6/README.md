@@ -26,6 +26,8 @@ k6/
 ## 전제 조건
 
 - 애플리케이션이 로컬에서 실행 중이어야 한다.
+- rate limit 영향 없이 k6를 실행하려면 앱을 `local,local-k6` 프로필로 실행한다.
+  - 예: `./gradlew bootRun --args='--spring.profiles.active=local,local-k6'`
 - MongoDB 에는 seed 데이터가 들어 있어야 한다.
 - 테스트용 사용자는 `X-Test-Username` 으로 인증 가능해야 한다.
 - 시드 생성은 [README.md](/Users/solfe/Desktop/WORK/llv/llv-api/k6/seed/README.md)를 따른다.
