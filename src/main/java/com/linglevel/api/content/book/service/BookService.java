@@ -28,7 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -125,10 +127,12 @@ public class BookService {
 
         // QueryDSL Custom Repository를 사용하여 필터링 + 페이지네이션 통합 처리
         Page<Book> bookPage = bookRepository.findBooksWithFilters(request, userId, pageable);
+        List<Book> books = bookPage.getContent();
+        Map<String, BookProgress> progressMap = getProgressMap(userId, books);
 
         LanguageCode languageCode = request.getLanguageCode();
-        List<BookResponse> bookResponses = bookPage.getContent().stream()
-            .map(book -> convertToBookResponse(book, userId, languageCode))
+        List<BookResponse> bookResponses = books.stream()
+            .map(book -> convertToBookResponse(book, progressMap.get(book.getId()), languageCode))
             .collect(Collectors.toList());
 
         return new PageResponse<>(bookResponses, bookPage);
@@ -138,7 +142,11 @@ public class BookService {
         Book book = bookRepository.findById(bookId)
             .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
 
-        return convertToBookResponse(book, userId, languageCode);
+        BookProgress progress = userId == null
+            ? null
+            : bookProgressRepository.findByUserIdAndBookId(userId, book.getId()).orElse(null);
+
+        return convertToBookResponse(book, progress, languageCode);
     }
 
     public boolean existsById(String bookId) { 
@@ -179,29 +187,44 @@ public class BookService {
             .collect(Collectors.toList());
     }
 
-    private BookResponse convertToBookResponse(Book book, String userId, LanguageCode languageCode) {
+    private Map<String, BookProgress> getProgressMap(String userId, List<Book> books) {
+        if (userId == null || books.isEmpty()) {
+            return Map.of();
+        }
+
+        List<String> bookIds = books.stream().map(Book::getId).toList();
+        List<BookProgress> progresses = bookProgressRepository.findByUserIdAndBookIdIn(userId, bookIds);
+        if (progresses == null || progresses.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, BookProgress> progressMap = new HashMap<>();
+        for (BookProgress progress : progresses) {
+            if (progress.getBookId() != null) {
+                // unique index(userId, bookId) 기준으로 bookId당 1건만 유지
+                progressMap.putIfAbsent(progress.getBookId(), progress);
+            }
+        }
+        return progressMap;
+    }
+
+    private BookResponse convertToBookResponse(Book book, BookProgress progress, LanguageCode languageCode) {
         // 진도 정보 조회
         int currentReadChapterNumber = 0;
         double progressPercentage = 0.0;
         boolean isCompleted = false;
 
-        if (userId != null) {
-            BookProgress progress = bookProgressRepository
-                .findByUserIdAndBookId(userId, book.getId())
-                .orElse(null);
+        if (progress != null) {
+            currentReadChapterNumber = progress.getCurrentReadChapterNumber() != null
+                ? progress.getCurrentReadChapterNumber() : 0;
 
-            if (progress != null) {
-                currentReadChapterNumber = progress.getCurrentReadChapterNumber() != null
-                    ? progress.getCurrentReadChapterNumber() : 0;
+            // 진행률은 저장된 normalizedProgress를 단일 소스로 사용한다.
+            progressPercentage = progress.getNormalizedProgress() != null
+                ? progress.getNormalizedProgress()
+                : 0.0;
 
-                // 진행률은 저장된 normalizedProgress를 단일 소스로 사용한다.
-                progressPercentage = progress.getNormalizedProgress() != null
-                    ? progress.getNormalizedProgress()
-                    : 0.0;
-
-                // DB에 저장된 완료 여부 사용
-                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
-            }
+            // DB에 저장된 완료 여부 사용
+            isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
         }
 
         // 언어 코드에 따라 title 선택

@@ -314,11 +314,7 @@ class BookServiceTest {
         when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any()))
             .thenReturn(bookPage);
 
-        for (Book book : books) {
-            BookProgress progress = createBookProgress(testUser.getId(), book.getId(), true);
-            when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), book.getId()))
-                .thenReturn(Optional.of(progress));
-        }
+        mockBookProgress(books, true);
 
         PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
@@ -443,11 +439,7 @@ class BookServiceTest {
         when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any()))
             .thenReturn(bookPage);
 
-        for (Book book : books) {
-            BookProgress progress = createBookProgress(testUser.getId(), book.getId(), false);
-            when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), book.getId()))
-                .thenReturn(Optional.of(progress));
-        }
+        mockBookProgress(books, false);
 
         PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
 
@@ -487,11 +479,13 @@ class BookServiceTest {
     }
 
     private void mockBookProgress(List<Book> books, boolean isCompleted) {
-        for (Book book : books) {
-            BookProgress progress = createBookProgress(testUser.getId(), book.getId(), isCompleted);
-            when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), book.getId()))
-                .thenReturn(Optional.of(progress));
-        }
+        List<String> bookIds = books.stream().map(Book::getId).toList();
+        List<BookProgress> progresses = books.stream()
+            .map(book -> createBookProgress(testUser.getId(), book.getId(), isCompleted))
+            .toList();
+
+        when(bookProgressRepository.findByUserIdAndBookIdIn(testUser.getId(), bookIds))
+            .thenReturn(progresses);
     }
 
     private BookProgress createBookProgress(String userId, String bookId, boolean isCompleted) {
