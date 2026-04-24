@@ -107,6 +107,8 @@ class ProgressServiceIntegrationTest {
                 .thenReturn(10); // 총 10개 챕터
         when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
                 .thenReturn(120L);
+        when(streakService.updateStreak(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID))
+                .thenReturn(true);
 
         // when
         progressService.updateProgress(TEST_BOOK_ID, request, TEST_USER_ID);
@@ -114,12 +116,12 @@ class ProgressServiceIntegrationTest {
         // then - 세 가지 메서드가 순서대로 호출됨
         verify(streakService).addStudyTime(TEST_USER_ID, 120L);
         verify(streakService).updateStreak(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
-        verify(streakService).addCompletedContent(eq(TEST_USER_ID), eq(ContentType.BOOK), eq(TEST_CHAPTER_ID), anyBoolean());
+        verify(streakService).addCompletedContent(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, true);
     }
 
     @Test
-    @DisplayName("같은 날 두 번째 챕터 완료 시 - 스트릭은 false, 완료 기록은 정상")
-    void updateProgress_SecondChapterSameDay_OnlyCompletionRecorded() {
+    @DisplayName("updateStreak가 false를 반환하면 완료 기록에도 false를 전달한다")
+    void updateProgress_passesFalseWhenStreakIsNotUpdated() {
         // given
         ProgressUpdateRequest request = new ProgressUpdateRequest();
         request.setChunkId(TEST_CHUNK_ID);
@@ -135,19 +137,21 @@ class ProgressServiceIntegrationTest {
                 .thenReturn(10);
         when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
                 .thenReturn(120L);
+        when(streakService.updateStreak(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID))
+                .thenReturn(false);
 
         // when
         progressService.updateProgress(TEST_BOOK_ID, request, TEST_USER_ID);
 
-        // then - addCompletedContent는 여전히 호출됨
+        // then
         verify(streakService).addStudyTime(TEST_USER_ID, 120L);
         verify(streakService).updateStreak(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
-        verify(streakService).addCompletedContent(eq(TEST_USER_ID), eq(ContentType.BOOK), eq(TEST_CHAPTER_ID), anyBoolean());
+        verify(streakService).addCompletedContent(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, false);
     }
 
     @Test
-    @DisplayName("세션 유효하지 않아도 학습 시간과 완료 기록은 정상 처리")
-    void updateProgress_InvalidSession_StudyTimeAndCompletionStillRecorded() {
+    @DisplayName("마지막 청크여도 읽기 시간이 30초 미만이면 스트릭 관련 메서드를 호출하지 않는다")
+    void updateProgress_shortReadTime_skipsStreakUpdates() {
         // given
         ProgressUpdateRequest request = new ProgressUpdateRequest();
         request.setChunkId(TEST_CHUNK_ID);
@@ -162,15 +166,15 @@ class ProgressServiceIntegrationTest {
         when(chapterRepository.countByBookId(TEST_BOOK_ID))
                 .thenReturn(10);
         when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
-                .thenReturn(30L); // 짧은 시간
+                .thenReturn(29L);
 
         // when
         progressService.updateProgress(TEST_BOOK_ID, request, TEST_USER_ID);
 
-        // then - 학습 시간과 완료 기록은 정상 처리됨
-        verify(streakService).addStudyTime(TEST_USER_ID, 30L);
-        verify(streakService).updateStreak(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID);
-        verify(streakService).addCompletedContent(eq(TEST_USER_ID), eq(ContentType.BOOK), eq(TEST_CHAPTER_ID), anyBoolean());
+        // then
+        verify(streakService, never()).addStudyTime(any(), anyLong());
+        verify(streakService, never()).updateStreak(any(), any(), any());
+        verify(streakService, never()).addCompletedContent(any(), any(), any(), anyBoolean());
     }
 
     @Test

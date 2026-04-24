@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface BookProgressRepository extends MongoRepository<BookProgress, String> {
     Optional<BookProgress> findByUserIdAndBookId(String UserId, String bookId);
+    List<BookProgress> findByUserIdAndBookIdIn(String userId, List<String> bookIds);
     Page<BookProgress> findAllByUserId(String userId, Pageable pageable);
     List<BookProgress> findAllByUserId(String userId);
     List<BookProgress> findByBookId(String bookId);

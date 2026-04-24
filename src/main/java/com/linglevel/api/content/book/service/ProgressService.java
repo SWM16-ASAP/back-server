@@ -11,7 +11,6 @@ import com.linglevel.api.content.book.repository.BookProgressRepository;
 import com.linglevel.api.content.book.repository.ChapterRepository;
 import com.linglevel.api.content.book.repository.ChunkRepository;
 import com.linglevel.api.content.common.ContentType;
-import com.linglevel.api.content.common.service.ProgressCalculationService;
 import com.linglevel.api.content.common.service.ReadingCompletionService;
 import com.linglevel.api.streak.service.StreakService;
 import lombok.RequiredArgsConstructor;
@@ -25,13 +24,15 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 @Slf4j
 public class ProgressService {
+    private static final int CHAPTER_POSITION_SHIFT = 16;
+    private static final int CHAPTER_NUMBER_MAX = 0x7FFF; // 32767
+    private static final int CHUNK_NUMBER_MAX = 0xFFFF; // 65535
 
     private final BookService bookService;
     private final ChapterService chapterService;
     private final ChunkService chunkService;
     private final BookProgressRepository bookProgressRepository;
     private final ChunkRepository chunkRepository;
-    private final ProgressCalculationService progressCalculationService;
     private final ReadingCompletionService readingCompletionService;
     private final StreakService streakService;
     private final ChapterRepository chapterRepository;
@@ -104,6 +105,12 @@ public class ProgressService {
 
         if (maxChapterNum == null || currentChapterNum > maxChapterNum) {
             bookProgress.setMaxReadChapterNumber(currentChapterNum);
+        }
+
+        int currentChunkPosition = toChapterFirstPosition(chapter.getChapterNumber(), chunk.getChunkNumber());
+        Integer maxChunkPosition = bookProgress.getMaxReadChunkNumber();
+        if (maxChunkPosition == null || currentChunkPosition > maxChunkPosition) {
+            bookProgress.setMaxReadChunkNumber(currentChunkPosition);
         }
 
         // maxNormalizedProgress는 완료된 챕터 기반으로 설정
@@ -250,37 +257,9 @@ public class ProgressService {
             throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
         }
 
-        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
-                .orElseGet(() -> initializeProgress(userId, bookId));
-
-        return convertToProgressResponse(bookProgress, false);
-    }
-
-    private BookProgress initializeProgress(String userId, String bookId) {
-        Chapter firstChapter = chapterService.findFirstByBookId(bookId);
-        Chunk firstChunk = chunkService.findFirstByChapterId(firstChapter.getId());
-
-        BookProgress newProgress = new BookProgress();
-        newProgress.setUserId(userId);
-        newProgress.setBookId(bookId);
-        newProgress.setChapterId(firstChapter.getId());
-        newProgress.setChunkId(firstChunk.getId());
-        newProgress.setCurrentReadChapterNumber(firstChapter.getChapterNumber());
-        newProgress.setMaxReadChapterNumber(firstChapter.getChapterNumber());
-
-        // [V2_CORE] V2 필드: 초기 진행률 계산
-        long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
-            firstChapter.getId(), firstChunk.getDifficultyLevel()
-        );
-        double initialProgress = progressCalculationService.calculateNormalizedProgress(
-            firstChunk.getChunkNumber(), totalChunks
-        );
-
-        newProgress.setNormalizedProgress(initialProgress);
-        newProgress.setMaxNormalizedProgress(initialProgress);
-        newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
-
-        return bookProgressRepository.save(newProgress);
+        return bookProgressRepository.findByUserIdAndBookId(userId, bookId)
+                .map(progress -> convertToProgressResponse(progress, false))
+                .orElseGet(() -> createNotStartedProgressResponse(userId, bookId));
     }
 
     @Transactional
@@ -320,6 +299,7 @@ public class ProgressService {
                 .currentReadChapterNumber(progress.getCurrentReadChapterNumber())
                 .currentReadChunkNumber(chunk.getChunkNumber())
                 .maxReadChapterNumber(progress.getMaxReadChapterNumber())
+                .maxReadChunkNumber(progress.getMaxReadChunkNumber())
                 .isCompleted(progress.getIsCompleted())
                 .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
                 .normalizedProgress(progress.getNormalizedProgress())
@@ -328,4 +308,29 @@ public class ProgressService {
                 .updatedAt(progress.getUpdatedAt())
                 .build();
     }
-} 
+
+    private ProgressResponse createNotStartedProgressResponse(String userId, String bookId) {
+        return ProgressResponse.builder()
+                .userId(userId)
+                .bookId(bookId)
+                .currentReadChapterNumber(0)
+                .currentReadChunkNumber(0)
+                .maxReadChapterNumber(0)
+                .maxReadChunkNumber(0)
+                .isCompleted(false)
+                .normalizedProgress(0.0)
+                .maxNormalizedProgress(0.0)
+                .streakUpdated(false)
+                .build();
+    }
+
+    private int toChapterFirstPosition(Integer chapterNumber, Integer chunkNumber) {
+        if (chapterNumber == null || chapterNumber <= 0 || chunkNumber == null || chunkNumber <= 0) {
+            throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
+        }
+        if (chapterNumber > CHAPTER_NUMBER_MAX || chunkNumber > CHUNK_NUMBER_MAX) {
+            throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
+        }
+        return (chapterNumber << CHAPTER_POSITION_SHIFT) | chunkNumber;
+    }
+}

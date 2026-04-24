@@ -1,0 +1,499 @@
+// llv-api MongoDB logical ERD for dbdiagram.io
+// - Embedded arrays/objects/maps are modeled as `json`.
+// - Refs are application-level logical relations; MongoDB does not enforce foreign keys.
+// - Some polymorphic fields such as `contentId` are kept as notes instead of strict refs.
+
+Table users {
+  id varchar [pk]
+  username varchar [not null, unique]
+  password varchar
+  email varchar
+  displayName varchar
+  provider varchar
+  profileImageUrl varchar
+  role varchar
+  deleted boolean
+  createdAt datetime
+  deletedAt datetime
+}
+
+Table refreshTokens {
+  id varchar [pk]
+  tokenId varchar [not null, unique]
+  userId varchar [not null]
+  expiresAt datetime [note: 'TTL index ttl_expires_at, expireAfter=0s']
+}
+
+Table userTickets {
+  id varchar [pk]
+  userId varchar [not null, unique]
+  balance int
+  version bigint
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table ticketTransactions {
+  id varchar [pk]
+  userId varchar [not null]
+  amount int [note: 'positive=grant, negative=use']
+  description text
+  status varchar
+  reservationId varchar
+  createdAt datetime
+
+  indexes {
+    (userId, createdAt) [name: 'userId_createdAt']
+  }
+}
+
+Table fcmTokens {
+  id varchar [pk]
+  userId varchar [not null]
+  deviceId varchar [not null]
+  fcmToken varchar [not null, unique]
+  platform varchar
+  countryCode varchar
+  appVersion varchar
+  osVersion varchar
+  createdAt datetime
+  updatedAt datetime [note: 'TTL index, expireAfter=90d']
+  isActive boolean
+}
+
+Table pushLogs {
+  id varchar [pk]
+  campaignId varchar [unique]
+  fcmMessageId varchar
+  campaignGroup varchar
+  userId varchar
+  sentAt datetime
+  sentSuccess boolean
+  openedAt datetime
+  createdAt datetime [note: 'TTL index, expireAfter=180d']
+  version bigint
+}
+
+Table appVersion {
+  id varchar [pk]
+  latestVersion varchar
+  minimumVersion varchar
+  updatedAt datetime
+}
+
+Table contentBanners {
+  id varchar [pk]
+  countryCode varchar
+  contentId varchar [note: 'Polymorphic content ref: book/article/custom/feed depending on contentType']
+  contentType varchar
+  contentTitle varchar
+  contentAuthor varchar
+  contentCoverImageUrl varchar
+  contentReadingTime int
+  subtitle varchar
+  title varchar
+  description text
+  displayOrder int
+  isActive boolean
+  createdAt datetime
+}
+
+Table crawlingDsl {
+  id varchar [pk]
+  domain varchar [unique]
+  name varchar
+  contentType varchar
+  titleDsl text
+  contentDsl text
+  coverImageDsl text
+  accessUrl varchar
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table words {
+  id varchar [pk]
+  word varchar [not null]
+  sourceLanguageCode varchar [not null]
+  targetLanguageCode varchar [not null]
+  summary json
+  meanings json
+  relatedForms json
+  isEssential boolean
+
+  indexes {
+    (word, sourceLanguageCode, targetLanguageCode) [unique, name: 'word_language_pair_idx']
+    (word, targetLanguageCode) [name: 'word_target_language_idx']
+  }
+}
+
+Table word_variants {
+  id varchar [pk]
+  word varchar [not null]
+  originalForm varchar [not null, note: 'Logical ref to words.word']
+  variantTypes json
+
+  indexes {
+    (word, originalForm) [unique, name: 'word_original_idx']
+  }
+}
+
+Table invalidWords {
+  id varchar [pk]
+  word varchar [unique]
+  attemptedAt datetime
+  attemptCount int
+}
+
+Table wordBookmarks {
+  id varchar [pk]
+  userId varchar [not null]
+  word varchar [not null, note: 'Bookmarked original-form string, not words.id']
+  bookmarkedAt datetime
+
+  indexes {
+    (userId, word) [unique, name: 'userId_word_unique']
+  }
+}
+
+Table userStudyReports {
+  id varchar [pk]
+  userId varchar [not null, unique]
+  currentStreak int
+  longestStreak int
+  lastCompletionDate date
+  streakStartDate date
+  lastLearningTimestamp datetime
+  availableFreezes int
+  totalReadingTimeSeconds bigint
+  completedContentIds json
+  preferredStudyHour int
+  preferredStudyHourUpdatedAt datetime
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table dailyCompletions {
+  id varchar [pk]
+  userId varchar [not null]
+  completionDate date
+  firstCompletionCount int
+  totalCompletionCount int
+  completedContents json [note: 'Embedded array: type, contentId, chapterId, completedAt, readingTime, category, difficultyLevel, streakStatus']
+  streakCount int
+  streakStatus varchar
+  createdAt datetime
+
+  indexes {
+    (userId, completionDate) [unique, name: 'idx_userId_completionDate']
+  }
+}
+
+Table freezeTransactions {
+  id varchar [pk]
+  userId varchar [not null]
+  amount int
+  description text
+  createdAt datetime
+}
+
+Table books {
+  id varchar [pk]
+  title varchar
+  titleTranslations json
+  author varchar
+  coverImageUrl varchar
+  difficultyLevel varchar
+  chapterCount int
+  readingTime int
+  averageRating float
+  reviewCount int
+  viewCount int
+  tags json
+  createdAt datetime
+}
+
+Table chapters {
+  id varchar [pk]
+  bookId varchar [not null]
+  chapterNumber int
+  title varchar
+  chapterImageUrl varchar
+  description text
+  readingTime int
+}
+
+Table chunks {
+  id varchar [pk]
+  chapterId varchar [not null]
+  chunkNumber int
+  difficultyLevel varchar
+  type varchar
+  content text
+  description text
+
+  indexes {
+    (chapterId, difficultyLevel, chunkNumber) [name: 'chapter_difficulty_chunk_idx']
+  }
+}
+
+Table bookProgress {
+  id varchar [pk]
+  userId varchar [not null]
+  bookId varchar [not null]
+  chapterId varchar
+  chunkId varchar
+  currentReadChapterNumber int
+  maxReadChapterNumber int
+  normalizedProgress float
+  maxNormalizedProgress float
+  currentDifficultyLevel varchar
+  chapterProgresses json [note: 'Embedded array: chapterNumber, progressPercentage, isCompleted, completedAt']
+  isCompleted boolean
+  completedAt datetime
+  updatedAt datetime
+
+  indexes {
+    (userId, bookId) [unique, name: 'idx_user_book_progress']
+  }
+}
+
+Table articles {
+  id varchar [pk]
+  title varchar
+  author varchar
+  coverImageUrl varchar
+  originUrl varchar
+  difficultyLevel varchar
+  readingTime int
+  averageRating float
+  reviewCount int
+  viewCount int
+  category varchar
+  tags json
+  targetLanguageCode json
+  createdAt datetime
+}
+
+Table articleChunks {
+  id varchar [pk]
+  articleId varchar [not null]
+  chunkNumber int
+  difficultyLevel varchar
+  type varchar
+  content text
+  description text
+
+  indexes {
+    (articleId, difficultyLevel, chunkNumber) [name: 'article_difficulty_chunk_idx']
+  }
+}
+
+Table articleProgress {
+  id varchar [pk]
+  userId varchar [not null]
+  articleId varchar [not null]
+  chunkId varchar
+  normalizedProgress float
+  maxNormalizedProgress float
+  currentDifficultyLevel varchar
+  isCompleted boolean
+  completedAt datetime
+  updatedAt datetime
+
+  indexes {
+    (userId, articleId) [unique, name: 'idx_user_article_progress']
+  }
+}
+
+Table feedSources {
+  id varchar [pk]
+  url varchar [unique]
+  domain varchar
+  name varchar
+  coverImageDsl text
+  contentType varchar
+  category varchar
+  tags json
+  isActive boolean
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table feeds {
+  id varchar [pk]
+  contentType varchar
+  title varchar
+  url varchar [unique]
+  thumbnailUrl varchar
+  author varchar
+  description text
+  category varchar
+  tags json
+  sourceProvider varchar [note: 'Provider/domain string, not feedSources.id']
+  publishedAt datetime
+  displayOrder int
+  viewCount int
+  avgReadTimeSeconds float
+  createdAt datetime
+  deleted boolean
+  deletedAt datetime
+}
+
+Table contentRequests {
+  id varchar [pk]
+  userId varchar [not null]
+  title varchar [not null]
+  originalText text
+  contentType varchar
+  originAuthor varchar
+  targetDifficultyLevels json
+  originUrl varchar
+  originDomain varchar
+  coverImageUrl varchar
+  status varchar
+  progress int
+  createdAt datetime
+  completedAt datetime
+  deletedAt datetime
+  errorMessage text
+  resultCustomContentId varchar [note: 'Logical ref to customContents.id after generation']
+  updatedAt datetime
+}
+
+Table customContents {
+  id varchar [pk]
+  userId varchar [not null]
+  contentRequestId varchar [not null]
+  isDeleted boolean
+  title varchar [not null]
+  author varchar
+  coverImageUrl varchar
+  difficultyLevel varchar
+  targetDifficultyLevels json
+  readingTime int
+  averageRating float
+  reviewCount int
+  viewCount int
+  tags json
+  originUrl varchar
+  originDomain varchar
+  createdAt datetime
+  updatedAt datetime
+  deletedAt datetime
+}
+
+Table customContentChunks {
+  id varchar [pk]
+  customContentId varchar [not null]
+  userId varchar [not null]
+  difficultyLevel varchar
+  chapterNum int
+  chunkNum int
+  type varchar
+  chunkText text
+  description text
+  isDeleted boolean
+  createdAt datetime
+  updatedAt datetime
+  deletedAt datetime
+
+  indexes {
+    (customContentId, difficultyLevel, chapterNum, chunkNum) [name: 'custom_content_difficulty_chapter_chunk_idx']
+    (userId, isDeleted, createdAt) [name: 'user_deleted_created_idx']
+  }
+}
+
+Table customProgress {
+  id varchar [pk]
+  userId varchar [not null]
+  customId varchar [not null]
+  chunkId varchar
+  normalizedProgress float
+  maxNormalizedProgress float
+  currentDifficultyLevel varchar
+  isCompleted boolean
+  completedAt datetime
+  updatedAt datetime
+
+  indexes {
+    (userId, customId) [unique, name: 'idx_user_custom_progress']
+  }
+}
+
+Table userCustomContents {
+  id varchar [pk]
+  userId varchar [not null]
+  customContentId varchar [not null]
+  contentRequestId varchar [not null]
+  unlockedAt datetime
+
+  indexes {
+    (userId, customContentId) [unique, name: 'user_content_idx']
+  }
+}
+
+Table contentAccessLogs {
+  id varchar [pk]
+  userId varchar [not null]
+  contentId varchar [note: 'Polymorphic content ref: book/article/custom/feed']
+  contentType varchar
+  category varchar
+  readTimeSeconds int
+  accessedAt datetime
+
+  indexes {
+    (userId, accessedAt) [name: 'user_accessed_idx']
+    (userId, category) [name: 'user_category_idx']
+    (userId, contentType) [name: 'user_content_type_idx']
+  }
+}
+
+Table userCategoryPreferences {
+  id varchar [pk]
+  userId varchar [not null, unique]
+  primaryCategory varchar
+  categoryScores json
+  rawAccessCounts json
+  tagScores json
+  totalAccessCount int
+  lastUpdatedAt datetime
+}
+
+Ref: refreshTokens.userId > users.id
+Ref: userTickets.userId - users.id
+Ref: ticketTransactions.userId > users.id
+Ref: fcmTokens.userId > users.id
+Ref: pushLogs.userId > users.id
+Ref: wordBookmarks.userId > users.id
+Ref: userStudyReports.userId - users.id
+Ref: dailyCompletions.userId > users.id
+Ref: freezeTransactions.userId > users.id
+
+Ref: chapters.bookId > books.id
+Ref: chunks.chapterId > chapters.id
+Ref: bookProgress.userId > users.id
+Ref: bookProgress.bookId > books.id
+Ref: bookProgress.chapterId > chapters.id
+Ref: bookProgress.chunkId > chunks.id
+
+Ref: articleChunks.articleId > articles.id
+Ref: articleProgress.userId > users.id
+Ref: articleProgress.articleId > articles.id
+Ref: articleProgress.chunkId > articleChunks.id
+
+Ref: contentRequests.userId > users.id
+Ref: contentRequests.resultCustomContentId > customContents.id
+Ref: customContents.userId > users.id
+Ref: customContents.contentRequestId > contentRequests.id
+Ref: customContentChunks.customContentId > customContents.id
+Ref: customContentChunks.userId > users.id
+Ref: customProgress.userId > users.id
+Ref: customProgress.customId > customContents.id
+Ref: customProgress.chunkId > customContentChunks.id
+Ref: userCustomContents.userId > users.id
+Ref: userCustomContents.customContentId > customContents.id
+Ref: userCustomContents.contentRequestId > contentRequests.id
+
+Ref: contentAccessLogs.userId > users.id
+Ref: userCategoryPreferences.userId - users.id

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "rate.limit")
 public class RateLimitProperties {
 
+    private boolean enabled = true;
+
     private int capacity;
 
     private Refill refill = new Refill();

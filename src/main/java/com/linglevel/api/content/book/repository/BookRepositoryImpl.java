@@ -14,7 +14,9 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Book Repository 커스텀 구현체
@@ -94,6 +96,8 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         List<String> bookIds = getBookIdsByProgress(userId, progress);
         if (!bookIds.isEmpty()) {
             query.addCriteria(Criteria.where("id").in(bookIds));
+        } else {
+            query.addCriteria(Criteria.where("_id").is(null));
         }
     }
 
@@ -128,12 +132,13 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                 .map(Book::getId)
                 .toList();
 
-        // 진도가 있는 책 ID 조회
-        List<String> progressBookIds = findProgressBookIds(userId);
+        // 시작한 책(진행 중/완료) ID 조회
+        List<String> startedBookIds = findStartedBookIds(userId);
+        Set<String> startedBookIdSet = new HashSet<>(startedBookIds);
 
-        // 진도가 없는 책만 반환
+        // 시작하지 않은 책(완료/부분 읽기/완료 챕터 진행률이 없는 책)만 반환
         return allBookIds.stream()
-                .filter(bookId -> !progressBookIds.contains(bookId))
+                .filter(bookId -> !startedBookIdSet.contains(bookId))
                 .toList();
     }
 
@@ -144,7 +149,10 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         Query query = new Query();
         query.addCriteria(Criteria.where("userId").is(userId));
         query.addCriteria(Criteria.where("isCompleted").is(false));
-        query.addCriteria(Criteria.where("maxReadChunkNumber").gt(0));
+        query.addCriteria(new Criteria().orOperator(
+                Criteria.where("normalizedProgress").gt(0),
+                partiallyReadChapterCriteria()
+        ));
 
         return findBookIdsFromProgress(query);
     }
@@ -163,11 +171,23 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
     /**
      * 특정 사용자의 모든 진도 책 ID 조회
      */
-    private List<String> findProgressBookIds(String userId) {
+    private List<String> findStartedBookIds(String userId) {
         Query query = new Query();
         query.addCriteria(Criteria.where("userId").is(userId));
+        query.addCriteria(new Criteria().orOperator(
+                Criteria.where("isCompleted").is(true),
+                Criteria.where("normalizedProgress").gt(0),
+                partiallyReadChapterCriteria()
+        ));
 
         return findBookIdsFromProgress(query);
+    }
+
+    private Criteria partiallyReadChapterCriteria() {
+        return Criteria.where("chapterProgresses").elemMatch(
+                Criteria.where("isCompleted").is(false)
+                        .and("progressPercentage").gt(0)
+        );
     }
 
     /**

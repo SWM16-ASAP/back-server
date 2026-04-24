@@ -1,32 +1,31 @@
-# Word 도메인 구조
+# Word 도메인 미니맵
 
-## 목적
+## 현재 시스템의 책임
 
-이 문서는 단어 조회와 AI 분석 흐름이 어떻게 결합돼 있는지 설명한다.
+- 단어 조회 API를 제공한다.
+- 입력 단어와 원형 단어의 관계를 관리한다.
+- 단어 데이터가 없을 때 AI 분석으로 보완한다.
+- 실패한 단어를 차단 캐시로 관리한다.
 
-## 범위
+## 도메인 구조
 
-- `WordService`
-- `WordAiService`
-- `WordVariant`, `InvalidWord`, `Word`
-- 단어 조회 및 생성 흐름
+- 원형 단어 본문은 `Word`로 저장된다.
+- 입력 단어와 원형 단어의 연결은 `WordVariant`로 관리된다.
+- 반복 실패 단어는 `InvalidWord`에 저장해 재시도를 줄인다.
 
-## 핵심 구성 요소
+## 핵심 용어 사전
 
-- `WordsController`
-- `WordService`
-- `WordAiService`
-- `WordVariantRepository`, `WordRepository`, `InvalidWordRepository`
+| 용어 | 정의 |
+| --- | --- |
+| 원형 단어 | 실제 사전/학습 기준이 되는 canonical 단어 |
+| 입력 단어 | 사용자가 검색한 원문 입력값 |
+| variant | 입력 단어와 원형 단어를 연결하는 매핑 엔티티 |
+| invalid word | 반복 실패 단어를 차단하기 위한 캐시 데이터 |
 
-## 구조 요약
+## 외부 시스템 의존성
 
-Word 도메인은 사용자가 입력한 단어를 바로 조회하지 않고, 먼저 원형/변형 관계를 확인한 뒤 필요한 경우 AI 분석으로 보완한다.
-MongoDB에는 단어 본문, 변형 형태, 실패 캐시를 따로 저장하고, AI 결과는 검증과 필터링을 거친 뒤 저장한다.
-즉 이 도메인은 조회 API처럼 보이지만 실제로는 캐시, 분석, 검증, 저장이 한 흐름에 묶인 구조다.
-
-## Mermaid 다이어그램
-
-### 구조 관계
+- MongoDB: 단어 본문, variant, invalid cache 저장
+- AI Model: 새 단어 분석과 생성 요청
 
 ```mermaid
 flowchart TD
@@ -52,7 +51,15 @@ flowchart TD
     InvalidRepo --> Mongo
 ```
 
-### 대표 흐름: 단어 조회 및 생성
+## 핵심 기능
+
+- 단어 조회
+- variant 기반 원형 매핑
+- AI 기반 신규 단어 생성
+
+## 핵심 기능 흐름
+
+### 단어 조회 및 생성
 
 ```mermaid
 sequenceDiagram
@@ -80,33 +87,18 @@ sequenceDiagram
     WordService-->>Client: WordSearchResponse
 ```
 
-## 주요 흐름 설명
+## 핵심 기능 선정 기준
 
-1. 먼저 `WordVariantRepository`에서 입력 단어가 이미 다른 원형에 연결된 변형인지 확인한다.
-2. 데이터가 없으면 `InvalidWordRepository`를 확인해 반복 실패 단어를 빠르게 차단한다.
-3. AI 호출이 필요하면 `WordAiService`가 강한 프롬프트, Bean schema, validation, enum 필터링, homograph 병합을 적용한다.
-4. 성공 결과는 `Word`와 `WordVariant`로 나눠 저장하고, 이후 요청에서는 캐시처럼 재사용한다.
+1. 조회처럼 보이지만 캐시, 저장, AI 호출이 함께 묶여 있어 흐름이 길다.
+2. `Word`, `WordVariant`, `InvalidWord`의 역할을 같이 이해해야 실제 동작을 읽을 수 있다.
+3. 외부 AI 의존성이 있어 실패 경로까지 같이 파악해야 한다.
+4. variant와 invalid cache가 조회 흐름 초반에 분기점 역할을 한다.
 
-## 핵심 데이터
+## 간결 의사결정 기록
 
-- `Word`
-  - 원형 단어, 번역, 의미, 활용형 정보
-- `WordVariant`
-  - 입력 단어와 원형 단어 연결
-- `InvalidWord`
-  - 반복 실패한 단어에 대한 차단 캐시
-
-## 이 도메인의 특징
-
-- AI 응답을 그대로 신뢰하지 않고 validation과 enum 정리를 한 번 더 거친다.
-- 같은 원형으로 합쳐야 하는 homograph/variant 처리를 서비스 쪽에서 보정한다.
-- 실패한 단어를 `InvalidWord`로 캐시해 불필요한 재호출을 줄인다.
-
-## 개선 포인트
-
-- `WordService`가 캐시 판단, 예외 전략, 저장 규칙까지 많이 알고 있어 책임이 크다.
-- `WordAiService`는 프롬프트, 비용 로깅, 응답 검증을 함께 갖고 있어 분리 후보가 될 수 있다.
-- AI 실패 정책과 사용자 응답 정책을 더 명확히 나누면 테스트가 쉬워질 수 있다.
+| 날짜 | 결정 | 이유 | 영향 범위 | 상태 |
+| --- | --- | --- | --- | --- |
+| 2026-04-08 | `Word/Variant/Invalid` 3분할 구조 유지 | 조회 성능, 정합성, 실패 재시도 제어를 분리하기 위함 | WordService, 관련 Repository | 유지 |
 
 ## 참고 코드
 

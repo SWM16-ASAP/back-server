@@ -1,33 +1,33 @@
-# Streak 도메인 구조
+# Streak 도메인 미니맵
 
-## 목적
+## 현재 시스템의 책임
 
-이 문서는 스트릭 도메인이 어떻게 학습 완료, 보상, 프리즈, 알림을 처리하는지 설명한다.
+- 사용자 학습 연속일 수를 계산한다.
+- 읽기 세션과 학습 시간을 관리한다.
+- 프리즈, 보상, 완료 기록을 갱신한다.
+- 보호 알림과 관련 스케줄 작업을 수행한다.
 
-## 범위
+## 도메인 구조
 
-- `StreakService`
-- `ReadingSessionService`
-- 스트릭 관련 스케줄러
-- `UserStudyReport`, `DailyCompletion`, `FreezeTransaction`
+- 스트릭은 사용자별 누적 리포트와 일자별 완료 기록으로 상태를 계산한다.
+- 읽기 세션은 Redis에 짧게 저장되고, 확정된 상태는 MongoDB에 반영된다.
+- 프리즈와 보상 기록은 별도 트랜잭션/이력 데이터로 관리된다.
 
-## 핵심 구성 요소
+## 핵심 용어 사전
 
-- `StreakController`
-- `StreakService`
-- `ReadingSessionService`
-- `StreakProtectionScheduler`
-- `UserStudyReportRepository`, `DailyCompletionRepository`, `FreezeTransactionRepository`
+| 용어 | 정의 |
+| --- | --- |
+| 스트릭 | 학습 완료를 일 단위로 누적한 연속 기록 |
+| 읽기 세션 | 학습 시작 시점부터 종료/완료 처리 전까지의 임시 상태 |
+| 프리즈 | 스트릭을 하루 보호하는 소모성 보호 자원 |
+| 완료 기록 | 특정 날짜 학습 완료 여부를 확정한 데이터 |
 
-## 구조 요약
+## 외부 시스템 의존성
 
-스트릭 도메인은 사용자의 학습 연속성을 계산하는 핵심 서비스다.
-읽기 세션은 Redis에 짧게 저장하고, 실제 누적 리포트와 완료 기록은 MongoDB에 저장한다.
-책 읽기 완료나 다른 콘텐츠 완료 흐름에서 `StreakService`를 호출해 스트릭을 갱신하고, 스케줄러는 밤 시간대에 보호 알림을 보낸다.
-
-## Mermaid 다이어그램
-
-### 구조 관계
+- MongoDB: 누적 리포트와 완료 기록 저장
+- Redis: 읽기 세션과 짧은 상태 저장
+- FCM: 보호 알림 발송
+- content/book: 읽기 완료 이벤트가 유입되는 주요 호출 지점
 
 ```mermaid
 flowchart TD
@@ -52,7 +52,15 @@ flowchart TD
     Scheduler --> FCM
 ```
 
-### 대표 흐름: 읽기 완료 후 스트릭 갱신
+## 핵심 기능
+
+- 읽기 완료 후 스트릭 갱신
+- 읽기 세션 관리
+- 보호 알림 스케줄링
+
+## 핵심 기능 흐름
+
+### 읽기 완료 후 스트릭 갱신
 
 ```mermaid
 sequenceDiagram
@@ -72,41 +80,18 @@ sequenceDiagram
     ProgressService-->>Client: progress response
 ```
 
-### 상태 관점
+## 핵심 기능 선정 기준
 
-```mermaid
-stateDiagram-v2
-    [*] --> Active
-    Active --> CompletedToday: 오늘 학습 완료
-    Active --> AtRisk: 학습 없이 하루 종료
-    AtRisk --> Protected: freeze로 스트릭 보호
-    AtRisk --> Reset: 보호 수단 없음
-    Protected --> Active: 다음 학습일에 연속 유지
-    CompletedToday --> Active: 다음 날짜로 이동
-    Reset --> Active: 새 스트릭 시작
-```
+1. 스트릭 갱신은 다른 학습 도메인에서 공통으로 호출하는 핵심 교차 지점이다.
+2. `리딩 세션 -> 누적 상태 -> 알림`으로 이어지는 도메인 구조를 같이 이해해야 한다.
+3. Redis, MongoDB, FCM이 함께 등장해 의존성 파악 가치가 크다.
+4. 세션, 누적 상태, 스케줄러가 모두 연결돼 있어 처음 읽는 난이도가 높다.
 
-## 주요 흐름 설명
+## 간결 의사결정 기록
 
-1. 사용자가 학습을 시작하면 `ReadingSessionService`가 Redis에 읽기 세션을 저장한다.
-2. 읽기 완료 시 `ProgressService` 같은 상위 도메인이 `StreakService`를 호출해 학습 시간, 스트릭, 완료 콘텐츠를 갱신한다.
-3. `StreakService`는 오늘/어제 상태, 누락 일수, 프리즈 사용 여부를 계산하고 보상 지급 여부도 함께 판단한다.
-4. `StreakProtectionScheduler`는 밤 9시에 오늘 미완료 사용자를 찾아 FCM 보호 알림을 보낸다.
-
-## 핵심 데이터
-
-- `UserStudyReport`
-  - 현재 스트릭, 최장 스트릭, 사용 가능 프리즈, 총 학습 시간 등 누적 상태
-- `DailyCompletion`
-  - 일자별 완료 상태
-- `FreezeTransaction`
-  - 프리즈 지급/사용 내역
-
-## 개선 포인트
-
-- `StreakService`에 상태 계산, 보상 지급, 통계 응답 조립이 많이 모여 있어 분리 여지가 크다.
-- Redis 세션 검증, 읽기 시간 계산, 콘텐츠 완료 처리 경계가 다른 도메인과 섞여 있다.
-- 스케줄러 알림 정책과 도메인 규칙이 점점 가까워지면 테스트 경계가 흐려질 수 있다.
+| 날짜 | 결정 | 이유 | 영향 범위 | 상태 |
+| --- | --- | --- | --- | --- |
+| 2026-04-08 | 세션 상태는 Redis, 확정 상태는 MongoDB로 분리 | 짧은 상태와 영속 상태의 책임을 분리해 운영 단순화 | ReadingSessionService, StreakService | 유지 |
 
 ## 참고 코드
 

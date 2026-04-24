@@ -3,20 +3,31 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus-local
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     env_file:
-      - path: .env.monitoring.local
+      - ../.env.local
     volumes:
-      - ./prometheus-local.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml.tmpl:ro
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
       - ./data/prometheus-data-local:/prometheus
+    entrypoint: /bin/sh
+    command:
+      - -ec
+      - |
+        TARGET="$${APP_METRICS_TARGET:-host.docker.internal:8080}";
+        KEY="$${IMPORT_API_KEY:-}";
+        ESC_TARGET="$$(printf '%s' "$$TARGET" | sed 's/[&|]/\\&/g')";
+        ESC_KEY="$$(printf '%s' "$$KEY" | sed 's/[&|]/\\&/g')";
+        sed -e "s|__APP_METRICS_TARGET__|$${ESC_TARGET}|g" \
+            -e "s|__IMPORT_API_KEY__|$${ESC_KEY}|g" \
+            /etc/prometheus/prometheus.yml.tmpl > /tmp/prometheus.yml;
+        exec prometheus --config.file=/tmp/prometheus.yml
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana-local
     ports:
-      - "3000:3000"
-    env_file:
-      - path: .env.monitoring.local
+      - "${MONITORING_GRAFANA_PORT:-3000}:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=password
@@ -24,3 +35,32 @@ services:
       - ./data/grafana-data-local:/var/lib/grafana
     depends_on:
       - prometheus
+
+  loki:
+    profiles: ["logs"]
+    image: grafana/loki:latest
+    container_name: loki-local
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      - ./data/loki-data-local:/loki
+    command:
+      - "-config.file=/etc/loki/local-config.yaml"
+
+  promtail:
+    profiles: ["logs"]
+    image: grafana/promtail:latest
+    container_name: promtail-local
+    environment:
+      - LOKI_PUSH_URL=http://loki:3100/loki/api/v1/push
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - "-config.file=/etc/promtail/config.yml"
+      - "-config.expand-env=true"
+    depends_on:
+      - loki

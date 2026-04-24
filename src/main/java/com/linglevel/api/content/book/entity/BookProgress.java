@@ -37,6 +37,12 @@ public class BookProgress {
 
     private Integer maxReadChapterNumber;
 
+    /**
+     * 챕터 우선 정렬 기준의 최대 도달 청크 위치값.
+     * 비교 순서는 (chapterNumber, chunkNumber)이며 chapter가 우선한다.
+     */
+    private Integer maxReadChunkNumber;
+
     // V2 Progress Fields
     private Double normalizedProgress;
 
