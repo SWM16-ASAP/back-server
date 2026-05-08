@@ -135,7 +135,9 @@ public class WordSingleFlightRedisCoordinator {
             return unwrap(finalResult, keys.digest());
         }
 
-        throw new RuntimeException("Timed out waiting single-flight result for key digest=" + keys.digest());
+        throw new WordSingleFlightTimeoutException(
+                "Timed out waiting single-flight result for key digest=" + keys.digest()
+        );
     }
 
     private void publishDone(String channel) {

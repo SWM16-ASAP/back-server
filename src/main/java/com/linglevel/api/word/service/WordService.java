@@ -120,6 +120,9 @@ public class WordService {
                     word, invalidWord.getAttemptCount());
             });
 
+        } catch (WordSingleFlightTimeoutException e) {
+            log.warn("Single-flight wait timed out for word '{}'. Keeping invalid-word cache untouched.", word, e);
+            throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
         } catch (Exception e) {
             // AI 호출 실패 또는 무의미한 단어인 경우 InvalidWord로 캐싱
             log.warn("AI call failed for word '{}'. Caching as invalid word to prevent retries.", word, e);

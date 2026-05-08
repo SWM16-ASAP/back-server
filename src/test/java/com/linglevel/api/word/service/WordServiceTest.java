@@ -5,6 +5,7 @@ import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.*;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
+import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -256,5 +258,22 @@ class WordServiceTest {
 
         // then
         assertThat(response.getResults().get(0).getBookmarked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("single-flight timeout은 무의미 단어로 캐시하지 않고 별도 에러를 반환")
+    void getOrCreateWords_singleFlightTimeout_doesNotCacheInvalidWord() {
+        String word = "resilience";
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
+        when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any()))
+                .thenThrow(new WordSingleFlightTimeoutException("Timed out waiting single-flight result"));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("temporarily delayed");
+
+        verify(invalidWordRepository, never()).save(any());
     }
 }
