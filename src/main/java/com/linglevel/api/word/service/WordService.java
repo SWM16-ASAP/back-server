@@ -50,14 +50,21 @@ public class WordService {
                 log.info("Word '{}' not found for targetLanguage {}, creating new one...",
                     wordVariant.getOriginalForm(), targetLanguage);
 
-                List<WordAnalysisResult> analysisResults = singleFlightCoordinator.execute(
-                        wordVariant.getOriginalForm(),
-                        targetLanguage,
-                        () -> wordAiService.analyzeWord(
-                                wordVariant.getOriginalForm(),
-                                targetLanguage.getCode()
-                        )
-                );
+                List<WordAnalysisResult> analysisResults;
+                try {
+                    analysisResults = singleFlightCoordinator.execute(
+                            wordVariant.getOriginalForm(),
+                            targetLanguage,
+                            () -> wordAiService.analyzeWord(
+                                    wordVariant.getOriginalForm(),
+                                    targetLanguage.getCode()
+                            )
+                    );
+                } catch (WordSingleFlightTimeoutException | WordSingleFlightLeaderFailureException e) {
+                    log.warn("Single-flight temporary failure for originalForm '{}'. Returning timeout error.",
+                            wordVariant.getOriginalForm(), e);
+                    throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
+                }
 
                 // Word 생성 및 저장 (빈 결과는 WordAiService에서 예외 발생)
                 Word newWord = convertAnalysisResultToWord(analysisResults.get(0));
@@ -120,8 +127,8 @@ public class WordService {
                     word, invalidWord.getAttemptCount());
             });
 
-        } catch (WordSingleFlightTimeoutException e) {
-            log.warn("Single-flight wait timed out for word '{}'. Keeping invalid-word cache untouched.", word, e);
+        } catch (WordSingleFlightTimeoutException | WordSingleFlightLeaderFailureException e) {
+            log.warn("Single-flight temporary failure for word '{}'. Keeping invalid-word cache untouched.", word, e);
             throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
         } catch (Exception e) {
             // AI 호출 실패 또는 무의미한 단어인 경우 InvalidWord로 캐싱

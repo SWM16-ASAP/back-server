@@ -276,4 +276,67 @@ class WordServiceTest {
 
         verify(invalidWordRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("translation-miss 경로의 single-flight timeout도 WORD_ANALYSIS_TIMEOUT으로 변환")
+    void getOrCreateWords_translationMissTimeout_returnsDomainTimeoutError() {
+        String inputWord = "ran";
+        String originalForm = "run";
+
+        WordVariant wordVariant = WordVariant.builder()
+                .word(inputWord)
+                .originalForm(originalForm)
+                .variantTypes(List.of(VariantType.PAST_TENSE))
+                .build();
+
+        when(wordVariantRepository.findAllByWord(inputWord)).thenReturn(List.of(wordVariant));
+        when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
+                .thenReturn(Optional.empty());
+        when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any()))
+                .thenThrow(new WordSingleFlightTimeoutException("Timed out waiting single-flight result"));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("temporarily delayed");
+    }
+
+    @Test
+    @DisplayName("single-flight leader 실패 재생은 invalid 캐시를 증가시키지 않고 timeout 에러를 반환")
+    void getOrCreateWords_singleFlightLeaderFailure_doesNotCacheInvalidWord() {
+        String word = "resilience";
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
+        when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any()))
+                .thenThrow(new WordSingleFlightLeaderFailureException("Single-flight leader failed"));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("temporarily delayed");
+
+        verify(invalidWordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("translation-miss 경로의 leader 실패 재생도 WORD_ANALYSIS_TIMEOUT으로 변환")
+    void getOrCreateWords_translationMissLeaderFailure_returnsDomainTimeoutError() {
+        String inputWord = "ran";
+        String originalForm = "run";
+
+        WordVariant wordVariant = WordVariant.builder()
+                .word(inputWord)
+                .originalForm(originalForm)
+                .variantTypes(List.of(VariantType.PAST_TENSE))
+                .build();
+
+        when(wordVariantRepository.findAllByWord(inputWord)).thenReturn(List.of(wordVariant));
+        when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
+                .thenReturn(Optional.empty());
+        when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any()))
+                .thenThrow(new WordSingleFlightLeaderFailureException("Single-flight leader failed"));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("temporarily delayed");
+    }
 }

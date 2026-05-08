@@ -21,6 +21,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -184,7 +185,7 @@ public class WordSingleFlightRedisCoordinator {
             return envelope.results();
         }
 
-        throw new RuntimeException(
+        throw new WordSingleFlightLeaderFailureException(
                 "Single-flight leader failed for key digest=" + digest + ": " + envelope.errorMessage()
         );
     }
@@ -219,7 +220,7 @@ public class WordSingleFlightRedisCoordinator {
     }
 
     private KeySet buildKeySet(String word, LanguageCode targetLanguage) {
-        String normalizedWord = word.trim().toLowerCase();
+        String normalizedWord = word.trim().toLowerCase(Locale.ROOT);
         String canonicalKey = String.join("|",
                 "word=" + normalizedWord,
                 "lang=" + targetLanguage.getCode(),
