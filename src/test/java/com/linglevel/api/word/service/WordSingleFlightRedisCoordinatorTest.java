@@ -1,0 +1,226 @@
+package com.linglevel.api.word.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linglevel.api.i18n.LanguageCode;
+import com.linglevel.api.word.dto.WordAnalysisResult;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+class WordSingleFlightRedisCoordinatorTest {
+
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Mock
+    private RedisMessageListenerContainer redisMessageListenerContainer;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Map<String, String> redisStore = new ConcurrentHashMap<>();
+
+    private WordSingleFlightProperties properties;
+    private WordSingleFlightRedisCoordinator coordinator;
+
+    @BeforeEach
+    void setUp() {
+        properties = new WordSingleFlightProperties();
+        properties.setEnabled(true);
+        properties.setLockTtlMs(1_000);
+        properties.setWaitTimeoutMs(120);
+        properties.setResultTtlMs(2_000);
+        properties.setPromptVersion("v1");
+        properties.setModel("test-model");
+        properties.setSchemaVersion("v2");
+
+        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        doAnswer(invocation -> redisStore.get(invocation.getArgument(0)))
+                .when(valueOperations).get(anyString());
+
+        doAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            String value = invocation.getArgument(1);
+            if (redisStore.containsKey(key)) {
+                return Boolean.FALSE;
+            }
+            redisStore.put(key, value);
+            return Boolean.TRUE;
+        }).when(valueOperations).setIfAbsent(anyString(), anyString(), any(Duration.class));
+
+        doAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            String value = invocation.getArgument(1);
+            redisStore.put(key, value);
+            return null;
+        }).when(valueOperations).set(anyString(), anyString(), any(Duration.class));
+
+        coordinator = new WordSingleFlightRedisCoordinator(
+                stringRedisTemplate,
+                redisMessageListenerContainer,
+                properties,
+                objectMapper
+        );
+        ReflectionTestUtils.invokeMethod(coordinator, "subscribeDonePattern");
+    }
+
+    @Test
+    @DisplayName("동일 키 동시 요청은 leader action을 한 번만 실행한다")
+    void execute_deduplicatesConcurrentRequests() throws Exception {
+        AtomicInteger aiCalls = new AtomicInteger();
+        WordAnalysisResult sample = WordAnalysisResult.builder()
+                .originalForm("run")
+                .targetLanguageCode(LanguageCode.KO)
+                .sourceLanguageCode(LanguageCode.EN)
+                .build();
+
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            Future<List<WordAnalysisResult>> f1 = executor.submit(() -> {
+                start.await(1, TimeUnit.SECONDS);
+                return coordinator.execute("run", LanguageCode.KO, () -> {
+                    aiCalls.incrementAndGet();
+                    sleep(50);
+                    return List.of(sample);
+                });
+            });
+
+            Future<List<WordAnalysisResult>> f2 = executor.submit(() -> {
+                start.await(1, TimeUnit.SECONDS);
+                return coordinator.execute("run", LanguageCode.KO, () -> {
+                    aiCalls.incrementAndGet();
+                    return List.of(sample);
+                });
+            });
+
+            start.countDown();
+
+            List<WordAnalysisResult> r1 = f1.get(2, TimeUnit.SECONDS);
+            List<WordAnalysisResult> r2 = f2.get(2, TimeUnit.SECONDS);
+
+            assertThat(r1).hasSize(1);
+            assertThat(r2).hasSize(1);
+            assertThat(aiCalls.get()).isEqualTo(1);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    @DisplayName("알림 유실 상황에서도 timeout 이후 resultKey 재조회로 결과를 반환한다")
+    void execute_fallbacksToResultKeyAfterTimeout() {
+        redisStore.clear();
+
+        WordAnalysisResult sample = WordAnalysisResult.builder()
+                .originalForm("book")
+                .targetLanguageCode(LanguageCode.KO)
+                .sourceLanguageCode(LanguageCode.EN)
+                .build();
+
+        String serialized = toSuccessEnvelopeJson(sample);
+        AtomicInteger getCalls = new AtomicInteger();
+
+        doAnswer(invocation -> {
+            // execute() 내부 readResult 호출 순서:
+            // 1) 캐시 확인 -> null
+            // 2) follower 진입 후 pre-check -> null
+            // 3) register 후 post-check -> null
+            // 4) timeout 후 final-check -> success
+            int n = getCalls.incrementAndGet();
+            if (n < 4) {
+                return null;
+            }
+            return serialized;
+        }).when(valueOperations).get(anyString());
+
+        doAnswer(invocation -> Boolean.FALSE)
+                .when(valueOperations).setIfAbsent(anyString(), anyString(), any(Duration.class));
+
+        List<WordAnalysisResult> result = coordinator.execute(
+                "book",
+                LanguageCode.KO,
+                () -> {
+                    throw new IllegalStateException("follower path should not run leader action");
+                }
+        );
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getOriginalForm()).isEqualTo("book");
+        assertThat(getCalls.get()).isGreaterThanOrEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("leader 실패 결과는 같은 키 요청에 동일하게 전파된다")
+    void execute_propagatesLeaderFailure() {
+        RuntimeException failure = new RuntimeException("bedrock failure");
+
+        assertThatThrownBy(() ->
+                coordinator.execute("left", LanguageCode.KO, () -> {
+                    throw failure;
+                })
+        ).isInstanceOf(RuntimeException.class)
+         .hasMessageContaining("bedrock failure");
+
+        assertThatThrownBy(() ->
+                coordinator.execute("left", LanguageCode.KO, ArrayList::new)
+        ).isInstanceOf(RuntimeException.class)
+         .hasMessageContaining("Single-flight leader failed");
+    }
+
+    private void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String toSuccessEnvelopeJson(WordAnalysisResult result) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("success", true);
+            payload.put("results", List.of(result));
+            payload.put("errorMessage", null);
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
