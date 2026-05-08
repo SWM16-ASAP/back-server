@@ -32,6 +32,7 @@ public class WordService {
     private final WordVariantRepository wordVariantRepository;
     private final InvalidWordRepository invalidWordRepository;
     private final WordAiService wordAiService;
+    private final WordSingleFlightRedisCoordinator singleFlightCoordinator;
 
     public WordSearchResponse getOrCreateWords(String userId, String word, LanguageCode targetLanguage) {
         List<WordVariant> wordVariants = getOrCreateWordEntities(word, targetLanguage);
@@ -49,9 +50,13 @@ public class WordService {
                 log.info("Word '{}' not found for targetLanguage {}, creating new one...",
                     wordVariant.getOriginalForm(), targetLanguage);
 
-                List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(
-                    wordVariant.getOriginalForm(),
-                    targetLanguage.getCode()
+                List<WordAnalysisResult> analysisResults = singleFlightCoordinator.execute(
+                        wordVariant.getOriginalForm(),
+                        targetLanguage,
+                        () -> wordAiService.analyzeWord(
+                                wordVariant.getOriginalForm(),
+                                targetLanguage.getCode()
+                        )
                 );
 
                 // Word 생성 및 저장 (빈 결과는 WordAiService에서 예외 발생)
@@ -102,7 +107,11 @@ public class WordService {
         log.info("Word '{}' not found in database. Calling AI to analyze...", word);
         List<WordAnalysisResult> analysisResults;
         try {
-            analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
+            analysisResults = singleFlightCoordinator.execute(
+                    word,
+                    targetLanguage,
+                    () -> wordAiService.analyzeWord(word, targetLanguage.getCode())
+            );
 
             // AI 호출 성공 시 InvalidWord 캐시에서 제거 (일시적 오류였던 경우 복구)
             cachedInvalidWord.ifPresent(invalidWord -> {

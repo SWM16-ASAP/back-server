@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +47,9 @@ class WordServiceTest {
     @Mock
     private InvalidWordRepository invalidWordRepository;
 
+    @Mock
+    private WordSingleFlightRedisCoordinator singleFlightCoordinator;
+
     @InjectMocks
     private WordService wordService;
 
@@ -54,6 +58,13 @@ class WordServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any()))
+                .thenAnswer(invocation -> {
+                    @SuppressWarnings("unchecked")
+                    Supplier<List<WordAnalysisResult>> supplier = invocation.getArgument(2);
+                    return supplier.get();
+                });
+
         // 샘플 Word 데이터 생성
         sampleWord = Word.builder()
                 .id("word-123")
@@ -247,4 +258,3 @@ class WordServiceTest {
         assertThat(response.getResults().get(0).getBookmarked()).isTrue();
     }
 }
-
