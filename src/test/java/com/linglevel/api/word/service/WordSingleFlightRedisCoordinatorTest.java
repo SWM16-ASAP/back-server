@@ -235,7 +235,7 @@ class WordSingleFlightRedisCoordinatorTest {
         }
 
         try {
-            when(redissonLock.tryLock(0, properties.getLockTtlMs(), TimeUnit.MILLISECONDS))
+            when(redissonLock.tryLock(0, TimeUnit.MILLISECONDS))
                     .thenReturn(sequence[0], java.util.Arrays.copyOfRange(sequence, 1, sequence.length));
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
