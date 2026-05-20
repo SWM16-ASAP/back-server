@@ -91,7 +91,7 @@ public class WordService {
                 .build();
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = WordsException.class)
     public List<WordVariant> getOrCreateWordEntities(String word, LanguageCode targetLanguage) {
         // 1. WordVariant에서 검색 (변형 형태인지 확인)
         List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
