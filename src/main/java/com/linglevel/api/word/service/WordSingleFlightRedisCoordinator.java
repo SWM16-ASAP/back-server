@@ -191,7 +191,7 @@ public class WordSingleFlightRedisCoordinator {
             return envelope.results();
         }
 
-        WordsErrorCodㅌ8e leaderErrorCode = parseLeaderErrorCode(envelope.errorCode());
+        WordsErrorCode leaderErrorCode = parseLeaderErrorCode(envelope.errorCode());
         throw new WordSingleFlightLeaderFailureException(
                 "Single-flight leader failed for key digest=" + digest + ": " + envelope.errorMessage(),
                 leaderErrorCode
