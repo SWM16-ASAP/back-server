@@ -3,6 +3,8 @@ package com.linglevel.api.word.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.exception.WordsErrorCode;
+import com.linglevel.api.word.exception.WordsException;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -204,6 +206,26 @@ class WordSingleFlightRedisCoordinatorTest {
                 coordinator.execute("left", LanguageCode.KO, ArrayList::new)
         ).isInstanceOf(RuntimeException.class)
          .hasMessageContaining("Single-flight leader failed");
+    }
+
+    @Test
+    @DisplayName("leader의 WordsErrorCode는 follower leader-failure 예외로 전달된다")
+    void execute_propagatesLeaderDomainErrorCode() {
+        stubTryLock(true, false);
+
+        RuntimeException failure = new RuntimeException("wrapped", new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS));
+
+        assertThatThrownBy(() ->
+                coordinator.execute("typooo", LanguageCode.KO, () -> {
+                    throw failure;
+                })
+        ).isInstanceOf(RuntimeException.class);
+
+        assertThatThrownBy(() ->
+                coordinator.execute("typooo", LanguageCode.KO, ArrayList::new)
+        ).isInstanceOf(WordSingleFlightLeaderFailureException.class)
+         .satisfies(ex -> assertThat(((WordSingleFlightLeaderFailureException) ex).getLeaderErrorCode())
+                 .isEqualTo(WordsErrorCode.WORD_IS_MEANINGLESS));
     }
 
     private void sleep(long millis) {
