@@ -13,7 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -121,7 +121,7 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         GenericContainer<?> redis = getRedisContainer();
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redis.getHost(), redis.getMappedPort(6379));
 
-        LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(config);
+        JedisConnectionFactory connectionFactory = new JedisConnectionFactory(config);
         connectionFactory.afterPropertiesSet();
 
         StringRedisTemplate template = new StringRedisTemplate();
@@ -186,7 +186,7 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
     }
 
     private record CoordinatorFixture(
-            LettuceConnectionFactory connectionFactory,
+            JedisConnectionFactory connectionFactory,
             StringRedisTemplate template,
             RedisMessageListenerContainer listenerContainer,
             RedissonClient redissonClient,

@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
@@ -31,16 +31,16 @@ public class RedisConfig {
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
 
-        LettuceClientConfiguration clientConfig;
+        JedisClientConfiguration clientConfig;
         if (ssl) {
-            clientConfig = LettuceClientConfiguration.builder()
+            clientConfig = JedisClientConfiguration.builder()
                     .useSsl()
                     .build();
         } else {
-            clientConfig = LettuceClientConfiguration.builder().build();
+            clientConfig = JedisClientConfiguration.builder().build();
         }
 
-        return new LettuceConnectionFactory(config, clientConfig);
+        return new JedisConnectionFactory(config, clientConfig);
     }
 
     @Bean

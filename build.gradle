@@ -37,7 +37,10 @@ dependencies {
 	implementation 'org.springframework.session:spring-session-core'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
-	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation('org.springframework.boot:spring-boot-starter-data-redis') {
+		exclude group: 'io.lettuce', module: 'lettuce-core'
+	}
+	implementation 'redis.clients:jedis'
 	implementation 'org.redisson:redisson:3.51.0'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation('org.springframework.ai:spring-ai-bedrock-converse-spring-boot-starter') {
@@ -50,7 +53,7 @@ dependencies {
 	implementation 'com.sksamuel.scrimage:scrimage-webp:4.3.5'
 	implementation 'com.bucket4j:bucket4j_jdk17-core:8.15.0'
 	implementation 'com.bucket4j:bucket4j_jdk17-redis-common:8.15.0'
-	implementation 'com.bucket4j:bucket4j_jdk17-lettuce:8.15.0'
+	implementation 'com.bucket4j:bucket4j_jdk17-redisson:8.15.0'
 	implementation 'org.jsoup:jsoup:1.17.2'
 	implementation 'com.rometools:rome:2.1.0'
 	compileOnly 'org.projectlombok:lombok'

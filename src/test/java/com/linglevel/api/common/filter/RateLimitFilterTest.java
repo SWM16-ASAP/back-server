@@ -8,19 +8,16 @@ import com.linglevel.api.common.ratelimit.filter.RateLimitFilter;
 import com.linglevel.api.common.ratelimit.filter.RateLimitResolver;
 import com.linglevel.api.user.entity.UserRole;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
-import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.codec.ByteArrayCodec;
-import io.lettuce.core.codec.RedisCodec;
-import io.lettuce.core.codec.StringCodec;
+import io.github.bucket4j.redis.redisson.Bucket4jRedisson;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,8 +36,7 @@ class RateLimitFilterTest extends AbstractRedisTest {
 
     private RateLimitFilter rateLimitFilter;
     private ProxyManager<String> proxyManager;
-    private RedisClient redisClient;
-    private StatefulRedisConnection<String, byte[]> redisConnection;
+    private RedissonClient redissonClient;
     private RateLimitResolver rateLimitResolver;
 
     private HttpServletRequest request;
@@ -57,19 +53,15 @@ class RateLimitFilterTest extends AbstractRedisTest {
         String host = redis.getHost();
         Integer port = redis.getMappedPort(6379);
 
-        RedisURI redisUri = RedisURI.builder()
-                .withHost(host)
-                .withPort(port)
-                .withTimeout(Duration.ofSeconds(10))
-                .build();
-
-        redisClient = RedisClient.create(redisUri);
-        redisConnection = redisClient.connect(
-                RedisCodec.of(StringCodec.UTF8, ByteArrayCodec.INSTANCE)
-        );
+        Config redissonConfig = new Config();
+        redissonConfig.useSingleServer()
+                .setAddress("redis://" + host + ":" + port)
+                .setTimeout((int) Duration.ofSeconds(10).toMillis());
+        Redisson redisson = (Redisson) Redisson.create(redissonConfig);
+        redissonClient = redisson;
 
         // ProxyManager 생성
-        proxyManager = LettuceBasedProxyManager.builderFor(redisConnection).build();
+        proxyManager = Bucket4jRedisson.casBasedBuilder(redisson.getCommandExecutor()).build();
 
         // RateLimitProperties 설정
         RateLimitProperties properties = new RateLimitProperties();
@@ -88,7 +80,7 @@ class RateLimitFilterTest extends AbstractRedisTest {
         rateLimitFilter = new RateLimitFilter(proxyManager, properties, rateLimitResolver);
 
         // Redis 플러시
-        redisConnection.sync().flushall();
+        redissonClient.getKeys().flushall();
 
         // Clear SecurityContext before each test
         SecurityContextHolder.clearContext();
@@ -106,11 +98,8 @@ class RateLimitFilterTest extends AbstractRedisTest {
 
     @AfterEach
     void tearDown() {
-        if (redisConnection != null) {
-            redisConnection.close();
-        }
-        if (redisClient != null) {
-            redisClient.shutdown();
+        if (redissonClient != null) {
+            redissonClient.shutdown();
         }
         SecurityContextHolder.clearContext();
     }

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -31,7 +31,7 @@ class ReadingSessionServiceTest extends AbstractRedisTest {
         config.setHostName(getRedisContainer().getHost());
         config.setPort(getRedisContainer().getMappedPort(6379));
 
-        LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(config);
+        JedisConnectionFactory connectionFactory = new JedisConnectionFactory(config);
         connectionFactory.afterPropertiesSet();
 
         // RedisTemplate 설정
