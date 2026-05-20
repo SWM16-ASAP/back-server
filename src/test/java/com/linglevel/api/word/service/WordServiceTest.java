@@ -5,6 +5,7 @@ import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.*;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
+import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
@@ -18,8 +19,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -46,6 +49,9 @@ class WordServiceTest {
     @Mock
     private InvalidWordRepository invalidWordRepository;
 
+    @Mock
+    private WordSingleFlightRedisCoordinator singleFlightCoordinator;
+
     @InjectMocks
     private WordService wordService;
 
@@ -54,6 +60,13 @@ class WordServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any()))
+                .thenAnswer(invocation -> {
+                    @SuppressWarnings("unchecked")
+                    Supplier<List<WordAnalysisResult>> supplier = invocation.getArgument(2);
+                    return supplier.get();
+                });
+
         // 샘플 Word 데이터 생성
         sampleWord = Word.builder()
                 .id("word-123")
@@ -246,5 +259,84 @@ class WordServiceTest {
         // then
         assertThat(response.getResults().get(0).getBookmarked()).isTrue();
     }
-}
 
+    @Test
+    @DisplayName("single-flight timeout은 무의미 단어로 캐시하지 않고 별도 에러를 반환")
+    void getOrCreateWords_singleFlightTimeout_doesNotCacheInvalidWord() {
+        String word = "resilience";
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
+        when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any()))
+                .thenThrow(new WordSingleFlightTimeoutException("Timed out waiting single-flight result"));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("temporarily delayed");
+
+        verify(invalidWordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("translation-miss 경로의 single-flight timeout도 WORD_ANALYSIS_TIMEOUT으로 변환")
+    void getOrCreateWords_translationMissTimeout_returnsDomainTimeoutError() {
+        String inputWord = "ran";
+        String originalForm = "run";
+
+        WordVariant wordVariant = WordVariant.builder()
+                .word(inputWord)
+                .originalForm(originalForm)
+                .variantTypes(List.of(VariantType.PAST_TENSE))
+                .build();
+
+        when(wordVariantRepository.findAllByWord(inputWord)).thenReturn(List.of(wordVariant));
+        when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
+                .thenReturn(Optional.empty());
+        when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any()))
+                .thenThrow(new WordSingleFlightTimeoutException("Timed out waiting single-flight result"));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("temporarily delayed");
+    }
+
+    @Test
+    @DisplayName("single-flight leader 실패 재생은 invalid 캐시를 증가시키지 않고 timeout 에러를 반환")
+    void getOrCreateWords_singleFlightLeaderFailure_doesNotCacheInvalidWord() {
+        String word = "resilience";
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
+        when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any()))
+                .thenThrow(new WordSingleFlightLeaderFailureException("Single-flight leader failed"));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("temporarily delayed");
+
+        verify(invalidWordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("translation-miss 경로의 leader 실패 재생도 WORD_ANALYSIS_TIMEOUT으로 변환")
+    void getOrCreateWords_translationMissLeaderFailure_returnsDomainTimeoutError() {
+        String inputWord = "ran";
+        String originalForm = "run";
+
+        WordVariant wordVariant = WordVariant.builder()
+                .word(inputWord)
+                .originalForm(originalForm)
+                .variantTypes(List.of(VariantType.PAST_TENSE))
+                .build();
+
+        when(wordVariantRepository.findAllByWord(inputWord)).thenReturn(List.of(wordVariant));
+        when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
+                .thenReturn(Optional.empty());
+        when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any()))
+                .thenThrow(new WordSingleFlightLeaderFailureException("Single-flight leader failed"));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("temporarily delayed");
+    }
+}
