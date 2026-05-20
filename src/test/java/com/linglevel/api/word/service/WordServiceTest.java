@@ -301,25 +301,28 @@ class WordServiceTest {
     }
 
     @Test
-    @DisplayName("single-flight leader 실패 재생은 invalid 캐시를 증가시키지 않고 timeout 에러를 반환")
-    void getOrCreateWords_singleFlightLeaderFailure_doesNotCacheInvalidWord() {
+    @DisplayName("single-flight leader가 무의미 단어로 실패하면 follower도 동일 도메인 에러를 반환하고 invalid 캐시에 반영")
+    void getOrCreateWords_singleFlightLeaderFailureMeaningless_mapsToDomainError() {
         String word = "resilience";
 
         when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
         when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
         when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any()))
-                .thenThrow(new WordSingleFlightLeaderFailureException("Single-flight leader failed"));
+                .thenThrow(new WordSingleFlightLeaderFailureException(
+                        "Single-flight leader failed",
+                        com.linglevel.api.word.exception.WordsErrorCode.WORD_IS_MEANINGLESS
+                ));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
-                .hasMessageContaining("temporarily delayed");
+                .hasMessageContaining("meaningless");
 
-        verify(invalidWordRepository, never()).save(any());
+        verify(invalidWordRepository).save(any());
     }
 
     @Test
-    @DisplayName("translation-miss 경로의 leader 실패 재생도 WORD_ANALYSIS_TIMEOUT으로 변환")
-    void getOrCreateWords_translationMissLeaderFailure_returnsDomainTimeoutError() {
+    @DisplayName("translation-miss 경로의 leader 실패가 무의미 단어면 동일 도메인 에러를 반환")
+    void getOrCreateWords_translationMissLeaderFailure_mapsToDomainMeaninglessError() {
         String inputWord = "ran";
         String originalForm = "run";
 
@@ -333,10 +336,13 @@ class WordServiceTest {
         when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
                 .thenReturn(Optional.empty());
         when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any()))
-                .thenThrow(new WordSingleFlightLeaderFailureException("Single-flight leader failed"));
+                .thenThrow(new WordSingleFlightLeaderFailureException(
+                        "Single-flight leader failed",
+                        com.linglevel.api.word.exception.WordsErrorCode.WORD_IS_MEANINGLESS
+                ));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
-                .hasMessageContaining("temporarily delayed");
+                .hasMessageContaining("meaningless");
     }
 }

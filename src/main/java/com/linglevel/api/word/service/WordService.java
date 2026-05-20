@@ -60,10 +60,12 @@ public class WordService {
                                     targetLanguage.getCode()
                             )
                     );
-                } catch (WordSingleFlightTimeoutException | WordSingleFlightLeaderFailureException e) {
+                } catch (WordSingleFlightTimeoutException e) {
                     log.warn("Single-flight temporary failure for originalForm '{}'. Returning timeout error.",
                             wordVariant.getOriginalForm(), e);
                     throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
+                } catch (WordSingleFlightLeaderFailureException e) {
+                    throw mapLeaderFailure(wordVariant.getOriginalForm(), e, false);
                 }
 
                 // Word 생성 및 저장 (빈 결과는 WordAiService에서 예외 발생)
@@ -127,9 +129,11 @@ public class WordService {
                     word, invalidWord.getAttemptCount());
             });
 
-        } catch (WordSingleFlightTimeoutException | WordSingleFlightLeaderFailureException e) {
+        } catch (WordSingleFlightTimeoutException e) {
             log.warn("Single-flight temporary failure for word '{}'. Keeping invalid-word cache untouched.", word, e);
             throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
+        } catch (WordSingleFlightLeaderFailureException e) {
+            throw mapLeaderFailure(word, e, true);
         } catch (Exception e) {
             // AI 호출 실패 또는 무의미한 단어인 경우 InvalidWord로 캐싱
             log.warn("AI call failed for word '{}'. Caching as invalid word to prevent retries.", word, e);
@@ -346,6 +350,19 @@ public class WordService {
                 .bookmarked(isBookmarked)
                 .isEssential(word.getIsEssential())
                 .build();
+    }
+
+    private WordsException mapLeaderFailure(String word, WordSingleFlightLeaderFailureException e, boolean cacheInvalidWord) {
+        if (e.getLeaderErrorCode() == WordsErrorCode.WORD_IS_MEANINGLESS) {
+            log.warn("Single-flight leader classified word '{}' as meaningless.", word, e);
+            if (cacheInvalidWord) {
+                saveInvalidWord(word);
+            }
+            return new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
+        }
+
+        log.warn("Single-flight temporary failure for word '{}'. Keeping invalid-word cache untouched.", word, e);
+        return new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
     }
 
     /**
