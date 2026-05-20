@@ -3,6 +3,8 @@ package com.linglevel.api.word.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,7 +34,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
@@ -46,6 +47,12 @@ class WordSingleFlightRedisCoordinatorTest {
 
     @Mock
     private RedisMessageListenerContainer redisMessageListenerContainer;
+
+    @Mock
+    private RedissonClient redissonClient;
+
+    @Mock
+    private RLock redissonLock;
 
     @Mock
     private ValueOperations<String, String> valueOperations;
@@ -68,19 +75,11 @@ class WordSingleFlightRedisCoordinatorTest {
         properties.setSchemaVersion("v2");
 
         when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(redissonClient.getLock(anyString())).thenReturn(redissonLock);
+        when(redissonLock.isHeldByCurrentThread()).thenReturn(true);
 
         doAnswer(invocation -> redisStore.get(invocation.getArgument(0)))
                 .when(valueOperations).get(anyString());
-
-        doAnswer(invocation -> {
-            String key = invocation.getArgument(0);
-            String value = invocation.getArgument(1);
-            if (redisStore.containsKey(key)) {
-                return Boolean.FALSE;
-            }
-            redisStore.put(key, value);
-            return Boolean.TRUE;
-        }).when(valueOperations).setIfAbsent(anyString(), anyString(), any(Duration.class));
 
         doAnswer(invocation -> {
             String key = invocation.getArgument(0);
@@ -92,6 +91,7 @@ class WordSingleFlightRedisCoordinatorTest {
         coordinator = new WordSingleFlightRedisCoordinator(
                 stringRedisTemplate,
                 redisMessageListenerContainer,
+                redissonClient,
                 properties,
                 objectMapper
         );
@@ -101,6 +101,8 @@ class WordSingleFlightRedisCoordinatorTest {
     @Test
     @DisplayName("동일 키 동시 요청은 leader action을 한 번만 실행한다")
     void execute_deduplicatesConcurrentRequests() throws Exception {
+        stubTryLock(true, false);
+
         AtomicInteger aiCalls = new AtomicInteger();
         WordAnalysisResult sample = WordAnalysisResult.builder()
                 .originalForm("run")
@@ -145,6 +147,8 @@ class WordSingleFlightRedisCoordinatorTest {
     @Test
     @DisplayName("알림 유실 상황에서도 timeout 이후 resultKey 재조회로 결과를 반환한다")
     void execute_fallbacksToResultKeyAfterTimeout() {
+        stubTryLock(false);
+
         redisStore.clear();
 
         WordAnalysisResult sample = WordAnalysisResult.builder()
@@ -169,9 +173,6 @@ class WordSingleFlightRedisCoordinatorTest {
             return serialized;
         }).when(valueOperations).get(anyString());
 
-        doAnswer(invocation -> Boolean.FALSE)
-                .when(valueOperations).setIfAbsent(anyString(), anyString(), any(Duration.class));
-
         List<WordAnalysisResult> result = coordinator.execute(
                 "book",
                 LanguageCode.KO,
@@ -188,6 +189,8 @@ class WordSingleFlightRedisCoordinatorTest {
     @Test
     @DisplayName("leader 실패 결과는 같은 키 요청에 동일하게 전파된다")
     void execute_propagatesLeaderFailure() {
+        stubTryLock(true, false);
+
         RuntimeException failure = new RuntimeException("bedrock failure");
 
         assertThatThrownBy(() ->
@@ -220,6 +223,21 @@ class WordSingleFlightRedisCoordinatorTest {
             payload.put("errorMessage", null);
             return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void stubTryLock(boolean first, boolean... others) {
+        Boolean[] sequence = new Boolean[others.length + 1];
+        sequence[0] = first;
+        for (int i = 0; i < others.length; i++) {
+            sequence[i + 1] = others[i];
+        }
+
+        try {
+            when(redissonLock.tryLock(0, properties.getLockTtlMs(), TimeUnit.MILLISECONDS))
+                    .thenReturn(sequence[0], java.util.Arrays.copyOfRange(sequence, 1, sequence.length));
+        } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
     }

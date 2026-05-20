@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.common.AbstractRedisTest;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -130,6 +133,11 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         listenerContainer.afterPropertiesSet();
         listenerContainer.start();
 
+        Config redissonConfig = new Config();
+        redissonConfig.useSingleServer()
+                .setAddress("redis://" + redis.getHost() + ":" + redis.getMappedPort(6379));
+        RedissonClient redissonClient = Redisson.create(redissonConfig);
+
         WordSingleFlightProperties properties = new WordSingleFlightProperties();
         properties.setEnabled(true);
         properties.setLockTtlMs(5_000);
@@ -142,12 +150,13 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(
                 template,
                 listenerContainer,
+                redissonClient,
                 properties,
                 new ObjectMapper()
         );
         ReflectionTestUtils.invokeMethod(coordinator, "subscribeDonePattern");
 
-        return new CoordinatorFixture(connectionFactory, template, listenerContainer, coordinator);
+        return new CoordinatorFixture(connectionFactory, template, listenerContainer, redissonClient, coordinator);
     }
 
     private void flushAll(StringRedisTemplate template) {
@@ -180,11 +189,16 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
             LettuceConnectionFactory connectionFactory,
             StringRedisTemplate template,
             RedisMessageListenerContainer listenerContainer,
+            RedissonClient redissonClient,
             WordSingleFlightRedisCoordinator coordinator
     ) {
         void close() {
             try {
                 listenerContainer.stop();
+            } catch (Exception ignored) {
+            }
+            try {
+                redissonClient.shutdown();
             } catch (Exception ignored) {
             }
             try {

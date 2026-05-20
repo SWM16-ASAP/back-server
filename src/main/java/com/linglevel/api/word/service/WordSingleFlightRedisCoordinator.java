@@ -7,10 +7,11 @@ import com.linglevel.api.word.dto.WordAnalysisResult;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,6 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -40,13 +40,9 @@ public class WordSingleFlightRedisCoordinator {
     private static final String DONE_PREFIX = "sf:word:done";
     private static final String DONE_PATTERN = DONE_PREFIX + ":*";
 
-    private static final DefaultRedisScript<Long> UNLOCK_SCRIPT = new DefaultRedisScript<>(
-            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-            Long.class
-    );
-
     private final StringRedisTemplate stringRedisTemplate;
     private final RedisMessageListenerContainer redisMessageListenerContainer;
+    private final RedissonClient redissonClient;
     private final WordSingleFlightProperties properties;
     private final ObjectMapper objectMapper;
 
@@ -74,15 +70,10 @@ public class WordSingleFlightRedisCoordinator {
             return unwrap(cached, keys.digest());
         }
 
-        String lockToken = UUID.randomUUID().toString();
-        Boolean lockAcquired = stringRedisTemplate.opsForValue().setIfAbsent(
-                keys.lockKey(),
-                lockToken,
-                Duration.ofMillis(properties.getLockTtlMs())
-        );
-
-        if (Boolean.TRUE.equals(lockAcquired)) {
-            return executeAsLeader(keys, lockToken, leaderAction);
+        RLock lock = redissonClient.getLock(keys.lockKey());
+        boolean lockAcquired = tryAcquireLeaderLock(lock);
+        if (lockAcquired) {
+            return executeAsLeader(keys, lock, leaderAction);
         }
 
         return waitAsFollower(keys);
@@ -90,7 +81,7 @@ public class WordSingleFlightRedisCoordinator {
 
     private List<WordAnalysisResult> executeAsLeader(
             KeySet keys,
-            String lockToken,
+            RLock lock,
             Supplier<List<WordAnalysisResult>> leaderAction
     ) {
         try {
@@ -103,7 +94,16 @@ public class WordSingleFlightRedisCoordinator {
             publishDone(keys.channel());
             throw e;
         } finally {
-            releaseLock(keys.lockKey(), lockToken);
+            releaseLock(lock, keys.lockKey());
+        }
+    }
+
+    private boolean tryAcquireLeaderLock(RLock lock) {
+        try {
+            return lock.tryLock(0, properties.getLockTtlMs(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while acquiring single-flight lock", e);
         }
     }
 
@@ -145,9 +145,11 @@ public class WordSingleFlightRedisCoordinator {
         stringRedisTemplate.convertAndSend(channel, "done");
     }
 
-    private void releaseLock(String lockKey, String lockToken) {
+    private void releaseLock(RLock lock, String lockKey) {
         try {
-            stringRedisTemplate.execute(UNLOCK_SCRIPT, List.of(lockKey), lockToken);
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         } catch (Exception e) {
             log.warn("Failed to release single-flight lock key={}", lockKey, e);
         }

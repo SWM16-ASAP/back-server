@@ -1,5 +1,8 @@
 package com.linglevel.api.common.config;
 
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -59,5 +62,14 @@ public class RedisConfig {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(redisConnectionFactory);
         return container;
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    public RedissonClient redissonClient() {
+        Config config = new Config();
+        String scheme = ssl ? "rediss://" : "redis://";
+        config.useSingleServer()
+                .setAddress(scheme + host + ":" + port);
+        return Redisson.create(config);
     }
 }
