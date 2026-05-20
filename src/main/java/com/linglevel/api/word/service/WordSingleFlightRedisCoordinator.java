@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.exception.WordsErrorCode;
+import com.linglevel.api.word.exception.WordsException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -90,7 +92,7 @@ public class WordSingleFlightRedisCoordinator {
             publishDone(keys.channel());
             return result;
         } catch (RuntimeException e) {
-            writeResult(keys.resultKey(), ResultEnvelope.failed(e.getMessage()));
+            writeResult(keys.resultKey(), ResultEnvelope.failed(e.getMessage(), resolveLeaderErrorCode(e)));
             publishDone(keys.channel());
             throw e;
         } finally {
@@ -100,7 +102,9 @@ public class WordSingleFlightRedisCoordinator {
 
     private boolean tryAcquireLeaderLock(RLock lock) {
         try {
-            return lock.tryLock(0, properties.getLockTtlMs(), TimeUnit.MILLISECONDS);
+            // Use Redisson watchdog mode (no fixed lease time) to keep lock alive
+            // while leaderAction is still running, and release promptly on unlock.
+            return lock.tryLock(0, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Interrupted while acquiring single-flight lock", e);
@@ -187,9 +191,35 @@ public class WordSingleFlightRedisCoordinator {
             return envelope.results();
         }
 
+        WordsErrorCode leaderErrorCode = parseLeaderErrorCode(envelope.errorCode());
         throw new WordSingleFlightLeaderFailureException(
-                "Single-flight leader failed for key digest=" + digest + ": " + envelope.errorMessage()
+                "Single-flight leader failed for key digest=" + digest + ": " + envelope.errorMessage(),
+                leaderErrorCode
         );
+    }
+
+    private String resolveLeaderErrorCode(Throwable throwable) {
+        Throwable cursor = throwable;
+        while (cursor != null) {
+            if (cursor instanceof WordsException wordsException && wordsException.getErrorCode() != null) {
+                return wordsException.getErrorCode().name();
+            }
+            cursor = cursor.getCause();
+        }
+        return null;
+    }
+
+    private WordsErrorCode parseLeaderErrorCode(String rawErrorCode) {
+        if (rawErrorCode == null || rawErrorCode.isBlank()) {
+            return null;
+        }
+
+        try {
+            return WordsErrorCode.valueOf(rawErrorCode);
+        } catch (IllegalArgumentException e) {
+            log.warn("Unknown single-flight leader error code: {}", rawErrorCode);
+            return null;
+        }
     }
 
     private void registerWaiter(String channel, CompletableFuture<Void> signal) {
@@ -262,14 +292,15 @@ public class WordSingleFlightRedisCoordinator {
     private record ResultEnvelope(
             boolean success,
             List<WordAnalysisResult> results,
-            String errorMessage
+            String errorMessage,
+            String errorCode
     ) {
         static ResultEnvelope success(List<WordAnalysisResult> results) {
-            return new ResultEnvelope(true, results, null);
+            return new ResultEnvelope(true, results, null, null);
         }
 
-        static ResultEnvelope failed(String errorMessage) {
-            return new ResultEnvelope(false, List.of(), errorMessage);
+        static ResultEnvelope failed(String errorMessage, String errorCode) {
+            return new ResultEnvelope(false, List.of(), errorMessage, errorCode);
         }
     }
 }
