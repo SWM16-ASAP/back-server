@@ -5,6 +5,7 @@ import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordAnalysisResult;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
+import org.redisson.RedissonRedLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +39,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -226,6 +229,45 @@ class WordSingleFlightRedisCoordinatorTest {
         ).isInstanceOf(WordSingleFlightLeaderFailureException.class)
          .satisfies(ex -> assertThat(((WordSingleFlightLeaderFailureException) ex).getLeaderErrorCode())
                  .isEqualTo(WordsErrorCode.WORD_IS_MEANINGLESS));
+    }
+
+    @Test
+    @DisplayName("Redlock 활성 + 3개 노드 구성 시 RedissonRedLock을 사용한다")
+    void createLeaderLock_usesRedlockWhenConfigured() {
+        properties.setRedlockEnabled(true);
+        properties.setRedlockNodeAddresses(List.of(
+                "redis://127.0.0.1:6379",
+                "redis://127.0.0.1:6380",
+                "redis://127.0.0.1:6381"
+        ));
+
+        ReflectionTestUtils.invokeMethod(coordinator, "initializeRedlockClients");
+        try {
+            RLock lock = ReflectionTestUtils.invokeMethod(coordinator, "createLeaderLock", "sf:word:lock:redlock");
+            assertThat(lock).isInstanceOf(RedissonRedLock.class);
+            verify(redissonClient, never()).getLock("sf:word:lock:redlock");
+        } finally {
+            ReflectionTestUtils.invokeMethod(coordinator, "shutdown");
+        }
+    }
+
+    @Test
+    @DisplayName("Redlock 활성 + 노드 2개 구성 시 single RLock으로 폴백한다")
+    void createLeaderLock_fallsBackToSingleRLockWhenInsufficientNodes() {
+        properties.setRedlockEnabled(true);
+        properties.setRedlockNodeAddresses(List.of(
+                "redis://127.0.0.1:6379",
+                "redis://127.0.0.1:6380"
+        ));
+
+        ReflectionTestUtils.invokeMethod(coordinator, "initializeRedlockClients");
+        try {
+            RLock lock = ReflectionTestUtils.invokeMethod(coordinator, "createLeaderLock", "sf:word:lock:fallback");
+            assertThat(lock).isSameAs(redissonLock);
+            verify(redissonClient).getLock("sf:word:lock:fallback");
+        } finally {
+            ReflectionTestUtils.invokeMethod(coordinator, "shutdown");
+        }
     }
 
     private void sleep(long millis) {
