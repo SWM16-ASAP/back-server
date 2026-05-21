@@ -7,10 +7,14 @@ import com.linglevel.api.word.dto.WordAnalysisResult;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.Redisson;
+import org.redisson.RedissonRedLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -22,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -49,12 +54,26 @@ public class WordSingleFlightRedisCoordinator {
     private final ObjectMapper objectMapper;
 
     private final ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableFuture<Void>>> channelWaiters = new ConcurrentHashMap<>();
+    private final List<RedissonClient> redlockClients = new ArrayList<>();
 
     private final MessageListener doneListener = this::onDoneMessage;
 
     @PostConstruct
-    void subscribeDonePattern() {
+    void initialize() {
         redisMessageListenerContainer.addMessageListener(doneListener, new PatternTopic(DONE_PATTERN));
+        initializeRedlockClients();
+    }
+
+    @PreDestroy
+    void shutdown() {
+        for (RedissonClient client : redlockClients) {
+            try {
+                client.shutdown();
+            } catch (Exception e) {
+                log.warn("Failed to shutdown single-flight Redlock client", e);
+            }
+        }
+        redlockClients.clear();
     }
 
     public List<WordAnalysisResult> execute(
@@ -72,7 +91,7 @@ public class WordSingleFlightRedisCoordinator {
             return unwrap(cached, keys.digest());
         }
 
-        RLock lock = redissonClient.getLock(keys.lockKey());
+        RLock lock = createLeaderLock(keys.lockKey());
         boolean lockAcquired = tryAcquireLeaderLock(lock);
         if (lockAcquired) {
             return executeAsLeader(keys, lock, leaderAction);
@@ -151,12 +170,65 @@ public class WordSingleFlightRedisCoordinator {
 
     private void releaseLock(RLock lock, String lockKey) {
         try {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            lock.unlock();
+        } catch (IllegalMonitorStateException e) {
+            log.warn("Single-flight lock was not held at release time key={}", lockKey, e);
         } catch (Exception e) {
             log.warn("Failed to release single-flight lock key={}", lockKey, e);
         }
+    }
+
+    private RLock createLeaderLock(String lockKey) {
+        if (properties.isRedlockEnabled() && redlockClients.size() >= 3) {
+            RLock[] locks = redlockClients.stream()
+                    .map(client -> client.getLock(lockKey))
+                    .toArray(RLock[]::new);
+            return new RedissonRedLock(locks);
+        }
+
+        if (properties.isRedlockEnabled()) {
+            log.warn("Redlock is enabled but usable node count is {} (<3). Fallback to single RLock.",
+                    redlockClients.size());
+        }
+        return redissonClient.getLock(lockKey);
+    }
+
+    private void initializeRedlockClients() {
+        if (!properties.isRedlockEnabled()) {
+            return;
+        }
+
+        List<String> addresses = properties.getRedlockNodeAddresses().stream()
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .toList();
+
+        if (addresses.isEmpty()) {
+            log.warn("Redlock is enabled but no node addresses configured. Fallback to single RLock.");
+            return;
+        }
+
+        for (String rawAddress : addresses) {
+            String address = normalizeAddress(rawAddress);
+            Config config = new Config();
+            config.useSingleServer().setAddress(address);
+            redlockClients.add(Redisson.create(config));
+        }
+
+        if (redlockClients.size() < 3) {
+            log.warn("Redlock requires at least 3 independent nodes, but only {} configured. Fallback to single RLock.",
+                    redlockClients.size());
+            return;
+        }
+
+        log.info("Single-flight Redlock mode initialized with {} nodes.", redlockClients.size());
+    }
+
+    private String normalizeAddress(String rawAddress) {
+        if (rawAddress.startsWith("redis://") || rawAddress.startsWith("rediss://")) {
+            return rawAddress;
+        }
+        return "redis://" + rawAddress;
     }
 
     private ResultEnvelope readResult(String resultKey) {

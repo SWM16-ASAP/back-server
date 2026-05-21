@@ -97,7 +97,7 @@ class WordSingleFlightRedisCoordinatorTest {
                 properties,
                 objectMapper
         );
-        ReflectionTestUtils.invokeMethod(coordinator, "subscribeDonePattern");
+        ReflectionTestUtils.invokeMethod(coordinator, "initialize");
     }
 
     @Test

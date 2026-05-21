@@ -154,7 +154,7 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
                 properties,
                 new ObjectMapper()
         );
-        ReflectionTestUtils.invokeMethod(coordinator, "subscribeDonePattern");
+        ReflectionTestUtils.invokeMethod(coordinator, "initialize");
 
         return new CoordinatorFixture(connectionFactory, template, listenerContainer, redissonClient, coordinator);
     }
