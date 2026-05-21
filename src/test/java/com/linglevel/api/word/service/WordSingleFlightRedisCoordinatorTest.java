@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -268,6 +269,20 @@ class WordSingleFlightRedisCoordinatorTest {
         } finally {
             ReflectionTestUtils.invokeMethod(coordinator, "shutdown");
         }
+    }
+
+    @Test
+    @DisplayName("Redlock 노드 주소가 잘못되어도 초기화 예외 없이 single RLock으로 폴백한다")
+    void initializeRedlockClients_doesNotFailStartupOnBadAddress() {
+        properties.setRedlockEnabled(true);
+        properties.setRedlockNodeAddresses(List.of("bad address with space"));
+
+        assertThatCode(() -> ReflectionTestUtils.invokeMethod(coordinator, "initializeRedlockClients"))
+                .doesNotThrowAnyException();
+
+        RLock lock = ReflectionTestUtils.invokeMethod(coordinator, "createLeaderLock", "sf:word:lock:bad-address");
+        assertThat(lock).isSameAs(redissonLock);
+        verify(redissonClient).getLock("sf:word:lock:bad-address");
     }
 
     private void sleep(long millis) {

@@ -210,9 +210,18 @@ public class WordSingleFlightRedisCoordinator {
 
         for (String rawAddress : addresses) {
             String address = normalizeAddress(rawAddress);
-            Config config = new Config();
-            config.useSingleServer().setAddress(address);
-            redlockClients.add(Redisson.create(config));
+            try {
+                Config config = new Config();
+                config.useSingleServer().setAddress(address);
+                redlockClients.add(Redisson.create(config));
+            } catch (Exception e) {
+                log.warn("Skipping invalid/unavailable Redlock node address '{}'. Fallback candidates will continue.", rawAddress, e);
+            }
+        }
+
+        if (redlockClients.isEmpty()) {
+            log.warn("Redlock is enabled but no valid/usable nodes initialized. Fallback to single RLock.");
+            return;
         }
 
         if (redlockClients.size() < 3) {
