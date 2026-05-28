@@ -18,7 +18,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -32,25 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest {
-
-    private static final GenericContainer<?> redlockRedisA;
-    private static final GenericContainer<?> redlockRedisB;
-    private static final GenericContainer<?> redlockRedisC;
-
-    static {
-        redlockRedisA = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                .withExposedPorts(6379)
-                .withReuse(true);
-        redlockRedisB = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                .withExposedPorts(6379)
-                .withReuse(true);
-        redlockRedisC = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                .withExposedPorts(6379)
-                .withReuse(true);
-        redlockRedisA.start();
-        redlockRedisB.start();
-        redlockRedisC.start();
-    }
 
     private CoordinatorFixture nodeA;
     private CoordinatorFixture nodeB;
@@ -137,57 +117,7 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         assertThat(aiCalls.get()).isEqualTo(1);
     }
 
-    @Test
-    @DisplayName("Redlock(3노드) 구성에서도 두 인스턴스 동시 요청은 1회만 실행된다")
-    void deduplicatesAcrossTwoCoordinatorsUsingRealRedisWithRedlock() throws Exception {
-        CoordinatorFixture redlockNodeA = createNode("test-model-redlock", 3_000, true, redlockNodeAddresses());
-        CoordinatorFixture redlockNodeB = createNode("test-model-redlock", 3_000, true, redlockNodeAddresses());
-        flushAll(redlockNodeA.template);
-
-        AtomicInteger aiCalls = new AtomicInteger();
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        CountDownLatch start = new CountDownLatch(1);
-
-        try {
-            Future<List<WordAnalysisResult>> f1 = executor.submit(() -> {
-                start.await(1, TimeUnit.SECONDS);
-                return redlockNodeA.coordinator.execute("sprint", LanguageCode.KO, () -> {
-                    aiCalls.incrementAndGet();
-                    sleep(250);
-                    return List.of(sample("sprint"));
-                });
-            });
-
-            Future<List<WordAnalysisResult>> f2 = executor.submit(() -> {
-                start.await(1, TimeUnit.SECONDS);
-                return redlockNodeB.coordinator.execute("sprint", LanguageCode.KO, () -> {
-                    aiCalls.incrementAndGet();
-                    return List.of(sample("sprint"));
-                });
-            });
-
-            start.countDown();
-
-            List<WordAnalysisResult> r1 = f1.get(5, TimeUnit.SECONDS);
-            List<WordAnalysisResult> r2 = f2.get(5, TimeUnit.SECONDS);
-
-            assertThat(r1).hasSize(1);
-            assertThat(r2).hasSize(1);
-            assertThat(r1.get(0).getOriginalForm()).isEqualTo("sprint");
-            assertThat(r2.get(0).getOriginalForm()).isEqualTo("sprint");
-            assertThat(aiCalls.get()).isEqualTo(1);
-        } finally {
-            executor.shutdownNow();
-            redlockNodeA.close();
-            redlockNodeB.close();
-        }
-    }
-
     private CoordinatorFixture createNode(String model, long waitTimeoutMs) {
-        return createNode(model, waitTimeoutMs, false, List.of());
-    }
-
-    private CoordinatorFixture createNode(String model, long waitTimeoutMs, boolean redlockEnabled, List<String> redlockNodeAddresses) {
         GenericContainer<?> redis = getRedisContainer();
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redis.getHost(), redis.getMappedPort(6379));
 
@@ -216,8 +146,6 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         properties.setPromptVersion("v1");
         properties.setModel(model);
         properties.setSchemaVersion("v2");
-        properties.setRedlockEnabled(redlockEnabled);
-        properties.setRedlockNodeAddresses(redlockNodeAddresses);
 
         WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(
                 template,
@@ -229,18 +157,6 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         ReflectionTestUtils.invokeMethod(coordinator, "initialize");
 
         return new CoordinatorFixture(connectionFactory, template, listenerContainer, redissonClient, coordinator);
-    }
-
-    private List<String> redlockNodeAddresses() {
-        return List.of(
-                toRedisAddress(redlockRedisA),
-                toRedisAddress(redlockRedisB),
-                toRedisAddress(redlockRedisC)
-        );
-    }
-
-    private String toRedisAddress(GenericContainer<?> container) {
-        return "redis://" + container.getHost() + ":" + container.getMappedPort(6379);
     }
 
     private void flushAll(StringRedisTemplate template) {

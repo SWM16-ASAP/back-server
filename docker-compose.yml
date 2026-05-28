@@ -10,15 +10,9 @@ services:
       # 컨테이너 내부에서 localhost는 도커 네트워크에서 자신의 주소
       - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/llv_api_local
       - SPRING_DATA_REDIS_HOST=redis
-      # Redlock 기본 활성화
-      - WORD_SINGLE_FLIGHT_REDLOCK_ENABLED=true
-      - WORD_SINGLE_FLIGHT_REDLOCK_NODE_ADDRESSES=redis://redis-a:6379,redis://redis-b:6379,redis://redis-c:6379
     depends_on:
       - mongo
       - redis
-      - redis-a
-      - redis-b
-      - redis-c
     volumes:
       - ./logs:/app/logs
   mongo:
@@ -40,39 +34,6 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
-  redis-a:
-    image: redis:7-alpine
-    container_name: llv-redis-a
-    ports:
-      - "6380:6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_a_data:/data
-    restart: unless-stopped
-
-  redis-b:
-    image: redis:7-alpine
-    container_name: llv-redis-b
-    ports:
-      - "6381:6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_b_data:/data
-    restart: unless-stopped
-
-  redis-c:
-    image: redis:7-alpine
-    container_name: llv-redis-c
-    ports:
-      - "6382:6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_c_data:/data
-    restart: unless-stopped
-
 volumes:
   mongo_data:
   redis_data:
-  redis_a_data:
-  redis_b_data:
-  redis_c_data:

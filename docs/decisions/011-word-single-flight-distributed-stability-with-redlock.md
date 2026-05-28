@@ -1,4 +1,4 @@
-# Word Single-Flight 분산 안정화 보고서 (Redlock 적용)
+# Word Single-Flight 분산 안정화 보고서 (RLock 표준화)
 
 ## 문제
 
@@ -7,22 +7,22 @@
 
 ## 선택
 
-single-flight 조정 경로를 Redisson 기반으로 전환하고, Redlock 경로를 기본값으로 채택했다.
-동시에 노드 설정 이상 상황에서는 단일 락 폴백 경로로 기동하도록 fail-safe 동작을 추가했다.
+single-flight 조정 경로를 Redisson 기반으로 전환하고, 운영 표준은 `RLock + watchdog`으로 확정했다.
 또한 follower 에러 처리와 락 만료 시맨틱을 보정해 단기 장애 증폭 가능성을 낮췄다.
 
 ## 이유
 
 우선순위는 단기간 내 운영 리스크 완화와 기동 안전성 확보로 설정했다.
+AWS Bedrock 동기 추론 API(Converse/InvokeModel)에는 멱등키가 없어 호출 단계 중복 제거를 플랫폼에 위임하기 어려웠다.
 `fencing token` 기반 모델은 저장소/다운스트림 검증 지점 추가와 토큰 단조성 보장 설계가 필요해 즉시 적용 범위에서 제외했다.
 또한 본 건의 핵심 목표가 AI 요청 수 절감인데, fencing token은 stale write 방지에는 유효해도 AI 중복 호출 자체를 차단하지는 못한다.
-이에 따라 1차 조치는 duplicate-call 완화와 fail-safe 확보에 집중하고, 엄격 정합성 요구는 후속 과제로 분리했다.
+이에 따라 1차 조치는 `RLock + watchdog + 결과 캐시/idempotency key` 조합으로 duplicate-call 완화에 집중하고, 엄격 정합성 요구는 후속 과제로 분리했다.
 
 ## 검증
 
-- [WordSingleFlightRedisCoordinator.java](../../src/main/java/com/linglevel/api/word/service/singleflight/WordSingleFlightRedisCoordinator.java) 기준으로 락 경로가 Redisson 기반으로 전환된 것을 확인했다.
+- [WordSingleFlightRedisCoordinator.java](../../src/main/java/com/linglevel/api/word/service/WordSingleFlightRedisCoordinator.java) 기준으로 락 경로가 Redisson `RLock` 기반으로 표준화된 것을 확인했다.
 - follower timeout 및 leader 실패 전파 시맨틱 보정 사항을 코드 단위로 확인했다.
-- 로컬 3노드 Redis 환경에서 Redlock 경로와 단일 락 폴백 경로를 테스트로 검증했다.
+- 두 인스턴스 동시 요청에서 single-flight 1회 실행, leader 실패 전파, timeout fallback을 테스트로 검증했다.
 - 변경 사항은 PR 단위로 분리해 검증했다: `#328`(분산 안정화), `#330`(만료/에러 시맨틱 보정), `#331`(Redlock + 폴백 검증).
 
 ## 결과와 남은 이슈

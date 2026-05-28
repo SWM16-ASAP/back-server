@@ -35,4 +35,4 @@
 - [008. 글로벌 이미지 전달 성능 최적화](008-image-delivery-optimization.md)
 - [009. DSL 기반 크롤링 규칙 관리 구조 도입](009-dsl-driven-crawling.md)
 - [010. 미션 기반 Codex 에이전트 운영 규칙 정리](010-mission-oriented-agent-guidelines.md)
-- [011. Word Single-Flight 분산 안정화와 Redlock 도입](011-word-single-flight-distributed-stability-with-redlock.md)
+- [011. Word Single-Flight 분산 안정화와 RLock 표준화](011-word-single-flight-distributed-stability-with-redlock.md)
