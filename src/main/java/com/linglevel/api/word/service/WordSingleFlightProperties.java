@@ -5,9 +5,6 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Getter
 @Setter
 @Component
@@ -15,8 +12,6 @@ import java.util.List;
 public class WordSingleFlightProperties {
 
     private boolean enabled = true;
-
-    private long lockTtlMs = 20_000;
 
     private long waitTimeoutMs = 5_000;
 
@@ -27,8 +22,4 @@ public class WordSingleFlightProperties {
     private String model = "default";
 
     private String schemaVersion = "v2";
-
-    private boolean redlockEnabled = false;
-
-    private List<String> redlockNodeAddresses = new ArrayList<>();
 }

@@ -5,7 +5,6 @@ import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordAnalysisResult;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
-import org.redisson.RedissonRedLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,13 +34,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -74,7 +70,6 @@ class WordSingleFlightRedisCoordinatorTest {
     void setUp() {
         properties = new WordSingleFlightProperties();
         properties.setEnabled(true);
-        properties.setLockTtlMs(1_000);
         properties.setWaitTimeoutMs(120);
         properties.setResultTtlMs(2_000);
         properties.setPromptVersion("v1");
@@ -231,61 +226,6 @@ class WordSingleFlightRedisCoordinatorTest {
         ).isInstanceOf(WordSingleFlightLeaderFailureException.class)
          .satisfies(ex -> assertThat(((WordSingleFlightLeaderFailureException) ex).getLeaderErrorCode())
                  .isEqualTo(WordsErrorCode.WORD_IS_MEANINGLESS));
-    }
-
-    @Test
-    @DisplayName("Redlock 활성 + 3개 노드 구성 시 RedissonRedLock을 사용한다")
-    void createLeaderLock_usesRedlockWhenConfigured() {
-        properties.setRedlockEnabled(true);
-
-        RedissonClient nodeA = mock(RedissonClient.class);
-        RedissonClient nodeB = mock(RedissonClient.class);
-        RedissonClient nodeC = mock(RedissonClient.class);
-        when(nodeA.getLock(anyString())).thenReturn(mock(RLock.class));
-        when(nodeB.getLock(anyString())).thenReturn(mock(RLock.class));
-        when(nodeC.getLock(anyString())).thenReturn(mock(RLock.class));
-
-        @SuppressWarnings("unchecked")
-        List<RedissonClient> clients = (List<RedissonClient>) ReflectionTestUtils.getField(coordinator, "redlockClients");
-        clients.add(nodeA);
-        clients.add(nodeB);
-        clients.add(nodeC);
-
-        RLock lock = ReflectionTestUtils.invokeMethod(coordinator, "createLeaderLock", "sf:word:lock:redlock");
-        assertThat(lock).isInstanceOf(RedissonRedLock.class);
-        verify(redissonClient, never()).getLock("sf:word:lock:redlock");
-    }
-
-    @Test
-    @DisplayName("Redlock 활성 + 노드 2개 구성 시 single RLock으로 폴백한다")
-    void createLeaderLock_fallsBackToSingleRLockWhenInsufficientNodes() {
-        properties.setRedlockEnabled(true);
-
-        RedissonClient nodeA = mock(RedissonClient.class);
-        RedissonClient nodeB = mock(RedissonClient.class);
-
-        @SuppressWarnings("unchecked")
-        List<RedissonClient> clients = (List<RedissonClient>) ReflectionTestUtils.getField(coordinator, "redlockClients");
-        clients.add(nodeA);
-        clients.add(nodeB);
-
-        RLock lock = ReflectionTestUtils.invokeMethod(coordinator, "createLeaderLock", "sf:word:lock:fallback");
-        assertThat(lock).isSameAs(redissonLock);
-        verify(redissonClient).getLock("sf:word:lock:fallback");
-    }
-
-    @Test
-    @DisplayName("Redlock 노드 주소가 잘못되어도 초기화 예외 없이 single RLock으로 폴백한다")
-    void initializeRedlockClients_doesNotFailStartupOnBadAddress() {
-        properties.setRedlockEnabled(true);
-        properties.setRedlockNodeAddresses(List.of("bad address with space"));
-
-        assertThatCode(() -> ReflectionTestUtils.invokeMethod(coordinator, "initializeRedlockClients"))
-                .doesNotThrowAnyException();
-
-        RLock lock = ReflectionTestUtils.invokeMethod(coordinator, "createLeaderLock", "sf:word:lock:bad-address");
-        assertThat(lock).isSameAs(redissonLock);
-        verify(redissonClient).getLock("sf:word:lock:bad-address");
     }
 
     private void sleep(long millis) {
