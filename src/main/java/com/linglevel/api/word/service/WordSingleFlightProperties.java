@@ -13,8 +13,6 @@ public class WordSingleFlightProperties {
 
     private boolean enabled = true;
 
-    private long lockTtlMs = 20_000;
-
     private long waitTimeoutMs = 5_000;
 
     private long resultTtlMs = 60_000;

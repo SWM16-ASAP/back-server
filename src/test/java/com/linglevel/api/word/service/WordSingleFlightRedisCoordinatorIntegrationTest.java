@@ -140,7 +140,6 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
 
         WordSingleFlightProperties properties = new WordSingleFlightProperties();
         properties.setEnabled(true);
-        properties.setLockTtlMs(5_000);
         properties.setWaitTimeoutMs(waitTimeoutMs);
         properties.setResultTtlMs(30_000);
         properties.setPromptVersion("v1");

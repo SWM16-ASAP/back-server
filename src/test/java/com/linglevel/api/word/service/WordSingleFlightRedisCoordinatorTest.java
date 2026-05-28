@@ -70,7 +70,6 @@ class WordSingleFlightRedisCoordinatorTest {
     void setUp() {
         properties = new WordSingleFlightProperties();
         properties.setEnabled(true);
-        properties.setLockTtlMs(1_000);
         properties.setWaitTimeoutMs(120);
         properties.setResultTtlMs(2_000);
         properties.setPromptVersion("v1");
