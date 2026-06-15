@@ -89,14 +89,16 @@ public class WordSingleFlightRedisCoordinator {
             RLock lock,
             Supplier<T> leaderAction
     ) {
+        T result;
         try {
-            T result = leaderAction.get();
-            completeLeaderAfterCommit(keys, lock);
-            return result;
+            result = leaderAction.get();
         } catch (RuntimeException | Error e) {
             completeLeaderAfterCompletion(keys, lock);
             throw e;
         }
+
+        completeLeaderAfterCommit(keys, lock);
+        return result;
     }
 
     private boolean tryAcquireLeaderLock(RLock lock) {
@@ -144,38 +146,45 @@ public class WordSingleFlightRedisCoordinator {
 
     private void completeLeaderAfterCommit(KeySet keys, RLock lock) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            publishDone(keys.channel());
-            releaseLock(lock, keys.lockKey());
+            publishDoneThenRelease(keys, lock);
             return;
         }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                publishDone(keys.channel());
+                publishDoneThenRelease(keys, lock);
             }
 
             @Override
             public void afterCompletion(int status) {
-                releaseLock(lock, keys.lockKey());
+                if (status != STATUS_COMMITTED) {
+                    releaseLock(lock, keys.lockKey());
+                }
             }
         });
     }
 
     private void completeLeaderAfterCompletion(KeySet keys, RLock lock) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            publishDone(keys.channel());
-            releaseLock(lock, keys.lockKey());
+            publishDoneThenRelease(keys, lock);
             return;
         }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCompletion(int status) {
-                publishDone(keys.channel());
-                releaseLock(lock, keys.lockKey());
+                publishDoneThenRelease(keys, lock);
             }
         });
+    }
+
+    private void publishDoneThenRelease(KeySet keys, RLock lock) {
+        try {
+            publishDone(keys.channel());
+        } finally {
+            releaseLock(lock, keys.lockKey());
+        }
     }
 
     private void publishDone(String channel) {

@@ -123,22 +123,27 @@ public class WordService {
                     word,
                     targetLanguage,
                     () -> {
-                        List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
+                        try {
+                            List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
 
-                        // AI 호출 성공 시 InvalidWord 캐시에서 제거 (일시적 오류였던 경우 복구)
-                        cachedInvalidWord.ifPresent(invalidWord -> {
-                            invalidWordRepository.delete(invalidWord);
-                            log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)",
-                                    word, invalidWord.getAttemptCount());
-                        });
+                            // AI 호출 성공 시 InvalidWord 캐시에서 제거 (일시적 오류였던 경우 복구)
+                            cachedInvalidWord.ifPresent(invalidWord -> {
+                                invalidWordRepository.delete(invalidWord);
+                                log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)",
+                                        word, invalidWord.getAttemptCount());
+                            });
 
-                        List<WordVariant> savedVariants = new ArrayList<>();
-                        for (WordAnalysisResult analysisResult : analysisResults) {
-                            WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
-                            savedVariants.add(savedVariant);
+                            List<WordVariant> savedVariants = new ArrayList<>();
+                            for (WordAnalysisResult analysisResult : analysisResults) {
+                                WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
+                                savedVariants.add(savedVariant);
+                            }
+
+                            return savedVariants;
+                        } catch (WordsException e) {
+                            cacheInvalidWordIfMeaningless(word, e);
+                            throw e;
                         }
-
-                        return savedVariants;
                     },
                     () -> findWordVariantsAfterSingleFlight(word, invalidAttemptCountBeforeSingleFlight)
             );
@@ -175,6 +180,13 @@ public class WordService {
         }
 
         return Optional.empty();
+    }
+
+    private void cacheInvalidWordIfMeaningless(String word, WordsException e) {
+        if (e.getErrorCode() == WordsErrorCode.WORD_IS_MEANINGLESS) {
+            log.warn("AI classified word '{}' as meaningless. Updating invalid-word cache.", word, e);
+            saveInvalidWord(word);
+        }
     }
 
 

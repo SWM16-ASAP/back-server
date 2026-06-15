@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -210,6 +211,26 @@ class WordSingleFlightRedisCoordinatorTest {
                         }
                 )
         ).isSameAs(failure);
+    }
+
+    @Test
+    @DisplayName("done publish가 실패해도 leader lock은 해제한다")
+    void execute_releasesLeaderLockWhenPublishFails() {
+        stubTryLock(true);
+
+        RuntimeException publishFailure = new RuntimeException("redis publish failed");
+        doThrow(publishFailure).when(stringRedisTemplate).convertAndSend(anyString(), anyString());
+
+        assertThatThrownBy(() ->
+                coordinator.execute(
+                        "run",
+                        LanguageCode.KO,
+                        () -> List.of(sample("run")),
+                        Optional::empty
+                )
+        ).isSameAs(publishFailure);
+
+        verify(redissonLock).unlock();
     }
 
     private WordAnalysisResult sample(String originalForm) {

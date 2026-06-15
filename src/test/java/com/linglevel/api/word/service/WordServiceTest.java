@@ -324,6 +324,23 @@ class WordServiceTest {
     }
 
     @Test
+    @DisplayName("single-flight leader의 WORD_IS_MEANINGLESS 예외는 invalid 캐시에 반영")
+    void getOrCreateWords_singleFlightLeaderMeaninglessException_cachesInvalidWord() {
+        String word = "asdfqwer";
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
+        when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode()))
+                .thenThrow(new WordsException(com.linglevel.api.word.exception.WordsErrorCode.WORD_IS_MEANINGLESS));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("meaningless");
+
+        verify(invalidWordRepository).save(any());
+    }
+
+    @Test
     @DisplayName("3회 미만 invalid 캐시는 single-flight 사전 조회에서도 재시도를 허용")
     void getOrCreateWordEntities_cachedInvalidBelowThreshold_allowsRetryThroughSingleFlightLookup() {
         String word = "resilience";
