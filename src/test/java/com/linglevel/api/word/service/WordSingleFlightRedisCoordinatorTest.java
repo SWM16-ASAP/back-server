@@ -1,7 +1,10 @@
 package com.linglevel.api.word.service;
 
 import com.linglevel.api.i18n.LanguageCode;
+import com.linglevel.api.word.config.WordSingleFlightProperties;
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.exception.WordsErrorCode;
+import com.linglevel.api.word.exception.WordsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -184,8 +187,9 @@ class WordSingleFlightRedisCoordinatorTest {
                         },
                         Optional::empty
                 )
-        ).isInstanceOf(WordSingleFlightTimeoutException.class)
-         .hasMessageContaining("Timed out waiting single-flight DB result");
+        ).isInstanceOf(WordsException.class)
+         .satisfies(ex -> assertThat(((WordsException) ex).getErrorCode())
+                 .isEqualTo(WordsErrorCode.WORD_ANALYSIS_TIMEOUT));
     }
 
     @Test

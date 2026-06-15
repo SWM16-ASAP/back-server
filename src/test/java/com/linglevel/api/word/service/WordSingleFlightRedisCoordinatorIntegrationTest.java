@@ -2,7 +2,9 @@ package com.linglevel.api.word.service;
 
 import com.linglevel.api.common.AbstractRedisTest;
 import com.linglevel.api.i18n.LanguageCode;
+import com.linglevel.api.word.config.WordSingleFlightProperties;
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.exception.WordsException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -148,7 +150,7 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
             assertThatThrownBy(() -> leader.get(5, TimeUnit.SECONDS))
                     .hasCause(leaderFailure);
             assertThatThrownBy(() -> follower.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(WordSingleFlightTimeoutException.class);
+                    .hasCauseInstanceOf(WordsException.class);
             assertThat(aiCalls.get()).isEqualTo(1);
         } finally {
             executor.shutdownNow();

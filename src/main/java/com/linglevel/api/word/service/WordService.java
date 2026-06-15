@@ -50,28 +50,22 @@ public class WordService {
                 log.info("Word '{}' not found for targetLanguage {}, creating new one...",
                     wordVariant.getOriginalForm(), targetLanguage);
 
-                try {
-                    return singleFlightCoordinator.execute(
-                            wordVariant.getOriginalForm(),
-                            targetLanguage,
-                            () -> {
-                                List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(
+                return singleFlightCoordinator.execute(
+                        wordVariant.getOriginalForm(),
+                        targetLanguage,
+                        () -> {
+                            List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(
                                     wordVariant.getOriginalForm(),
                                     targetLanguage.getCode()
-                                );
-                                Word newWord = convertAnalysisResultToWord(analysisResults.get(0));
-                                return wordRepository.save(newWord);
-                            },
-                            () -> wordRepository.findByWordAndTargetLanguageCode(
-                                    wordVariant.getOriginalForm(),
-                                    targetLanguage
-                            )
-                    );
-                } catch (WordSingleFlightTimeoutException e) {
-                    log.warn("Single-flight temporary failure for originalForm '{}'. Returning timeout error.",
-                            wordVariant.getOriginalForm(), e);
-                    throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
-                }
+                            );
+                            Word newWord = convertAnalysisResultToWord(analysisResults.get(0));
+                            return wordRepository.save(newWord);
+                        },
+                        () -> wordRepository.findByWordAndTargetLanguageCode(
+                                wordVariant.getOriginalForm(),
+                                targetLanguage
+                        )
+                );
             });
 
             boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordVariant.getOriginalForm());
@@ -148,9 +142,6 @@ public class WordService {
                     () -> findWordVariantsAfterSingleFlight(word, invalidAttemptCountBeforeSingleFlight)
             );
 
-        } catch (WordSingleFlightTimeoutException e) {
-            log.warn("Single-flight temporary failure for word '{}'. Keeping invalid-word cache untouched.", word, e);
-            throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
         } catch (WordsException e) {
             throw e;
         } catch (Exception e) {

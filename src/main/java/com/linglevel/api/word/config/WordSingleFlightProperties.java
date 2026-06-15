@@ -1,4 +1,4 @@
-package com.linglevel.api.word.service;
+package com.linglevel.api.word.config;
 
 import lombok.Getter;
 import lombok.Setter;

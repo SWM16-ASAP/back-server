@@ -1,6 +1,9 @@
 package com.linglevel.api.word.service;
 
 import com.linglevel.api.i18n.LanguageCode;
+import com.linglevel.api.word.config.WordSingleFlightProperties;
+import com.linglevel.api.word.exception.WordsErrorCode;
+import com.linglevel.api.word.exception.WordsException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -139,9 +142,7 @@ public class WordSingleFlightRedisCoordinator {
             return finalResult.get();
         }
 
-        throw new WordSingleFlightTimeoutException(
-                "Timed out waiting single-flight DB result for key digest=" + keys.digest()
-        );
+        throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
     }
 
     private void completeLeaderAfterCommit(KeySet keys, RLock lock) {

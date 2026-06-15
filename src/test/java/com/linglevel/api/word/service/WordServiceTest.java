@@ -6,6 +6,7 @@ import com.linglevel.api.word.dto.*;
 import com.linglevel.api.word.entity.InvalidWord;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
+import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
@@ -274,7 +275,7 @@ class WordServiceTest {
         when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
         when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
         when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any(), any()))
-                .thenThrow(new WordSingleFlightTimeoutException("Timed out waiting single-flight result"));
+                .thenThrow(new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
@@ -299,7 +300,7 @@ class WordServiceTest {
         when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
                 .thenReturn(Optional.empty());
         when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any(), any()))
-                .thenThrow(new WordSingleFlightTimeoutException("Timed out waiting single-flight result"));
+                .thenThrow(new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
@@ -331,7 +332,7 @@ class WordServiceTest {
         when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
         when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
         when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode()))
-                .thenThrow(new WordsException(com.linglevel.api.word.exception.WordsErrorCode.WORD_IS_MEANINGLESS));
+                .thenThrow(new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
@@ -398,7 +399,7 @@ class WordServiceTest {
         when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
                 .thenReturn(Optional.empty());
         when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any(), any()))
-                .thenThrow(new WordsException(com.linglevel.api.word.exception.WordsErrorCode.WORD_IS_MEANINGLESS));
+                .thenThrow(new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
