@@ -147,17 +147,14 @@ class WordSingleFlightRedisCoordinatorTest {
                     throw new IllegalStateException("follower path should not run leader action");
                 },
                 () -> {
-                    int n = lookupCalls.incrementAndGet();
-                    if (n < 3) {
-                        return Optional.empty();
-                    }
+                    lookupCalls.incrementAndGet();
                     return Optional.of(List.of(sample));
                 }
         );
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getOriginalForm()).isEqualTo("book");
-        assertThat(lookupCalls.get()).isGreaterThanOrEqualTo(3);
+        assertThat(lookupCalls.get()).isEqualTo(1);
     }
 
     @Test
@@ -193,11 +190,36 @@ class WordSingleFlightRedisCoordinatorTest {
     }
 
     @Test
+    @DisplayName("follower는 leader lock이 유지되는 동안 DB 조회 함수를 실행하지 않는다")
+    void execute_doesNotRunFollowerLookupWhileLeaderLockIsHeld() {
+        stubTryLock(false);
+
+        AtomicInteger lookupCalls = new AtomicInteger();
+
+        assertThatThrownBy(() ->
+                coordinator.execute(
+                        "saw",
+                        LanguageCode.KO,
+                        () -> {
+                            throw new IllegalStateException("follower path should not run leader action");
+                        },
+                        () -> {
+                            lookupCalls.incrementAndGet();
+                            return Optional.empty();
+                        }
+                )
+        ).isInstanceOf(WordsException.class)
+         .satisfies(ex -> assertThat(((WordsException) ex).getErrorCode())
+                 .isEqualTo(WordsErrorCode.WORD_ANALYSIS_TIMEOUT));
+
+        assertThat(lookupCalls.get()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("follower 조회 함수의 예외는 그대로 전파된다")
     void execute_propagatesFollowerLookupException() {
         stubTryLock(false);
 
-        AtomicInteger lookupCalls = new AtomicInteger();
         IllegalStateException failure = new IllegalStateException("db lookup failed");
 
         assertThatThrownBy(() ->
@@ -208,9 +230,6 @@ class WordSingleFlightRedisCoordinatorTest {
                             throw new IllegalStateException("follower path should not run leader action");
                         },
                         () -> {
-                            if (lookupCalls.incrementAndGet() == 1) {
-                                return Optional.empty();
-                            }
                             throw failure;
                         }
                 )

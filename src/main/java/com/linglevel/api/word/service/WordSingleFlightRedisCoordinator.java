@@ -73,18 +73,35 @@ public class WordSingleFlightRedisCoordinator {
         }
 
         KeySet keys = buildKeySet(word, targetLanguage);
-        Optional<T> existing = followerResultLookup.get();
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-
         RLock lock = createLock(keys.lockKey());
         boolean lockAcquired = tryAcquireLeaderLock(lock);
         if (lockAcquired) {
-            return executeAsLeader(keys, lock, leaderAction);
+            return executeWithLeaderLock(keys, lock, leaderAction, followerResultLookup);
         }
 
-        return waitAsFollower(keys, followerResultLookup);
+        return waitAsFollower(keys, lock, leaderAction, followerResultLookup);
+    }
+
+    private <T> T executeWithLeaderLock(
+            KeySet keys,
+            RLock lock,
+            Supplier<T> leaderAction,
+            Supplier<Optional<T>> followerResultLookup
+    ) {
+        Optional<T> existing;
+        try {
+            existing = followerResultLookup.get();
+        } catch (RuntimeException | Error e) {
+            releaseLock(lock, keys.lockKey());
+            throw e;
+        }
+
+        if (existing.isPresent()) {
+            releaseLock(lock, keys.lockKey());
+            return existing.get();
+        }
+
+        return executeAsLeader(keys, lock, leaderAction);
     }
 
     private <T> T executeAsLeader(
@@ -115,14 +132,19 @@ public class WordSingleFlightRedisCoordinator {
         }
     }
 
-    private <T> T waitAsFollower(KeySet keys, Supplier<Optional<T>> followerResultLookup) {
+    private <T> T waitAsFollower(
+            KeySet keys,
+            RLock lock,
+            Supplier<T> leaderAction,
+            Supplier<Optional<T>> followerResultLookup
+    ) {
         CompletableFuture<Void> signal = new CompletableFuture<>();
         registerWaiter(keys.channel(), signal);
 
         try {
-            Optional<T> afterRegister = followerResultLookup.get();
-            if (afterRegister.isPresent()) {
-                return afterRegister.get();
+            boolean lockAcquiredAfterRegister = tryAcquireLeaderLock(lock);
+            if (lockAcquiredAfterRegister) {
+                return executeWithLeaderLock(keys, lock, leaderAction, followerResultLookup);
             }
 
             signal.get(properties.getWaitTimeoutMs(), TimeUnit.MILLISECONDS);
