@@ -37,8 +37,8 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
 
     @BeforeEach
     void setUp() {
-        nodeA = createNode("test-model-a", 3_000);
-        nodeB = createNode("test-model-a", 3_000);
+        nodeA = createNode(3_000);
+        nodeB = createNode(3_000);
         flushAll(nodeA.template);
     }
 
@@ -117,7 +117,7 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         assertThat(aiCalls.get()).isEqualTo(1);
     }
 
-    private CoordinatorFixture createNode(String model, long waitTimeoutMs) {
+    private CoordinatorFixture createNode(long waitTimeoutMs) {
         GenericContainer<?> redis = getRedisContainer();
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redis.getHost(), redis.getMappedPort(6379));
 
@@ -142,9 +142,7 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         properties.setEnabled(true);
         properties.setWaitTimeoutMs(waitTimeoutMs);
         properties.setResultTtlMs(30_000);
-        properties.setPromptVersion("v1");
-        properties.setModel(model);
-        properties.setSchemaVersion("v2");
+        properties.setResultSchemaVersion("v2");
 
         WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(
                 template,

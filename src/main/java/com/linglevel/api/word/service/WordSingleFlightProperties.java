@@ -17,9 +17,5 @@ public class WordSingleFlightProperties {
 
     private long resultTtlMs = 60_000;
 
-    private String promptVersion = "v1";
-
-    private String model = "default";
-
-    private String schemaVersion = "v2";
+    private String resultSchemaVersion = "v2";
 }

@@ -72,9 +72,7 @@ class WordSingleFlightRedisCoordinatorTest {
         properties.setEnabled(true);
         properties.setWaitTimeoutMs(120);
         properties.setResultTtlMs(2_000);
-        properties.setPromptVersion("v1");
-        properties.setModel("test-model");
-        properties.setSchemaVersion("v2");
+        properties.setResultSchemaVersion("v2");
 
         when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(redissonClient.getLock(anyString())).thenReturn(redissonLock);

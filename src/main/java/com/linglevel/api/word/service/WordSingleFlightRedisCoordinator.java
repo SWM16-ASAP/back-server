@@ -266,13 +266,11 @@ public class WordSingleFlightRedisCoordinator {
         String canonicalKey = String.join("|",
                 "word=" + normalizedWord,
                 "lang=" + targetLanguage.getCode(),
-                "prompt=" + properties.getPromptVersion(),
-                "model=" + properties.getModel(),
-                "schema=" + properties.getSchemaVersion()
+                "resultSchema=" + properties.getResultSchemaVersion()
         );
 
         String digest = sha256(canonicalKey);
-        String suffix = properties.getSchemaVersion() + ":" + digest;
+        String suffix = properties.getResultSchemaVersion() + ":" + digest;
 
         return new KeySet(
                 LOCK_PREFIX + ":" + suffix,
