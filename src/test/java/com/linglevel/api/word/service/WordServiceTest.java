@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
@@ -308,13 +309,13 @@ class WordServiceTest {
     }
 
     @Test
-    @DisplayName("single-flight leader 요청에서 AI 실패가 발생하면 invalid 캐시에 반영")
-    void getOrCreateWords_singleFlightLeaderRuntimeFailure_cachesInvalidWord() {
+    @DisplayName("AI 호출 실패가 발생하면 invalid 캐시에 반영")
+    void getOrCreateWords_aiRuntimeFailure_cachesInvalidWord() {
         String word = "resilience";
 
         when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
         when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
-        when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any(), any()))
+        when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode()))
                 .thenThrow(new RuntimeException("bedrock failure"));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
@@ -322,6 +323,34 @@ class WordServiceTest {
                 .hasMessageContaining("meaningless");
 
         verify(invalidWordRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("DB 저장 실패는 invalid 캐시에 반영하지 않고 그대로 전파")
+    void getOrCreateWords_persistenceFailure_doesNotCacheInvalidWord() {
+        String word = "resilience";
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("duplicate variant");
+
+        WordAnalysisResult analysisResult = WordAnalysisResult.builder()
+                .originalForm(word)
+                .variantTypes(List.of(VariantType.ORIGINAL_FORM))
+                .sourceLanguageCode(LanguageCode.EN)
+                .targetLanguageCode(LanguageCode.KO)
+                .summary(List.of("회복력"))
+                .meanings(List.of())
+                .build();
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
+        when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode())).thenReturn(List.of(analysisResult));
+        when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(word, LanguageCode.EN, LanguageCode.KO))
+                .thenReturn(Optional.empty());
+        when(wordRepository.save(any(Word.class))).thenThrow(failure);
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
+                .isSameAs(failure);
+
+        verify(invalidWordRepository, never()).save(any());
     }
 
     @Test

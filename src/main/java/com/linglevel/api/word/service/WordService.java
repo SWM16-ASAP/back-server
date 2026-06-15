@@ -110,46 +110,28 @@ public class WordService {
                 word, invalidWord.getAttemptCount(), invalidWord.getAttemptCount() + 1);
         }
 
-        // 3. DB에 없으면 AI 호출 (실패 시에도 InvalidWord로 캐싱)
+        // 3. DB에 없으면 AI 호출 (AI 분석 실패 시에만 InvalidWord로 캐싱)
         log.info("Word '{}' not found in database. Calling AI to analyze...", word);
-        try {
-            return singleFlightCoordinator.execute(
-                    word,
-                    targetLanguage,
-                    () -> {
-                        try {
-                            List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
+        return singleFlightCoordinator.execute(
+                word,
+                targetLanguage,
+                () -> {
+                    List<WordAnalysisResult> analysisResults = analyzeWordAndUpdateInvalidCache(
+                            word,
+                            targetLanguage,
+                            cachedInvalidWord
+                    );
 
-                            // AI 호출 성공 시 InvalidWord 캐시에서 제거 (일시적 오류였던 경우 복구)
-                            cachedInvalidWord.ifPresent(invalidWord -> {
-                                invalidWordRepository.delete(invalidWord);
-                                log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)",
-                                        word, invalidWord.getAttemptCount());
-                            });
+                    List<WordVariant> savedVariants = new ArrayList<>();
+                    for (WordAnalysisResult analysisResult : analysisResults) {
+                        WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
+                        savedVariants.add(savedVariant);
+                    }
 
-                            List<WordVariant> savedVariants = new ArrayList<>();
-                            for (WordAnalysisResult analysisResult : analysisResults) {
-                                WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
-                                savedVariants.add(savedVariant);
-                            }
-
-                            return savedVariants;
-                        } catch (WordsException e) {
-                            cacheInvalidWordIfMeaningless(word, e);
-                            throw e;
-                        }
-                    },
-                    () -> findWordVariantsAfterSingleFlight(word, invalidAttemptCountBeforeSingleFlight)
-            );
-
-        } catch (WordsException e) {
-            throw e;
-        } catch (Exception e) {
-            // AI 호출 실패 또는 무의미한 단어인 경우 InvalidWord로 캐싱
-            log.warn("AI call failed for word '{}'. Caching as invalid word to prevent retries.", word, e);
-            saveInvalidWord(word);
-            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
-        }
+                    return savedVariants;
+                },
+                () -> findWordVariantsAfterSingleFlight(word, invalidAttemptCountBeforeSingleFlight)
+        );
     }
 
     private Optional<List<WordVariant>> findWordVariantsAfterSingleFlight(
@@ -178,6 +160,32 @@ public class WordService {
             log.warn("AI classified word '{}' as meaningless. Updating invalid-word cache.", word, e);
             saveInvalidWord(word);
         }
+    }
+
+    private List<WordAnalysisResult> analyzeWordAndUpdateInvalidCache(
+            String word,
+            LanguageCode targetLanguage,
+            Optional<InvalidWord> cachedInvalidWord
+    ) {
+        List<WordAnalysisResult> analysisResults;
+        try {
+            analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
+        } catch (WordsException e) {
+            cacheInvalidWordIfMeaningless(word, e);
+            throw e;
+        } catch (RuntimeException e) {
+            log.warn("AI call failed for word '{}'. Caching as invalid word to prevent retries.", word, e);
+            saveInvalidWord(word);
+            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
+        }
+
+        cachedInvalidWord.ifPresent(invalidWord -> {
+            invalidWordRepository.delete(invalidWord);
+            log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)",
+                    word, invalidWord.getAttemptCount());
+        });
+
+        return analysisResults;
     }
 
 
