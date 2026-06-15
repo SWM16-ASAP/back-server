@@ -1,11 +1,6 @@
 package com.linglevel.api.word.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.i18n.LanguageCode;
-import com.linglevel.api.word.dto.WordAnalysisResult;
-import com.linglevel.api.word.exception.WordsErrorCode;
-import com.linglevel.api.word.exception.WordsException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -18,17 +13,20 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -39,7 +37,6 @@ import java.util.function.Supplier;
 public class WordSingleFlightRedisCoordinator {
 
     private static final String LOCK_PREFIX = "sf:word:lock";
-    private static final String RESULT_PREFIX = "sf:word:result";
     private static final String DONE_PREFIX = "sf:word:done";
     private static final String DONE_PATTERN = DONE_PREFIX + ":*";
 
@@ -47,7 +44,6 @@ public class WordSingleFlightRedisCoordinator {
     private final RedisMessageListenerContainer redisMessageListenerContainer;
     private final RedissonClient redissonClient;
     private final WordSingleFlightProperties properties;
-    private final ObjectMapper objectMapper;
 
     private final ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableFuture<Void>>> channelWaiters = new ConcurrentHashMap<>();
 
@@ -63,19 +59,20 @@ public class WordSingleFlightRedisCoordinator {
 
     }
 
-    public List<WordAnalysisResult> execute(
+    public <T> T execute(
             String word,
             LanguageCode targetLanguage,
-            Supplier<List<WordAnalysisResult>> leaderAction
+            Supplier<T> leaderAction,
+            Supplier<Optional<T>> followerResultLookup
     ) {
         if (!properties.isEnabled()) {
             return leaderAction.get();
         }
 
         KeySet keys = buildKeySet(word, targetLanguage);
-        ResultEnvelope cached = readResult(keys.resultKey());
-        if (cached != null) {
-            return unwrap(cached, keys.digest());
+        Optional<T> existing = followerResultLookup.get();
+        if (existing.isPresent()) {
+            return existing.get();
         }
 
         RLock lock = createLock(keys.lockKey());
@@ -84,25 +81,21 @@ public class WordSingleFlightRedisCoordinator {
             return executeAsLeader(keys, lock, leaderAction);
         }
 
-        return waitAsFollower(keys);
+        return waitAsFollower(keys, followerResultLookup);
     }
 
-    private List<WordAnalysisResult> executeAsLeader(
+    private <T> T executeAsLeader(
             KeySet keys,
             RLock lock,
-            Supplier<List<WordAnalysisResult>> leaderAction
+            Supplier<T> leaderAction
     ) {
         try {
-            List<WordAnalysisResult> result = leaderAction.get();
-            writeResult(keys.resultKey(), ResultEnvelope.success(result));
-            publishDone(keys.channel());
+            T result = leaderAction.get();
+            completeLeaderAfterCommit(keys, lock);
             return result;
-        } catch (RuntimeException e) {
-            writeResult(keys.resultKey(), ResultEnvelope.failed(e.getMessage(), resolveLeaderErrorCode(e)));
-            publishDone(keys.channel());
+        } catch (RuntimeException | Error e) {
+            completeLeaderAfterCompletion(keys, lock);
             throw e;
-        } finally {
-            releaseLock(lock, keys.lockKey());
         }
     }
 
@@ -117,38 +110,72 @@ public class WordSingleFlightRedisCoordinator {
         }
     }
 
-    private List<WordAnalysisResult> waitAsFollower(KeySet keys) {
-        ResultEnvelope current = readResult(keys.resultKey());
-        if (current != null) {
-            return unwrap(current, keys.digest());
-        }
-
+    private <T> T waitAsFollower(KeySet keys, Supplier<Optional<T>> followerResultLookup) {
         CompletableFuture<Void> signal = new CompletableFuture<>();
         registerWaiter(keys.channel(), signal);
 
         try {
-            ResultEnvelope afterRegister = readResult(keys.resultKey());
-            if (afterRegister != null) {
-                return unwrap(afterRegister, keys.digest());
+            Optional<T> afterRegister = followerResultLookup.get();
+            if (afterRegister.isPresent()) {
+                return afterRegister.get();
             }
 
             signal.get(properties.getWaitTimeoutMs(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             log.warn("Single-flight wait timed out for key digest={}", keys.digest());
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException("Single-flight wait interrupted for key digest=" + keys.digest(), e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException("Single-flight wait failed for key digest=" + keys.digest(), e);
         } finally {
             unregisterWaiter(keys.channel(), signal);
         }
 
-        ResultEnvelope finalResult = readResult(keys.resultKey());
-        if (finalResult != null) {
-            return unwrap(finalResult, keys.digest());
+        Optional<T> finalResult = followerResultLookup.get();
+        if (finalResult.isPresent()) {
+            return finalResult.get();
         }
 
         throw new WordSingleFlightTimeoutException(
-                "Timed out waiting single-flight result for key digest=" + keys.digest()
+                "Timed out waiting single-flight DB result for key digest=" + keys.digest()
         );
+    }
+
+    private void completeLeaderAfterCommit(KeySet keys, RLock lock) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            publishDone(keys.channel());
+            releaseLock(lock, keys.lockKey());
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                publishDone(keys.channel());
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                releaseLock(lock, keys.lockKey());
+            }
+        });
+    }
+
+    private void completeLeaderAfterCompletion(KeySet keys, RLock lock) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            publishDone(keys.channel());
+            releaseLock(lock, keys.lockKey());
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                publishDone(keys.channel());
+                releaseLock(lock, keys.lockKey());
+            }
+        });
     }
 
     private void publishDone(String channel) {
@@ -167,69 +194,6 @@ public class WordSingleFlightRedisCoordinator {
 
     private RLock createLock(String lockKey) {
         return redissonClient.getLock(lockKey);
-    }
-
-    private ResultEnvelope readResult(String resultKey) {
-        String raw = stringRedisTemplate.opsForValue().get(resultKey);
-        if (raw == null) {
-            return null;
-        }
-
-        try {
-            return objectMapper.readValue(raw, ResultEnvelope.class);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to deserialize single-flight result key={}", resultKey, e);
-            return null;
-        }
-    }
-
-    private void writeResult(String resultKey, ResultEnvelope envelope) {
-        try {
-            String raw = objectMapper.writeValueAsString(envelope);
-            stringRedisTemplate.opsForValue().set(
-                    resultKey,
-                    raw,
-                    Duration.ofMillis(properties.getResultTtlMs())
-            );
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize single-flight result", e);
-        }
-    }
-
-    private List<WordAnalysisResult> unwrap(ResultEnvelope envelope, String digest) {
-        if (envelope.success()) {
-            return envelope.results();
-        }
-
-        WordsErrorCode leaderErrorCode = parseLeaderErrorCode(envelope.errorCode());
-        throw new WordSingleFlightLeaderFailureException(
-                "Single-flight leader failed for key digest=" + digest + ": " + envelope.errorMessage(),
-                leaderErrorCode
-        );
-    }
-
-    private String resolveLeaderErrorCode(Throwable throwable) {
-        Throwable cursor = throwable;
-        while (cursor != null) {
-            if (cursor instanceof WordsException wordsException && wordsException.getErrorCode() != null) {
-                return wordsException.getErrorCode().name();
-            }
-            cursor = cursor.getCause();
-        }
-        return null;
-    }
-
-    private WordsErrorCode parseLeaderErrorCode(String rawErrorCode) {
-        if (rawErrorCode == null || rawErrorCode.isBlank()) {
-            return null;
-        }
-
-        try {
-            return WordsErrorCode.valueOf(rawErrorCode);
-        } catch (IllegalArgumentException e) {
-            log.warn("Unknown single-flight leader error code: {}", rawErrorCode);
-            return null;
-        }
     }
 
     private void registerWaiter(String channel, CompletableFuture<Void> signal) {
@@ -274,7 +238,6 @@ public class WordSingleFlightRedisCoordinator {
 
         return new KeySet(
                 LOCK_PREFIX + ":" + suffix,
-                RESULT_PREFIX + ":" + suffix,
                 DONE_PREFIX + ":" + suffix,
                 digest
         );
@@ -292,23 +255,7 @@ public class WordSingleFlightRedisCoordinator {
 
     private record KeySet(
             String lockKey,
-            String resultKey,
             String channel,
             String digest
     ) { }
-
-    private record ResultEnvelope(
-            boolean success,
-            List<WordAnalysisResult> results,
-            String errorMessage,
-            String errorCode
-    ) {
-        static ResultEnvelope success(List<WordAnalysisResult> results) {
-            return new ResultEnvelope(true, results, null, null);
-        }
-
-        static ResultEnvelope failed(String errorMessage, String errorCode) {
-            return new ResultEnvelope(false, List.of(), errorMessage, errorCode);
-        }
-    }
 }

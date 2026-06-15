@@ -15,7 +15,5 @@ public class WordSingleFlightProperties {
 
     private long waitTimeoutMs = 5_000;
 
-    private long resultTtlMs = 60_000;
-
     private String resultSchemaVersion = "v2";
 }

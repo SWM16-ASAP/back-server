@@ -1,18 +1,17 @@
 package com.linglevel.api.word.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.common.AbstractRedisTest;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordAnalysisResult;
-import org.redisson.Redisson;
-import org.redisson.api.RedissonClient;
-import org.redisson.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
 import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -20,12 +19,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.containers.GenericContainer;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,28 +54,43 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
     }
 
     @Test
-    @DisplayName("실제 Redis에서 두 인스턴스 동시 요청 시 AI 호출은 1회만 수행된다")
+    @DisplayName("실제 Redis에서 두 인스턴스 동시 요청 시 AI 호출은 1회만 수행되고 follower는 조회 결과를 반환한다")
     void deduplicatesAcrossTwoCoordinatorsUsingRealRedis() throws Exception {
         AtomicInteger aiCalls = new AtomicInteger();
+        AtomicReference<List<WordAnalysisResult>> stored = new AtomicReference<>();
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch start = new CountDownLatch(1);
 
         try {
             Future<List<WordAnalysisResult>> f1 = executor.submit(() -> {
                 start.await(1, TimeUnit.SECONDS);
-                return nodeA.coordinator.execute("run", LanguageCode.KO, () -> {
-                    aiCalls.incrementAndGet();
-                    sleep(250);
-                    return List.of(sample("run"));
-                });
+                return nodeA.coordinator.execute(
+                        "run",
+                        LanguageCode.KO,
+                        () -> {
+                            aiCalls.incrementAndGet();
+                            sleep(250);
+                            List<WordAnalysisResult> result = List.of(sample("run"));
+                            stored.set(result);
+                            return result;
+                        },
+                        () -> Optional.ofNullable(stored.get())
+                );
             });
 
             Future<List<WordAnalysisResult>> f2 = executor.submit(() -> {
                 start.await(1, TimeUnit.SECONDS);
-                return nodeB.coordinator.execute("run", LanguageCode.KO, () -> {
-                    aiCalls.incrementAndGet();
-                    return List.of(sample("run"));
-                });
+                return nodeB.coordinator.execute(
+                        "run",
+                        LanguageCode.KO,
+                        () -> {
+                            aiCalls.incrementAndGet();
+                            List<WordAnalysisResult> result = List.of(sample("run"));
+                            stored.set(result);
+                            return result;
+                        },
+                        () -> Optional.ofNullable(stored.get())
+                );
             });
 
             start.countDown();
@@ -93,28 +109,50 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
     }
 
     @Test
-    @DisplayName("leader 실패는 실제 Redis resultKey를 통해 follower에도 동일 전파된다")
-    void propagatesLeaderFailureAcrossTwoCoordinatorsUsingRealRedis() {
+    @DisplayName("leader 실패 후 저장 결과가 없으면 follower는 timeout으로 실패한다")
+    void followerTimesOutWhenLeaderFailsWithoutStoredResultUsingRealRedis() throws Exception {
         RuntimeException leaderFailure = new RuntimeException("bedrock unavailable");
         AtomicInteger aiCalls = new AtomicInteger();
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch leaderEntered = new CountDownLatch(1);
 
-        assertThatThrownBy(() ->
-                nodeA.coordinator.execute("left", LanguageCode.KO, () -> {
-                    aiCalls.incrementAndGet();
-                    throw leaderFailure;
-                })
-        ).isInstanceOf(RuntimeException.class)
-         .hasMessageContaining("bedrock unavailable");
+        try {
+            Future<List<WordAnalysisResult>> leader = executor.submit(() ->
+                    nodeA.coordinator.execute(
+                            "left",
+                            LanguageCode.KO,
+                            () -> {
+                                aiCalls.incrementAndGet();
+                                leaderEntered.countDown();
+                                sleep(250);
+                                throw leaderFailure;
+                            },
+                            Optional::empty
+                    )
+            );
 
-        assertThatThrownBy(() ->
-                nodeB.coordinator.execute("left", LanguageCode.KO, () -> {
-                    aiCalls.incrementAndGet();
-                    return List.of(sample("left"));
-                })
-        ).isInstanceOf(RuntimeException.class)
-         .hasMessageContaining("Single-flight leader failed");
+            assertThat(leaderEntered.await(2, TimeUnit.SECONDS)).isTrue();
 
-        assertThat(aiCalls.get()).isEqualTo(1);
+            Future<List<WordAnalysisResult>> follower = executor.submit(() ->
+                    nodeB.coordinator.execute(
+                            "left",
+                            LanguageCode.KO,
+                            () -> {
+                                aiCalls.incrementAndGet();
+                                return List.of(sample("left"));
+                            },
+                            Optional::empty
+                    )
+            );
+
+            assertThatThrownBy(() -> leader.get(5, TimeUnit.SECONDS))
+                    .hasCause(leaderFailure);
+            assertThatThrownBy(() -> follower.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(WordSingleFlightTimeoutException.class);
+            assertThat(aiCalls.get()).isEqualTo(1);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     private CoordinatorFixture createNode(long waitTimeoutMs) {
@@ -141,15 +179,13 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
         WordSingleFlightProperties properties = new WordSingleFlightProperties();
         properties.setEnabled(true);
         properties.setWaitTimeoutMs(waitTimeoutMs);
-        properties.setResultTtlMs(30_000);
         properties.setResultSchemaVersion("v2");
 
         WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(
                 template,
                 listenerContainer,
                 redissonClient,
-                properties,
-                new ObjectMapper()
+                properties
         );
         ReflectionTestUtils.invokeMethod(coordinator, "initialize");
 
