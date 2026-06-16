@@ -97,7 +97,7 @@ public class WordSingleFlightRedisCoordinator {
         }
 
         if (existing.isPresent()) {
-            releaseLock(lock, keys.lockKey());
+            publishDoneThenRelease(keys, lock);
             return existing.get();
         }
 

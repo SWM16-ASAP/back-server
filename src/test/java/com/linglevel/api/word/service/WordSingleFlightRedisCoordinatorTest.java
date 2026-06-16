@@ -256,6 +256,27 @@ class WordSingleFlightRedisCoordinatorTest {
         verify(redissonLock).unlock();
     }
 
+    @Test
+    @DisplayName("lock holder가 기존 결과를 발견하면 대기 중인 follower를 깨우도록 done을 발행한다")
+    void execute_publishesDoneWhenLockHolderFindsExistingResult() {
+        stubTryLock(true);
+
+        WordAnalysisResult sample = sample("run");
+
+        List<WordAnalysisResult> result = coordinator.execute(
+                "run",
+                LanguageCode.KO,
+                () -> {
+                    throw new IllegalStateException("leader action should not run when result already exists");
+                },
+                () -> Optional.of(List.of(sample))
+        );
+
+        assertThat(result).hasSize(1);
+        verify(stringRedisTemplate).convertAndSend(anyString(), anyString());
+        verify(redissonLock).unlock();
+    }
+
     private WordAnalysisResult sample(String originalForm) {
         return WordAnalysisResult.builder()
                 .originalForm(originalForm)
