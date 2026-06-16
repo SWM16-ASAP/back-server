@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -237,8 +239,26 @@ class WordSingleFlightRedisCoordinatorTest {
     }
 
     @Test
-    @DisplayName("done publish가 실패해도 leader lock은 해제한다")
-    void execute_releasesLeaderLockWhenPublishFails() {
+    @DisplayName("leader 완료 시 lock을 해제한 뒤 done을 발행한다")
+    void execute_releasesLeaderLockBeforePublishingDone() {
+        stubTryLock(true);
+
+        List<WordAnalysisResult> result = coordinator.execute(
+                "run",
+                LanguageCode.KO,
+                () -> List.of(sample("run")),
+                Optional::empty
+        );
+
+        assertThat(result).hasSize(1);
+        InOrder inOrder = inOrder(redissonLock, stringRedisTemplate);
+        inOrder.verify(redissonLock).unlock();
+        inOrder.verify(stringRedisTemplate).convertAndSend(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("done publish가 실패해도 leader lock은 먼저 해제되어 있다")
+    void execute_releasesLeaderLockBeforePublishFailure() {
         stubTryLock(true);
 
         RuntimeException publishFailure = new RuntimeException("redis publish failed");
@@ -253,7 +273,9 @@ class WordSingleFlightRedisCoordinatorTest {
                 )
         ).isSameAs(publishFailure);
 
-        verify(redissonLock).unlock();
+        InOrder inOrder = inOrder(redissonLock, stringRedisTemplate);
+        inOrder.verify(redissonLock).unlock();
+        inOrder.verify(stringRedisTemplate).convertAndSend(anyString(), anyString());
     }
 
     @Test
@@ -273,8 +295,9 @@ class WordSingleFlightRedisCoordinatorTest {
         );
 
         assertThat(result).hasSize(1);
-        verify(stringRedisTemplate).convertAndSend(anyString(), anyString());
-        verify(redissonLock).unlock();
+        InOrder inOrder = inOrder(redissonLock, stringRedisTemplate);
+        inOrder.verify(redissonLock).unlock();
+        inOrder.verify(stringRedisTemplate).convertAndSend(anyString(), anyString());
     }
 
     private WordAnalysisResult sample(String originalForm) {

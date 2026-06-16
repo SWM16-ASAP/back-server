@@ -97,7 +97,7 @@ public class WordSingleFlightRedisCoordinator {
         }
 
         if (existing.isPresent()) {
-            publishDoneThenRelease(keys, lock);
+            releaseThenPublishDone(keys, lock);
             return existing.get();
         }
 
@@ -169,14 +169,14 @@ public class WordSingleFlightRedisCoordinator {
 
     private void completeLeaderAfterCommit(KeySet keys, RLock lock) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            publishDoneThenRelease(keys, lock);
+            releaseThenPublishDone(keys, lock);
             return;
         }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                publishDoneThenRelease(keys, lock);
+                releaseThenPublishDone(keys, lock);
             }
 
             @Override
@@ -190,24 +190,21 @@ public class WordSingleFlightRedisCoordinator {
 
     private void completeLeaderAfterCompletion(KeySet keys, RLock lock) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            publishDoneThenRelease(keys, lock);
+            releaseThenPublishDone(keys, lock);
             return;
         }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCompletion(int status) {
-                publishDoneThenRelease(keys, lock);
+                releaseThenPublishDone(keys, lock);
             }
         });
     }
 
-    private void publishDoneThenRelease(KeySet keys, RLock lock) {
-        try {
-            publishDone(keys.channel());
-        } finally {
-            releaseLock(lock, keys.lockKey());
-        }
+    private void releaseThenPublishDone(KeySet keys, RLock lock) {
+        releaseLock(lock, keys.lockKey());
+        publishDone(keys.channel());
     }
 
     private void publishDone(String channel) {
