@@ -1,4 +1,4 @@
-package com.linglevel.api.word.service;
+package com.linglevel.api.word.config;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -15,11 +15,5 @@ public class WordSingleFlightProperties {
 
     private long waitTimeoutMs = 5_000;
 
-    private long resultTtlMs = 60_000;
-
-    private String promptVersion = "v1";
-
-    private String model = "default";
-
-    private String schemaVersion = "v2";
+    private String resultSchemaVersion = "v2";
 }

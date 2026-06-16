@@ -3,8 +3,10 @@ package com.linglevel.api.word.service;
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.*;
+import com.linglevel.api.word.entity.InvalidWord;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
+import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
@@ -60,10 +63,15 @@ class WordServiceTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any()))
+        lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any(), any()))
                 .thenAnswer(invocation -> {
-                    @SuppressWarnings("unchecked")
-                    Supplier<List<WordAnalysisResult>> supplier = invocation.getArgument(2);
+                    Supplier<Optional<?>> lookup = invocation.getArgument(3);
+                    Optional<?> existing = lookup.get();
+                    if (existing.isPresent()) {
+                        return existing.get();
+                    }
+
+                    Supplier<?> supplier = invocation.getArgument(2);
                     return supplier.get();
                 });
 
@@ -267,8 +275,8 @@ class WordServiceTest {
 
         when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
         when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
-        when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any()))
-                .thenThrow(new WordSingleFlightTimeoutException("Timed out waiting single-flight result"));
+        when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any(), any()))
+                .thenThrow(new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
@@ -292,8 +300,8 @@ class WordServiceTest {
         when(wordVariantRepository.findAllByWord(inputWord)).thenReturn(List.of(wordVariant));
         when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
                 .thenReturn(Optional.empty());
-        when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any()))
-                .thenThrow(new WordSingleFlightTimeoutException("Timed out waiting single-flight result"));
+        when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any(), any()))
+                .thenThrow(new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
@@ -301,17 +309,14 @@ class WordServiceTest {
     }
 
     @Test
-    @DisplayName("single-flight leader가 무의미 단어로 실패하면 follower도 동일 도메인 에러를 반환하고 invalid 캐시에 반영")
-    void getOrCreateWords_singleFlightLeaderFailureMeaningless_mapsToDomainError() {
+    @DisplayName("AI 호출 실패가 발생하면 invalid 캐시에 반영")
+    void getOrCreateWords_aiRuntimeFailure_cachesInvalidWord() {
         String word = "resilience";
 
         when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
         when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
-        when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any()))
-                .thenThrow(new WordSingleFlightLeaderFailureException(
-                        "Single-flight leader failed",
-                        com.linglevel.api.word.exception.WordsErrorCode.WORD_IS_MEANINGLESS
-                ));
+        when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode()))
+                .thenThrow(new RuntimeException("bedrock failure"));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)
@@ -321,8 +326,95 @@ class WordServiceTest {
     }
 
     @Test
-    @DisplayName("translation-miss 경로의 leader 실패가 무의미 단어면 동일 도메인 에러를 반환")
-    void getOrCreateWords_translationMissLeaderFailure_mapsToDomainMeaninglessError() {
+    @DisplayName("DB 저장 실패는 invalid 캐시에 반영하지 않고 그대로 전파")
+    void getOrCreateWords_persistenceFailure_doesNotCacheInvalidWord() {
+        String word = "resilience";
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("duplicate variant");
+
+        WordAnalysisResult analysisResult = WordAnalysisResult.builder()
+                .originalForm(word)
+                .variantTypes(List.of(VariantType.ORIGINAL_FORM))
+                .sourceLanguageCode(LanguageCode.EN)
+                .targetLanguageCode(LanguageCode.KO)
+                .summary(List.of("회복력"))
+                .meanings(List.of())
+                .build();
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
+        when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode())).thenReturn(List.of(analysisResult));
+        when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(word, LanguageCode.EN, LanguageCode.KO))
+                .thenReturn(Optional.empty());
+        when(wordRepository.save(any(Word.class))).thenThrow(failure);
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
+                .isSameAs(failure);
+
+        verify(invalidWordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("single-flight leader의 WORD_IS_MEANINGLESS 예외는 invalid 캐시에 반영")
+    void getOrCreateWords_singleFlightLeaderMeaninglessException_cachesInvalidWord() {
+        String word = "asdfqwer";
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
+        when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode()))
+                .thenThrow(new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS));
+
+        assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
+                .isInstanceOf(WordsException.class)
+                .hasMessageContaining("meaningless");
+
+        verify(invalidWordRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("3회 미만 invalid 캐시는 single-flight 사전 조회에서도 재시도를 허용")
+    void getOrCreateWordEntities_cachedInvalidBelowThreshold_allowsRetryThroughSingleFlightLookup() {
+        String word = "resilience";
+        InvalidWord cachedInvalidWord = InvalidWord.builder()
+                .word(word)
+                .attemptCount(1)
+                .build();
+
+        WordAnalysisResult analysisResult = WordAnalysisResult.builder()
+                .originalForm(word)
+                .variantTypes(List.of(VariantType.ORIGINAL_FORM))
+                .sourceLanguageCode(LanguageCode.EN)
+                .targetLanguageCode(LanguageCode.KO)
+                .summary(List.of("회복력"))
+                .meanings(List.of())
+                .build();
+
+        Word savedWord = Word.builder()
+                .word(word)
+                .sourceLanguageCode(LanguageCode.EN)
+                .targetLanguageCode(LanguageCode.KO)
+                .summary(List.of("회복력"))
+                .meanings(List.of())
+                .build();
+
+        when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
+        when(invalidWordRepository.findByWord(word)).thenReturn(Optional.of(cachedInvalidWord));
+        when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode())).thenReturn(List.of(analysisResult));
+        when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(word, LanguageCode.EN, LanguageCode.KO))
+                .thenReturn(Optional.empty());
+        when(wordRepository.save(any(Word.class))).thenReturn(savedWord);
+        when(wordVariantRepository.findByWordAndOriginalForm(word, word)).thenReturn(Optional.empty());
+
+        List<WordVariant> variants = wordService.getOrCreateWordEntities(word, LanguageCode.KO);
+
+        assertThat(variants).hasSize(1);
+        assertThat(variants.get(0).getOriginalForm()).isEqualTo(word);
+        verify(wordAiService).analyzeWord(word, LanguageCode.KO.getCode());
+        verify(invalidWordRepository).delete(cachedInvalidWord);
+    }
+
+    @Test
+    @DisplayName("translation-miss 경로에서 follower DB 조회가 도메인 에러를 반환하면 그대로 전파")
+    void getOrCreateWords_translationMissFollowerLookupFailure_propagatesDomainError() {
         String inputWord = "ran";
         String originalForm = "run";
 
@@ -335,11 +427,8 @@ class WordServiceTest {
         when(wordVariantRepository.findAllByWord(inputWord)).thenReturn(List.of(wordVariant));
         when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
                 .thenReturn(Optional.empty());
-        when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any()))
-                .thenThrow(new WordSingleFlightLeaderFailureException(
-                        "Single-flight leader failed",
-                        com.linglevel.api.word.exception.WordsErrorCode.WORD_IS_MEANINGLESS
-                ));
+        when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any(), any()))
+                .thenThrow(new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS));
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
                 .isInstanceOf(WordsException.class)

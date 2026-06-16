@@ -50,27 +50,22 @@ public class WordService {
                 log.info("Word '{}' not found for targetLanguage {}, creating new one...",
                     wordVariant.getOriginalForm(), targetLanguage);
 
-                List<WordAnalysisResult> analysisResults;
-                try {
-                    analysisResults = singleFlightCoordinator.execute(
-                            wordVariant.getOriginalForm(),
-                            targetLanguage,
-                            () -> wordAiService.analyzeWord(
+                return singleFlightCoordinator.execute(
+                        wordVariant.getOriginalForm(),
+                        targetLanguage,
+                        () -> {
+                            List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(
                                     wordVariant.getOriginalForm(),
                                     targetLanguage.getCode()
-                            )
-                    );
-                } catch (WordSingleFlightTimeoutException e) {
-                    log.warn("Single-flight temporary failure for originalForm '{}'. Returning timeout error.",
-                            wordVariant.getOriginalForm(), e);
-                    throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
-                } catch (WordSingleFlightLeaderFailureException e) {
-                    throw mapLeaderFailure(wordVariant.getOriginalForm(), e, false);
-                }
-
-                // Word 생성 및 저장 (빈 결과는 WordAiService에서 예외 발생)
-                Word newWord = convertAnalysisResultToWord(analysisResults.get(0));
-                return wordRepository.save(newWord);
+                            );
+                            Word newWord = convertAnalysisResultToWord(analysisResults.get(0));
+                            return wordRepository.save(newWord);
+                        },
+                        () -> wordRepository.findByWordAndTargetLanguageCode(
+                                wordVariant.getOriginalForm(),
+                                targetLanguage
+                        )
+                );
             });
 
             boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordVariant.getOriginalForm());
@@ -102,6 +97,9 @@ public class WordService {
 
         // 2. InvalidWord 캐시 확인 - 3회 유예 후 차단
         Optional<InvalidWord> cachedInvalidWord = invalidWordRepository.findByWord(word);
+        int invalidAttemptCountBeforeSingleFlight = cachedInvalidWord
+                .map(InvalidWord::getAttemptCount)
+                .orElse(0);
         if (cachedInvalidWord.isPresent()) {
             InvalidWord invalidWord = cachedInvalidWord.get();
             if (invalidWord.getAttemptCount() >= 3) {
@@ -112,43 +110,82 @@ public class WordService {
                 word, invalidWord.getAttemptCount(), invalidWord.getAttemptCount() + 1);
         }
 
-        // 3. DB에 없으면 AI 호출 (실패 시에도 InvalidWord로 캐싱)
+        // 3. DB에 없으면 AI 호출 (AI 분석 실패 시에만 InvalidWord로 캐싱)
         log.info("Word '{}' not found in database. Calling AI to analyze...", word);
+        return singleFlightCoordinator.execute(
+                word,
+                targetLanguage,
+                () -> {
+                    List<WordAnalysisResult> analysisResults = analyzeWordAndUpdateInvalidCache(
+                            word,
+                            targetLanguage,
+                            cachedInvalidWord
+                    );
+
+                    List<WordVariant> savedVariants = new ArrayList<>();
+                    for (WordAnalysisResult analysisResult : analysisResults) {
+                        WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
+                        savedVariants.add(savedVariant);
+                    }
+
+                    return savedVariants;
+                },
+                () -> findWordVariantsAfterSingleFlight(word, invalidAttemptCountBeforeSingleFlight)
+        );
+    }
+
+    private Optional<List<WordVariant>> findWordVariantsAfterSingleFlight(
+            String word,
+            int invalidAttemptCountBeforeSingleFlight
+    ) {
+        List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
+        if (!existingVariants.isEmpty()) {
+            return Optional.of(existingVariants);
+        }
+
+        Optional<InvalidWord> currentInvalidWord = invalidWordRepository.findByWord(word);
+        if (currentInvalidWord.isPresent()) {
+            int currentAttemptCount = currentInvalidWord.get().getAttemptCount();
+
+            if (currentAttemptCount >= 3 || currentAttemptCount > invalidAttemptCountBeforeSingleFlight) {
+                throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private void cacheInvalidWordIfMeaningless(String word, WordsException e) {
+        if (e.getErrorCode() == WordsErrorCode.WORD_IS_MEANINGLESS) {
+            log.warn("AI classified word '{}' as meaningless. Updating invalid-word cache.", word, e);
+            saveInvalidWord(word);
+        }
+    }
+
+    private List<WordAnalysisResult> analyzeWordAndUpdateInvalidCache(
+            String word,
+            LanguageCode targetLanguage,
+            Optional<InvalidWord> cachedInvalidWord
+    ) {
         List<WordAnalysisResult> analysisResults;
         try {
-            analysisResults = singleFlightCoordinator.execute(
-                    word,
-                    targetLanguage,
-                    () -> wordAiService.analyzeWord(word, targetLanguage.getCode())
-            );
-
-            // AI 호출 성공 시 InvalidWord 캐시에서 제거 (일시적 오류였던 경우 복구)
-            cachedInvalidWord.ifPresent(invalidWord -> {
-                invalidWordRepository.delete(invalidWord);
-                log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)",
-                    word, invalidWord.getAttemptCount());
-            });
-
-        } catch (WordSingleFlightTimeoutException e) {
-            log.warn("Single-flight temporary failure for word '{}'. Keeping invalid-word cache untouched.", word, e);
-            throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
-        } catch (WordSingleFlightLeaderFailureException e) {
-            throw mapLeaderFailure(word, e, true);
-        } catch (Exception e) {
-            // AI 호출 실패 또는 무의미한 단어인 경우 InvalidWord로 캐싱
+            analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
+        } catch (WordsException e) {
+            cacheInvalidWordIfMeaningless(word, e);
+            throw e;
+        } catch (RuntimeException e) {
             log.warn("AI call failed for word '{}'. Caching as invalid word to prevent retries.", word, e);
             saveInvalidWord(word);
             throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
         }
 
-        // 4. 트랜잭션 내에서 DB 저장 처리
-        List<WordVariant> savedVariants = new ArrayList<>();
-        for (WordAnalysisResult analysisResult : analysisResults) {
-            WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
-            savedVariants.add(savedVariant);
-        }
+        cachedInvalidWord.ifPresent(invalidWord -> {
+            invalidWordRepository.delete(invalidWord);
+            log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)",
+                    word, invalidWord.getAttemptCount());
+        });
 
-        return savedVariants;
+        return analysisResults;
     }
 
 
@@ -350,19 +387,6 @@ public class WordService {
                 .bookmarked(isBookmarked)
                 .isEssential(word.getIsEssential())
                 .build();
-    }
-
-    private WordsException mapLeaderFailure(String word, WordSingleFlightLeaderFailureException e, boolean cacheInvalidWord) {
-        if (e.getLeaderErrorCode() == WordsErrorCode.WORD_IS_MEANINGLESS) {
-            log.warn("Single-flight leader classified word '{}' as meaningless.", word, e);
-            if (cacheInvalidWord) {
-                saveInvalidWord(word);
-            }
-            return new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
-        }
-
-        log.warn("Single-flight temporary failure for word '{}'. Keeping invalid-word cache untouched.", word, e);
-        return new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
     }
 
     /**
