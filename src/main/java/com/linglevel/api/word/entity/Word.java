@@ -33,6 +33,10 @@ import java.util.List;
     @CompoundIndex(
         name = "word_target_language_idx",
         def = "{'word': 1, 'targetLanguageCode': 1}"
+    ),
+    @CompoundIndex(
+        name = "essential_target_language_idx",
+        def = "{'isEssential': 1, 'targetLanguageCode': 1}"
     )
 })
 public class Word {
