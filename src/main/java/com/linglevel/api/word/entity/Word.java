@@ -26,17 +26,9 @@ import java.util.List;
 @Document(collection = "words")
 @CompoundIndexes({
     @CompoundIndex(
-        name = "word_language_pair_idx",
-        def = "{'word': 1, 'sourceLanguageCode': 1, 'targetLanguageCode': 1}",
+        name = "word_target_source_language_unique_idx",
+        def = "{'word': 1, 'targetLanguageCode': 1, 'sourceLanguageCode': 1}",
         unique = true
-    ),
-    @CompoundIndex(
-        name = "word_target_language_idx",
-        def = "{'word': 1, 'targetLanguageCode': 1}"
-    ),
-    @CompoundIndex(
-        name = "essential_target_language_idx",
-        def = "{'isEssential': 1, 'targetLanguageCode': 1}"
     )
 })
 public class Word {
@@ -45,7 +37,7 @@ public class Word {
 
     /**
      * 원형 단어 (예: "pretty", "see", "run")
-     * 복합 unique index의 일부 (word + sourceLanguageCode + targetLanguageCode)
+     * 복합 unique index의 일부 (word + targetLanguageCode + sourceLanguageCode)
      */
     private String word;
 
