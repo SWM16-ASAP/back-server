@@ -309,20 +309,20 @@ class WordServiceTest {
     }
 
     @Test
-    @DisplayName("AI 호출 실패가 발생하면 invalid 캐시에 반영")
-    void getOrCreateWords_aiRuntimeFailure_cachesInvalidWord() {
+    @DisplayName("AI 호출 실패는 invalid 캐시에 반영하지 않고 그대로 전파")
+    void getOrCreateWords_aiRuntimeFailure_doesNotCacheInvalidWord() {
         String word = "resilience";
+        RuntimeException failure = new RuntimeException("bedrock failure");
 
         when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
         when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
         when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode()))
-                .thenThrow(new RuntimeException("bedrock failure"));
+                .thenThrow(failure);
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
-                .isInstanceOf(WordsException.class)
-                .hasMessageContaining("meaningless");
+                .isSameAs(failure);
 
-        verify(invalidWordRepository).save(any());
+        verify(invalidWordRepository, never()).save(any());
     }
 
     @Test

@@ -173,10 +173,6 @@ public class WordService {
         } catch (WordsException e) {
             cacheInvalidWordIfMeaningless(word, e);
             throw e;
-        } catch (RuntimeException e) {
-            log.warn("AI call failed for word '{}'. Caching as invalid word to prevent retries.", word, e);
-            saveInvalidWord(word);
-            throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
         }
 
         cachedInvalidWord.ifPresent(invalidWord -> {
