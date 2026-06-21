@@ -227,7 +227,7 @@ public class WordAiService {
             throw e;
         } catch (Exception e) {
             log.error("Failed to analyze word '{}' with AI (target: {})", word, targetLanguage, e);
-            throw new RuntimeException("AI word analysis failed for word: " + word, e);
+            throw new WordsException(WordsErrorCode.WORD_ANALYSIS_FAILED, e);
         }
     }
 

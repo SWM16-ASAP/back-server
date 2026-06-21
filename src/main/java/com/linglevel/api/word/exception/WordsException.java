@@ -13,4 +13,10 @@ public class WordsException extends RuntimeException {
         this.errorCode = errorCode;
         this.status = errorCode.getStatus();
     }
+
+    public WordsException(WordsErrorCode errorCode, Throwable cause) {
+        super(errorCode.getMessage(), cause);
+        this.errorCode = errorCode;
+        this.status = errorCode.getStatus();
+    }
 }
