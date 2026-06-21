@@ -223,6 +223,8 @@ public class WordAiService {
             log.info("✅ AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
 
             return mergedResults;
+        } catch (WordsException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to analyze word '{}' with AI (target: {})", word, targetLanguage, e);
             throw new RuntimeException("AI word analysis failed for word: " + word, e);
