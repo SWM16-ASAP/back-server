@@ -76,16 +76,9 @@ public class BookmarkService {
     
     public void removeWordBookmark(String userId, String wordStr) {
         List<String> originalForms = wordVariantService.getOriginalForms(wordStr);
-        if (originalForms.isEmpty()) {
-            throw new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND);
-        }
+        String bookmarkedWord = resolveBookmarkedWord(userId, wordStr, originalForms);
 
-        String originalForm = originalForms.get(0);
-        if (!wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm)) {
-            throw new BookmarksException(BookmarksErrorCode.WORD_BOOKMARK_NOT_FOUND);
-        }
-
-        wordBookmarkRepository.deleteByUserIdAndWord(userId, originalForm);
+        wordBookmarkRepository.deleteByUserIdAndWord(userId, bookmarkedWord);
     }
     
     public boolean toggleWordBookmark(String userId, String wordStr) {
@@ -155,6 +148,20 @@ public class BookmarkService {
         }
 
         return originalForms.get(0);
+    }
+
+    private String resolveBookmarkedWord(String userId, String wordStr, List<String> originalForms) {
+        for (String originalForm : originalForms) {
+            if (wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm)) {
+                return originalForm;
+            }
+        }
+
+        if (wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
+            return wordStr;
+        }
+
+        throw new BookmarksException(BookmarksErrorCode.WORD_BOOKMARK_NOT_FOUND);
     }
 
     private List<String> extractDistinctOriginalForms(WordSearchResponse wordSearchResponse) {
