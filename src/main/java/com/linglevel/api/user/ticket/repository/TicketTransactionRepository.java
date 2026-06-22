@@ -16,8 +16,6 @@ public interface TicketTransactionRepository extends MongoRepository<TicketTrans
 
     Page<TicketTransaction> findByUserIdAndStatusOrderByCreatedAtDesc(String userId, TransactionStatus status, Pageable pageable);
 
-    List<TicketTransaction> findByReservationId(String reservationId);
-
     Optional<TicketTransaction> findByReservationIdAndStatus(String reservationId, TransactionStatus status);
 
     List<TicketTransaction> findByUserIdAndAmountAndCreatedAtBetween(String userId, Integer amount, LocalDateTime startDateTime, LocalDateTime endDateTime);
