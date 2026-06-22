@@ -55,15 +55,31 @@ class BookmarkServiceTest {
     void removeWordBookmark_variantCandidates_deletesExistingBookmarkedOriginalForm() {
         // given
         String userId = "user-1";
-        String word = "saw";
-        when(wordVariantService.getOriginalForms(word)).thenReturn(List.of("see", "saw"));
-        when(wordBookmarkRepository.existsByUserIdAndWord(userId, "see")).thenReturn(false);
-        when(wordBookmarkRepository.existsByUserIdAndWord(userId, "saw")).thenReturn(true);
+        String word = "ran";
+        when(wordVariantService.getOriginalForms(word)).thenReturn(List.of("run"));
+        when(wordBookmarkRepository.existsByUserIdAndWord(userId, word)).thenReturn(false);
+        when(wordBookmarkRepository.existsByUserIdAndWord(userId, "run")).thenReturn(true);
 
         // when
         bookmarkService.removeWordBookmark(userId, word);
 
         // then
-        verify(wordBookmarkRepository).deleteByUserIdAndWord(userId, "saw");
+        verify(wordBookmarkRepository).deleteByUserIdAndWord(userId, "run");
+    }
+
+    @Test
+    @DisplayName("입력 단어와 variant 원형 후보가 모두 북마크되어 있으면 입력 단어를 우선 삭제한다")
+    void removeWordBookmark_exactBookmarkExists_deletesInputWordBeforeVariantCandidate() {
+        // given
+        String userId = "user-1";
+        String word = "saw";
+        when(wordVariantService.getOriginalForms(word)).thenReturn(List.of("see", "saw"));
+        when(wordBookmarkRepository.existsByUserIdAndWord(userId, word)).thenReturn(true);
+
+        // when
+        bookmarkService.removeWordBookmark(userId, word);
+
+        // then
+        verify(wordBookmarkRepository).deleteByUserIdAndWord(userId, word);
     }
 }

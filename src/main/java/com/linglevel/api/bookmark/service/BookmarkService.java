@@ -151,14 +151,14 @@ public class BookmarkService {
     }
 
     private String resolveBookmarkedWord(String userId, String wordStr, List<String> originalForms) {
+        if (wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
+            return wordStr;
+        }
+
         for (String originalForm : originalForms) {
             if (wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm)) {
                 return originalForm;
             }
-        }
-
-        if (wordBookmarkRepository.existsByUserIdAndWord(userId, wordStr)) {
-            return wordStr;
         }
 
         throw new BookmarksException(BookmarksErrorCode.WORD_BOOKMARK_NOT_FOUND);
