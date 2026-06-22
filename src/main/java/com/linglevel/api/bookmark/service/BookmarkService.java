@@ -19,7 +19,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -57,7 +56,6 @@ public class BookmarkService {
         }
     }
     
-    @Transactional
     public void addWordBookmark(String userId, String wordStr) {
         var wordSearchResponse = wordService.getOrCreateWords(userId, wordStr, LanguageCode.KO);
         String originalForm = resolveFirstOriginalForm(wordSearchResponse);
@@ -76,7 +74,6 @@ public class BookmarkService {
         log.info("Bookmark added: userId={}, word={}", userId, originalForm);
     }
     
-    @Transactional
     public void removeWordBookmark(String userId, String wordStr) {
         List<String> originalForms = wordVariantService.getOriginalForms(wordStr);
         if (originalForms.isEmpty()) {
@@ -91,7 +88,6 @@ public class BookmarkService {
         wordBookmarkRepository.deleteByUserIdAndWord(userId, originalForm);
     }
     
-    @Transactional
     public boolean toggleWordBookmark(String userId, String wordStr) {
         var wordSearchResponse = wordService.getOrCreateWords(userId, wordStr, LanguageCode.KO);
         String originalForm = resolveFirstOriginalForm(wordSearchResponse);
@@ -115,7 +111,6 @@ public class BookmarkService {
         return true;
     }
     
-    @Transactional
     public boolean toggleWordBookmarkById(String userId, String wordId) {
         Word word = wordRepository.findById(wordId)
                 .orElseThrow(() -> new BookmarksException(BookmarksErrorCode.WORD_NOT_FOUND));
