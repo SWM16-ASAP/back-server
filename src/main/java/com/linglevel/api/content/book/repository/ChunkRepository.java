@@ -13,8 +13,6 @@ import org.springframework.data.mongodb.repository.Aggregation;
 import java.util.Optional;
 
 public interface ChunkRepository extends MongoRepository<Chunk, String> {
-    Page<Chunk> findByChapterId(String chapterId, Pageable pageable);
-
     Page<Chunk> findByChapterIdAndDifficultyLevel(String chapterId, DifficultyLevel difficultyLevel, Pageable pageable);
 
     Optional<Chunk> findFirstByChapterIdOrderByChunkNumberAsc(String chapterId);

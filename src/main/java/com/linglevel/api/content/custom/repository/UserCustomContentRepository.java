@@ -18,11 +18,5 @@ public interface UserCustomContentRepository extends MongoRepository<UserCustomC
 
     List<UserCustomContent> findByUserId(String userId);
 
-    long countByCustomContentId(String customContentId);
-
-    Optional<UserCustomContent> findByUserIdAndContentRequestId(String userId, String contentRequestId);
-
-    Optional<UserCustomContent> findByContentRequestId(String contentRequestId);
-
     boolean existsByUserIdAndCustomContentId(String userId, String customContentId);
 }

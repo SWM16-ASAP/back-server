@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -55,14 +54,29 @@ class WordServiceTest {
     @Mock
     private WordSingleFlightRedisCoordinator singleFlightCoordinator;
 
-    @InjectMocks
     private WordService wordService;
+    private WordPersistenceService wordPersistenceService;
 
     private Word sampleWord;
     private String userId = "test-user-123";
 
     @BeforeEach
     void setUp() {
+        wordPersistenceService = new WordPersistenceService(
+                wordRepository,
+                wordVariantRepository,
+                invalidWordRepository
+        );
+        wordService = new WordService(
+                wordRepository,
+                wordBookmarkRepository,
+                wordVariantRepository,
+                invalidWordRepository,
+                wordAiService,
+                singleFlightCoordinator,
+                wordPersistenceService
+        );
+
         lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any(), any()))
                 .thenAnswer(invocation -> {
                     Supplier<Optional<?>> lookup = invocation.getArgument(3);
@@ -236,10 +250,26 @@ class WordServiceTest {
     @DisplayName("단어 저장 시 모든 변형 형태를 WordVariant에 저장")
     void saveWordVariants_모든_변형_형태_저장() {
         // given
+        WordAnalysisResult analysisResult = WordAnalysisResult.builder()
+                .originalForm(sampleWord.getWord())
+                .variantTypes(List.of(VariantType.ORIGINAL_FORM))
+                .sourceLanguageCode(sampleWord.getSourceLanguageCode())
+                .targetLanguageCode(sampleWord.getTargetLanguageCode())
+                .summary(sampleWord.getSummary())
+                .meanings(sampleWord.getMeanings())
+                .conjugations(sampleWord.getRelatedForms().getConjugations())
+                .build();
+
+        when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
+                sampleWord.getWord(),
+                sampleWord.getSourceLanguageCode(),
+                sampleWord.getTargetLanguageCode()
+        )).thenReturn(Optional.empty());
+        when(wordRepository.save(any(Word.class))).thenReturn(sampleWord);
         when(wordVariantRepository.findByWordIn(anyList())).thenReturn(List.of());
 
         // when
-        wordService.saveWordVariants(sampleWord);
+        wordPersistenceService.saveAnalysisResults("run", List.of(analysisResult), Optional.empty());
 
         // then
         // 동사 변형 4개가 저장되어야 함 (past, pastParticiple, presentParticiple, thirdPerson)
@@ -309,20 +339,22 @@ class WordServiceTest {
     }
 
     @Test
-    @DisplayName("AI 호출 실패가 발생하면 invalid 캐시에 반영")
-    void getOrCreateWords_aiRuntimeFailure_cachesInvalidWord() {
+    @DisplayName("AI 분석 실패는 invalid 캐시에 반영하지 않고 분석 실패 에러로 전파")
+    void getOrCreateWords_aiAnalysisFailure_doesNotCacheInvalidWord() {
         String word = "resilience";
+        WordsException failure = new WordsException(WordsErrorCode.WORD_ANALYSIS_FAILED);
 
         when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
         when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
         when(wordAiService.analyzeWord(word, LanguageCode.KO.getCode()))
-                .thenThrow(new RuntimeException("bedrock failure"));
+                .thenThrow(failure);
 
         assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
-                .isInstanceOf(WordsException.class)
-                .hasMessageContaining("meaningless");
+                .isSameAs(failure)
+                .satisfies(ex -> assertThat(((WordsException) ex).getErrorCode())
+                        .isEqualTo(WordsErrorCode.WORD_ANALYSIS_FAILED));
 
-        verify(invalidWordRepository).save(any());
+        verify(invalidWordRepository, never()).save(any());
     }
 
     @Test

@@ -35,8 +35,6 @@ public interface WordRepository extends MongoRepository<Word, String> {
     @Query("{'word': {$regex: ?0, $options: 'i'}}")
     Page<Word> findByWordContainingIgnoreCase(String word, Pageable pageable);
 
-    boolean existsByWord(String word);
-
     /**
      * isEssential 필드로 필터링
      */
@@ -51,9 +49,4 @@ public interface WordRepository extends MongoRepository<Word, String> {
      * 필수 단어 중 특정 target 언어로 필터링
      */
     List<Word> findAllByIsEssentialAndTargetLanguageCode(Boolean isEssential, LanguageCode targetLanguageCode);
-
-    /**
-     * 필수 단어를 페이징으로 조회
-     */
-    Page<Word> findAllByIsEssential(Boolean isEssential, Pageable pageable);
 }

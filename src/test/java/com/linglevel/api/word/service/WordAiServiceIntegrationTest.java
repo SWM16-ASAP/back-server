@@ -3,6 +3,7 @@ package com.linglevel.api.word.service;
 import com.linglevel.api.word.dto.PartOfSpeech;
 import com.linglevel.api.word.dto.VariantType;
 import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Disabled;
@@ -339,13 +340,12 @@ class WordAiServiceIntegrationTest {
         String targetLanguage = "KO";
 
         // when & then
-        // AI가 의미 없는 단어에 대해 빈 배열을 반환하면 WordsException을 던짐 (RuntimeException으로 래핑됨)
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        // AI가 의미 없는 단어에 대해 빈 배열을 반환하면 WordsException을 그대로 던짐
+        WordsException exception = assertThrows(WordsException.class, () -> {
             wordAiService.analyzeWord(word, targetLanguage);
         });
 
-        // RuntimeException의 cause가 WordsException인지 확인
-        assertThat(exception.getCause()).isInstanceOf(WordsException.class);
+        assertThat(exception.getErrorCode()).isEqualTo(WordsErrorCode.WORD_IS_MEANINGLESS);
     }
 
     // ===== 실패 사례 기반 추가 테스트 =====

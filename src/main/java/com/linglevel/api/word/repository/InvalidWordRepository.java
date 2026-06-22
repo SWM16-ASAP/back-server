@@ -10,6 +10,4 @@ import java.util.Optional;
 public interface InvalidWordRepository extends MongoRepository<InvalidWord, String> {
 
     Optional<InvalidWord> findByWord(String word);
-
-    boolean existsByWord(String word);
 }
