@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -55,14 +54,29 @@ class WordServiceTest {
     @Mock
     private WordSingleFlightRedisCoordinator singleFlightCoordinator;
 
-    @InjectMocks
     private WordService wordService;
+    private WordPersistenceService wordPersistenceService;
 
     private Word sampleWord;
     private String userId = "test-user-123";
 
     @BeforeEach
     void setUp() {
+        wordPersistenceService = new WordPersistenceService(
+                wordRepository,
+                wordVariantRepository,
+                invalidWordRepository
+        );
+        wordService = new WordService(
+                wordRepository,
+                wordBookmarkRepository,
+                wordVariantRepository,
+                invalidWordRepository,
+                wordAiService,
+                singleFlightCoordinator,
+                wordPersistenceService
+        );
+
         lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any(), any()))
                 .thenAnswer(invocation -> {
                     Supplier<Optional<?>> lookup = invocation.getArgument(3);
@@ -236,10 +250,26 @@ class WordServiceTest {
     @DisplayName("단어 저장 시 모든 변형 형태를 WordVariant에 저장")
     void saveWordVariants_모든_변형_형태_저장() {
         // given
+        WordAnalysisResult analysisResult = WordAnalysisResult.builder()
+                .originalForm(sampleWord.getWord())
+                .variantTypes(List.of(VariantType.ORIGINAL_FORM))
+                .sourceLanguageCode(sampleWord.getSourceLanguageCode())
+                .targetLanguageCode(sampleWord.getTargetLanguageCode())
+                .summary(sampleWord.getSummary())
+                .meanings(sampleWord.getMeanings())
+                .conjugations(sampleWord.getRelatedForms().getConjugations())
+                .build();
+
+        when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
+                sampleWord.getWord(),
+                sampleWord.getSourceLanguageCode(),
+                sampleWord.getTargetLanguageCode()
+        )).thenReturn(Optional.empty());
+        when(wordRepository.save(any(Word.class))).thenReturn(sampleWord);
         when(wordVariantRepository.findByWordIn(anyList())).thenReturn(List.of());
 
         // when
-        wordService.saveWordVariants(sampleWord);
+        wordPersistenceService.saveAnalysisResults("run", List.of(analysisResult), Optional.empty());
 
         // then
         // 동사 변형 4개가 저장되어야 함 (past, pastParticiple, presentParticiple, thirdPerson)
