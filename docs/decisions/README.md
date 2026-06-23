@@ -1,6 +1,6 @@
 # Decision Records
 
-이 디렉터리는 미션을 수행하며 내린 큰 기술적 선택과 개선 판단을 기록하는 문서 모음이다.
+이 디렉터리는 프로젝트를 개발하며 내린 큰 기술적 선택과 개선 판단을 기록하는 문서 모음이다.
 톤은 딱딱한 ADR보다 기술 블로그형 회고에 가깝게 유지한다.
 
 ## 기록 대상
@@ -14,7 +14,7 @@
 
 - 자잘한 구현 선택은 기록하지 않는다.
 - 문제, 선택, 이유, 검증, 결과와 남은 이슈 중심으로 짧게 정리한다.
-- 기본 원칙은 `미션당 문서 하나`다.
+- 기본 원칙은 `큰 판단 하나당 문서 하나`다.
 - 문서 하단에는 `연관 이슈 및 PR` 섹션을 두고, 추적 가능한 이슈와 PR을 남긴다.
 - 구현 자체보다 왜 그런 선택을 했는지와 그 결과를 이해할 수 있게 적는다.
 - 구현보다 고민과 판단의 맥락이 먼저 보이게 적는다.
@@ -34,5 +34,4 @@
 - [007. 서비스 초기 데이터 저장소를 MongoDB 중심으로 고정](007-choose-mongodb-for-early-flexibility.md)
 - [008. 글로벌 이미지 전달 성능 최적화](008-image-delivery-optimization.md)
 - [009. DSL 기반 크롤링 규칙 관리 구조 도입](009-dsl-driven-crawling.md)
-- [010. 미션 기반 Codex 에이전트 운영 규칙 정리](010-mission-oriented-agent-guidelines.md)
 - [011. Word Single-Flight 분산 안정화와 RLock 표준화](011-word-single-flight-distributed-stability-with-redlock.md)
