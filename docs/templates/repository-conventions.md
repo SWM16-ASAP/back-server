@@ -93,3 +93,22 @@ PR 본문은 [pull_request_template.md](../../.github/pull_request_template.md)�
 - `Changes`: 주요 변경사항
 - `Example`: 예시나 사용법
 - `Related Issues`: 연관 이슈
+
+## 코드 스타일
+
+Java 포맷은 Spotless와 google-java-format AOSP 스타일을 기준으로 한다.
+AOSP 스타일을 사용해 기존 Java/Spring 코드의 4-space indentation을 유지한다.
+
+명령:
+
+```bash
+./gradlew spotlessCheck
+./gradlew spotlessApply
+```
+
+작성 원칙:
+
+- 포맷 검사는 `spotlessCheck`로 수행한다.
+- 자동 포맷 적용은 `spotlessApply`로 수행한다.
+- 포맷 변경은 기능 변경과 분리한다.
+- 기존 전체 Java 파일 재포맷은 별도 PR로 분리한다.
