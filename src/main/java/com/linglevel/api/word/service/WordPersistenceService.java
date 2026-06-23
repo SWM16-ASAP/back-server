@@ -1,12 +1,12 @@
 package com.linglevel.api.word.service;
 
 import com.linglevel.api.i18n.LanguageCode;
-import com.linglevel.api.word.dto.RelatedForms;
 import com.linglevel.api.word.dto.VariantType;
 import com.linglevel.api.word.dto.WordAnalysisResult;
 import com.linglevel.api.word.entity.InvalidWord;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
+import com.linglevel.api.word.model.RelatedForms;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;

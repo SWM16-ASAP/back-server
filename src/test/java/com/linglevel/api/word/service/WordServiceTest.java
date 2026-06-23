@@ -9,6 +9,8 @@ import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.mapper.WordResponseMapper;
+import com.linglevel.api.word.model.Meaning;
+import com.linglevel.api.word.model.RelatedForms;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
