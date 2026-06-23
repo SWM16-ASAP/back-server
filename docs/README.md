@@ -15,6 +15,7 @@
 - 현재 구조, 도메인 관계, 대표 흐름을 정리할 때: [architecture](architecture/)
 - 구조, 성능, 안정성, 운영성에 영향을 주는 큰 판단을 남길 때: [decisions](decisions/)
 - 새 문서를 시작할 때: [templates](templates/)
+- 브랜치, 커밋, PR 형식을 확인할 때: [repository-conventions.md](templates/repository-conventions.md)
 
 ## 기본 원칙
 
