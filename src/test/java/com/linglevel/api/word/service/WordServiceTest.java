@@ -8,6 +8,7 @@ import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
+import com.linglevel.api.word.mapper.WordResponseMapper;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
@@ -57,6 +58,8 @@ class WordServiceTest {
 
 	private WordPersistenceService wordPersistenceService;
 
+	private WordResponseMapper wordResponseMapper;
+
 	private Word sampleWord;
 
 	private String userId = "test-user-123";
@@ -65,8 +68,10 @@ class WordServiceTest {
 	void setUp() {
 		wordPersistenceService = new WordPersistenceService(wordRepository, wordVariantRepository,
 				invalidWordRepository);
+		wordResponseMapper = new WordResponseMapper();
 		wordService = new WordService(wordRepository, wordBookmarkRepository, wordVariantRepository,
-				invalidWordRepository, wordAiService, singleFlightCoordinator, wordPersistenceService);
+				invalidWordRepository, wordAiService, singleFlightCoordinator, wordPersistenceService,
+				wordResponseMapper);
 
 		lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any(), any()))
 			.thenAnswer(invocation -> {
