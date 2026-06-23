@@ -4,12 +4,14 @@
 
 ## 문서 구성
 
+- [AI 개발 컨텍스트](../AGENTS.md)
 - [아키텍처 문서 모음](architecture/)
 - [의사결정 기록 모음](decisions/)
 - [템플릿 모음](templates/)
 
 ## 언제 무엇을 쓰는가
 
+- AI 도구가 코드 작업 전 프로젝트 맥락을 빠르게 잡아야 할 때: [AGENTS.md](../AGENTS.md)
 - 현재 구조, 도메인 관계, 대표 흐름을 정리할 때: [architecture](architecture/)
 - 구조, 성능, 안정성, 운영성에 영향을 주는 큰 판단을 남길 때: [decisions](decisions/)
 - 새 문서를 시작할 때: [templates](templates/)
