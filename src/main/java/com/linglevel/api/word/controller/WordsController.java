@@ -2,10 +2,11 @@ package com.linglevel.api.word.controller;
 
 import com.linglevel.api.auth.jwt.JwtClaims;
 import com.linglevel.api.common.dto.ExceptionResponse;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit;
+import com.linglevel.api.common.ratelimit.annotation.RateLimit.KeyType;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordSearchRequest;
 import com.linglevel.api.word.dto.WordSearchResponse;
-import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.service.WordService;
@@ -21,17 +22,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.data.mongodb.core.mapping.Language;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import com.linglevel.api.common.ratelimit.annotation.RateLimit;
-import com.linglevel.api.common.ratelimit.annotation.RateLimit.KeyType;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/words")
