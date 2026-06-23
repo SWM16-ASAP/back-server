@@ -17,15 +17,16 @@ import java.time.LocalDate;
 @Schema(description = "스트릭 복구 요청")
 public class RecoverStreakRequest {
 
-    @NotBlank(message = "userId는 필수입니다.")
-    @Schema(description = "사용자 ID", example = "user123", required = true)
-    private String userId;
+	@NotBlank(message = "userId는 필수입니다.")
+	@Schema(description = "사용자 ID", example = "user123", required = true)
+	private String userId;
 
-    @NotNull(message = "startDate는 필수입니다.")
-    @Schema(description = "복구 시작 날짜 (YYYY-MM-DD)", example = "2025-01-10", required = true)
-    private LocalDate startDate;
+	@NotNull(message = "startDate는 필수입니다.")
+	@Schema(description = "복구 시작 날짜 (YYYY-MM-DD)", example = "2025-01-10", required = true)
+	private LocalDate startDate;
 
-    @NotNull(message = "endDate는 필수입니다.")
-    @Schema(description = "복구 종료 날짜 (YYYY-MM-DD)", example = "2025-01-15", required = true)
-    private LocalDate endDate;
+	@NotNull(message = "endDate는 필수입니다.")
+	@Schema(description = "복구 종료 날짜 (YYYY-MM-DD)", example = "2025-01-15", required = true)
+	private LocalDate endDate;
+
 }

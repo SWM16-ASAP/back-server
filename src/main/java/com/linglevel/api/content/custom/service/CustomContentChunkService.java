@@ -26,83 +26,90 @@ import java.util.List;
 @Slf4j
 public class CustomContentChunkService {
 
-    private final CustomContentChunkRepository customContentChunkRepository;
-    private final CustomContentRepository customContentRepository;
-    private final UserCustomContentRepository userCustomContentRepository;
-    private final FeedRepository feedRepository;
+	private final CustomContentChunkRepository customContentChunkRepository;
 
-    public PageResponse<CustomContentChunkResponse> getCustomContentChunks(String userId, String customContentId, GetCustomContentChunksRequest request) {
-        log.info("Getting custom content chunks for content {} and user: {}", customContentId, userId);
+	private final CustomContentRepository customContentRepository;
 
-        CustomContent customContent = validateCustomContentAccess(customContentId, userId);
+	private final UserCustomContentRepository userCustomContentRepository;
 
-        customContentRepository.incrementViewCount(customContentId);
+	private final FeedRepository feedRepository;
 
-        // Feed 조회수도 함께 증가 (originUrl 기반)
-        if (customContent.getOriginUrl() != null && !customContent.getOriginUrl().isEmpty()) {
-            feedRepository.findByUrl(customContent.getOriginUrl()).ifPresent(feed -> {
-                feed.setViewCount((feed.getViewCount() != null ? feed.getViewCount() : 0) + 1);
-                feedRepository.save(feed);
-                log.debug("Incremented Feed viewCount for url: {}", customContent.getOriginUrl());
-            });
-        }
+	public PageResponse<CustomContentChunkResponse> getCustomContentChunks(String userId, String customContentId,
+			GetCustomContentChunksRequest request) {
+		log.info("Getting custom content chunks for content {} and user: {}", customContentId, userId);
 
-        DifficultyLevel difficulty = request.getDifficultyLevel();
+		CustomContent customContent = validateCustomContentAccess(customContentId, userId);
 
-        validatePaginationRequest(request);
-        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit());
+		customContentRepository.incrementViewCount(customContentId);
 
-        Page<CustomContentChunk> chunksPage = customContentChunkRepository
-                .findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
-                        customContentId, difficulty, pageable);
-        
-        List<CustomContentChunkResponse> chunkResponses = chunksPage.getContent().stream()
-                .map(this::convertToCustomContentChunkResponse)
-                .toList();
-        
-        return PageResponse.of(chunksPage, chunkResponses);
-    }
+		// Feed 조회수도 함께 증가 (originUrl 기반)
+		if (customContent.getOriginUrl() != null && !customContent.getOriginUrl().isEmpty()) {
+			feedRepository.findByUrl(customContent.getOriginUrl()).ifPresent(feed -> {
+				feed.setViewCount((feed.getViewCount() != null ? feed.getViewCount() : 0) + 1);
+				feedRepository.save(feed);
+				log.debug("Incremented Feed viewCount for url: {}", customContent.getOriginUrl());
+			});
+		}
 
-    public CustomContentChunkResponse getCustomContentChunk(String userId, String customContentId, String chunkId) {
-        log.info("Getting custom content chunk {} from content {} for user: {}", chunkId, customContentId, userId);
+		DifficultyLevel difficulty = request.getDifficultyLevel();
 
-        validateCustomContentAccess(customContentId, userId);
+		validatePaginationRequest(request);
+		Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit());
 
-        CustomContentChunk chunk = customContentChunkRepository.findByIdAndCustomContentIdAndIsDeletedFalse(chunkId, customContentId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));
-        
-        return convertToCustomContentChunkResponse(chunk);
-    }
+		Page<CustomContentChunk> chunksPage = customContentChunkRepository
+			.findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(customContentId,
+					difficulty, pageable);
 
-    private CustomContent validateCustomContentAccess(String customContentId, String userId) {
+		List<CustomContentChunkResponse> chunkResponses = chunksPage.getContent()
+			.stream()
+			.map(this::convertToCustomContentChunkResponse)
+			.toList();
 
-        CustomContent customContent = customContentRepository.findById(customContentId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
+		return PageResponse.of(chunksPage, chunkResponses);
+	}
 
-        userCustomContentRepository.findByUserIdAndCustomContentId(userId, customContentId)
-            .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_ACCESS_DENIED));
+	public CustomContentChunkResponse getCustomContentChunk(String userId, String customContentId, String chunkId) {
+		log.info("Getting custom content chunk {} from content {} for user: {}", chunkId, customContentId, userId);
 
-        return customContent;
-    }
+		validateCustomContentAccess(customContentId, userId);
 
+		CustomContentChunk chunk = customContentChunkRepository
+			.findByIdAndCustomContentIdAndIsDeletedFalse(chunkId, customContentId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));
 
-    private void validatePaginationRequest(GetCustomContentChunksRequest request) {
-        if (request.getLimit() != null && request.getLimit() > 100) {
-            request.setLimit(100);
-        }
-    }
+		return convertToCustomContentChunkResponse(chunk);
+	}
 
-    public CustomContentChunk findById(String chunkId) {
-        return customContentChunkRepository.findById(chunkId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));
-    }
+	private CustomContent validateCustomContentAccess(String customContentId, String userId) {
 
-    public CustomContentChunk findFirstByCustomContentId(String customContentId) {
-        return customContentChunkRepository.findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(customContentId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));
-    }
+		CustomContent customContent = customContentRepository.findById(customContentId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-    private CustomContentChunkResponse convertToCustomContentChunkResponse(CustomContentChunk chunk) {
-        return CustomContentChunkResponse.from(chunk);
-    }
+		userCustomContentRepository.findByUserIdAndCustomContentId(userId, customContentId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_ACCESS_DENIED));
+
+		return customContent;
+	}
+
+	private void validatePaginationRequest(GetCustomContentChunksRequest request) {
+		if (request.getLimit() != null && request.getLimit() > 100) {
+			request.setLimit(100);
+		}
+	}
+
+	public CustomContentChunk findById(String chunkId) {
+		return customContentChunkRepository.findById(chunkId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));
+	}
+
+	public CustomContentChunk findFirstByCustomContentId(String customContentId) {
+		return customContentChunkRepository
+			.findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(customContentId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND));
+	}
+
+	private CustomContentChunkResponse convertToCustomContentChunkResponse(CustomContentChunk chunk) {
+		return CustomContentChunkResponse.from(chunk);
+	}
+
 }

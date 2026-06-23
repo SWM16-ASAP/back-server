@@ -9,5 +9,6 @@ import java.util.Optional;
 @Repository
 public interface InvalidWordRepository extends MongoRepository<InvalidWord, String> {
 
-    Optional<InvalidWord> findByWord(String word);
+	Optional<InvalidWord> findByWord(String word);
+
 }

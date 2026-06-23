@@ -15,30 +15,32 @@ import java.util.List;
 @AllArgsConstructor
 @Document(collection = "books")
 public class Book {
-    @Id
-    private String id;
 
-    private String title;
+	@Id
+	private String id;
 
-    private TitleTranslations titleTranslations;
+	private String title;
 
-    private String author;
+	private TitleTranslations titleTranslations;
 
-    private String coverImageUrl;
-    
-    private DifficultyLevel difficultyLevel;
-    
-    private Integer chapterCount;
-    
-    private Integer readingTime;
-    
-    private Double averageRating;
-    
-    private Integer reviewCount;
-    
-    private Integer viewCount;
-    
-    private List<String> tags;
+	private String author;
 
-    private Instant createdAt;
+	private String coverImageUrl;
+
+	private DifficultyLevel difficultyLevel;
+
+	private Integer chapterCount;
+
+	private Integer readingTime;
+
+	private Double averageRating;
+
+	private Integer reviewCount;
+
+	private Integer viewCount;
+
+	private List<String> tags;
+
+	private Instant createdAt;
+
 }

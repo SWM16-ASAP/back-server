@@ -24,37 +24,36 @@ import java.util.List;
 @Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
+	private final JwtService jwtService;
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws SecurityException, IOException, ServletException {
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+			throws SecurityException, IOException, ServletException {
 
-        try {
-            JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
+		try {
+			JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
 
-            if (claims.isExpired()) {
-                throw new AuthException(AuthErrorCode.EXPIRED_ACCESS_TOKEN);
-            }
+			if (claims.isExpired()) {
+				throw new AuthException(AuthErrorCode.EXPIRED_ACCESS_TOKEN);
+			}
 
-            // Principal로 JwtClaims 객체 전체를 저장하여 컨트롤러에서 DB 조회 없이 사용자 정보에 접근 가능
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                    claims,
-                    null,
-                    List.of(new SimpleGrantedAuthority(claims.getRole().getSecurityRole()))
-            );
+			// Principal로 JwtClaims 객체 전체를 저장하여 컨트롤러에서 DB 조회 없이 사용자 정보에 접근 가능
+			UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(claims,
+					null, List.of(new SimpleGrantedAuthority(claims.getRole().getSecurityRole())));
 
-            authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-            
-            // Sentry 사용자 컨텍스트 설정
-            SentryUserContext.setSentryUser();
+			authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+			SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
-        } catch (Exception e) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+			// Sentry 사용자 컨텍스트 설정
+			SentryUserContext.setSentryUser();
 
-        filterChain.doFilter(request, response);
-    }
+		}
+		catch (Exception e) {
+			filterChain.doFilter(request, response);
+			return;
+		}
+
+		filterChain.doFilter(request, response);
+	}
+
 }

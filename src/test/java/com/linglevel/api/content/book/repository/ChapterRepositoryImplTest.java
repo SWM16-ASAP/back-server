@@ -24,117 +24,116 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import(ChapterRepositoryImpl.class)
 class ChapterRepositoryImplTest extends AbstractDatabaseTest {
 
-    @Autowired
-    private ChapterRepository chapterRepository;
+	@Autowired
+	private ChapterRepository chapterRepository;
 
-    @Autowired
-    private BookProgressRepository bookProgressRepository;
+	@Autowired
+	private BookProgressRepository bookProgressRepository;
 
-    private static final String BOOK_ID = "book-1";
-    private static final String USER_ID = "user-1";
+	private static final String BOOK_ID = "book-1";
 
-    @BeforeEach
-    void setUp() {
-        bookProgressRepository.deleteAll();
-        chapterRepository.deleteAll();
+	private static final String USER_ID = "user-1";
 
-        chapterRepository.saveAll(List.of(
-            createChapter(1, "Chapter 1"),
-            createChapter(2, "Chapter 2"),
-            createChapter(3, "Chapter 3")
-        ));
-    }
+	@BeforeEach
+	void setUp() {
+		bookProgressRepository.deleteAll();
+		chapterRepository.deleteAll();
 
-    @Test
-    @DisplayName("진도 정보가 없으면 NOT_STARTED 필터는 모든 챕터를 반환한다")
-    void findChaptersWithFilters_returnsAllChaptersWhenNoProgress() {
-        GetChaptersRequest request = GetChaptersRequest.builder()
-            .progress(ProgressStatus.NOT_STARTED)
-            .build();
+		chapterRepository.saveAll(
+				List.of(createChapter(1, "Chapter 1"), createChapter(2, "Chapter 2"), createChapter(3, "Chapter 3")));
+	}
 
-        Page<Chapter> result = chapterRepository.findChaptersWithFilters(BOOK_ID, request, USER_ID, defaultPageable());
+	@Test
+	@DisplayName("진도 정보가 없으면 NOT_STARTED 필터는 모든 챕터를 반환한다")
+	void findChaptersWithFilters_returnsAllChaptersWhenNoProgress() {
+		GetChaptersRequest request = GetChaptersRequest.builder().progress(ProgressStatus.NOT_STARTED).build();
 
-        assertThat(result.getContent()).extracting(Chapter::getChapterNumber).containsExactly(1, 2, 3);
-        assertThat(result.getTotalElements()).isEqualTo(3);
-    }
+		Page<Chapter> result = chapterRepository.findChaptersWithFilters(BOOK_ID, request, USER_ID, defaultPageable());
 
-    @Test
-    @DisplayName("V3 chapterProgresses 기준으로 IN_PROGRESS와 COMPLETED를 구분한다")
-    void findChaptersWithFilters_usesV3ChapterProgresses() {
-        BookProgress progress = new BookProgress();
-        progress.setUserId(USER_ID);
-        progress.setBookId(BOOK_ID);
-        progress.setChapterProgresses(List.of(
-            BookProgress.ChapterProgressInfo.builder()
-                .chapterNumber(1)
-                .progressPercentage(100.0)
-                .isCompleted(true)
-                .build(),
-            BookProgress.ChapterProgressInfo.builder()
-                .chapterNumber(2)
-                .progressPercentage(50.0)
-                .isCompleted(false)
-                .build()
-        ));
-        bookProgressRepository.save(progress);
+		assertThat(result.getContent()).extracting(Chapter::getChapterNumber).containsExactly(1, 2, 3);
+		assertThat(result.getTotalElements()).isEqualTo(3);
+	}
 
-        GetChaptersRequest inProgressRequest = GetChaptersRequest.builder()
-            .progress(ProgressStatus.IN_PROGRESS)
-            .build();
-        GetChaptersRequest completedRequest = GetChaptersRequest.builder()
-            .progress(ProgressStatus.COMPLETED)
-            .build();
-        GetChaptersRequest notStartedRequest = GetChaptersRequest.builder()
-            .progress(ProgressStatus.NOT_STARTED)
-            .build();
+	@Test
+	@DisplayName("V3 chapterProgresses 기준으로 IN_PROGRESS와 COMPLETED를 구분한다")
+	void findChaptersWithFilters_usesV3ChapterProgresses() {
+		BookProgress progress = new BookProgress();
+		progress.setUserId(USER_ID);
+		progress.setBookId(BOOK_ID);
+		progress.setChapterProgresses(List.of(
+				BookProgress.ChapterProgressInfo.builder()
+					.chapterNumber(1)
+					.progressPercentage(100.0)
+					.isCompleted(true)
+					.build(),
+				BookProgress.ChapterProgressInfo.builder()
+					.chapterNumber(2)
+					.progressPercentage(50.0)
+					.isCompleted(false)
+					.build()));
+		bookProgressRepository.save(progress);
 
-        Page<Chapter> inProgress = chapterRepository.findChaptersWithFilters(BOOK_ID, inProgressRequest, USER_ID, defaultPageable());
-        Page<Chapter> completed = chapterRepository.findChaptersWithFilters(BOOK_ID, completedRequest, USER_ID, defaultPageable());
-        Page<Chapter> notStarted = chapterRepository.findChaptersWithFilters(BOOK_ID, notStartedRequest, USER_ID, defaultPageable());
+		GetChaptersRequest inProgressRequest = GetChaptersRequest.builder()
+			.progress(ProgressStatus.IN_PROGRESS)
+			.build();
+		GetChaptersRequest completedRequest = GetChaptersRequest.builder().progress(ProgressStatus.COMPLETED).build();
+		GetChaptersRequest notStartedRequest = GetChaptersRequest.builder()
+			.progress(ProgressStatus.NOT_STARTED)
+			.build();
 
-        assertThat(inProgress.getContent()).extracting(Chapter::getChapterNumber).containsExactly(2);
-        assertThat(completed.getContent()).extracting(Chapter::getChapterNumber).containsExactly(1);
-        assertThat(notStarted.getContent()).extracting(Chapter::getChapterNumber).containsExactly(3);
-    }
+		Page<Chapter> inProgress = chapterRepository.findChaptersWithFilters(BOOK_ID, inProgressRequest, USER_ID,
+				defaultPageable());
+		Page<Chapter> completed = chapterRepository.findChaptersWithFilters(BOOK_ID, completedRequest, USER_ID,
+				defaultPageable());
+		Page<Chapter> notStarted = chapterRepository.findChaptersWithFilters(BOOK_ID, notStartedRequest, USER_ID,
+				defaultPageable());
 
-    @Test
-    @DisplayName("V3 데이터가 없으면 모든 챕터를 NOT_STARTED로 본다")
-    void findChaptersWithFilters_treatsMissingV3DataAsNotStarted() {
-        BookProgress progress = new BookProgress();
-        progress.setUserId(USER_ID);
-        progress.setBookId(BOOK_ID);
-        progress.setCurrentReadChapterNumber(2); // legacy field only (ignored in V3-only filtering)
-        bookProgressRepository.save(progress);
+		assertThat(inProgress.getContent()).extracting(Chapter::getChapterNumber).containsExactly(2);
+		assertThat(completed.getContent()).extracting(Chapter::getChapterNumber).containsExactly(1);
+		assertThat(notStarted.getContent()).extracting(Chapter::getChapterNumber).containsExactly(3);
+	}
 
-        GetChaptersRequest completedRequest = GetChaptersRequest.builder()
-            .progress(ProgressStatus.COMPLETED)
-            .build();
-        GetChaptersRequest inProgressRequest = GetChaptersRequest.builder()
-            .progress(ProgressStatus.IN_PROGRESS)
-            .build();
-        GetChaptersRequest notStartedRequest = GetChaptersRequest.builder()
-            .progress(ProgressStatus.NOT_STARTED)
-            .build();
+	@Test
+	@DisplayName("V3 데이터가 없으면 모든 챕터를 NOT_STARTED로 본다")
+	void findChaptersWithFilters_treatsMissingV3DataAsNotStarted() {
+		BookProgress progress = new BookProgress();
+		progress.setUserId(USER_ID);
+		progress.setBookId(BOOK_ID);
+		progress.setCurrentReadChapterNumber(2); // legacy field only (ignored in V3-only
+													// filtering)
+		bookProgressRepository.save(progress);
 
-        Page<Chapter> completed = chapterRepository.findChaptersWithFilters(BOOK_ID, completedRequest, USER_ID, defaultPageable());
-        Page<Chapter> inProgress = chapterRepository.findChaptersWithFilters(BOOK_ID, inProgressRequest, USER_ID, defaultPageable());
-        Page<Chapter> notStarted = chapterRepository.findChaptersWithFilters(BOOK_ID, notStartedRequest, USER_ID, defaultPageable());
+		GetChaptersRequest completedRequest = GetChaptersRequest.builder().progress(ProgressStatus.COMPLETED).build();
+		GetChaptersRequest inProgressRequest = GetChaptersRequest.builder()
+			.progress(ProgressStatus.IN_PROGRESS)
+			.build();
+		GetChaptersRequest notStartedRequest = GetChaptersRequest.builder()
+			.progress(ProgressStatus.NOT_STARTED)
+			.build();
 
-        assertThat(completed.getContent()).isEmpty();
-        assertThat(inProgress.getContent()).isEmpty();
-        assertThat(notStarted.getContent()).extracting(Chapter::getChapterNumber).containsExactly(1, 2, 3);
-    }
+		Page<Chapter> completed = chapterRepository.findChaptersWithFilters(BOOK_ID, completedRequest, USER_ID,
+				defaultPageable());
+		Page<Chapter> inProgress = chapterRepository.findChaptersWithFilters(BOOK_ID, inProgressRequest, USER_ID,
+				defaultPageable());
+		Page<Chapter> notStarted = chapterRepository.findChaptersWithFilters(BOOK_ID, notStartedRequest, USER_ID,
+				defaultPageable());
 
-    private Pageable defaultPageable() {
-        return PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "chapterNumber"));
-    }
+		assertThat(completed.getContent()).isEmpty();
+		assertThat(inProgress.getContent()).isEmpty();
+		assertThat(notStarted.getContent()).extracting(Chapter::getChapterNumber).containsExactly(1, 2, 3);
+	}
 
-    private Chapter createChapter(int chapterNumber, String title) {
-        Chapter chapter = new Chapter();
-        chapter.setId("chapter-" + chapterNumber);
-        chapter.setBookId(BOOK_ID);
-        chapter.setChapterNumber(chapterNumber);
-        chapter.setTitle(title);
-        return chapter;
-    }
+	private Pageable defaultPageable() {
+		return PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "chapterNumber"));
+	}
+
+	private Chapter createChapter(int chapterNumber, String title) {
+		Chapter chapter = new Chapter();
+		chapter.setId("chapter-" + chapterNumber);
+		chapter.setBookId(BOOK_ID);
+		chapter.setChapterNumber(chapterNumber);
+		chapter.setTitle(title);
+		return chapter;
+	}
+
 }

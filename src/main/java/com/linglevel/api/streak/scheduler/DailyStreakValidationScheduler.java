@@ -17,78 +17,81 @@ import java.util.List;
 /**
  * 매일 자정(KST)에 실행되어 스트릭 검증 및 프리즈 자동 소모를 처리하는 배치 작업
  *
- * 주요 기능:
- * 1. 어제 학습하지 않은 사용자 감지
- * 2. 프리즈 자동 소모 (있는 경우)
- * 3. 프리즈 없으면 스트릭 리셋
- * 4. FreezeTransaction 기록
+ * 주요 기능: 1. 어제 학습하지 않은 사용자 감지 2. 프리즈 자동 소모 (있는 경우) 3. 프리즈 없으면 스트릭 리셋 4. FreezeTransaction
+ * 기록
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class DailyStreakValidationScheduler {
 
-    private final UserStudyReportRepository userStudyReportRepository;
-    private final StreakService streakService;
+	private final UserStudyReportRepository userStudyReportRepository;
 
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+	private final StreakService streakService;
 
-    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
-    public void validateDailyStreaks() {
-        Instant startTime = Instant.now();
-        LocalDate today = LocalDate.now(KST);
-        LocalDate yesterday = today.minusDays(1);
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
-        log.info("[Streak Validation] Starting daily streak validation for date: {}", yesterday);
+	@Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+	public void validateDailyStreaks() {
+		Instant startTime = Instant.now();
+		LocalDate today = LocalDate.now(KST);
+		LocalDate yesterday = today.minusDays(1);
 
-        int processedCount = 0;
-        int freezeUsedCount = 0;
-        int streakResetCount = 0;
-        int maintainedCount = 0;
+		log.info("[Streak Validation] Starting daily streak validation for date: {}", yesterday);
 
-        try {
-            List<UserStudyReport> activeReports = userStudyReportRepository
-                    .findByCurrentStreakGreaterThan(0);
+		int processedCount = 0;
+		int freezeUsedCount = 0;
+		int streakResetCount = 0;
+		int maintainedCount = 0;
 
-            log.info("[Streak Validation] Found {} active users with streak > 0", activeReports.size());
+		try {
+			List<UserStudyReport> activeReports = userStudyReportRepository.findByCurrentStreakGreaterThan(0);
 
-            for (UserStudyReport report : activeReports) {
-                try {
-                    processedCount++;
+			log.info("[Streak Validation] Found {} active users with streak > 0", activeReports.size());
 
-                    boolean wasReset = streakService.processMissedDays(report, today);
+			for (UserStudyReport report : activeReports) {
+				try {
+					processedCount++;
 
-                    if (wasReset) {
-                        streakResetCount++;
-                    } else {
-                        // 스트릭 유지됨 (어제 완료 또는 프리즈 소진)
-                        long daysSinceLastCompletion = ChronoUnit.DAYS.between(
-                                report.getLastCompletionDate(), today);
+					boolean wasReset = streakService.processMissedDays(report, today);
 
-                        if (daysSinceLastCompletion == 1) {
-                            maintainedCount++;
-                        } else if (daysSinceLastCompletion > 1) {
-                            freezeUsedCount++;
-                        }
-                    }
+					if (wasReset) {
+						streakResetCount++;
+					}
+					else {
+						// 스트릭 유지됨 (어제 완료 또는 프리즈 소진)
+						long daysSinceLastCompletion = ChronoUnit.DAYS.between(report.getLastCompletionDate(), today);
 
-                    report.setUpdatedAt(Instant.now());
-                    userStudyReportRepository.save(report);
+						if (daysSinceLastCompletion == 1) {
+							maintainedCount++;
+						}
+						else if (daysSinceLastCompletion > 1) {
+							freezeUsedCount++;
+						}
+					}
 
-                } catch (Exception e) {
-                    log.error("[Streak Validation] Failed to process user: {}", report.getUserId(), e);
-                }
-            }
+					report.setUpdatedAt(Instant.now());
+					userStudyReportRepository.save(report);
 
-            Instant endTime = Instant.now();
-            long durationMillis = java.time.Duration.between(startTime, endTime).toMillis();
+				}
+				catch (Exception e) {
+					log.error("[Streak Validation] Failed to process user: {}", report.getUserId(), e);
+				}
+			}
 
-            log.info("[Streak Validation] Completed. Processed: {}, Maintained: {}, Freeze Used: {}, Reset: {}, Duration: {}ms",
-                    processedCount, maintainedCount, freezeUsedCount, streakResetCount, durationMillis);
+			Instant endTime = Instant.now();
+			long durationMillis = java.time.Duration.between(startTime, endTime).toMillis();
 
-        } catch (Exception e) {
-            log.error("[Streak Validation] Critical error during streak validation. Processed: {}, Freeze Used: {}, Reset: {}",
-                    processedCount, freezeUsedCount, streakResetCount, e);
-        }
-    }
+			log.info(
+					"[Streak Validation] Completed. Processed: {}, Maintained: {}, Freeze Used: {}, Reset: {}, Duration: {}ms",
+					processedCount, maintainedCount, freezeUsedCount, streakResetCount, durationMillis);
+
+		}
+		catch (Exception e) {
+			log.error(
+					"[Streak Validation] Critical error during streak validation. Processed: {}, Freeze Used: {}, Reset: {}",
+					processedCount, freezeUsedCount, streakResetCount, e);
+		}
+	}
+
 }

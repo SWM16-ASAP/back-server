@@ -10,9 +10,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "앱 버전 업데이트 요청")
 public class VersionUpdateRequest {
-    @Schema(description = "최신 버전", example = "1.2.3")
-    private String latestVersion;
-    
-    @Schema(description = "최소 요구 버전", example = "1.1.0")
-    private String minimumVersion;
+
+	@Schema(description = "최신 버전", example = "1.2.3")
+	private String latestVersion;
+
+	@Schema(description = "최소 요구 버전", example = "1.1.0")
+	private String minimumVersion;
+
 }

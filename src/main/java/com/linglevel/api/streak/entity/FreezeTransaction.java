@@ -14,15 +14,17 @@ import java.time.Instant;
 @Setter
 @Builder
 public class FreezeTransaction {
-    @Id
-    private String id;
 
-    @Indexed
-    private String userId;
+	@Id
+	private String id;
 
-    private Integer amount;
+	@Indexed
+	private String userId;
 
-    private String description;
+	private Integer amount;
 
-    private Instant createdAt;
+	private String description;
+
+	private Instant createdAt;
+
 }

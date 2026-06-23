@@ -11,23 +11,26 @@ import java.util.List;
 
 @RequiredArgsConstructor
 public class SelectorAllNode implements ASTNode {
-    private final String selector;
 
-    @Override
-    public Object evaluate(DslInterpreter interpreter) {
-        Object context = interpreter.getCurrentContext();
-        Elements elements = null;
+	private final String selector;
 
-        if (context instanceof Document) {
-            elements = ((Document) context).select(selector);
-        } else if (context instanceof Element) {
-            elements = ((Element) context).select(selector);
-        }
+	@Override
+	public Object evaluate(DslInterpreter interpreter) {
+		Object context = interpreter.getCurrentContext();
+		Elements elements = null;
 
-        if (elements == null || elements.isEmpty()) {
-            return new ArrayList<>();
-        }
+		if (context instanceof Document) {
+			elements = ((Document) context).select(selector);
+		}
+		else if (context instanceof Element) {
+			elements = ((Element) context).select(selector);
+		}
 
-        return new ArrayList<>(elements);
-    }
+		if (elements == null || elements.isEmpty()) {
+			return new ArrayList<>();
+		}
+
+		return new ArrayList<>(elements);
+	}
+
 }

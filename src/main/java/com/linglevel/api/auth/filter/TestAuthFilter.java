@@ -20,45 +20,46 @@ import java.util.List;
 import java.util.Optional;
 
 @Component
-@Profile({"local"})
+@Profile({ "local" })
 public class TestAuthFilter extends OncePerRequestFilter {
 
-    private final UserRepository userRepository;
+	private final UserRepository userRepository;
 
-    public TestAuthFilter(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+	public TestAuthFilter(UserRepository userRepository) {
+		this.userRepository = userRepository;
+	}
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
-        
-        String testUsername = request.getHeader("X-Test-Username");
-        
-        if (testUsername != null && !testUsername.trim().isEmpty()) {
-            Optional<User> userOptional = userRepository.findByUsername(testUsername);
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+			throws ServletException, IOException {
 
-            if (userOptional.isPresent()) {
-                User user = userOptional.get();
+		String testUsername = request.getHeader("X-Test-Username");
 
-                // JwtFilter와 일관성을 위해 JwtClaims 객체를 Principal로 사용
-                JwtClaims claims = JwtClaims.builder()
-                        .id(user.getId())
-                        .username(user.getUsername())
-                        .email(user.getEmail())
-                        .role(user.getRole())
-                        .provider(user.getProvider())
-                        .displayName(user.getDisplayName())
-                        .issuedAt(new Date())
-                        .expiresAt(new Date(System.currentTimeMillis() + 3600000)) // 1시간 후 만료
-                        .build();
+		if (testUsername != null && !testUsername.trim().isEmpty()) {
+			Optional<User> userOptional = userRepository.findByUsername(testUsername);
 
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(claims, null, List.of(new SimpleGrantedAuthority(user.getRole().getSecurityRole())));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
-        }
-        
-        chain.doFilter(request, response);
-    }
+			if (userOptional.isPresent()) {
+				User user = userOptional.get();
+
+				// JwtFilter와 일관성을 위해 JwtClaims 객체를 Principal로 사용
+				JwtClaims claims = JwtClaims.builder()
+					.id(user.getId())
+					.username(user.getUsername())
+					.email(user.getEmail())
+					.role(user.getRole())
+					.provider(user.getProvider())
+					.displayName(user.getDisplayName())
+					.issuedAt(new Date())
+					.expiresAt(new Date(System.currentTimeMillis() + 3600000)) // 1시간 후 만료
+					.build();
+
+				UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(claims,
+						null, List.of(new SimpleGrantedAuthority(user.getRole().getSecurityRole())));
+				SecurityContextHolder.getContext().setAuthentication(authentication);
+			}
+		}
+
+		chain.doFilter(request, response);
+	}
+
 }

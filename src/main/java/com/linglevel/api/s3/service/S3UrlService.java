@@ -8,19 +8,20 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class S3UrlService {
 
-    private final S3StaticService s3StaticService;
+	private final S3StaticService s3StaticService;
 
-    public String getCoverImageUrl(String id, S3PathStrategy pathStrategy) {
-        String path = pathStrategy.generateCoverImagePath(id);
-        return s3StaticService.getPublicUrl(path);
-    }
+	public String getCoverImageUrl(String id, S3PathStrategy pathStrategy) {
+		String path = pathStrategy.generateCoverImagePath(id);
+		return s3StaticService.getPublicUrl(path);
+	}
 
-    public String getImageUrl(String id, String imageFileName, S3PathStrategy pathStrategy) {
-        String path = pathStrategy.generateImagePath(id, imageFileName);
-        return s3StaticService.getPublicUrl(path);
-    }
+	public String getImageUrl(String id, String imageFileName, S3PathStrategy pathStrategy) {
+		String path = pathStrategy.generateImagePath(id, imageFileName);
+		return s3StaticService.getPublicUrl(path);
+	}
 
-    public String buildImageUrl(String id, String imageFileName, S3PathStrategy pathStrategy) {
-        return getImageUrl(id, imageFileName, pathStrategy);
-    }
+	public String buildImageUrl(String id, String imageFileName, S3PathStrategy pathStrategy) {
+		return getImageUrl(id, imageFileName, pathStrategy);
+	}
+
 }

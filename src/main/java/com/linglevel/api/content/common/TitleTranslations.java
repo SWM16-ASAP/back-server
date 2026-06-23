@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TitleTranslations {
 
-    private String ko;
-    private String ja;
+	private String ko;
+
+	private String ja;
+
 }

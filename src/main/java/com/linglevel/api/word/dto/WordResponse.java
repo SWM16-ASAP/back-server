@@ -15,33 +15,35 @@ import java.util.List;
 @AllArgsConstructor
 @Schema(description = "단어 응답")
 public class WordResponse {
-    @Schema(description = "단어 ID", example = "60d0fe4f5311236168a109ca")
-    private String id;
 
-    @Schema(description = "원형", example = "see")
-    private String originalForm;
+	@Schema(description = "단어 ID", example = "60d0fe4f5311236168a109ca")
+	private String id;
 
-    @Schema(description = "변형 형태 타입 (배열)")
-    private List<VariantType> variantTypes;
+	@Schema(description = "원형", example = "see")
+	private String originalForm;
 
-    @Schema(description = "원본 언어 코드", example = "en")
-    private LanguageCode sourceLanguageCode;
+	@Schema(description = "변형 형태 타입 (배열)")
+	private List<VariantType> variantTypes;
 
-    @Schema(description = "번역 대상 언어 코드", example = "ko")
-    private LanguageCode targetLanguageCode;
+	@Schema(description = "원본 언어 코드", example = "en")
+	private LanguageCode sourceLanguageCode;
 
-    @Schema(description = "자주 쓰이는 뜻 3개 요약", example = "[\"보다\", \"알다\", \"이해하다\"]")
-    private List<String> summary;
+	@Schema(description = "번역 대상 언어 코드", example = "ko")
+	private LanguageCode targetLanguageCode;
 
-    @Schema(description = "품사별 의미 목록")
-    private List<Meaning> meanings;
+	@Schema(description = "자주 쓰이는 뜻 3개 요약", example = "[\"보다\", \"알다\", \"이해하다\"]")
+	private List<String> summary;
 
-    @Schema(description = "관련 변형 형태들")
-    private RelatedForms relatedForms;
+	@Schema(description = "품사별 의미 목록")
+	private List<Meaning> meanings;
 
-    @Schema(description = "현재 사용자가 해당 단어를 북마크했는지 여부", example = "true")
-    private Boolean bookmarked;
+	@Schema(description = "관련 변형 형태들")
+	private RelatedForms relatedForms;
 
-    @Schema(description = "필수 단어 여부 (예: Oxford 3000)", example = "true")
-    private Boolean isEssential;
+	@Schema(description = "현재 사용자가 해당 단어를 북마크했는지 여부", example = "true")
+	private Boolean bookmarked;
+
+	@Schema(description = "필수 단어 여부 (예: Oxford 3000)", example = "true")
+	private Boolean isEssential;
+
 }

@@ -22,226 +22,222 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
 
-    private final MongoTemplate mongoTemplate;
+	private final MongoTemplate mongoTemplate;
 
-    @Override
-    public Page<Article> findArticlesWithFilters(GetArticlesRequest request, String userId, Pageable pageable) {
-        Query query = buildQuery(request, userId);
+	@Override
+	public Page<Article> findArticlesWithFilters(GetArticlesRequest request, String userId, Pageable pageable) {
+		Query query = buildQuery(request, userId);
 
-        // 총 개수 조회 (필터링 적용 후)
-        long total = mongoTemplate.count(query, Article.class);
+		// 총 개수 조회 (필터링 적용 후)
+		long total = mongoTemplate.count(query, Article.class);
 
-        // 페이지네이션 적용
-        query.with(pageable);
+		// 페이지네이션 적용
+		query.with(pageable);
 
-        // 데이터 조회
-        List<Article> articles = mongoTemplate.find(query, Article.class);
+		// 데이터 조회
+		List<Article> articles = mongoTemplate.find(query, Article.class);
 
-        return new PageImpl<>(articles, pageable, total);
-    }
+		return new PageImpl<>(articles, pageable, total);
+	}
 
-    /**
-     * 동적 쿼리 빌드
-     */
-    private Query buildQuery(GetArticlesRequest request, String userId) {
-        Query query = new Query();
+	/**
+	 * 동적 쿼리 빌드
+	 */
+	private Query buildQuery(GetArticlesRequest request, String userId) {
+		Query query = new Query();
 
-        // 각 필터를 독립적인 메서드로 분리
-        applyCategoryFilter(query, request.getCategory());
-        applyTagsFilter(query, request.getTags());
-        applyKeywordFilter(query, request.getKeyword());
-        applyProgressFilter(query, request.getProgress(), userId);
-        applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
-        applyCreatedAfterFilter(query, request.getCreatedAfter());
+		// 각 필터를 독립적인 메서드로 분리
+		applyCategoryFilter(query, request.getCategory());
+		applyTagsFilter(query, request.getTags());
+		applyKeywordFilter(query, request.getKeyword());
+		applyProgressFilter(query, request.getProgress(), userId);
+		applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
+		applyCreatedAfterFilter(query, request.getCreatedAfter());
 
-        return query;
-    }
+		return query;
+	}
 
-    /**
-     * 카테고리 필터 적용
-     */
-    private void applyCategoryFilter(Query query, ContentCategory category) {
-        if (category == null) {
-            return;
-        }
+	/**
+	 * 카테고리 필터 적용
+	 */
+	private void applyCategoryFilter(Query query, ContentCategory category) {
+		if (category == null) {
+			return;
+		}
 
-        query.addCriteria(Criteria.where("category").is(category));
-    }
+		query.addCriteria(Criteria.where("category").is(category));
+	}
 
-    /**
-     * 태그 필터 적용
-     */
-    private void applyTagsFilter(Query query, String tags) {
-        if (!StringUtils.hasText(tags)) {
-            return;
-        }
+	/**
+	 * 태그 필터 적용
+	 */
+	private void applyTagsFilter(Query query, String tags) {
+		if (!StringUtils.hasText(tags)) {
+			return;
+		}
 
-        List<String> tagList = Arrays.asList(tags.split(","));
-        query.addCriteria(Criteria.where("tags").in(tagList));
-    }
+		List<String> tagList = Arrays.asList(tags.split(","));
+		query.addCriteria(Criteria.where("tags").in(tagList));
+	}
 
-    /**
-     * 키워드 필터 적용 (제목 또는 작가)
-     */
-    private void applyKeywordFilter(Query query, String keyword) {
-        if (!StringUtils.hasText(keyword)) {
-            return;
-        }
+	/**
+	 * 키워드 필터 적용 (제목 또는 작가)
+	 */
+	private void applyKeywordFilter(Query query, String keyword) {
+		if (!StringUtils.hasText(keyword)) {
+			return;
+		}
 
-        Criteria keywordCriteria = new Criteria().orOperator(
-            Criteria.where("title").regex(keyword, "i"),
-            Criteria.where("author").regex(keyword, "i")
-        );
-        query.addCriteria(keywordCriteria);
-    }
+		Criteria keywordCriteria = new Criteria().orOperator(Criteria.where("title").regex(keyword, "i"),
+				Criteria.where("author").regex(keyword, "i"));
+		query.addCriteria(keywordCriteria);
+	}
 
-    /**
-     * 진도 필터 적용
-     */
-    private void applyProgressFilter(Query query, ProgressStatus progress, String userId) {
-        if (progress == null || userId == null) {
-            return;
-        }
+	/**
+	 * 진도 필터 적용
+	 */
+	private void applyProgressFilter(Query query, ProgressStatus progress, String userId) {
+		if (progress == null || userId == null) {
+			return;
+		}
 
-        List<String> articleIds = getArticleIdsByProgress(userId, progress);
-        if (!articleIds.isEmpty()) {
-            query.addCriteria(Criteria.where("id").in(articleIds));
-        } else {
-            // 조건에 맞는 아티클이 없으면 빈 결과 반환
-            query.addCriteria(Criteria.where("_id").is(null));
-        }
-    }
+		List<String> articleIds = getArticleIdsByProgress(userId, progress);
+		if (!articleIds.isEmpty()) {
+			query.addCriteria(Criteria.where("id").in(articleIds));
+		}
+		else {
+			// 조건에 맞는 아티클이 없으면 빈 결과 반환
+			query.addCriteria(Criteria.where("_id").is(null));
+		}
+	}
 
-    /**
-     * 타깃 언어 코드 필터 적용
-     */
-    private void applyTargetLanguageCodeFilter(Query query, LanguageCode targetLanguageCode) {
-        if (targetLanguageCode == null) {
-            return;
-        }
+	/**
+	 * 타깃 언어 코드 필터 적용
+	 */
+	private void applyTargetLanguageCodeFilter(Query query, LanguageCode targetLanguageCode) {
+		if (targetLanguageCode == null) {
+			return;
+		}
 
-        query.addCriteria(Criteria.where("targetLanguageCode").in(targetLanguageCode));
-    }
+		query.addCriteria(Criteria.where("targetLanguageCode").in(targetLanguageCode));
+	}
 
-    /**
-     * 생성 시간 필터 적용 (해당 시간 이후)
-     */
-    private void applyCreatedAfterFilter(Query query, java.time.LocalDateTime createdAfter) {
-        if (createdAfter == null) {
-            return;
-        }
+	/**
+	 * 생성 시간 필터 적용 (해당 시간 이후)
+	 */
+	private void applyCreatedAfterFilter(Query query, java.time.LocalDateTime createdAfter) {
+		if (createdAfter == null) {
+			return;
+		}
 
-        query.addCriteria(Criteria.where("createdAt").gte(createdAfter));
-    }
+		query.addCriteria(Criteria.where("createdAt").gte(createdAfter));
+	}
 
-    /**
-     * 진도 상태별 아티클 ID 목록 조회
-     */
-    private List<String> getArticleIdsByProgress(String userId, ProgressStatus progressStatus) {
-        return switch (progressStatus) {
-            case NOT_STARTED -> getNotStartedArticleIds(userId);
-            case IN_PROGRESS -> getInProgressArticleIds(userId);
-            case COMPLETED -> getCompletedArticleIds(userId);
-        };
-    }
+	/**
+	 * 진도 상태별 아티클 ID 목록 조회
+	 */
+	private List<String> getArticleIdsByProgress(String userId, ProgressStatus progressStatus) {
+		return switch (progressStatus) {
+			case NOT_STARTED -> getNotStartedArticleIds(userId);
+			case IN_PROGRESS -> getInProgressArticleIds(userId);
+			case COMPLETED -> getCompletedArticleIds(userId);
+		};
+	}
 
-    /**
-     * 시작하지 않은 아티클 ID 목록 조회
-     */
-    private List<String> getNotStartedArticleIds(String userId) {
-        // 모든 아티클 ID 조회
-        List<String> allArticleIds = mongoTemplate.findAll(Article.class).stream()
-                .map(Article::getId)
-                .toList();
+	/**
+	 * 시작하지 않은 아티클 ID 목록 조회
+	 */
+	private List<String> getNotStartedArticleIds(String userId) {
+		// 모든 아티클 ID 조회
+		List<String> allArticleIds = mongoTemplate.findAll(Article.class).stream().map(Article::getId).toList();
 
-        // 진도가 있는 아티클 ID 조회
-        List<String> progressArticleIds = findProgressArticleIds(userId);
+		// 진도가 있는 아티클 ID 조회
+		List<String> progressArticleIds = findProgressArticleIds(userId);
 
-        // 진도가 없는 아티클만 반환
-        return allArticleIds.stream()
-                .filter(articleId -> !progressArticleIds.contains(articleId))
-                .toList();
-    }
+		// 진도가 없는 아티클만 반환
+		return allArticleIds.stream().filter(articleId -> !progressArticleIds.contains(articleId)).toList();
+	}
 
-    /**
-     * 진행 중인 아티클 ID 목록 조회
-     */
-    private List<String> getInProgressArticleIds(String userId) {
-        Query query = new Query();
-        query.addCriteria(Criteria.where("userId").is(userId));
-        query.addCriteria(Criteria.where("isCompleted").is(false));
-        query.addCriteria(Criteria.where("currentReadChunkNumber").gt(0));
+	/**
+	 * 진행 중인 아티클 ID 목록 조회
+	 */
+	private List<String> getInProgressArticleIds(String userId) {
+		Query query = new Query();
+		query.addCriteria(Criteria.where("userId").is(userId));
+		query.addCriteria(Criteria.where("isCompleted").is(false));
+		query.addCriteria(Criteria.where("currentReadChunkNumber").gt(0));
 
-        return findArticleIdsFromProgress(query);
-    }
+		return findArticleIdsFromProgress(query);
+	}
 
-    /**
-     * 완료한 아티클 ID 목록 조회
-     */
-    private List<String> getCompletedArticleIds(String userId) {
-        Query query = new Query();
-        query.addCriteria(Criteria.where("userId").is(userId));
-        query.addCriteria(Criteria.where("isCompleted").is(true));
+	/**
+	 * 완료한 아티클 ID 목록 조회
+	 */
+	private List<String> getCompletedArticleIds(String userId) {
+		Query query = new Query();
+		query.addCriteria(Criteria.where("userId").is(userId));
+		query.addCriteria(Criteria.where("isCompleted").is(true));
 
-        return findArticleIdsFromProgress(query);
-    }
+		return findArticleIdsFromProgress(query);
+	}
 
-    /**
-     * 특정 사용자의 모든 진도 아티클 ID 조회
-     */
-    private List<String> findProgressArticleIds(String userId) {
-        Query query = new Query();
-        query.addCriteria(Criteria.where("userId").is(userId));
+	/**
+	 * 특정 사용자의 모든 진도 아티클 ID 조회
+	 */
+	private List<String> findProgressArticleIds(String userId) {
+		Query query = new Query();
+		query.addCriteria(Criteria.where("userId").is(userId));
 
-        return findArticleIdsFromProgress(query);
-    }
+		return findArticleIdsFromProgress(query);
+	}
 
-    /**
-     * ArticleProgress 컬렉션에서 articleId 추출
-     */
-    private List<String> findArticleIdsFromProgress(Query query) {
-        return mongoTemplate.find(query, org.bson.Document.class, "articleProgress")
-                .stream()
-                .map(doc -> doc.getString("articleId"))
-                .toList();
-    }
+	/**
+	 * ArticleProgress 컬렉션에서 articleId 추출
+	 */
+	private List<String> findArticleIdsFromProgress(Query query) {
+		return mongoTemplate.find(query, org.bson.Document.class, "articleProgress")
+			.stream()
+			.map(doc -> doc.getString("articleId"))
+			.toList();
+	}
 
-    @Override
-    public Page<Article> findArticleOriginsWithFilters(GetArticleOriginsRequest request, Pageable pageable) {
-        Query query = buildOriginQuery(request);
+	@Override
+	public Page<Article> findArticleOriginsWithFilters(GetArticleOriginsRequest request, Pageable pageable) {
+		Query query = buildOriginQuery(request);
 
-        // 총 개수 조회
-        long total = mongoTemplate.count(query, Article.class);
+		// 총 개수 조회
+		long total = mongoTemplate.count(query, Article.class);
 
-        // 페이지네이션 적용
-        query.with(pageable);
+		// 페이지네이션 적용
+		query.with(pageable);
 
-        // 데이터 조회
-        List<Article> articles = mongoTemplate.find(query, Article.class);
+		// 데이터 조회
+		List<Article> articles = mongoTemplate.find(query, Article.class);
 
-        return new PageImpl<>(articles, pageable, total);
-    }
+		return new PageImpl<>(articles, pageable, total);
+	}
 
-    /**
-     * originUrl 조회용 동적 쿼리 빌드
-     */
-    private Query buildOriginQuery(GetArticleOriginsRequest request) {
-        Query query = new Query();
+	/**
+	 * originUrl 조회용 동적 쿼리 빌드
+	 */
+	private Query buildOriginQuery(GetArticleOriginsRequest request) {
+		Query query = new Query();
 
-        // originUrl이 null이 아닌 것만 조회
-        query.addCriteria(Criteria.where("originUrl").ne(null));
+		// originUrl이 null이 아닌 것만 조회
+		query.addCriteria(Criteria.where("originUrl").ne(null));
 
-        applyCategoryFilter(query, request.getCategoryEnum());
-        applyTagsFilter(query, request.getTags());
-        applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
+		applyCategoryFilter(query, request.getCategoryEnum());
+		applyTagsFilter(query, request.getTags());
+		applyTargetLanguageCodeFilter(query, request.getTargetLanguageCode());
 
-        return query;
-    }
+		return query;
+	}
 
-    @Override
-    public void incrementViewCount(String articleId) {
-        Query query = new Query(Criteria.where("id").is(articleId));
-        Update update = new Update().inc("viewCount", 1);
-        mongoTemplate.updateFirst(query, update, Article.class);
-    }
+	@Override
+	public void incrementViewCount(String articleId) {
+		Query query = new Query(Criteria.where("id").is(articleId));
+		Update update = new Update().inc("viewCount", 1);
+		mongoTemplate.updateFirst(query, update, Article.class);
+	}
+
 }

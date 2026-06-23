@@ -12,11 +12,14 @@ import java.util.Optional;
 
 public interface TicketTransactionRepository extends MongoRepository<TicketTransaction, String> {
 
-    Page<TicketTransaction> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
+	Page<TicketTransaction> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
 
-    Page<TicketTransaction> findByUserIdAndStatusOrderByCreatedAtDesc(String userId, TransactionStatus status, Pageable pageable);
+	Page<TicketTransaction> findByUserIdAndStatusOrderByCreatedAtDesc(String userId, TransactionStatus status,
+			Pageable pageable);
 
-    Optional<TicketTransaction> findByReservationIdAndStatus(String reservationId, TransactionStatus status);
+	Optional<TicketTransaction> findByReservationIdAndStatus(String reservationId, TransactionStatus status);
 
-    List<TicketTransaction> findByUserIdAndAmountAndCreatedAtBetween(String userId, Integer amount, LocalDateTime startDateTime, LocalDateTime endDateTime);
+	List<TicketTransaction> findByUserIdAndAmountAndCreatedAtBetween(String userId, Integer amount,
+			LocalDateTime startDateTime, LocalDateTime endDateTime);
+
 }

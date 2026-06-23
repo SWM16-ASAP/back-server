@@ -12,11 +12,12 @@ import java.util.Optional;
 @Repository
 public interface UserCustomContentRepository extends MongoRepository<UserCustomContent, String> {
 
-    Optional<UserCustomContent> findByUserIdAndCustomContentId(String userId, String customContentId);
+	Optional<UserCustomContent> findByUserIdAndCustomContentId(String userId, String customContentId);
 
-    Page<UserCustomContent> findByUserId(String userId, Pageable pageable);
+	Page<UserCustomContent> findByUserId(String userId, Pageable pageable);
 
-    List<UserCustomContent> findByUserId(String userId);
+	List<UserCustomContent> findByUserId(String userId);
 
-    boolean existsByUserIdAndCustomContentId(String userId, String customContentId);
+	boolean existsByUserIdAndCustomContentId(String userId, String customContentId);
+
 }

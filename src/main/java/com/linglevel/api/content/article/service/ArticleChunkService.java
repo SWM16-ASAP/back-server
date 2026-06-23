@@ -26,59 +26,63 @@ import java.util.List;
 @Slf4j
 public class ArticleChunkService {
 
-    private final ArticleChunkRepository articleChunkRepository;
-    private final ArticleRepository articleRepository;
+	private final ArticleChunkRepository articleChunkRepository;
 
-    public PageResponse<ArticleChunkResponse> getArticleChunks(String articleId, GetArticleChunksRequest request, String userId) {
-        articleRepository.incrementViewCount(articleId);
+	private final ArticleRepository articleRepository;
 
-        DifficultyLevel difficulty = request.getDifficultyLevel();
+	public PageResponse<ArticleChunkResponse> getArticleChunks(String articleId, GetArticleChunksRequest request,
+			String userId) {
+		articleRepository.incrementViewCount(articleId);
 
-        validatePaginationRequest(request);
-        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit());
+		DifficultyLevel difficulty = request.getDifficultyLevel();
 
-        Page<ArticleChunk> chunksPage = articleChunkRepository.findByArticleIdAndDifficultyLevelOrderByChunkNumber(
-                articleId, difficulty, pageable);
+		validatePaginationRequest(request);
+		Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit());
 
-        List<ArticleChunkResponse> chunkResponses = chunksPage.getContent().stream()
-                .map(this::convertToArticleChunkResponse)
-                .toList();
+		Page<ArticleChunk> chunksPage = articleChunkRepository
+			.findByArticleIdAndDifficultyLevelOrderByChunkNumber(articleId, difficulty, pageable);
 
-        return PageResponse.of(chunksPage, chunkResponses);
-    }
+		List<ArticleChunkResponse> chunkResponses = chunksPage.getContent()
+			.stream()
+			.map(this::convertToArticleChunkResponse)
+			.toList();
 
-    public ArticleChunkResponse getArticleChunk(String articleId, String chunkId) {
-        validateArticleExists(articleId);
+		return PageResponse.of(chunksPage, chunkResponses);
+	}
 
-        ArticleChunk chunk = articleChunkRepository.findByArticleIdAndId(articleId, chunkId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
-        
-        return convertToArticleChunkResponse(chunk);
-    }
+	public ArticleChunkResponse getArticleChunk(String articleId, String chunkId) {
+		validateArticleExists(articleId);
 
-    private void validateArticleExists(String articleId) {
-        if (!articleRepository.existsById(articleId)) {
-            throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
-        }
-    }
+		ArticleChunk chunk = articleChunkRepository.findByArticleIdAndId(articleId, chunkId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
 
-    private void validatePaginationRequest(GetArticleChunksRequest request) {
-        if (request.getLimit() != null && request.getLimit() > 100) {
-            request.setLimit(100);
-        }
-    }
+		return convertToArticleChunkResponse(chunk);
+	}
 
-    public ArticleChunk findById(String chunkId) {
-        return articleChunkRepository.findById(chunkId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
-    }
+	private void validateArticleExists(String articleId) {
+		if (!articleRepository.existsById(articleId)) {
+			throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
+		}
+	}
 
-    public ArticleChunk findFirstByArticleId(String articleId) {
-        return articleChunkRepository.findFirstByArticleIdOrderByChunkNumber(articleId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
-    }
+	private void validatePaginationRequest(GetArticleChunksRequest request) {
+		if (request.getLimit() != null && request.getLimit() > 100) {
+			request.setLimit(100);
+		}
+	}
 
-    private ArticleChunkResponse convertToArticleChunkResponse(ArticleChunk chunk) {
-        return ArticleChunkResponse.from(chunk);
-    }
+	public ArticleChunk findById(String chunkId) {
+		return articleChunkRepository.findById(chunkId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
+	}
+
+	public ArticleChunk findFirstByArticleId(String articleId) {
+		return articleChunkRepository.findFirstByArticleIdOrderByChunkNumber(articleId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
+	}
+
+	private ArticleChunkResponse convertToArticleChunkResponse(ArticleChunk chunk) {
+		return ArticleChunkResponse.from(chunk);
+	}
+
 }

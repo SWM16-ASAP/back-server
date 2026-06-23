@@ -11,10 +11,11 @@ import java.util.Optional;
 
 @Repository
 public interface ContentRequestRepository extends MongoRepository<ContentRequest, String> {
-    
-    Page<ContentRequest> findByUserIdAndStatusNot(String userId, ContentRequestStatus status, Pageable pageable);
-    
-    Page<ContentRequest> findByUserIdAndStatus(String userId, ContentRequestStatus status, Pageable pageable);
-    
-    Optional<ContentRequest> findByIdAndUserId(String id, String userId);
+
+	Page<ContentRequest> findByUserIdAndStatusNot(String userId, ContentRequestStatus status, Pageable pageable);
+
+	Page<ContentRequest> findByUserIdAndStatus(String userId, ContentRequestStatus status, Pageable pageable);
+
+	Optional<ContentRequest> findByIdAndUserId(String id, String userId);
+
 }

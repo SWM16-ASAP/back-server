@@ -21,96 +21,107 @@ import java.time.Instant;
 @Slf4j
 public class ContentAccessEventListener {
 
-    private final ContentAccessLogRepository contentAccessLogRepository;
-    private final FeedRepository feedRepository;
-    private final CustomContentRepository customContentRepository;
+	private final ContentAccessLogRepository contentAccessLogRepository;
 
-    @Async
-    @EventListener
-    public void handleContentAccessEvent(ContentAccessEvent event) {
-        try {
-            // CustomContent인 경우 Feed에서 category 가져오기
-            var category = event.getCategory();
-            if (event.getContentType() == ContentType.CUSTOM && category == null) {
-                category = getCategoryFromFeed(event.getContentId());
-            }
+	private final FeedRepository feedRepository;
 
-            // 1. ContentAccessLog 저장 (readTimeSeconds 포함)
-            ContentAccessLog accessLog = ContentAccessLog.builder()
-                    .userId(event.getUserId())
-                    .contentId(event.getContentId())
-                    .contentType(event.getContentType())
-                    .category(category)
-                    .readTimeSeconds(event.getReadTimeSeconds())
-                    .accessedAt(Instant.now())
-                    .build();
+	private final CustomContentRepository customContentRepository;
 
-            contentAccessLogRepository.save(accessLog);
-            log.debug("Content access logged: userId={}, contentId={}, contentType={}, category={}, readTimeSeconds={}",
-                    event.getUserId(), event.getContentId(), event.getContentType(),
-                    category, event.getReadTimeSeconds());
+	@Async
+	@EventListener
+	public void handleContentAccessEvent(ContentAccessEvent event) {
+		try {
+			// CustomContent인 경우 Feed에서 category 가져오기
+			var category = event.getCategory();
+			if (event.getContentType() == ContentType.CUSTOM && category == null) {
+				category = getCategoryFromFeed(event.getContentId());
+			}
 
-            // 2. CustomContent인 경우 Feed의 avgReadTimeSeconds 업데이트
-            if (event.getContentType() == ContentType.CUSTOM && event.getReadTimeSeconds() != null) {
-                updateFeedAvgReadTime(event.getContentId(), event.getReadTimeSeconds());
-            }
-        } catch (Exception e) {
-            log.error("Failed to log content access", e);
-        }
-    }
+			// 1. ContentAccessLog 저장 (readTimeSeconds 포함)
+			ContentAccessLog accessLog = ContentAccessLog.builder()
+				.userId(event.getUserId())
+				.contentId(event.getContentId())
+				.contentType(event.getContentType())
+				.category(category)
+				.readTimeSeconds(event.getReadTimeSeconds())
+				.accessedAt(Instant.now())
+				.build();
 
-    /**
-     * CustomContent의 originUrl로 Feed의 category를 가져옴
-     */
-    private ContentCategory getCategoryFromFeed(String customContentId) {
-        try {
-            CustomContent customContent = customContentRepository.findById(customContentId).orElse(null);
-            if (customContent == null || customContent.getOriginUrl() == null || customContent.getOriginUrl().isEmpty()) {
-                return null;
-            }
+			contentAccessLogRepository.save(accessLog);
+			log.debug("Content access logged: userId={}, contentId={}, contentType={}, category={}, readTimeSeconds={}",
+					event.getUserId(), event.getContentId(), event.getContentType(), category,
+					event.getReadTimeSeconds());
 
-            Feed feed = feedRepository.findByUrl(customContent.getOriginUrl()).orElse(null);
-            if (feed == null) {
-                return null;
-            }
+			// 2. CustomContent인 경우 Feed의 avgReadTimeSeconds 업데이트
+			if (event.getContentType() == ContentType.CUSTOM && event.getReadTimeSeconds() != null) {
+				updateFeedAvgReadTime(event.getContentId(), event.getReadTimeSeconds());
+			}
+		}
+		catch (Exception e) {
+			log.error("Failed to log content access", e);
+		}
+	}
 
-            return feed.getCategory();
-        } catch (Exception e) {
-            log.error("Failed to get category from Feed for customContentId: {}", customContentId, e);
-            return null;
-        }
-    }
+	/**
+	 * CustomContent의 originUrl로 Feed의 category를 가져옴
+	 */
+	private ContentCategory getCategoryFromFeed(String customContentId) {
+		try {
+			CustomContent customContent = customContentRepository.findById(customContentId).orElse(null);
+			if (customContent == null || customContent.getOriginUrl() == null
+					|| customContent.getOriginUrl().isEmpty()) {
+				return null;
+			}
 
-    private void updateFeedAvgReadTime(String customContentId, Integer readTimeSeconds) {
-        try {
-            // CustomContent 조회하여 originUrl 가져오기
-            CustomContent customContent = customContentRepository.findById(customContentId).orElse(null);
-            if (customContent == null || customContent.getOriginUrl() == null || customContent.getOriginUrl().isEmpty()) {
-                return;
-            }
+			Feed feed = feedRepository.findByUrl(customContent.getOriginUrl()).orElse(null);
+			if (feed == null) {
+				return null;
+			}
 
-            // Feed 조회 (originUrl 기반)
-            Feed feed = feedRepository.findByUrl(customContent.getOriginUrl()).orElse(null);
-            if (feed == null) {
-                return;
-            }
+			return feed.getCategory();
+		}
+		catch (Exception e) {
+			log.error("Failed to get category from Feed for customContentId: {}", customContentId, e);
+			return null;
+		}
+	}
 
-            // 평균 읽기 시간 갱신 (이동 평균)
-            Integer currentViewCount = feed.getViewCount() != null ? feed.getViewCount() : 0;
-            Double currentAvg = feed.getAvgReadTimeSeconds() != null ? feed.getAvgReadTimeSeconds() : 0.0;
+	private void updateFeedAvgReadTime(String customContentId, Integer readTimeSeconds) {
+		try {
+			// CustomContent 조회하여 originUrl 가져오기
+			CustomContent customContent = customContentRepository.findById(customContentId).orElse(null);
+			if (customContent == null || customContent.getOriginUrl() == null
+					|| customContent.getOriginUrl().isEmpty()) {
+				return;
+			}
 
-            if (currentViewCount <= 1) {
-                feed.setAvgReadTimeSeconds(readTimeSeconds.doubleValue());
-            } else {
-                // 이동 평균 계산: (기존평균 × (현재횟수-1) + 새값) / 현재횟수
-                Double newAvg = ((currentAvg * (currentViewCount - 1)) + readTimeSeconds) / currentViewCount.doubleValue();
-                feed.setAvgReadTimeSeconds(newAvg);
-            }
+			// Feed 조회 (originUrl 기반)
+			Feed feed = feedRepository.findByUrl(customContent.getOriginUrl()).orElse(null);
+			if (feed == null) {
+				return;
+			}
 
-            feedRepository.save(feed);
-            log.debug("Updated Feed avgReadTimeSeconds: feedId={}, newAvg={}", feed.getId(), feed.getAvgReadTimeSeconds());
-        } catch (Exception e) {
-            log.error("Failed to update Feed avgReadTimeSeconds for customContentId: {}", customContentId, e);
-        }
-    }
+			// 평균 읽기 시간 갱신 (이동 평균)
+			Integer currentViewCount = feed.getViewCount() != null ? feed.getViewCount() : 0;
+			Double currentAvg = feed.getAvgReadTimeSeconds() != null ? feed.getAvgReadTimeSeconds() : 0.0;
+
+			if (currentViewCount <= 1) {
+				feed.setAvgReadTimeSeconds(readTimeSeconds.doubleValue());
+			}
+			else {
+				// 이동 평균 계산: (기존평균 × (현재횟수-1) + 새값) / 현재횟수
+				Double newAvg = ((currentAvg * (currentViewCount - 1)) + readTimeSeconds)
+						/ currentViewCount.doubleValue();
+				feed.setAvgReadTimeSeconds(newAvg);
+			}
+
+			feedRepository.save(feed);
+			log.debug("Updated Feed avgReadTimeSeconds: feedId={}, newAvg={}", feed.getId(),
+					feed.getAvgReadTimeSeconds());
+		}
+		catch (Exception e) {
+			log.error("Failed to update Feed avgReadTimeSeconds for customContentId: {}", customContentId, e);
+		}
+	}
+
 }

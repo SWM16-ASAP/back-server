@@ -24,313 +24,307 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 @Slf4j
 public class ProgressService {
-    private static final int CHAPTER_POSITION_SHIFT = 16;
-    private static final int CHAPTER_NUMBER_MAX = 0x7FFF; // 32767
-    private static final int CHUNK_NUMBER_MAX = 0xFFFF; // 65535
 
-    private final BookService bookService;
-    private final ChapterService chapterService;
-    private final ChunkService chunkService;
-    private final BookProgressRepository bookProgressRepository;
-    private final ChunkRepository chunkRepository;
-    private final ReadingCompletionService readingCompletionService;
-    private final StreakService streakService;
-    private final ChapterRepository chapterRepository;
+	private static final int CHAPTER_POSITION_SHIFT = 16;
 
+	private static final int CHAPTER_NUMBER_MAX = 0x7FFF; // 32767
 
-    @Transactional
-    public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String userId) {
-        if (!bookService.existsById(bookId)) {
-            throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
-        }
+	private static final int CHUNK_NUMBER_MAX = 0xFFFF; // 65535
 
-        // chunkId로부터 chunk 정보 조회
-        Chunk chunk = chunkService.findById(request.getChunkId());
+	private final BookService bookService;
 
-        // chunk로부터 chapter 역추산
-        if (chunk.getChapterId() == null) {
-            throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
-        }
-        Chapter chapter = chapterService.findById(chunk.getChapterId());
+	private final ChapterService chapterService;
 
-        if (!chapter.getBookId().equals(bookId)) {
-            throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND_IN_BOOK);
-        }
+	private final ChunkService chunkService;
 
-        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
-                .orElse(new BookProgress());
+	private final BookProgressRepository bookProgressRepository;
 
-        ensureMigrated(bookProgress);
+	private final ChunkRepository chunkRepository;
 
-        // Null 체크
-        if (chapter.getChapterNumber() == null || chunk.getChunkNumber() == null) {
-            throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
-        }
+	private final ReadingCompletionService readingCompletionService;
 
-        bookProgress.setUserId(userId);
-        bookProgress.setBookId(bookId);
-        bookProgress.setChapterId(chapter.getId()); // 역추산된 chapter ID
-        bookProgress.setChunkId(request.getChunkId());
-        bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
-        bookProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+	private final StreakService streakService;
 
-        // [V3_CHAPTER_BASED] 챕터별 진행률 계산
-        long totalChunksInChapter = chunkRepository.countByChapterIdAndDifficultyLevel(
-            chapter.getId(), chunk.getDifficultyLevel()
-        );
-        double chapterProgressPercentage = totalChunksInChapter > 0
-            ? (chunk.getChunkNumber() * 100.0 / totalChunksInChapter)
-            : 0.0;
+	private final ChapterRepository chapterRepository;
 
-        // 챕터 진행률 배열 초기화 (null 체크)
-        if (bookProgress.getChapterProgresses() == null) {
-            bookProgress.setChapterProgresses(new ArrayList<>());
-        }
+	@Transactional
+	public ProgressResponse updateProgress(String bookId, ProgressUpdateRequest request, String userId) {
+		if (!bookService.existsById(bookId)) {
+			throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
+		}
 
-        // 현재 챕터의 진행률 업데이트 (배열 구조)
-        updateOrAddChapterProgress(bookProgress, chapter.getChapterNumber(), chapterProgressPercentage, false, null);
+		// chunkId로부터 chunk 정보 조회
+		Chunk chunk = chunkService.findById(request.getChunkId());
 
-        // 책 전체 진행률 = 완료된 챕터 수 / 전체 챕터 수
-        Integer totalChapters = chapterRepository.countByBookId(bookId);
-        long completedCount = getCompletedChapterCount(bookProgress);
-        double bookProgress_normalizedProgress = totalChapters > 0
-            ? (completedCount * 100.0 / totalChapters)
-            : 0.0;
+		// chunk로부터 chapter 역추산
+		if (chunk.getChapterId() == null) {
+			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
+		}
+		Chapter chapter = chapterService.findById(chunk.getChapterId());
 
-        bookProgress.setNormalizedProgress(bookProgress_normalizedProgress);
+		if (!chapter.getBookId().equals(bookId)) {
+			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND_IN_BOOK);
+		}
 
-        // max 진도 업데이트 (현재 읽고 있는 챕터 번호 기준)
-        Integer currentChapterNum = chapter.getChapterNumber();
-        Integer maxChapterNum = bookProgress.getMaxReadChapterNumber();
+		BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
+			.orElse(new BookProgress());
 
-        if (maxChapterNum == null || currentChapterNum > maxChapterNum) {
-            bookProgress.setMaxReadChapterNumber(currentChapterNum);
-        }
+		ensureMigrated(bookProgress);
 
-        int currentChunkPosition = toChapterFirstPosition(chapter.getChapterNumber(), chunk.getChunkNumber());
-        Integer maxChunkPosition = bookProgress.getMaxReadChunkNumber();
-        if (maxChunkPosition == null || currentChunkPosition > maxChunkPosition) {
-            bookProgress.setMaxReadChunkNumber(currentChunkPosition);
-        }
+		// Null 체크
+		if (chapter.getChapterNumber() == null || chunk.getChunkNumber() == null) {
+			throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
+		}
 
-        // maxNormalizedProgress는 완료된 챕터 기반으로 설정
-        bookProgress.setMaxNormalizedProgress(bookProgress_normalizedProgress);
+		bookProgress.setUserId(userId);
+		bookProgress.setBookId(bookId);
+		bookProgress.setChapterId(chapter.getId()); // 역추산된 chapter ID
+		bookProgress.setChunkId(request.getChunkId());
+		bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
+		bookProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
-        // 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
-        // Book은 category가 없으므로 null 전달 (추천 시스템 집계에서 자동 제외됨)
-        Long readTimeSeconds = readingCompletionService.processReadingCompletion(
-                userId,
-                ContentType.BOOK,
-                chapter.getId(),
-                null
-        );
+		// [V3_CHAPTER_BASED] 챕터별 진행률 계산
+		long totalChunksInChapter = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(),
+				chunk.getDifficultyLevel());
+		double chapterProgressPercentage = totalChunksInChapter > 0
+				? (chunk.getChunkNumber() * 100.0 / totalChunksInChapter) : 0.0;
 
-        // 스트릭 검사 및 완료 처리 로직
-        boolean streakUpdated = false;
-        if (isLastChunkInChapter(chunk)) {
-            // 1. 챕터 완료 처리
-            BookProgress.ChapterProgressInfo existingProgress = findChapterProgress(bookProgress, chapter.getChapterNumber());
-            boolean isFirstCompletion = existingProgress == null || !Boolean.TRUE.equals(existingProgress.getIsCompleted());
+		// 챕터 진행률 배열 초기화 (null 체크)
+		if (bookProgress.getChapterProgresses() == null) {
+			bookProgress.setChapterProgresses(new ArrayList<>());
+		}
 
-            // 챕터 진행률을 100%로 설정하고 완료 처리
-            updateOrAddChapterProgress(
-                bookProgress,
-                chapter.getChapterNumber(),
-                100.0,
-                true,
-                isFirstCompletion ? java.time.Instant.now() : existingProgress.getCompletedAt()
-            );
+		// 현재 챕터의 진행률 업데이트 (배열 구조)
+		updateOrAddChapterProgress(bookProgress, chapter.getChapterNumber(), chapterProgressPercentage, false, null);
 
-            log.info("Chapter {} completed for book {} (first completion: {})",
-                chapter.getChapterNumber(), bookId, isFirstCompletion);
+		// 책 전체 진행률 = 완료된 챕터 수 / 전체 챕터 수
+		Integer totalChapters = chapterRepository.countByBookId(bookId);
+		long completedCount = getCompletedChapterCount(bookProgress);
+		double bookProgress_normalizedProgress = totalChapters > 0 ? (completedCount * 100.0 / totalChapters) : 0.0;
 
-            // 스트릭 업데이트 (30초 이상 읽은 경우에만)
-            if (readTimeSeconds != null && readTimeSeconds >= 30) {
-                streakService.addStudyTime(userId, readTimeSeconds);
-                streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, chapter.getId());
-                streakService.addCompletedContent(userId, ContentType.BOOK, chapter.getId(), streakUpdated);
-            }
+		bookProgress.setNormalizedProgress(bookProgress_normalizedProgress);
 
-            // 3. 책 전체 완료 확인 (모든 챕터 완료 시)
-            boolean allChaptersCompleted = getCompletedChapterCount(bookProgress) >= totalChapters;
-            if (allChaptersCompleted && bookProgress.getCompletedAt() == null) {
-                bookProgress.setIsCompleted(true);
-                bookProgress.setCompletedAt(java.time.Instant.now());
-                log.info("Book {} fully completed (all {} chapters) by user {}", bookId, totalChapters, userId);
-            }
-        }
+		// max 진도 업데이트 (현재 읽고 있는 챕터 번호 기준)
+		Integer currentChapterNum = chapter.getChapterNumber();
+		Integer maxChapterNum = bookProgress.getMaxReadChapterNumber();
 
-        bookProgressRepository.save(bookProgress);
+		if (maxChapterNum == null || currentChapterNum > maxChapterNum) {
+			bookProgress.setMaxReadChapterNumber(currentChapterNum);
+		}
 
-        return convertToProgressResponse(bookProgress, streakUpdated);
-    }
+		int currentChunkPosition = toChapterFirstPosition(chapter.getChapterNumber(), chunk.getChunkNumber());
+		Integer maxChunkPosition = bookProgress.getMaxReadChunkNumber();
+		if (maxChunkPosition == null || currentChunkPosition > maxChunkPosition) {
+			bookProgress.setMaxReadChunkNumber(currentChunkPosition);
+		}
 
-    /**
-     * 현재 청크가 챕터의 마지막 청크인지 확인
-     */
-    private boolean isLastChunkInChapter(Chunk chunk) {
-        long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(
-            chunk.getChapterId(), chunk.getDifficultyLevel()
-        );
-        return chunk.getChunkNumber() >= totalChunks;
-    }
+		// maxNormalizedProgress는 완료된 챕터 기반으로 설정
+		bookProgress.setMaxNormalizedProgress(bookProgress_normalizedProgress);
 
-    /**
-     * 챕터 진행률 정보 찾기
-     */
-    private BookProgress.ChapterProgressInfo findChapterProgress(BookProgress bookProgress, Integer chapterNumber) {
-        if (bookProgress.getChapterProgresses() == null) {
-            return null;
-        }
-        return bookProgress.getChapterProgresses().stream()
-            .filter(cp -> chapterNumber.equals(cp.getChapterNumber()))
-            .findFirst()
-            .orElse(null);
-    }
+		// 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
+		// Book은 category가 없으므로 null 전달 (추천 시스템 집계에서 자동 제외됨)
+		Long readTimeSeconds = readingCompletionService.processReadingCompletion(userId, ContentType.BOOK,
+				chapter.getId(), null);
 
-    /**
-     * 챕터 진행률 업데이트 또는 추가
-     */
-    private void updateOrAddChapterProgress(
-        BookProgress bookProgress,
-        Integer chapterNumber,
-        Double progressPercentage,
-        Boolean isCompleted,
-        java.time.Instant completedAt
-    ) {
-        BookProgress.ChapterProgressInfo existing = findChapterProgress(bookProgress, chapterNumber);
+		// 스트릭 검사 및 완료 처리 로직
+		boolean streakUpdated = false;
+		if (isLastChunkInChapter(chunk)) {
+			// 1. 챕터 완료 처리
+			BookProgress.ChapterProgressInfo existingProgress = findChapterProgress(bookProgress,
+					chapter.getChapterNumber());
+			boolean isFirstCompletion = existingProgress == null
+					|| !Boolean.TRUE.equals(existingProgress.getIsCompleted());
 
-        if (existing != null) {
-            // 기존 항목 업데이트
-            existing.setProgressPercentage(progressPercentage);
-            existing.setIsCompleted(isCompleted);
-            if (completedAt != null) {
-                existing.setCompletedAt(completedAt);
-            }
-        } else {
-            // 새 항목 추가
-            BookProgress.ChapterProgressInfo newProgress = BookProgress.ChapterProgressInfo.builder()
-                .chapterNumber(chapterNumber)
-                .progressPercentage(progressPercentage)
-                .isCompleted(isCompleted)
-                .completedAt(completedAt)
-                .build();
-            bookProgress.getChapterProgresses().add(newProgress);
-        }
-    }
+			// 챕터 진행률을 100%로 설정하고 완료 처리
+			updateOrAddChapterProgress(bookProgress, chapter.getChapterNumber(), 100.0, true,
+					isFirstCompletion ? java.time.Instant.now() : existingProgress.getCompletedAt());
 
-    /**
-     * 완료된 챕터 수 계산
-     */
-    private long getCompletedChapterCount(BookProgress bookProgress) {
-        if (bookProgress.getChapterProgresses() == null) {
-            return 0;
-        }
-        return bookProgress.getChapterProgresses().stream()
-            .filter(cp -> Boolean.TRUE.equals(cp.getIsCompleted()))
-            .count();
-    }
+			log.info("Chapter {} completed for book {} (first completion: {})", chapter.getChapterNumber(), bookId,
+					isFirstCompletion);
 
-    /**
-     * V3 마이그레이션 보장
-     * updateProgress 시점에 한 번만 실행
-     */
-    private void ensureMigrated(BookProgress progress) {
-        boolean needsMigration = false;
+			// 스트릭 업데이트 (30초 이상 읽은 경우에만)
+			if (readTimeSeconds != null && readTimeSeconds >= 30) {
+				streakService.addStudyTime(userId, readTimeSeconds);
+				streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, chapter.getId());
+				streakService.addCompletedContent(userId, ContentType.BOOK, chapter.getId(), streakUpdated);
+			}
 
-        // V3 필드 초기화
-        if (progress.getChapterProgresses() == null) {
-            progress.setChapterProgresses(new ArrayList<>());
-            needsMigration = true;
-        }
+			// 3. 책 전체 완료 확인 (모든 챕터 완료 시)
+			boolean allChaptersCompleted = getCompletedChapterCount(bookProgress) >= totalChapters;
+			if (allChaptersCompleted && bookProgress.getCompletedAt() == null) {
+				bookProgress.setIsCompleted(true);
+				bookProgress.setCompletedAt(java.time.Instant.now());
+				log.info("Book {} fully completed (all {} chapters) by user {}", bookId, totalChapters, userId);
+			}
+		}
 
-        if (needsMigration) {
-            log.info("V3 migration completed for BookProgress id={}, userId={}",
-                progress.getId(), progress.getUserId());
-        }
-    }
+		bookProgressRepository.save(bookProgress);
 
+		return convertToProgressResponse(bookProgress, streakUpdated);
+	}
 
-    @Transactional(readOnly = true)
-    public ProgressResponse getProgress(String bookId, String userId) {
-        if (!bookService.existsById(bookId)) {
-            throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
-        }
+	/**
+	 * 현재 청크가 챕터의 마지막 청크인지 확인
+	 */
+	private boolean isLastChunkInChapter(Chunk chunk) {
+		long totalChunks = chunkRepository.countByChapterIdAndDifficultyLevel(chunk.getChapterId(),
+				chunk.getDifficultyLevel());
+		return chunk.getChunkNumber() >= totalChunks;
+	}
 
-        return bookProgressRepository.findByUserIdAndBookId(userId, bookId)
-                .map(progress -> convertToProgressResponse(progress, false))
-                .orElseGet(() -> createNotStartedProgressResponse(userId, bookId));
-    }
+	/**
+	 * 챕터 진행률 정보 찾기
+	 */
+	private BookProgress.ChapterProgressInfo findChapterProgress(BookProgress bookProgress, Integer chapterNumber) {
+		if (bookProgress.getChapterProgresses() == null) {
+			return null;
+		}
+		return bookProgress.getChapterProgresses()
+			.stream()
+			.filter(cp -> chapterNumber.equals(cp.getChapterNumber()))
+			.findFirst()
+			.orElse(null);
+	}
 
-    @Transactional
-    public void deleteProgress(String bookId, String userId) {
-        if (!bookService.existsById(bookId)) {
-            throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
-        }
+	/**
+	 * 챕터 진행률 업데이트 또는 추가
+	 */
+	private void updateOrAddChapterProgress(BookProgress bookProgress, Integer chapterNumber, Double progressPercentage,
+			Boolean isCompleted, java.time.Instant completedAt) {
+		BookProgress.ChapterProgressInfo existing = findChapterProgress(bookProgress, chapterNumber);
 
-        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
-                .orElseThrow(() -> new BooksException(BooksErrorCode.PROGRESS_NOT_FOUND));
+		if (existing != null) {
+			// 기존 항목 업데이트
+			existing.setProgressPercentage(progressPercentage);
+			existing.setIsCompleted(isCompleted);
+			if (completedAt != null) {
+				existing.setCompletedAt(completedAt);
+			}
+		}
+		else {
+			// 새 항목 추가
+			BookProgress.ChapterProgressInfo newProgress = BookProgress.ChapterProgressInfo.builder()
+				.chapterNumber(chapterNumber)
+				.progressPercentage(progressPercentage)
+				.isCompleted(isCompleted)
+				.completedAt(completedAt)
+				.build();
+			bookProgress.getChapterProgresses().add(newProgress);
+		}
+	}
 
-        bookProgressRepository.delete(bookProgress);
-    }
+	/**
+	 * 완료된 챕터 수 계산
+	 */
+	private long getCompletedChapterCount(BookProgress bookProgress) {
+		if (bookProgress.getChapterProgresses() == null) {
+			return 0;
+		}
+		return bookProgress.getChapterProgresses()
+			.stream()
+			.filter(cp -> Boolean.TRUE.equals(cp.getIsCompleted()))
+			.count();
+	}
 
-    // [V1_COMPAT] Chapter 기반 max 진도만 관리
-    private boolean shouldUpdateMaxProgress(BookProgress progress, Integer chapterNum) {
-        Integer maxChapter = progress.getMaxReadChapterNumber();
-        return maxChapter == null || chapterNum > maxChapter;
-    }
+	/**
+	 * V3 마이그레이션 보장 updateProgress 시점에 한 번만 실행
+	 */
+	private void ensureMigrated(BookProgress progress) {
+		boolean needsMigration = false;
 
-    private ProgressResponse convertToProgressResponse(BookProgress progress, boolean streakUpdated) {
-        // [DTO_MAPPING] chunk에서 chunkNumber 조회
-        Chunk chunk = chunkService.findById(progress.getChunkId());
+		// V3 필드 초기화
+		if (progress.getChapterProgresses() == null) {
+			progress.setChapterProgresses(new ArrayList<>());
+			needsMigration = true;
+		}
 
-        // [SAFETY] 마이그레이션이 안 되어 있는 경우 경고 로그
-        if (progress.getChapterProgresses() == null) {
-            log.warn("BookProgress {} not migrated yet - this should only happen on read-only access",
-                progress.getId());
-        }
+		if (needsMigration) {
+			log.info("V3 migration completed for BookProgress id={}, userId={}", progress.getId(),
+					progress.getUserId());
+		}
+	}
 
-        return ProgressResponse.builder()
-                .id(progress.getId())
-                .userId(progress.getUserId())
-                .bookId(progress.getBookId())
-                .chapterId(progress.getChapterId())
-                .chunkId(progress.getChunkId())
-                .currentReadChapterNumber(progress.getCurrentReadChapterNumber())
-                .currentReadChunkNumber(chunk.getChunkNumber())
-                .maxReadChapterNumber(progress.getMaxReadChapterNumber())
-                .maxReadChunkNumber(progress.getMaxReadChunkNumber())
-                .isCompleted(progress.getIsCompleted())
-                .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
-                .normalizedProgress(progress.getNormalizedProgress())
-                .maxNormalizedProgress(progress.getMaxNormalizedProgress())
-                .streakUpdated(streakUpdated)
-                .updatedAt(progress.getUpdatedAt())
-                .build();
-    }
+	@Transactional(readOnly = true)
+	public ProgressResponse getProgress(String bookId, String userId) {
+		if (!bookService.existsById(bookId)) {
+			throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
+		}
 
-    private ProgressResponse createNotStartedProgressResponse(String userId, String bookId) {
-        return ProgressResponse.builder()
-                .userId(userId)
-                .bookId(bookId)
-                .currentReadChapterNumber(0)
-                .currentReadChunkNumber(0)
-                .maxReadChapterNumber(0)
-                .maxReadChunkNumber(0)
-                .isCompleted(false)
-                .normalizedProgress(0.0)
-                .maxNormalizedProgress(0.0)
-                .streakUpdated(false)
-                .build();
-    }
+		return bookProgressRepository.findByUserIdAndBookId(userId, bookId)
+			.map(progress -> convertToProgressResponse(progress, false))
+			.orElseGet(() -> createNotStartedProgressResponse(userId, bookId));
+	}
 
-    private int toChapterFirstPosition(Integer chapterNumber, Integer chunkNumber) {
-        if (chapterNumber == null || chapterNumber <= 0 || chunkNumber == null || chunkNumber <= 0) {
-            throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
-        }
-        if (chapterNumber > CHAPTER_NUMBER_MAX || chunkNumber > CHUNK_NUMBER_MAX) {
-            throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
-        }
-        return (chapterNumber << CHAPTER_POSITION_SHIFT) | chunkNumber;
-    }
+	@Transactional
+	public void deleteProgress(String bookId, String userId) {
+		if (!bookService.existsById(bookId)) {
+			throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
+		}
+
+		BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.PROGRESS_NOT_FOUND));
+
+		bookProgressRepository.delete(bookProgress);
+	}
+
+	// [V1_COMPAT] Chapter 기반 max 진도만 관리
+	private boolean shouldUpdateMaxProgress(BookProgress progress, Integer chapterNum) {
+		Integer maxChapter = progress.getMaxReadChapterNumber();
+		return maxChapter == null || chapterNum > maxChapter;
+	}
+
+	private ProgressResponse convertToProgressResponse(BookProgress progress, boolean streakUpdated) {
+		// [DTO_MAPPING] chunk에서 chunkNumber 조회
+		Chunk chunk = chunkService.findById(progress.getChunkId());
+
+		// [SAFETY] 마이그레이션이 안 되어 있는 경우 경고 로그
+		if (progress.getChapterProgresses() == null) {
+			log.warn("BookProgress {} not migrated yet - this should only happen on read-only access",
+					progress.getId());
+		}
+
+		return ProgressResponse.builder()
+			.id(progress.getId())
+			.userId(progress.getUserId())
+			.bookId(progress.getBookId())
+			.chapterId(progress.getChapterId())
+			.chunkId(progress.getChunkId())
+			.currentReadChapterNumber(progress.getCurrentReadChapterNumber())
+			.currentReadChunkNumber(chunk.getChunkNumber())
+			.maxReadChapterNumber(progress.getMaxReadChapterNumber())
+			.maxReadChunkNumber(progress.getMaxReadChunkNumber())
+			.isCompleted(progress.getIsCompleted())
+			.currentDifficultyLevel(progress.getCurrentDifficultyLevel())
+			.normalizedProgress(progress.getNormalizedProgress())
+			.maxNormalizedProgress(progress.getMaxNormalizedProgress())
+			.streakUpdated(streakUpdated)
+			.updatedAt(progress.getUpdatedAt())
+			.build();
+	}
+
+	private ProgressResponse createNotStartedProgressResponse(String userId, String bookId) {
+		return ProgressResponse.builder()
+			.userId(userId)
+			.bookId(bookId)
+			.currentReadChapterNumber(0)
+			.currentReadChunkNumber(0)
+			.maxReadChapterNumber(0)
+			.maxReadChunkNumber(0)
+			.isCompleted(false)
+			.normalizedProgress(0.0)
+			.maxNormalizedProgress(0.0)
+			.streakUpdated(false)
+			.build();
+	}
+
+	private int toChapterFirstPosition(Integer chapterNumber, Integer chunkNumber) {
+		if (chapterNumber == null || chapterNumber <= 0 || chunkNumber == null || chunkNumber <= 0) {
+			throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
+		}
+		if (chapterNumber > CHAPTER_NUMBER_MAX || chunkNumber > CHUNK_NUMBER_MAX) {
+			throw new BooksException(BooksErrorCode.INVALID_CHUNK_NUMBER);
+		}
+		return (chapterNumber << CHAPTER_POSITION_SHIFT) | chunkNumber;
+	}
+
 }

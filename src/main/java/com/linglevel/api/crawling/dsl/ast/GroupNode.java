@@ -5,10 +5,12 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class GroupNode implements ASTNode {
-    private final ASTNode expr;
 
-    @Override
-    public Object evaluate(DslInterpreter interpreter) {
-        return expr.evaluate(interpreter);
-    }
+	private final ASTNode expr;
+
+	@Override
+	public Object evaluate(DslInterpreter interpreter) {
+		return expr.evaluate(interpreter);
+	}
+
 }

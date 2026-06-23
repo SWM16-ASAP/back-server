@@ -17,22 +17,23 @@ import java.util.Map;
 @Document(collection = "userCategoryPreferences")
 public class UserCategoryPreference {
 
-    @Id
-    private String id;
+	@Id
+	private String id;
 
-    @Indexed(unique = true)
-    private String userId;
+	@Indexed(unique = true)
+	private String userId;
 
-    @Indexed
-    private ContentCategory primaryCategory;
+	@Indexed
+	private ContentCategory primaryCategory;
 
-    private Map<ContentCategory, Double> categoryScores;
+	private Map<ContentCategory, Double> categoryScores;
 
-    private Map<ContentCategory, Integer> rawAccessCounts;
+	private Map<ContentCategory, Integer> rawAccessCounts;
 
-    private Map<String, Double> tagScores;
+	private Map<String, Double> tagScores;
 
-    private Integer totalAccessCount;
+	private Integer totalAccessCount;
 
-    private Instant lastUpdatedAt;
+	private Instant lastUpdatedAt;
+
 }

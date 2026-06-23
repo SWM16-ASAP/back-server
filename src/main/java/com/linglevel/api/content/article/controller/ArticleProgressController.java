@@ -27,60 +27,50 @@ import jakarta.validation.Valid;
 @Tag(name = "Articles Progress", description = "아티클 진도 관리 API")
 public class ArticleProgressController {
 
-    private final ArticleProgressService articleProgressService;
+	private final ArticleProgressService articleProgressService;
 
-    @Operation(summary = "아티클 읽기 진도 업데이트", description = "사용자의 아티클 읽기 진도를 업데이트합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "업데이트 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "아티클 또는 청크를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "400", description = "잘못된 청크 ID",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PutMapping("/{articleId}/progress")
-    public ResponseEntity<ArticleProgressResponse> updateProgress(
-            @Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String articleId,
-            @Valid @RequestBody ArticleProgressUpdateRequest request,
-            @AuthenticationPrincipal JwtClaims claims) {
-        ArticleProgressResponse response = articleProgressService.updateProgress(articleId, request, claims.getId());
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "아티클 읽기 진도 업데이트", description = "사용자의 아티클 읽기 진도를 업데이트합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "업데이트 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "아티클 또는 청크를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 청크 ID",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PutMapping("/{articleId}/progress")
+	public ResponseEntity<ArticleProgressResponse> updateProgress(
+			@Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String articleId,
+			@Valid @RequestBody ArticleProgressUpdateRequest request, @AuthenticationPrincipal JwtClaims claims) {
+		ArticleProgressResponse response = articleProgressService.updateProgress(articleId, request, claims.getId());
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "아티클 읽기 진도 조회", description = "특정 아티클에 대한 사용자의 읽기 진도를 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "아티클을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/{articleId}/progress")
-    public ResponseEntity<ArticleProgressResponse> getProgress(
-            @Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String articleId,
-            @AuthenticationPrincipal JwtClaims claims) {
-        ArticleProgressResponse response = articleProgressService.getProgress(articleId, claims.getId());
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "아티클 읽기 진도 조회", description = "특정 아티클에 대한 사용자의 읽기 진도를 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "아티클을 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/{articleId}/progress")
+	public ResponseEntity<ArticleProgressResponse> getProgress(
+			@Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String articleId,
+			@AuthenticationPrincipal JwtClaims claims) {
+		ArticleProgressResponse response = articleProgressService.getProgress(articleId, claims.getId());
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "아티클 읽기 진도 삭제", description = "사용자의 읽기 진도 기록을 완전히 삭제합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "삭제 성공"),
-            @ApiResponse(responseCode = "404", description = "아티클 또는 진도 기록을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @DeleteMapping("/{articleId}/progress")
-    public ResponseEntity<Void> deleteProgress(
-            @Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String articleId,
-            @AuthenticationPrincipal JwtClaims claims) {
-        articleProgressService.deleteProgress(articleId, claims.getId());
-        return ResponseEntity.noContent().build();
-    }
+	@Operation(summary = "아티클 읽기 진도 삭제", description = "사용자의 읽기 진도 기록을 완전히 삭제합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "204", description = "삭제 성공"),
+			@ApiResponse(responseCode = "404", description = "아티클 또는 진도 기록을 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@DeleteMapping("/{articleId}/progress")
+	public ResponseEntity<Void> deleteProgress(
+			@Parameter(description = "아티클 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String articleId,
+			@AuthenticationPrincipal JwtClaims claims) {
+		articleProgressService.deleteProgress(articleId, claims.getId());
+		return ResponseEntity.noContent().build();
+	}
 
-    @ExceptionHandler(ArticleException.class)
-    public ResponseEntity<ExceptionResponse> handleArticleException(ArticleException e) {
-        log.info("Article Progress Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e));
-    }
+	@ExceptionHandler(ArticleException.class)
+	public ResponseEntity<ExceptionResponse> handleArticleException(ArticleException e) {
+		log.info("Article Progress Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
+	}
+
 }

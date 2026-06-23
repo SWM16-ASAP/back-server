@@ -17,26 +17,28 @@ import java.time.LocalDateTime;
 @Slf4j
 public class UsersService {
 
-    private final UserRepository userRepository;
-    private final FcmTokenService fcmTokenService;
-    
-    @Transactional
-    public void deleteUser(String userId) {
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-        
-        if (user.getDeleted()) {
-            throw new UsersException(UsersErrorCode.USER_NOT_FOUND);
-        }
+	private final UserRepository userRepository;
 
-        user.setDeleted(true);
-        user.setDeletedAt(LocalDateTime.now());
-        String originalUsername = user.getUsername();
-        user.setUsername("deleted_" + user.getDeletedAt() + "_" + originalUsername);
+	private final FcmTokenService fcmTokenService;
 
-        userRepository.save(user);
-        fcmTokenService.deactivateAllTokens(userId);
+	@Transactional
+	public void deleteUser(String userId) {
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
 
-        log.info("User deleted successfully (username: {}, FCM tokens deactivated)", originalUsername);
-    }
+		if (user.getDeleted()) {
+			throw new UsersException(UsersErrorCode.USER_NOT_FOUND);
+		}
+
+		user.setDeleted(true);
+		user.setDeletedAt(LocalDateTime.now());
+		String originalUsername = user.getUsername();
+		user.setUsername("deleted_" + user.getDeletedAt() + "_" + originalUsername);
+
+		userRepository.save(user);
+		fcmTokenService.deactivateAllTokens(userId);
+
+		log.info("User deleted successfully (username: {}, FCM tokens deactivated)", originalUsername);
+	}
+
 }

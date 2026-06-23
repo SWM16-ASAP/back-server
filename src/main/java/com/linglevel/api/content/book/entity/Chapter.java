@@ -10,18 +10,20 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @AllArgsConstructor
 @Document(collection = "chapters")
 public class Chapter {
-    @Id
-    private String id;
-    
-    private String bookId;
-    
-    private Integer chapterNumber;
-    
-    private String title;
-    
-    private String chapterImageUrl;
-    
-    private String description;
-    
-    private Integer readingTime;
-} 
+
+	@Id
+	private String id;
+
+	private String bookId;
+
+	private Integer chapterNumber;
+
+	private String title;
+
+	private String chapterImageUrl;
+
+	private String description;
+
+	private Integer readingTime;
+
+}

@@ -19,20 +19,21 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Override
-    public void commence(HttpServletRequest request, HttpServletResponse response,
-                         AuthenticationException authException) throws IOException {
-        
-        CommonException commonException = new CommonException(CommonErrorCode.UNAUTHORIZED);
-        ExceptionResponse errorResponse = new ExceptionResponse(commonException);
-        
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        
-        String jsonResponse = objectMapper.writeValueAsString(errorResponse);
-        response.getWriter().write(jsonResponse);
-    }
+	@Override
+	public void commence(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException authException) throws IOException {
+
+		CommonException commonException = new CommonException(CommonErrorCode.UNAUTHORIZED);
+		ExceptionResponse errorResponse = new ExceptionResponse(commonException);
+
+		response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+		String jsonResponse = objectMapper.writeValueAsString(errorResponse);
+		response.getWriter().write(jsonResponse);
+	}
+
 }

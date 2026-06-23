@@ -17,29 +17,32 @@ import java.time.LocalDateTime;
 @Document(collection = "pushLogs")
 public class PushLog {
 
-    @Id
-    private String id;
+	@Id
+	private String id;
 
-    @Indexed(unique = true)
-    private String campaignId;  // 각 메시지의 고유 ID (자체 UUID)
+	@Indexed(unique = true)
+	private String campaignId; // 각 메시지의 고유 ID (자체 UUID)
 
-    private String fcmMessageId;  // FCM messageId (선택적, FCM 추적용)
+	private String fcmMessageId; // FCM messageId (선택적, FCM 추적용)
 
-    @Indexed
-    private String campaignGroup;  // 내부 그룹화용 (선택적)
+	@Indexed
+	private String campaignGroup; // 내부 그룹화용 (선택적)
 
-    @Indexed
-    private String userId;
+	@Indexed
+	private String userId;
 
-    @Indexed
-    private LocalDateTime sentAt;
-    private Boolean sentSuccess;
-    private LocalDateTime openedAt;
+	@Indexed
+	private LocalDateTime sentAt;
 
-    @CreatedDate
-    @Indexed(expireAfter = "15552000s")
-    private LocalDateTime createdAt;
+	private Boolean sentSuccess;
 
-    @Version
-    private Long version;
+	private LocalDateTime openedAt;
+
+	@CreatedDate
+	@Indexed(expireAfter = "15552000s")
+	private LocalDateTime createdAt;
+
+	@Version
+	private Long version;
+
 }

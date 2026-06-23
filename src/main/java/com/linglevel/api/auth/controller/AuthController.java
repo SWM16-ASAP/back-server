@@ -26,88 +26,80 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Authentication", description = "인증 관련 API")
 public class AuthController {
 
-    private final AuthService authService;
-    private final JwtService jwtService;
+	private final AuthService authService;
 
-    @Operation(summary = "Firebase OAuth 로그인", description = "Firebase OAuth를 통해 소셜 로그인하고 JWT 토큰을 발급받습니다.",
-            security = @SecurityRequirement(name = ""))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로그인 성공",
-                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
-            @ApiResponse(responseCode = "401", description = "Firebase 토큰 인증 실패",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping("/oauth/login")
-    public ResponseEntity<LoginResponse> oauthLogin(@RequestBody OauthLoginRequest request) {
-        LoginResponse response = authService.authenticateWithFirebase(request.getAuthCode());
-        return ResponseEntity.ok(response);
-    }
+	private final JwtService jwtService;
 
-    @Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 새로운 Access Token을 발급받습니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
-                    content = @Content(schema = @Schema(implementation = RefreshTokenResponse.class))),
-            @ApiResponse(responseCode = "401", description = "리프레시 토큰 유효하지 않음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping("/refresh")
-    public ResponseEntity<RefreshTokenResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
-        RefreshTokenResponse response = authService.refreshToken(request.getRefreshToken());
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "Firebase OAuth 로그인", description = "Firebase OAuth를 통해 소셜 로그인하고 JWT 토큰을 발급받습니다.",
+			security = @SecurityRequirement(name = ""))
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "로그인 성공",
+					content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+			@ApiResponse(responseCode = "401", description = "Firebase 토큰 인증 실패",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PostMapping("/oauth/login")
+	public ResponseEntity<LoginResponse> oauthLogin(@RequestBody OauthLoginRequest request) {
+		LoginResponse response = authService.authenticateWithFirebase(request.getAuthCode());
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "로그아웃", description = "현재 기기에서 로그아웃합니다. 다른 기기는 로그인 상태를 유지합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로그아웃 성공",
-                    content = @Content(schema = @Schema(implementation = LogoutResponse.class))),
-            @ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping("/logout")
-    public ResponseEntity<LogoutResponse> logout(@RequestBody LogoutRequest request) {
-        authService.logout(request.getRefreshToken());
+	@Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 새로운 Access Token을 발급받습니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "토큰 갱신 성공",
+					content = @Content(schema = @Schema(implementation = RefreshTokenResponse.class))),
+			@ApiResponse(responseCode = "401", description = "리프레시 토큰 유효하지 않음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PostMapping("/refresh")
+	public ResponseEntity<RefreshTokenResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
+		RefreshTokenResponse response = authService.refreshToken(request.getRefreshToken());
+		return ResponseEntity.ok(response);
+	}
 
-        LogoutResponse response = LogoutResponse.builder()
-                .message("Successfully logged out")
-                .build();
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "로그아웃", description = "현재 기기에서 로그아웃합니다. 다른 기기는 로그인 상태를 유지합니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "로그아웃 성공",
+					content = @Content(schema = @Schema(implementation = LogoutResponse.class))),
+			@ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PostMapping("/logout")
+	public ResponseEntity<LogoutResponse> logout(@RequestBody LogoutRequest request) {
+		authService.logout(request.getRefreshToken());
 
-    @Operation(summary = "모든 기기에서 로그아웃", description = "모든 기기에서 로그아웃하여 모든 토큰을 무효화합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로그아웃 성공",
-                    content = @Content(schema = @Schema(implementation = LogoutResponse.class))),
-            @ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping("/logout/all")
-    public ResponseEntity<LogoutResponse> logoutAll(HttpServletRequest request) {
-        JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
-        authService.logoutAll(claims.getId());
+		LogoutResponse response = LogoutResponse.builder().message("Successfully logged out").build();
+		return ResponseEntity.ok(response);
+	}
 
-        LogoutResponse response = LogoutResponse.builder()
-                .message("Successfully logged out from all devices")
-                .build();
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "모든 기기에서 로그아웃", description = "모든 기기에서 로그아웃하여 모든 토큰을 무효화합니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "로그아웃 성공",
+					content = @Content(schema = @Schema(implementation = LogoutResponse.class))),
+			@ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PostMapping("/logout/all")
+	public ResponseEntity<LogoutResponse> logoutAll(HttpServletRequest request) {
+		JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
+		authService.logoutAll(claims.getId());
 
-    @Operation(summary = "현재 사용자 정보 조회", description = "현재 Access Token에 포함된 JWT Claims 정보를 추출하여 반환합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공",
-                    content = @Content(schema = @Schema(implementation = JwtClaims.class))),
-            @ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/me")
-    public ResponseEntity<JwtClaims> getCurrentUser(HttpServletRequest request) {
-        JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
-        return ResponseEntity.ok(claims);
-    }
+		LogoutResponse response = LogoutResponse.builder().message("Successfully logged out from all devices").build();
+		return ResponseEntity.ok(response);
+	}
 
-    @ExceptionHandler(AuthException.class)
-    public ResponseEntity<ExceptionResponse> handleAuthException(AuthException e) {
-        log.error("Auth Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e));
-    }
-} 
+	@Operation(summary = "현재 사용자 정보 조회", description = "현재 Access Token에 포함된 JWT Claims 정보를 추출하여 반환합니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공",
+					content = @Content(schema = @Schema(implementation = JwtClaims.class))),
+			@ApiResponse(responseCode = "401", description = "토큰 유효하지 않음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/me")
+	public ResponseEntity<JwtClaims> getCurrentUser(HttpServletRequest request) {
+		JwtClaims claims = jwtService.extractJwtClaimsFromRequest(request);
+		return ResponseEntity.ok(claims);
+	}
+
+	@ExceptionHandler(AuthException.class)
+	public ResponseEntity<ExceptionResponse> handleAuthException(AuthException e) {
+		log.error("Auth Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
+	}
+
+}

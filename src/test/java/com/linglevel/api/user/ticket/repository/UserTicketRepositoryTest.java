@@ -17,104 +17,100 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DataMongoTest
 class UserTicketRepositoryTest extends AbstractDatabaseTest {
 
-    @Autowired
-    private UserTicketRepository userTicketRepository;
+	@Autowired
+	private UserTicketRepository userTicketRepository;
 
-    private final String testUserId = "test-user-id";
-    private UserTicket userTicket;
+	private final String testUserId = "test-user-id";
 
-    @BeforeEach
-    void setUp() {
-        userTicketRepository.deleteAll();
+	private UserTicket userTicket;
 
-        userTicket = UserTicket.builder()
-                .userId(testUserId)
-                .balance(10)
-                .build();
-    }
+	@BeforeEach
+	void setUp() {
+		userTicketRepository.deleteAll();
 
-    @Test
-    void 사용자ID로_티켓조회_성공() {
-        // given
-        UserTicket savedUserTicket = userTicketRepository.save(userTicket);
+		userTicket = UserTicket.builder().userId(testUserId).balance(10).build();
+	}
 
-        // when
-        Optional<UserTicket> found = userTicketRepository.findByUserId(testUserId);
+	@Test
+	void 사용자ID로_티켓조회_성공() {
+		// given
+		UserTicket savedUserTicket = userTicketRepository.save(userTicket);
 
-        // then
-        assertThat(found).isPresent();
-        assertThat(found.get().getUserId()).isEqualTo(testUserId);
-        assertThat(found.get().getBalance()).isEqualTo(10);
-        assertThat(found.get().getId()).isEqualTo(savedUserTicket.getId());
-    }
+		// when
+		Optional<UserTicket> found = userTicketRepository.findByUserId(testUserId);
 
-    @Test
-    void 존재하지않는사용자ID로_조회시_빈Optional반환() {
-        // when
-        Optional<UserTicket> found = userTicketRepository.findByUserId("non-existent-user");
+		// then
+		assertThat(found).isPresent();
+		assertThat(found.get().getUserId()).isEqualTo(testUserId);
+		assertThat(found.get().getBalance()).isEqualTo(10);
+		assertThat(found.get().getId()).isEqualTo(savedUserTicket.getId());
+	}
 
-        // then
-        assertThat(found).isEmpty();
-    }
+	@Test
+	void 존재하지않는사용자ID로_조회시_빈Optional반환() {
+		// when
+		Optional<UserTicket> found = userTicketRepository.findByUserId("non-existent-user");
 
-    @Test
-    void 중복된사용자ID로_티켓생성시_예외발생() {
-        // given
-        userTicketRepository.save(userTicket);
+		// then
+		assertThat(found).isEmpty();
+	}
 
-        UserTicket duplicateUserTicket = UserTicket.builder()
-                .userId(testUserId)
-                .balance(20)
-                .build();
+	@Test
+	void 중복된사용자ID로_티켓생성시_예외발생() {
+		// given
+		userTicketRepository.save(userTicket);
 
-        // when & then
-        assertThatThrownBy(() -> userTicketRepository.save(duplicateUserTicket))
-                .isInstanceOf(DuplicateKeyException.class);
-    }
+		UserTicket duplicateUserTicket = UserTicket.builder().userId(testUserId).balance(20).build();
 
-    @Test
-    void 버전충돌시_OptimisticLockingFailureException발생() {
-        // given
-        UserTicket savedUserTicket = userTicketRepository.save(userTicket);
+		// when & then
+		assertThatThrownBy(() -> userTicketRepository.save(duplicateUserTicket))
+			.isInstanceOf(DuplicateKeyException.class);
+	}
 
-        UserTicket userTicket1 = userTicketRepository.findById(savedUserTicket.getId()).orElseThrow();
-        UserTicket userTicket2 = userTicketRepository.findById(savedUserTicket.getId()).orElseThrow();
+	@Test
+	void 버전충돌시_OptimisticLockingFailureException발생() {
+		// given
+		UserTicket savedUserTicket = userTicketRepository.save(userTicket);
 
-        // when
-        userTicket1.setBalance(15);
-        userTicketRepository.save(userTicket1);
+		UserTicket userTicket1 = userTicketRepository.findById(savedUserTicket.getId()).orElseThrow();
+		UserTicket userTicket2 = userTicketRepository.findById(savedUserTicket.getId()).orElseThrow();
 
-        userTicket2.setBalance(25);
+		// when
+		userTicket1.setBalance(15);
+		userTicketRepository.save(userTicket1);
 
-        // then
-        assertThatThrownBy(() -> userTicketRepository.save(userTicket2))
-                .isInstanceOf(OptimisticLockingFailureException.class);
-    }
+		userTicket2.setBalance(25);
 
-    @Test
-    void 티켓잔고_업데이트_성공() {
-        // given
-        UserTicket savedUserTicket = userTicketRepository.save(userTicket);
-        Long originalVersion = savedUserTicket.getVersion();
+		// then
+		assertThatThrownBy(() -> userTicketRepository.save(userTicket2))
+			.isInstanceOf(OptimisticLockingFailureException.class);
+	}
 
-        // when
-        savedUserTicket.setBalance(20);
-        UserTicket updatedUserTicket = userTicketRepository.save(savedUserTicket);
+	@Test
+	void 티켓잔고_업데이트_성공() {
+		// given
+		UserTicket savedUserTicket = userTicketRepository.save(userTicket);
+		Long originalVersion = savedUserTicket.getVersion();
 
-        // then
-        assertThat(updatedUserTicket.getBalance()).isEqualTo(20);
-        assertThat(updatedUserTicket.getVersion()).isGreaterThan(originalVersion);
-    }
+		// when
+		savedUserTicket.setBalance(20);
+		UserTicket updatedUserTicket = userTicketRepository.save(savedUserTicket);
 
-    @Test
-    void 기본필드_자동설정_확인() {
-        // when
-        UserTicket savedUserTicket = userTicketRepository.save(userTicket);
+		// then
+		assertThat(updatedUserTicket.getBalance()).isEqualTo(20);
+		assertThat(updatedUserTicket.getVersion()).isGreaterThan(originalVersion);
+	}
 
-        // then
-        assertThat(savedUserTicket.getId()).isNotNull();
-        assertThat(savedUserTicket.getUserId()).isEqualTo(testUserId);
-        assertThat(savedUserTicket.getBalance()).isEqualTo(10);
-        assertThat(savedUserTicket.getVersion()).isNotNull();
-    }
+	@Test
+	void 기본필드_자동설정_확인() {
+		// when
+		UserTicket savedUserTicket = userTicketRepository.save(userTicket);
+
+		// then
+		assertThat(savedUserTicket.getId()).isNotNull();
+		assertThat(savedUserTicket.getUserId()).isEqualTo(testUserId);
+		assertThat(savedUserTicket.getBalance()).isEqualTo(10);
+		assertThat(savedUserTicket.getVersion()).isNotNull();
+	}
+
 }

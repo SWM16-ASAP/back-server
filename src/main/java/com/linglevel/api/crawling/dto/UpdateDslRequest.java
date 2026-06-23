@@ -12,24 +12,25 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UpdateDslRequest {
 
-    @NotBlank(message = "Name is required")
-    @Schema(description = "업데이트할 사이트명", example = "쿠팡", required = true)
-    private String name;
+	@NotBlank(message = "Name is required")
+	@Schema(description = "업데이트할 사이트명", example = "쿠팡", required = true)
+	private String name;
 
-    @Schema(description = "업데이트할 Feed 콘텐츠 타입", example = "BLOG", required = false)
-    private FeedContentType contentType;
+	@Schema(description = "업데이트할 Feed 콘텐츠 타입", example = "BLOG", required = false)
+	private FeedContentType contentType;
 
-    @NotBlank(message = "Title DSL is required")
-    @Schema(description = "업데이트할 제목 추출 DSL 규칙", example = "h1.new-product-title", required = true)
-    private String titleDsl;
-    
-    @NotBlank(message = "Content DSL is required")
-    @Schema(description = "업데이트할 본문 추출 DSL 규칙", example = ".new-product-description", required = true)
-    private String contentDsl;
+	@NotBlank(message = "Title DSL is required")
+	@Schema(description = "업데이트할 제목 추출 DSL 규칙", example = "h1.new-product-title", required = true)
+	private String titleDsl;
 
-    @Schema(description = "업데이트할 커버 이미지 추출 DSL 규칙", example = "meta[property='og:image']", required = false)
-    private String coverImageDsl;
+	@NotBlank(message = "Content DSL is required")
+	@Schema(description = "업데이트할 본문 추출 DSL 규칙", example = ".new-product-description", required = true)
+	private String contentDsl;
 
-    @Schema(description = "업데이트할 접근 조회용 URL", example = "https://www.coupang.com", required = false)
-    private String accessUrl;
+	@Schema(description = "업데이트할 커버 이미지 추출 DSL 규칙", example = "meta[property='og:image']", required = false)
+	private String coverImageDsl;
+
+	@Schema(description = "업데이트할 접근 조회용 URL", example = "https://www.coupang.com", required = false)
+	private String accessUrl;
+
 }

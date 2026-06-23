@@ -8,11 +8,11 @@ import java.util.Optional;
 
 @Repository
 public interface RefreshTokenRepository extends MongoRepository<RefreshToken, String> {
-    
-    Optional<RefreshToken> findByTokenId(String tokenId);
-    
-    Optional<RefreshToken> findByUserId(String userId);
-    
-    void deleteByUserId(String userId);
-    
+
+	Optional<RefreshToken> findByTokenId(String tokenId);
+
+	Optional<RefreshToken> findByUserId(String userId);
+
+	void deleteByUserId(String userId);
+
 }

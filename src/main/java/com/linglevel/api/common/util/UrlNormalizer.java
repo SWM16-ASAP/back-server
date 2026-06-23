@@ -12,159 +12,161 @@ import java.util.stream.Collectors;
 @Slf4j
 public class UrlNormalizer {
 
-    /**
-     * URL을 정규화하여 반환
-     *
-     * @param url 원본 URL
-     * @return 정규화된 URL
-     */
-    public static String normalize(String url) {
-        if (url == null || url.isBlank()) {
-            return url;
-        }
+	/**
+	 * URL을 정규화하여 반환
+	 * @param url 원본 URL
+	 * @return 정규화된 URL
+	 */
+	public static String normalize(String url) {
+		if (url == null || url.isBlank()) {
+			return url;
+		}
 
-        try {
-            String decodedUrl = decodeUrl(url.trim());
+		try {
+			String decodedUrl = decodeUrl(url.trim());
 
-            URI uri = new URI(decodedUrl);
+			URI uri = new URI(decodedUrl);
 
-            // 프로토콜 정규화 (https로 통일)
-            String scheme = normalizeScheme(uri.getScheme());
+			// 프로토콜 정규화 (https로 통일)
+			String scheme = normalizeScheme(uri.getScheme());
 
-            // 호스트 정규화 (소문자, www 제거)
-            String host = normalizeHost(uri.getHost());
+			// 호스트 정규화 (소문자, www 제거)
+			String host = normalizeHost(uri.getHost());
 
-            // 포트 정규화 (기본 포트는 제거)
-            int port = normalizePort(uri.getPort(), scheme);
+			// 포트 정규화 (기본 포트는 제거)
+			int port = normalizePort(uri.getPort(), scheme);
 
-            // 경로 정규화 (트레일링 슬래시 제거, 중복 슬래시 제거)
-            String path = normalizePath(uri.getPath());
+			// 경로 정규화 (트레일링 슬래시 제거, 중복 슬래시 제거)
+			String path = normalizePath(uri.getPath());
 
-            // 쿼리 파라미터 정규화 (정렬)
-            String query = normalizeQuery(uri.getQuery());
-            
-            // 정규화된 URL 구성
-            StringBuilder normalized = new StringBuilder();
-            normalized.append(scheme).append("://").append(host);
+			// 쿼리 파라미터 정규화 (정렬)
+			String query = normalizeQuery(uri.getQuery());
 
-            if (port != -1) {
-                normalized.append(":").append(port);
-            }
+			// 정규화된 URL 구성
+			StringBuilder normalized = new StringBuilder();
+			normalized.append(scheme).append("://").append(host);
 
-            if (path != null && !path.isEmpty()) {
-                normalized.append(path);
-            }
+			if (port != -1) {
+				normalized.append(":").append(port);
+			}
 
-            if (query != null && !query.isEmpty()) {
-                normalized.append("?").append(query);
-            }
+			if (path != null && !path.isEmpty()) {
+				normalized.append(path);
+			}
 
-            return normalized.toString();
+			if (query != null && !query.isEmpty()) {
+				normalized.append("?").append(query);
+			}
 
-        } catch (URISyntaxException e) {
-            log.warn("Failed to normalize URL: {}", url, e);
-            return url; // 정규화 실패 시 원본 반환
-        }
-    }
+			return normalized.toString();
 
-    /**
-     * URL 디코딩 (재귀적으로 완전히 디코딩)
-     */
-    private static String decodeUrl(String url) {
-        try {
-            String decoded = URLDecoder.decode(url, StandardCharsets.UTF_8);
-            // 디코딩 결과가 동일하면 더 이상 인코딩되지 않음
-            if (decoded.equals(url)) {
-                return url;
-            }
-            return decodeUrl(decoded);
-        } catch (Exception e) {
-            return url;
-        }
-    }
+		}
+		catch (URISyntaxException e) {
+			log.warn("Failed to normalize URL: {}", url, e);
+			return url; // 정규화 실패 시 원본 반환
+		}
+	}
 
-    /**
-     * 스키마 정규화 (https로 통일)
-     */
-    private static String normalizeScheme(String scheme) {
-        if (scheme == null) {
-            return "https";
-        }
+	/**
+	 * URL 디코딩 (재귀적으로 완전히 디코딩)
+	 */
+	private static String decodeUrl(String url) {
+		try {
+			String decoded = URLDecoder.decode(url, StandardCharsets.UTF_8);
+			// 디코딩 결과가 동일하면 더 이상 인코딩되지 않음
+			if (decoded.equals(url)) {
+				return url;
+			}
+			return decodeUrl(decoded);
+		}
+		catch (Exception e) {
+			return url;
+		}
+	}
 
-        scheme = scheme.toLowerCase();
+	/**
+	 * 스키마 정규화 (https로 통일)
+	 */
+	private static String normalizeScheme(String scheme) {
+		if (scheme == null) {
+			return "https";
+		}
 
-        // http를 https로 변환
-        if ("http".equals(scheme)) {
-            return "https";
-        }
+		scheme = scheme.toLowerCase();
 
-        return scheme;
-    }
+		// http를 https로 변환
+		if ("http".equals(scheme)) {
+			return "https";
+		}
 
-    /**
-     * 호스트 정규화 (소문자 변환, www 제거)
-     */
-    private static String normalizeHost(String host) {
-        if (host == null) {
-            return null;
-        }
+		return scheme;
+	}
 
-        host = host.toLowerCase();
+	/**
+	 * 호스트 정규화 (소문자 변환, www 제거)
+	 */
+	private static String normalizeHost(String host) {
+		if (host == null) {
+			return null;
+		}
 
-        // www 제거
-        if (host.startsWith("www.")) {
-            host = host.substring(4);
-        }
+		host = host.toLowerCase();
 
-        return host;
-    }
+		// www 제거
+		if (host.startsWith("www.")) {
+			host = host.substring(4);
+		}
 
-    /**
-     * 포트 정규화 (기본 포트 제거)
-     */
-    private static int normalizePort(int port, String scheme) {
-        // 기본 포트인 경우 -1 반환 (URL에서 제외)
-        if (port == 80 && "http".equals(scheme)) {
-            return -1;
-        }
-        if (port == 443 && "https".equals(scheme)) {
-            return -1;
-        }
+		return host;
+	}
 
-        return port;
-    }
+	/**
+	 * 포트 정규화 (기본 포트 제거)
+	 */
+	private static int normalizePort(int port, String scheme) {
+		// 기본 포트인 경우 -1 반환 (URL에서 제외)
+		if (port == 80 && "http".equals(scheme)) {
+			return -1;
+		}
+		if (port == 443 && "https".equals(scheme)) {
+			return -1;
+		}
 
-    /**
-     * 경로 정규화
-     */
-    private static String normalizePath(String path) {
-        if (path == null || path.isEmpty() || "/".equals(path)) {
-            return "";
-        }
+		return port;
+	}
 
-        // 트레일링 슬래시 제거
-        if (path.endsWith("/") && path.length() > 1) {
-            path = path.substring(0, path.length() - 1);
-        }
+	/**
+	 * 경로 정규화
+	 */
+	private static String normalizePath(String path) {
+		if (path == null || path.isEmpty() || "/".equals(path)) {
+			return "";
+		}
 
-        // 중복 슬래시 제거
-        path = path.replaceAll("/+", "/");
+		// 트레일링 슬래시 제거
+		if (path.endsWith("/") && path.length() > 1) {
+			path = path.substring(0, path.length() - 1);
+		}
 
-        return path;
-    }
+		// 중복 슬래시 제거
+		path = path.replaceAll("/+", "/");
 
-    /**
-     * 쿼리 파라미터 정규화 (알파벳 순 정렬)
-     */
-    private static String normalizeQuery(String query) {
-        if (query == null || query.isEmpty()) {
-            return null;
-        }
+		return path;
+	}
 
-        // 쿼리 파라미터를 & 기준으로 분리하고 정렬
-        return Arrays.stream(query.split("&"))
-                .filter(param -> !param.isEmpty())
-                .sorted()
-                .collect(Collectors.joining("&"));
-    }
+	/**
+	 * 쿼리 파라미터 정규화 (알파벳 순 정렬)
+	 */
+	private static String normalizeQuery(String query) {
+		if (query == null || query.isEmpty()) {
+			return null;
+		}
+
+		// 쿼리 파라미터를 & 기준으로 분리하고 정렬
+		return Arrays.stream(query.split("&"))
+			.filter(param -> !param.isEmpty())
+			.sorted()
+			.collect(Collectors.joining("&"));
+	}
+
 }

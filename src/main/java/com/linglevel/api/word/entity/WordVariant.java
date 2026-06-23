@@ -16,12 +16,14 @@ import java.util.List;
 @Document(collection = "word_variants")
 @CompoundIndex(name = "word_original_idx", def = "{'word': 1, 'originalForm': 1}", unique = true)
 public class WordVariant {
-    @Id
-    private String id;
 
-    private String word;
+	@Id
+	private String id;
 
-    private String originalForm;
+	private String word;
 
-    private List<VariantType> variantTypes;
+	private String originalForm;
+
+	private List<VariantType> variantTypes;
+
 }

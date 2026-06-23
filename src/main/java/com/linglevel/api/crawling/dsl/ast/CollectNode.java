@@ -8,46 +8,51 @@ import java.util.List;
 
 @RequiredArgsConstructor
 public class CollectNode implements ASTNode {
-    private final List<CollectStatement> statements;
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public Object evaluate(DslInterpreter interpreter) {
-        List<Object> collected = new ArrayList<>();
+	private final List<CollectStatement> statements;
 
-        for (CollectStatement stmt : statements) {
-            Object value = stmt.getExpr().evaluate(interpreter);
-            collect(value, collected);
-        }
+	@Override
+	@SuppressWarnings("unchecked")
+	public Object evaluate(DslInterpreter interpreter) {
+		List<Object> collected = new ArrayList<>();
 
-        return collected;
-    }
+		for (CollectStatement stmt : statements) {
+			Object value = stmt.getExpr().evaluate(interpreter);
+			collect(value, collected);
+		}
 
-    private void collect(Object value, List<Object> collected) {
-        if (value == null) {
-            return;
-        }
+		return collected;
+	}
 
-        if (value instanceof String) {
-            String trimmed = ((String) value).trim();
-            if (!trimmed.isEmpty()) {
-                collected.add(trimmed);
-            }
-        } else if (value instanceof List) {
-            for (Object item : (List<?>) value) {
-                if (item != null) {
-                    if (item instanceof String) {
-                        String trimmed = ((String) item).trim();
-                        if (!trimmed.isEmpty()) {
-                            collected.add(trimmed);
-                        }
-                    } else {
-                        collected.add(item);
-                    }
-                }
-            }
-        } else {
-            collected.add(value);
-        }
-    }
+	private void collect(Object value, List<Object> collected) {
+		if (value == null) {
+			return;
+		}
+
+		if (value instanceof String) {
+			String trimmed = ((String) value).trim();
+			if (!trimmed.isEmpty()) {
+				collected.add(trimmed);
+			}
+		}
+		else if (value instanceof List) {
+			for (Object item : (List<?>) value) {
+				if (item != null) {
+					if (item instanceof String) {
+						String trimmed = ((String) item).trim();
+						if (!trimmed.isEmpty()) {
+							collected.add(trimmed);
+						}
+					}
+					else {
+						collected.add(item);
+					}
+				}
+			}
+		}
+		else {
+			collected.add(value);
+		}
+	}
+
 }

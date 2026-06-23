@@ -26,85 +26,89 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ChunkService {
 
-    private final ChunkRepository chunkRepository;
-    private final ChapterRepository chapterRepository;
-    private final BookService bookService;
+	private final ChunkRepository chunkRepository;
 
-    public PageResponse<ChunkResponse> getChunks(String bookId, String chapterId, GetChunksRequest request, String userId) {
-        if (!bookService.existsById(bookId)) {
-            throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
-        }
+	private final ChapterRepository chapterRepository;
 
-        Chapter chapter = chapterRepository.findById(chapterId)
-            .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
-        if (!bookId.equals(chapter.getBookId())) {
-            throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
-        }
+	private final BookService bookService;
 
-        DifficultyLevel difficulty;
-        try {
-            difficulty = request.getDifficultyLevel();
-        } catch (IllegalArgumentException e) {
-            throw new BooksException(BooksErrorCode.INVALID_DIFFICULTY_LEVEL);
-        }
+	public PageResponse<ChunkResponse> getChunks(String bookId, String chapterId, GetChunksRequest request,
+			String userId) {
+		if (!bookService.existsById(bookId)) {
+			throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
+		}
 
-        Pageable pageable = PageRequest.of(
-            request.getPage() - 1, 
-            Math.min(request.getLimit(), 200),
-            Sort.by("chunkNumber").ascending()
-        );
+		Chapter chapter = chapterRepository.findById(chapterId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
+		if (!bookId.equals(chapter.getBookId())) {
+			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
+		}
 
-        Page<Chunk> chunkPage = chunkRepository.findByChapterIdAndDifficultyLevel(chapterId, difficulty, pageable);
-        log.info("Found chunks count: {}", chunkPage.getTotalElements());
-        
-        List<ChunkResponse> chunkResponses = chunkPage.getContent().stream()
-            .map(this::convertToChunkResponse)
-            .collect(Collectors.toList());
+		DifficultyLevel difficulty;
+		try {
+			difficulty = request.getDifficultyLevel();
+		}
+		catch (IllegalArgumentException e) {
+			throw new BooksException(BooksErrorCode.INVALID_DIFFICULTY_LEVEL);
+		}
 
-        return new PageResponse<>(chunkResponses, chunkPage);
-    }
+		Pageable pageable = PageRequest.of(request.getPage() - 1, Math.min(request.getLimit(), 200),
+				Sort.by("chunkNumber").ascending());
 
-    public ChunkResponse getChunk(String bookId, String chapterId, String chunkId) {
-        if (!bookService.existsById(bookId)) {
-            throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
-        }
+		Page<Chunk> chunkPage = chunkRepository.findByChapterIdAndDifficultyLevel(chapterId, difficulty, pageable);
+		log.info("Found chunks count: {}", chunkPage.getTotalElements());
 
-        Chapter chapter = chapterRepository.findById(chapterId)
-            .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
-        if (!bookId.equals(chapter.getBookId())) {
-            throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
-        }
+		List<ChunkResponse> chunkResponses = chunkPage.getContent()
+			.stream()
+			.map(this::convertToChunkResponse)
+			.collect(Collectors.toList());
 
-        Chunk chunk = chunkRepository.findById(chunkId)
-            .orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
+		return new PageResponse<>(chunkResponses, chunkPage);
+	}
 
-        if (!chapterId.equals(chunk.getChapterId())) {
-            throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
-        }
+	public ChunkResponse getChunk(String bookId, String chapterId, String chunkId) {
+		if (!bookService.existsById(bookId)) {
+			throw new BooksException(BooksErrorCode.BOOK_NOT_FOUND);
+		}
 
-        return convertToChunkResponse(chunk);
-    }
+		Chapter chapter = chapterRepository.findById(chapterId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
+		if (!bookId.equals(chapter.getBookId())) {
+			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
+		}
 
-    public boolean existsById(String chunkId) { return chunkRepository.existsById(chunkId); }
+		Chunk chunk = chunkRepository.findById(chunkId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
 
-    public Chunk findById(String chunkId) {
-        return chunkRepository.findById(chunkId)
-                .orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
-    }
+		if (!chapterId.equals(chunk.getChapterId())) {
+			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
+		}
 
-    public Chunk findFirstByChapterId(String chapterId) {
-        return chunkRepository.findFirstByChapterIdOrderByChunkNumberAsc(chapterId)
-                .orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
-    }
+		return convertToChunkResponse(chunk);
+	}
 
-    private ChunkResponse convertToChunkResponse(Chunk chunk) {
-        return ChunkResponse.builder()
-            .id(chunk.getId())
-            .chunkNumber(chunk.getChunkNumber())
-            .difficultyLevel(chunk.getDifficultyLevel())
-            .type(chunk.getType())
-            .content(chunk.getContent())
-            .description(chunk.getDescription())
-            .build();
-    }
-} 
+	public boolean existsById(String chunkId) {
+		return chunkRepository.existsById(chunkId);
+	}
+
+	public Chunk findById(String chunkId) {
+		return chunkRepository.findById(chunkId).orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
+	}
+
+	public Chunk findFirstByChapterId(String chapterId) {
+		return chunkRepository.findFirstByChapterIdOrderByChunkNumberAsc(chapterId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
+	}
+
+	private ChunkResponse convertToChunkResponse(Chunk chunk) {
+		return ChunkResponse.builder()
+			.id(chunk.getId())
+			.chunkNumber(chunk.getChunkNumber())
+			.difficultyLevel(chunk.getDifficultyLevel())
+			.type(chunk.getType())
+			.content(chunk.getContent())
+			.description(chunk.getDescription())
+			.build();
+	}
+
+}

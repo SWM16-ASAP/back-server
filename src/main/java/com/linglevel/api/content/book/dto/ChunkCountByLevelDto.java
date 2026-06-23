@@ -9,7 +9,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChunkCountByLevelDto {
-    private String chapterId;
-    private DifficultyLevel difficultyLevel;
-    private long count;
+
+	private String chapterId;
+
+	private DifficultyLevel difficultyLevel;
+
+	private long count;
+
 }

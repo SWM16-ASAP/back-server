@@ -14,14 +14,16 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Document(collection = "invalidWords")
 public class InvalidWord {
-    @Id
-    private String id;
 
-    @Indexed(unique = true)
-    private String word;
+	@Id
+	private String id;
 
-    private LocalDateTime attemptedAt;
+	@Indexed(unique = true)
+	private String word;
 
-    @Builder.Default
-    private Integer attemptCount = 1;
+	private LocalDateTime attemptedAt;
+
+	@Builder.Default
+	private Integer attemptCount = 1;
+
 }

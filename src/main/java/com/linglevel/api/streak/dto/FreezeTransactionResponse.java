@@ -8,8 +8,13 @@ import java.time.Instant;
 @Getter
 @Builder
 public class FreezeTransactionResponse {
-    private String id;
-    private Integer amount;
-    private String description;
-    private Instant createdAt;
+
+	private String id;
+
+	private Integer amount;
+
+	private String description;
+
+	private Instant createdAt;
+
 }

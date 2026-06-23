@@ -11,9 +11,10 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "word.single-flight")
 public class WordSingleFlightProperties {
 
-    private boolean enabled = true;
+	private boolean enabled = true;
 
-    private long waitTimeoutMs = 5_000;
+	private long waitTimeoutMs = 5_000;
 
-    private String resultSchemaVersion = "v2";
+	private String resultSchemaVersion = "v2";
+
 }

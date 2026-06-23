@@ -14,10 +14,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Schema(description = "티켓 잔고 응답")
 public class TicketBalanceResponse {
-    
-    @Schema(description = "보유 티켓 수", example = "5")
-    private Integer balance;
-    
-    @Schema(description = "마지막 업데이트 시간", example = "2024-01-15T10:30:00")
-    private LocalDateTime updatedAt;
+
+	@Schema(description = "보유 티켓 수", example = "5")
+	private Integer balance;
+
+	@Schema(description = "마지막 업데이트 시간", example = "2024-01-15T10:30:00")
+	private LocalDateTime updatedAt;
+
 }

@@ -26,52 +26,59 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
-    private final JwtFilter jwtFilter;
-    private final AdminAuthenticationFilter adminAuthenticationFilter;
-    private final RateLimitFilter rateLimitFilter;
+	private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 
-    @Autowired(required = false)
-    private TestAuthFilter testAuthFilter;
+	private final JwtFilter jwtFilter;
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/actuator/prometheus").hasRole("ADMIN") // 프로메테우스 엔드포인트만 어드민 권한 필요
-                        .requestMatchers("/actuator/**").permitAll() // 다른 actuator 엔드포인트들은 공개
-                        .requestMatchers("/api/v1/version").permitAll()
-                        .requestMatchers("/api/v1/auth/oauth/login").permitAll()
-                        .requestMatchers("/api/v1/auth/refresh").permitAll()
-                        .requestMatchers("/api/v1/push-logs/opened").permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/custom-contents/webhooks/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                )
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(authenticationEntryPoint)
-                );
+	private final AdminAuthenticationFilter adminAuthenticationFilter;
 
-        if (testAuthFilter != null) {
-            http.addFilterBefore(testAuthFilter, UsernamePasswordAuthenticationFilter.class);
-        }
+	private final RateLimitFilter rateLimitFilter;
 
-        http.addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterAfter(rateLimitFilter, JwtFilter.class);
-        return http.build();
-    }
+	@Autowired(required = false)
+	private TestAuthFilter testAuthFilter;
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		http.csrf(csrf -> csrf.disable())
+			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.authorizeHttpRequests(authz -> authz.requestMatchers("/actuator/prometheus")
+				.hasRole("ADMIN") // 프로메테우스 엔드포인트만 어드민 권한 필요
+				.requestMatchers("/actuator/**")
+				.permitAll() // 다른 actuator 엔드포인트들은 공개
+				.requestMatchers("/api/v1/version")
+				.permitAll()
+				.requestMatchers("/api/v1/auth/oauth/login")
+				.permitAll()
+				.requestMatchers("/api/v1/auth/refresh")
+				.permitAll()
+				.requestMatchers("/api/v1/push-logs/opened")
+				.permitAll()
+				.requestMatchers("/api/v1/admin/**")
+				.hasRole("ADMIN")
+				.requestMatchers("/api/v1/custom-contents/webhooks/**")
+				.hasRole("ADMIN")
+				.anyRequest()
+				.authenticated())
+			.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint));
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
-    }
+		if (testAuthFilter != null) {
+			http.addFilterBefore(testAuthFilter, UsernamePasswordAuthenticationFilter.class);
+		}
+
+		http.addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+		http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+		http.addFilterAfter(rateLimitFilter, JwtFilter.class);
+		return http.build();
+	}
+
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+
+	@Bean
+	public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+		return authConfig.getAuthenticationManager();
+	}
+
 }

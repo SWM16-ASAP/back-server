@@ -7,11 +7,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum StreakStatus {
 
-    COMPLETED("COMPLETED", "완료"),
-    FREEZE_USED("FREEZE_USED", "프리즈 사용"),
-    MISSED("MISSED", "놓침"),
-    FUTURE("FUTURE", "미래");
+	COMPLETED("COMPLETED", "완료"), FREEZE_USED("FREEZE_USED", "프리즈 사용"), MISSED("MISSED", "놓침"), FUTURE("FUTURE", "미래");
 
-    private final String code;
-    private final String name;
+	private final String code;
+
+	private final String name;
+
 }

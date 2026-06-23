@@ -7,9 +7,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface ArticleRepositoryCustom {
-    Page<Article> findArticlesWithFilters(GetArticlesRequest request, String userId, Pageable pageable);
 
-    Page<Article> findArticleOriginsWithFilters(GetArticleOriginsRequest request, Pageable pageable);
+	Page<Article> findArticlesWithFilters(GetArticlesRequest request, String userId, Pageable pageable);
 
-    void incrementViewCount(String articleId);
+	Page<Article> findArticleOriginsWithFilters(GetArticleOriginsRequest request, Pageable pageable);
+
+	void incrementViewCount(String articleId);
+
 }

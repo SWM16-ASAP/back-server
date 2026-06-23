@@ -15,32 +15,35 @@ import java.util.Set;
 @Getter
 @Setter
 public class UserStudyReport {
-    @Id
-    private String id;
 
-    @Indexed(unique = true)
-    private String userId;
+	@Id
+	private String id;
 
-    private Integer currentStreak = 0;
+	@Indexed(unique = true)
+	private String userId;
 
-    private Integer longestStreak = 0;
+	private Integer currentStreak = 0;
 
-    private LocalDate lastCompletionDate;
+	private Integer longestStreak = 0;
 
-    private LocalDate streakStartDate;
+	private LocalDate lastCompletionDate;
 
-    private Instant lastLearningTimestamp;
+	private LocalDate streakStartDate;
 
-    private Integer availableFreezes = 0;
+	private Instant lastLearningTimestamp;
 
-    private Long totalReadingTimeSeconds = 0L;
+	private Integer availableFreezes = 0;
 
-    private Set<String> completedContentIds = new HashSet<>();
+	private Long totalReadingTimeSeconds = 0L;
 
-    private Integer preferredStudyHour;
+	private Set<String> completedContentIds = new HashSet<>();
 
-    private Instant preferredStudyHourUpdatedAt;
+	private Integer preferredStudyHour;
 
-    private Instant createdAt;
-    private Instant updatedAt;
+	private Instant preferredStudyHourUpdatedAt;
+
+	private Instant createdAt;
+
+	private Instant updatedAt;
+
 }

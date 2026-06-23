@@ -16,32 +16,34 @@ import java.util.List;
 @AllArgsConstructor
 @Document(collection = "articles")
 public class Article {
-    @Id
-    private String id;
 
-    private String title;
+	@Id
+	private String id;
 
-    private String author;
+	private String title;
 
-    private String coverImageUrl;
+	private String author;
 
-    private String originUrl;
-    
-    private DifficultyLevel difficultyLevel;
-    
-    private Integer readingTime;
-    
-    private Double averageRating;
-    
-    private Integer reviewCount;
-    
-    private Integer viewCount;
+	private String coverImageUrl;
 
-    private ContentCategory category;
+	private String originUrl;
 
-    private List<String> tags;
+	private DifficultyLevel difficultyLevel;
 
-    private List<LanguageCode> targetLanguageCode;
+	private Integer readingTime;
 
-    private Instant createdAt;
+	private Double averageRating;
+
+	private Integer reviewCount;
+
+	private Integer viewCount;
+
+	private ContentCategory category;
+
+	private List<String> tags;
+
+	private List<LanguageCode> targetLanguageCode;
+
+	private Instant createdAt;
+
 }

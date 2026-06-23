@@ -17,30 +17,32 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ArticleContentInfoProvider implements ContentInfoProvider {
 
-    private final ArticleRepository articleRepository;
+	private final ArticleRepository articleRepository;
 
-    @Override
-    public ContentType getSupportedType() {
-        return ContentType.ARTICLE;
-    }
+	@Override
+	public ContentType getSupportedType() {
+		return ContentType.ARTICLE;
+	}
 
-    @Override
-    public ContentInfo getContentInfo(String contentId) {
-        try {
-            return articleRepository.findById(contentId)
-                    .map(this::convertToContentInfo)
-                    .orElse(ContentInfo.builder().build());
-        } catch (Exception e) {
-            return ContentInfo.builder().build();
-        }
-    }
+	@Override
+	public ContentInfo getContentInfo(String contentId) {
+		try {
+			return articleRepository.findById(contentId)
+				.map(this::convertToContentInfo)
+				.orElse(ContentInfo.builder().build());
+		}
+		catch (Exception e) {
+			return ContentInfo.builder().build();
+		}
+	}
 
-    private ContentInfo convertToContentInfo(Article article) {
-        return ContentInfo.builder()
-                .title(article.getTitle())
-                .author(article.getAuthor())
-                .coverImageUrl(article.getCoverImageUrl())
-                .readingTime(article.getReadingTime())
-                .build();
-    }
+	private ContentInfo convertToContentInfo(Article article) {
+		return ContentInfo.builder()
+			.title(article.getTitle())
+			.author(article.getAuthor())
+			.coverImageUrl(article.getCoverImageUrl())
+			.readingTime(article.getReadingTime())
+			.build();
+	}
+
 }

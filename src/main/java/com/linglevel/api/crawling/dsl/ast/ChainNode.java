@@ -7,24 +7,27 @@ import java.util.List;
 
 @RequiredArgsConstructor
 public class ChainNode implements ASTNode {
-    private final ASTNode base;
-    private final List<ASTNode> postfixes;
 
-    @Override
-    public Object evaluate(DslInterpreter interpreter) {
-        Object result = base.evaluate(interpreter);
+	private final ASTNode base;
 
-        for (ASTNode postfix : postfixes) {
-            Object saved = interpreter.getCurrentContext();
-            interpreter.setCurrentContext(result);
-            result = postfix.evaluate(interpreter);
-            interpreter.setCurrentContext(saved);
+	private final List<ASTNode> postfixes;
 
-            if (result == null) {
-                break;
-            }
-        }
+	@Override
+	public Object evaluate(DslInterpreter interpreter) {
+		Object result = base.evaluate(interpreter);
 
-        return result;
-    }
+		for (ASTNode postfix : postfixes) {
+			Object saved = interpreter.getCurrentContext();
+			interpreter.setCurrentContext(result);
+			result = postfix.evaluate(interpreter);
+			interpreter.setCurrentContext(saved);
+
+			if (result == null) {
+				break;
+			}
+		}
+
+		return result;
+	}
+
 }

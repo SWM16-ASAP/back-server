@@ -9,14 +9,15 @@ import java.util.List;
 @Getter
 @RequiredArgsConstructor
 public enum LanguageCode {
-    KO("KO", "Korean"),
-    EN("EN", "English"),
-    JA("JA", "Japanese");
 
-    private final String code;
-    private final String description;
+	KO("KO", "Korean"), EN("EN", "English"), JA("JA", "Japanese");
 
-    public static List<LanguageCode> getAllCodes() {
-        return Arrays.asList(LanguageCode.values());
-    }
+	private final String code;
+
+	private final String description;
+
+	public static List<LanguageCode> getAllCodes() {
+		return Arrays.asList(LanguageCode.values());
+	}
+
 }

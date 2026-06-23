@@ -38,240 +38,234 @@ import java.util.stream.Collectors;
 @Slf4j
 public class BookService {
 
-    private final BookRepository bookRepository;
-    private final BookProgressRepository bookProgressRepository;
+	private final BookRepository bookRepository;
 
-    private final S3AiService s3AiService;
-    private final S3TransferService s3TransferService;
-    private final S3UrlService s3UrlService;
-    private final BookPathStrategy bookPathStrategy;
-    private final ImageResizeService imageResizeService;
+	private final BookProgressRepository bookProgressRepository;
 
-    private final BookReadingTimeService bookReadingTimeService;
-    private final BookImportService bookImportService;
+	private final S3AiService s3AiService;
 
-    @Transactional
-    public BookImportResponse importBook(BookImportRequest request) {
-        log.info("Starting book import for file: {}", request.getId());
-        BookImportData importData = s3AiService.downloadJsonFile(request.getId(), BookImportData.class, bookPathStrategy);
+	private final S3TransferService s3TransferService;
 
-        Book book = createBook(importData, request.getId());
-        Book savedBook = bookRepository.save(book);
-        
-        s3TransferService.transferImagesFromAiToStatic(request.getId(), savedBook.getId(), bookPathStrategy);
+	private final S3UrlService s3UrlService;
 
-        String coverImageUrl = s3UrlService.getCoverImageUrl(savedBook.getId(), bookPathStrategy);
-        savedBook.setCoverImageUrl(coverImageUrl);
+	private final BookPathStrategy bookPathStrategy;
 
-        if (StringUtils.hasText(coverImageUrl)) {
-            try {
-                log.info("Auto-processing cover image for imported book: {}", savedBook.getId());
+	private final ImageResizeService imageResizeService;
 
-                String originalCoverS3Key = bookPathStrategy.generateCoverImagePath(savedBook.getId());
-                String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
+	private final BookReadingTimeService bookReadingTimeService;
 
-                savedBook.setCoverImageUrl(smallImageUrl);
-                log.info("Successfully auto-processed cover image: {} → {}", savedBook.getId(), smallImageUrl);
+	private final BookImportService bookImportService;
 
-            } catch (Exception e) {
-                log.warn("Failed to auto-process cover image for book: {}, keeping original URL", savedBook.getId(), e);
-            }
-        }
+	@Transactional
+	public BookImportResponse importBook(BookImportRequest request) {
+		log.info("Starting book import for file: {}", request.getId());
+		BookImportData importData = s3AiService.downloadJsonFile(request.getId(), BookImportData.class,
+				bookPathStrategy);
 
-        bookRepository.save(savedBook);
-        
-        List<Chapter> savedChapters = bookImportService.createChaptersFromMetadata(importData, savedBook.getId());
-        
-        bookImportService.createChunksFromLeveledResults(importData, savedChapters, savedBook.getId());
-        
-        bookReadingTimeService.updateReadingTimes(savedBook.getId(), importData);
-        
-        log.info("Successfully imported book with id: {}", savedBook.getId());
-        return new BookImportResponse(savedBook.getId());
-    }
+		Book book = createBook(importData, request.getId());
+		Book savedBook = bookRepository.save(book);
 
-    private Book createBook(BookImportData importData, String requestId) {
-        Book book = new Book();
-        book.setTitle(importData.getTitle());
-        book.setTitleTranslations(importData.getTitleTranslations());
-        book.setAuthor(importData.getAuthor());
-        DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(importData
-                .getOriginalTextLevel().toUpperCase());
-        book.setDifficultyLevel(difficultyLevel);
+		s3TransferService.transferImagesFromAiToStatic(request.getId(), savedBook.getId(), bookPathStrategy);
 
-        String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, bookPathStrategy);
-        book.setCoverImageUrl(coverImageUrl);
-        
-        book.setViewCount(0);
-        book.setAverageRating(0.0);
-        book.setReviewCount(0);
-        book.setReadingTime(0);
-        book.setCreatedAt(Instant.now());
-        
-        int chapterCount = importData.getLeveledResults().isEmpty() ? 0 :
-                          importData.getLeveledResults().get(0).getChapters().size();
+		String coverImageUrl = s3UrlService.getCoverImageUrl(savedBook.getId(), bookPathStrategy);
+		savedBook.setCoverImageUrl(coverImageUrl);
 
-        book.setChapterCount(chapterCount);
-        
-        return book;
-    }
+		if (StringUtils.hasText(coverImageUrl)) {
+			try {
+				log.info("Auto-processing cover image for imported book: {}", savedBook.getId());
 
-    public PageResponse<BookResponse> getBooks(GetBooksRequest request, String userId) {
-        Sort sort = createSort(request.getSortBy());
+				String originalCoverS3Key = bookPathStrategy.generateCoverImagePath(savedBook.getId());
+				String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
 
-        Pageable pageable = PageRequest.of(
-            request.getPage() - 1,
-            request.getLimit(),
-            sort
-        );
+				savedBook.setCoverImageUrl(smallImageUrl);
+				log.info("Successfully auto-processed cover image: {} → {}", savedBook.getId(), smallImageUrl);
 
-        // QueryDSL Custom Repository를 사용하여 필터링 + 페이지네이션 통합 처리
-        Page<Book> bookPage = bookRepository.findBooksWithFilters(request, userId, pageable);
-        List<Book> books = bookPage.getContent();
-        Map<String, BookProgress> progressMap = getProgressMap(userId, books);
+			}
+			catch (Exception e) {
+				log.warn("Failed to auto-process cover image for book: {}, keeping original URL", savedBook.getId(), e);
+			}
+		}
 
-        LanguageCode languageCode = request.getLanguageCode();
-        List<BookResponse> bookResponses = books.stream()
-            .map(book -> convertToBookResponse(book, progressMap.get(book.getId()), languageCode))
-            .collect(Collectors.toList());
+		bookRepository.save(savedBook);
 
-        return new PageResponse<>(bookResponses, bookPage);
-    }
+		List<Chapter> savedChapters = bookImportService.createChaptersFromMetadata(importData, savedBook.getId());
 
-    public BookResponse getBook(String bookId, String userId, LanguageCode languageCode) {
-        Book book = bookRepository.findById(bookId)
-            .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
+		bookImportService.createChunksFromLeveledResults(importData, savedChapters, savedBook.getId());
 
-        BookProgress progress = userId == null
-            ? null
-            : bookProgressRepository.findByUserIdAndBookId(userId, book.getId()).orElse(null);
+		bookReadingTimeService.updateReadingTimes(savedBook.getId(), importData);
 
-        return convertToBookResponse(book, progress, languageCode);
-    }
+		log.info("Successfully imported book with id: {}", savedBook.getId());
+		return new BookImportResponse(savedBook.getId());
+	}
 
-    public boolean existsById(String bookId) { 
-        return bookRepository.existsById(bookId); 
-    }
+	private Book createBook(BookImportData importData, String requestId) {
+		Book book = new Book();
+		book.setTitle(importData.getTitle());
+		book.setTitleTranslations(importData.getTitleTranslations());
+		book.setAuthor(importData.getAuthor());
+		DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(importData.getOriginalTextLevel().toUpperCase());
+		book.setDifficultyLevel(difficultyLevel);
 
-    public Book findById(String bookId) {
-        return bookRepository.findById(bookId)
-            .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
-    }
+		String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, bookPathStrategy);
+		book.setCoverImageUrl(coverImageUrl);
 
-    private Sort createSort(String sortBy) {
-        if (sortBy == null) {
-            sortBy = "created_at";
-        }
+		book.setViewCount(0);
+		book.setAverageRating(0.0);
+		book.setReviewCount(0);
+		book.setReadingTime(0);
+		book.setCreatedAt(Instant.now());
 
-        return switch (sortBy.toLowerCase()) {
-            case "view_count" -> Sort.by("viewCount").descending();
-            case "average_rating" -> Sort.by("averageRating").descending();
-            case "created_at" -> Sort.by("createdAt").descending();
-            default -> throw new BooksException(BooksErrorCode.INVALID_SORT_BY);
-        };
-    }
+		int chapterCount = importData.getLeveledResults().isEmpty() ? 0
+				: importData.getLeveledResults().get(0).getChapters().size();
 
-    private List<BookResponse> filterByProgress(List<BookResponse> bookResponses, ProgressStatus progressFilter) {
-        if (progressFilter == null) {
-            return bookResponses; // No filter, return all
-        }
+		book.setChapterCount(chapterCount);
 
-        return bookResponses.stream()
-            .filter(book -> {
-                return switch (progressFilter) {
-                    case NOT_STARTED -> book.getProgressPercentage() == 0.0;
-                    case IN_PROGRESS -> book.getProgressPercentage() > 0.0 && !book.getIsCompleted();
-                    case COMPLETED -> book.getIsCompleted();
-                };
-            })
-            .collect(Collectors.toList());
-    }
+		return book;
+	}
 
-    private Map<String, BookProgress> getProgressMap(String userId, List<Book> books) {
-        if (userId == null || books.isEmpty()) {
-            return Map.of();
-        }
+	public PageResponse<BookResponse> getBooks(GetBooksRequest request, String userId) {
+		Sort sort = createSort(request.getSortBy());
 
-        List<String> bookIds = books.stream().map(Book::getId).toList();
-        List<BookProgress> progresses = bookProgressRepository.findByUserIdAndBookIdIn(userId, bookIds);
-        if (progresses == null || progresses.isEmpty()) {
-            return Map.of();
-        }
+		Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
 
-        Map<String, BookProgress> progressMap = new HashMap<>();
-        for (BookProgress progress : progresses) {
-            if (progress.getBookId() != null) {
-                // unique index(userId, bookId) 기준으로 bookId당 1건만 유지
-                progressMap.putIfAbsent(progress.getBookId(), progress);
-            }
-        }
-        return progressMap;
-    }
+		// QueryDSL Custom Repository를 사용하여 필터링 + 페이지네이션 통합 처리
+		Page<Book> bookPage = bookRepository.findBooksWithFilters(request, userId, pageable);
+		List<Book> books = bookPage.getContent();
+		Map<String, BookProgress> progressMap = getProgressMap(userId, books);
 
-    private BookResponse convertToBookResponse(Book book, BookProgress progress, LanguageCode languageCode) {
-        // 진도 정보 조회
-        int currentReadChapterNumber = 0;
-        double progressPercentage = 0.0;
-        boolean isCompleted = false;
+		LanguageCode languageCode = request.getLanguageCode();
+		List<BookResponse> bookResponses = books.stream()
+			.map(book -> convertToBookResponse(book, progressMap.get(book.getId()), languageCode))
+			.collect(Collectors.toList());
 
-        if (progress != null) {
-            currentReadChapterNumber = progress.getCurrentReadChapterNumber() != null
-                ? progress.getCurrentReadChapterNumber() : 0;
+		return new PageResponse<>(bookResponses, bookPage);
+	}
 
-            // 진행률은 저장된 normalizedProgress를 단일 소스로 사용한다.
-            progressPercentage = progress.getNormalizedProgress() != null
-                ? progress.getNormalizedProgress()
-                : 0.0;
+	public BookResponse getBook(String bookId, String userId, LanguageCode languageCode) {
+		Book book = bookRepository.findById(bookId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
 
-            // DB에 저장된 완료 여부 사용
-            isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
-        }
+		BookProgress progress = userId == null ? null
+				: bookProgressRepository.findByUserIdAndBookId(userId, book.getId()).orElse(null);
 
-        // 언어 코드에 따라 title 선택
-        String selectedTitle = selectTitleByLanguage(book, languageCode);
+		return convertToBookResponse(book, progress, languageCode);
+	}
 
-        return BookResponse.builder()
-            .id(book.getId())
-            .title(selectedTitle)
-            .author(book.getAuthor())
-            .coverImageUrl(book.getCoverImageUrl())
-            .difficultyLevel(book.getDifficultyLevel())
-            .chapterCount(book.getChapterCount())
-            .currentReadChapterNumber(currentReadChapterNumber)
-            .progressPercentage(progressPercentage)
-            .isCompleted(isCompleted)
-            .readingTime(book.getReadingTime())
-            .averageRating(book.getAverageRating())
-            .reviewCount(book.getReviewCount())
-            .viewCount(book.getViewCount())
-            .tags(book.getTags())
-            .createdAt(book.getCreatedAt())
-            .build();
-    }
+	public boolean existsById(String bookId) {
+		return bookRepository.existsById(bookId);
+	}
 
-    private String selectTitleByLanguage(Book book, LanguageCode languageCode) {
-        if (languageCode == null) {
-            return book.getTitle();
-        }
+	public Book findById(String bookId) {
+		return bookRepository.findById(bookId).orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
+	}
 
-        return switch (languageCode) {
-            case EN -> book.getTitle();
-            case KO -> {
-                if (book.getTitleTranslations() != null &&
-                    StringUtils.hasText(book.getTitleTranslations().getKo())) {
-                    yield book.getTitleTranslations().getKo();
-                }
-                yield book.getTitle();
-            }
-            case JA -> {
-                if (book.getTitleTranslations() != null &&
-                    StringUtils.hasText(book.getTitleTranslations().getJa())) {
-                    yield book.getTitleTranslations().getJa();
-                }
-                yield book.getTitle();
-            }
-        };
-    }
+	private Sort createSort(String sortBy) {
+		if (sortBy == null) {
+			sortBy = "created_at";
+		}
 
+		return switch (sortBy.toLowerCase()) {
+			case "view_count" -> Sort.by("viewCount").descending();
+			case "average_rating" -> Sort.by("averageRating").descending();
+			case "created_at" -> Sort.by("createdAt").descending();
+			default -> throw new BooksException(BooksErrorCode.INVALID_SORT_BY);
+		};
+	}
+
+	private List<BookResponse> filterByProgress(List<BookResponse> bookResponses, ProgressStatus progressFilter) {
+		if (progressFilter == null) {
+			return bookResponses; // No filter, return all
+		}
+
+		return bookResponses.stream().filter(book -> {
+			return switch (progressFilter) {
+				case NOT_STARTED -> book.getProgressPercentage() == 0.0;
+				case IN_PROGRESS -> book.getProgressPercentage() > 0.0 && !book.getIsCompleted();
+				case COMPLETED -> book.getIsCompleted();
+			};
+		}).collect(Collectors.toList());
+	}
+
+	private Map<String, BookProgress> getProgressMap(String userId, List<Book> books) {
+		if (userId == null || books.isEmpty()) {
+			return Map.of();
+		}
+
+		List<String> bookIds = books.stream().map(Book::getId).toList();
+		List<BookProgress> progresses = bookProgressRepository.findByUserIdAndBookIdIn(userId, bookIds);
+		if (progresses == null || progresses.isEmpty()) {
+			return Map.of();
+		}
+
+		Map<String, BookProgress> progressMap = new HashMap<>();
+		for (BookProgress progress : progresses) {
+			if (progress.getBookId() != null) {
+				// unique index(userId, bookId) 기준으로 bookId당 1건만 유지
+				progressMap.putIfAbsent(progress.getBookId(), progress);
+			}
+		}
+		return progressMap;
+	}
+
+	private BookResponse convertToBookResponse(Book book, BookProgress progress, LanguageCode languageCode) {
+		// 진도 정보 조회
+		int currentReadChapterNumber = 0;
+		double progressPercentage = 0.0;
+		boolean isCompleted = false;
+
+		if (progress != null) {
+			currentReadChapterNumber = progress.getCurrentReadChapterNumber() != null
+					? progress.getCurrentReadChapterNumber() : 0;
+
+			// 진행률은 저장된 normalizedProgress를 단일 소스로 사용한다.
+			progressPercentage = progress.getNormalizedProgress() != null ? progress.getNormalizedProgress() : 0.0;
+
+			// DB에 저장된 완료 여부 사용
+			isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+		}
+
+		// 언어 코드에 따라 title 선택
+		String selectedTitle = selectTitleByLanguage(book, languageCode);
+
+		return BookResponse.builder()
+			.id(book.getId())
+			.title(selectedTitle)
+			.author(book.getAuthor())
+			.coverImageUrl(book.getCoverImageUrl())
+			.difficultyLevel(book.getDifficultyLevel())
+			.chapterCount(book.getChapterCount())
+			.currentReadChapterNumber(currentReadChapterNumber)
+			.progressPercentage(progressPercentage)
+			.isCompleted(isCompleted)
+			.readingTime(book.getReadingTime())
+			.averageRating(book.getAverageRating())
+			.reviewCount(book.getReviewCount())
+			.viewCount(book.getViewCount())
+			.tags(book.getTags())
+			.createdAt(book.getCreatedAt())
+			.build();
+	}
+
+	private String selectTitleByLanguage(Book book, LanguageCode languageCode) {
+		if (languageCode == null) {
+			return book.getTitle();
+		}
+
+		return switch (languageCode) {
+			case EN -> book.getTitle();
+			case KO -> {
+				if (book.getTitleTranslations() != null && StringUtils.hasText(book.getTitleTranslations().getKo())) {
+					yield book.getTitleTranslations().getKo();
+				}
+				yield book.getTitle();
+			}
+			case JA -> {
+				if (book.getTitleTranslations() != null && StringUtils.hasText(book.getTitleTranslations().getJa())) {
+					yield book.getTitleTranslations().getJa();
+				}
+				yield book.getTitle();
+			}
+		};
+	}
 
 }

@@ -8,7 +8,8 @@ import lombok.Setter;
 @Setter
 @Schema(description = "기사 임포트 응답")
 public class ArticleImportResponse {
-    
-    @Schema(description = "생성된 기사 ID", example = "60d0fe4f5311236168a109ca")
-    private String id;
+
+	@Schema(description = "생성된 기사 ID", example = "60d0fe4f5311236168a109ca")
+	private String id;
+
 }

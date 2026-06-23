@@ -18,37 +18,38 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Document(collection = "fcmTokens")
 public class FcmToken {
-    
-    @Id
-    private String id;
-    
-    @NotNull
-    @Indexed
-    private String userId;
-    
-    @NotNull
-    private String deviceId;
-    
-    @NotNull
-    @Indexed(unique = true)
-    private String fcmToken;
-    
-    @NotNull
-    private FcmPlatform platform;
 
-    private CountryCode countryCode;
+	@Id
+	private String id;
 
-    private String appVersion;
+	@NotNull
+	@Indexed
+	private String userId;
 
-    private String osVersion;
-    
-    @CreatedDate
-    private LocalDateTime createdAt;
-    
-    @LastModifiedDate
-    @Indexed(expireAfter = "7776000s") // 90일 자동 삭제
-    private LocalDateTime updatedAt;
-    
-    @Builder.Default
-    private Boolean isActive = true;
+	@NotNull
+	private String deviceId;
+
+	@NotNull
+	@Indexed(unique = true)
+	private String fcmToken;
+
+	@NotNull
+	private FcmPlatform platform;
+
+	private CountryCode countryCode;
+
+	private String appVersion;
+
+	private String osVersion;
+
+	@CreatedDate
+	private LocalDateTime createdAt;
+
+	@LastModifiedDate
+	@Indexed(expireAfter = "7776000s") // 90일 자동 삭제
+	private LocalDateTime updatedAt;
+
+	@Builder.Default
+	private Boolean isActive = true;
+
 }

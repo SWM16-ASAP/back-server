@@ -15,48 +15,50 @@ import java.time.Instant;
 @AllArgsConstructor
 @Schema(description = "읽기 진도 정보 응답")
 public class ProgressResponse {
-    @Schema(description = "진도 ID", example = "60d0fe4f5311236168a109d1")
-    private String id;
 
-    @Schema(description = "사용자 ID", example = "60d0fe4f5311236168a109ca")
-    private String userId;
+	@Schema(description = "진도 ID", example = "60d0fe4f5311236168a109d1")
+	private String id;
 
-    @Schema(description = "책 ID", example = "60d0fe4f5311236168a109cb")
-    private String bookId;
-    
-    @Schema(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-    private String chapterId;
-    
-    @Schema(description = "청크 ID", example = "60d0fe4f53112389248a182db")
-    private String chunkId;
-    
-    @Schema(description = "현재 읽은 챕터 번호", example = "1")
-    private Integer currentReadChapterNumber;
+	@Schema(description = "사용자 ID", example = "60d0fe4f5311236168a109ca")
+	private String userId;
 
-    @Schema(description = "현재 읽은 청크 번호", example = "5")
-    private Integer currentReadChunkNumber;
+	@Schema(description = "책 ID", example = "60d0fe4f5311236168a109cb")
+	private String bookId;
 
-    @Schema(description = "최대 읽은 챕터 번호", example = "3")
-    private Integer maxReadChapterNumber;
+	@Schema(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
+	private String chapterId;
 
-    @Schema(description = "챕터 우선 정렬 기준의 최대 도달 청크 위치값", example = "65544")
-    private Integer maxReadChunkNumber;
+	@Schema(description = "청크 ID", example = "60d0fe4f53112389248a182db")
+	private String chunkId;
 
-    @Schema(description = "완료 여부", example = "false")
-    private Boolean isCompleted;
+	@Schema(description = "현재 읽은 챕터 번호", example = "1")
+	private Integer currentReadChapterNumber;
 
-    @Schema(description = "현재 난이도", example = "EASY")
-    private DifficultyLevel currentDifficultyLevel;
+	@Schema(description = "현재 읽은 청크 번호", example = "5")
+	private Integer currentReadChunkNumber;
 
-    @Schema(description = "정규화된 현재 진행률 (%)", example = "75.5")
-    private Double normalizedProgress;
+	@Schema(description = "최대 읽은 챕터 번호", example = "3")
+	private Integer maxReadChapterNumber;
 
-    @Schema(description = "정규화된 최대 진행률 (%)", example = "85.2")
-    private Double maxNormalizedProgress;
+	@Schema(description = "챕터 우선 정렬 기준의 최대 도달 청크 위치값", example = "65544")
+	private Integer maxReadChunkNumber;
 
-    @Schema(description = "스트릭이 업데이트되었는지 여부 (완료 시 true)", example = "true")
-    private Boolean streakUpdated;
+	@Schema(description = "완료 여부", example = "false")
+	private Boolean isCompleted;
 
-    @Schema(description = "업데이트 일시", example = "2024-01-15T10:30:00Z")
-    private Instant updatedAt;
-} 
+	@Schema(description = "현재 난이도", example = "EASY")
+	private DifficultyLevel currentDifficultyLevel;
+
+	@Schema(description = "정규화된 현재 진행률 (%)", example = "75.5")
+	private Double normalizedProgress;
+
+	@Schema(description = "정규화된 최대 진행률 (%)", example = "85.2")
+	private Double maxNormalizedProgress;
+
+	@Schema(description = "스트릭이 업데이트되었는지 여부 (완료 시 true)", example = "true")
+	private Boolean streakUpdated;
+
+	@Schema(description = "업데이트 일시", example = "2024-01-15T10:30:00Z")
+	private Instant updatedAt;
+
+}

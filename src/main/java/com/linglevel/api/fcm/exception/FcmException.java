@@ -5,10 +5,12 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public class FcmException extends RuntimeException {
-    private final HttpStatus status;
 
-    public FcmException(FcmErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.status = errorCode.getStatus();
-    }
+	private final HttpStatus status;
+
+	public FcmException(FcmErrorCode errorCode) {
+		super(errorCode.getMessage());
+		this.status = errorCode.getStatus();
+	}
+
 }

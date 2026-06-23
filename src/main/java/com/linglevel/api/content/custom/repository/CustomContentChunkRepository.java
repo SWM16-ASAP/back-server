@@ -15,22 +15,28 @@ import java.util.Optional;
 @Repository
 public interface CustomContentChunkRepository extends MongoRepository<CustomContentChunk, String> {
 
-    List<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId);
-    
-    List<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId, DifficultyLevel difficultyLevel);
-    
-    @Query("{ 'customContentId': ?0, 'difficultyLevel': ?1, 'isDeleted': false }")
-    Page<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId, DifficultyLevel difficultyLevel, Pageable pageable);
-    
-    List<CustomContentChunk> findByUserIdAndIsDeletedFalse(String userId);
-    
-    Page<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
-            String customContentId, Pageable pageable);
-    
-    Optional<CustomContentChunk> findByIdAndCustomContentIdAndIsDeletedFalse(String id, String customContentId);
-    
-    Optional<CustomContentChunk> findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(String customContentId);
+	List<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId);
 
-    // V2 Progress: Count chunks by difficulty level
-    long countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(String customContentId, DifficultyLevel difficultyLevel);
+	List<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId, DifficultyLevel difficultyLevel);
+
+	@Query("{ 'customContentId': ?0, 'difficultyLevel': ?1, 'isDeleted': false }")
+	Page<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId, DifficultyLevel difficultyLevel, Pageable pageable);
+
+	List<CustomContentChunk> findByUserIdAndIsDeletedFalse(String userId);
+
+	Page<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId, Pageable pageable);
+
+	Optional<CustomContentChunk> findByIdAndCustomContentIdAndIsDeletedFalse(String id, String customContentId);
+
+	Optional<CustomContentChunk> findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId);
+
+	// V2 Progress: Count chunks by difficulty level
+	long countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(String customContentId,
+			DifficultyLevel difficultyLevel);
+
 }

@@ -35,215 +35,193 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest {
 
-    private CoordinatorFixture nodeA;
-    private CoordinatorFixture nodeB;
+	private CoordinatorFixture nodeA;
 
-    @BeforeEach
-    void setUp() {
-        nodeA = createNode(3_000);
-        nodeB = createNode(3_000);
-        flushAll(nodeA.template);
-    }
+	private CoordinatorFixture nodeB;
 
-    @AfterEach
-    void tearDown() {
-        if (nodeA != null) {
-            nodeA.close();
-        }
-        if (nodeB != null) {
-            nodeB.close();
-        }
-    }
+	@BeforeEach
+	void setUp() {
+		nodeA = createNode(3_000);
+		nodeB = createNode(3_000);
+		flushAll(nodeA.template);
+	}
 
-    @Test
-    @DisplayName("실제 Redis에서 두 인스턴스 동시 요청 시 AI 호출은 1회만 수행되고 follower는 조회 결과를 반환한다")
-    void deduplicatesAcrossTwoCoordinatorsUsingRealRedis() throws Exception {
-        AtomicInteger aiCalls = new AtomicInteger();
-        AtomicReference<List<WordAnalysisResult>> stored = new AtomicReference<>();
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        CountDownLatch start = new CountDownLatch(1);
+	@AfterEach
+	void tearDown() {
+		if (nodeA != null) {
+			nodeA.close();
+		}
+		if (nodeB != null) {
+			nodeB.close();
+		}
+	}
 
-        try {
-            Future<List<WordAnalysisResult>> f1 = executor.submit(() -> {
-                start.await(1, TimeUnit.SECONDS);
-                return nodeA.coordinator.execute(
-                        "run",
-                        LanguageCode.KO,
-                        () -> {
-                            aiCalls.incrementAndGet();
-                            sleep(250);
-                            List<WordAnalysisResult> result = List.of(sample("run"));
-                            stored.set(result);
-                            return result;
-                        },
-                        () -> Optional.ofNullable(stored.get())
-                );
-            });
+	@Test
+	@DisplayName("실제 Redis에서 두 인스턴스 동시 요청 시 AI 호출은 1회만 수행되고 follower는 조회 결과를 반환한다")
+	void deduplicatesAcrossTwoCoordinatorsUsingRealRedis() throws Exception {
+		AtomicInteger aiCalls = new AtomicInteger();
+		AtomicReference<List<WordAnalysisResult>> stored = new AtomicReference<>();
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		CountDownLatch start = new CountDownLatch(1);
 
-            Future<List<WordAnalysisResult>> f2 = executor.submit(() -> {
-                start.await(1, TimeUnit.SECONDS);
-                return nodeB.coordinator.execute(
-                        "run",
-                        LanguageCode.KO,
-                        () -> {
-                            aiCalls.incrementAndGet();
-                            List<WordAnalysisResult> result = List.of(sample("run"));
-                            stored.set(result);
-                            return result;
-                        },
-                        () -> Optional.ofNullable(stored.get())
-                );
-            });
+		try {
+			Future<List<WordAnalysisResult>> f1 = executor.submit(() -> {
+				start.await(1, TimeUnit.SECONDS);
+				return nodeA.coordinator.execute("run", LanguageCode.KO, () -> {
+					aiCalls.incrementAndGet();
+					sleep(250);
+					List<WordAnalysisResult> result = List.of(sample("run"));
+					stored.set(result);
+					return result;
+				}, () -> Optional.ofNullable(stored.get()));
+			});
 
-            start.countDown();
+			Future<List<WordAnalysisResult>> f2 = executor.submit(() -> {
+				start.await(1, TimeUnit.SECONDS);
+				return nodeB.coordinator.execute("run", LanguageCode.KO, () -> {
+					aiCalls.incrementAndGet();
+					List<WordAnalysisResult> result = List.of(sample("run"));
+					stored.set(result);
+					return result;
+				}, () -> Optional.ofNullable(stored.get()));
+			});
 
-            List<WordAnalysisResult> r1 = f1.get(5, TimeUnit.SECONDS);
-            List<WordAnalysisResult> r2 = f2.get(5, TimeUnit.SECONDS);
+			start.countDown();
 
-            assertThat(r1).hasSize(1);
-            assertThat(r2).hasSize(1);
-            assertThat(r1.get(0).getOriginalForm()).isEqualTo("run");
-            assertThat(r2.get(0).getOriginalForm()).isEqualTo("run");
-            assertThat(aiCalls.get()).isEqualTo(1);
-        } finally {
-            executor.shutdownNow();
-        }
-    }
+			List<WordAnalysisResult> r1 = f1.get(5, TimeUnit.SECONDS);
+			List<WordAnalysisResult> r2 = f2.get(5, TimeUnit.SECONDS);
 
-    @Test
-    @DisplayName("leader 실패 후 저장 결과가 없으면 follower는 timeout으로 실패한다")
-    void followerTimesOutWhenLeaderFailsWithoutStoredResultUsingRealRedis() throws Exception {
-        RuntimeException leaderFailure = new RuntimeException("bedrock unavailable");
-        AtomicInteger aiCalls = new AtomicInteger();
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        CountDownLatch leaderEntered = new CountDownLatch(1);
+			assertThat(r1).hasSize(1);
+			assertThat(r2).hasSize(1);
+			assertThat(r1.get(0).getOriginalForm()).isEqualTo("run");
+			assertThat(r2.get(0).getOriginalForm()).isEqualTo("run");
+			assertThat(aiCalls.get()).isEqualTo(1);
+		}
+		finally {
+			executor.shutdownNow();
+		}
+	}
 
-        try {
-            Future<List<WordAnalysisResult>> leader = executor.submit(() ->
-                    nodeA.coordinator.execute(
-                            "left",
-                            LanguageCode.KO,
-                            () -> {
-                                aiCalls.incrementAndGet();
-                                leaderEntered.countDown();
-                                sleep(250);
-                                throw leaderFailure;
-                            },
-                            Optional::empty
-                    )
-            );
+	@Test
+	@DisplayName("leader 실패 후 저장 결과가 없으면 follower는 timeout으로 실패한다")
+	void followerTimesOutWhenLeaderFailsWithoutStoredResultUsingRealRedis() throws Exception {
+		RuntimeException leaderFailure = new RuntimeException("bedrock unavailable");
+		AtomicInteger aiCalls = new AtomicInteger();
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		CountDownLatch leaderEntered = new CountDownLatch(1);
 
-            assertThat(leaderEntered.await(2, TimeUnit.SECONDS)).isTrue();
+		try {
+			Future<List<WordAnalysisResult>> leader = executor
+				.submit(() -> nodeA.coordinator.execute("left", LanguageCode.KO, () -> {
+					aiCalls.incrementAndGet();
+					leaderEntered.countDown();
+					sleep(250);
+					throw leaderFailure;
+				}, Optional::empty));
 
-            Future<List<WordAnalysisResult>> follower = executor.submit(() ->
-                    nodeB.coordinator.execute(
-                            "left",
-                            LanguageCode.KO,
-                            () -> {
-                                aiCalls.incrementAndGet();
-                                return List.of(sample("left"));
-                            },
-                            Optional::empty
-                    )
-            );
+			assertThat(leaderEntered.await(2, TimeUnit.SECONDS)).isTrue();
 
-            assertThatThrownBy(() -> leader.get(5, TimeUnit.SECONDS))
-                    .hasCause(leaderFailure);
-            assertThatThrownBy(() -> follower.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(WordsException.class);
-            assertThat(aiCalls.get()).isEqualTo(1);
-        } finally {
-            executor.shutdownNow();
-        }
-    }
+			Future<List<WordAnalysisResult>> follower = executor
+				.submit(() -> nodeB.coordinator.execute("left", LanguageCode.KO, () -> {
+					aiCalls.incrementAndGet();
+					return List.of(sample("left"));
+				}, Optional::empty));
 
-    private CoordinatorFixture createNode(long waitTimeoutMs) {
-        GenericContainer<?> redis = getRedisContainer();
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redis.getHost(), redis.getMappedPort(6379));
+			assertThatThrownBy(() -> leader.get(5, TimeUnit.SECONDS)).hasCause(leaderFailure);
+			assertThatThrownBy(() -> follower.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(WordsException.class);
+			assertThat(aiCalls.get()).isEqualTo(1);
+		}
+		finally {
+			executor.shutdownNow();
+		}
+	}
 
-        JedisConnectionFactory connectionFactory = new JedisConnectionFactory(config);
-        connectionFactory.afterPropertiesSet();
+	private CoordinatorFixture createNode(long waitTimeoutMs) {
+		GenericContainer<?> redis = getRedisContainer();
+		RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redis.getHost(),
+				redis.getMappedPort(6379));
 
-        StringRedisTemplate template = new StringRedisTemplate();
-        template.setConnectionFactory(connectionFactory);
-        template.afterPropertiesSet();
+		JedisConnectionFactory connectionFactory = new JedisConnectionFactory(config);
+		connectionFactory.afterPropertiesSet();
 
-        RedisMessageListenerContainer listenerContainer = new RedisMessageListenerContainer();
-        listenerContainer.setConnectionFactory(connectionFactory);
-        listenerContainer.afterPropertiesSet();
-        listenerContainer.start();
+		StringRedisTemplate template = new StringRedisTemplate();
+		template.setConnectionFactory(connectionFactory);
+		template.afterPropertiesSet();
 
-        Config redissonConfig = new Config();
-        redissonConfig.useSingleServer()
-                .setAddress("redis://" + redis.getHost() + ":" + redis.getMappedPort(6379));
-        RedissonClient redissonClient = Redisson.create(redissonConfig);
+		RedisMessageListenerContainer listenerContainer = new RedisMessageListenerContainer();
+		listenerContainer.setConnectionFactory(connectionFactory);
+		listenerContainer.afterPropertiesSet();
+		listenerContainer.start();
 
-        WordSingleFlightProperties properties = new WordSingleFlightProperties();
-        properties.setEnabled(true);
-        properties.setWaitTimeoutMs(waitTimeoutMs);
-        properties.setResultSchemaVersion("v2");
+		Config redissonConfig = new Config();
+		redissonConfig.useSingleServer().setAddress("redis://" + redis.getHost() + ":" + redis.getMappedPort(6379));
+		RedissonClient redissonClient = Redisson.create(redissonConfig);
 
-        WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(
-                template,
-                listenerContainer,
-                redissonClient,
-                properties
-        );
-        ReflectionTestUtils.invokeMethod(coordinator, "initialize");
+		WordSingleFlightProperties properties = new WordSingleFlightProperties();
+		properties.setEnabled(true);
+		properties.setWaitTimeoutMs(waitTimeoutMs);
+		properties.setResultSchemaVersion("v2");
 
-        return new CoordinatorFixture(connectionFactory, template, listenerContainer, redissonClient, coordinator);
-    }
+		WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(template, listenerContainer,
+				redissonClient, properties);
+		ReflectionTestUtils.invokeMethod(coordinator, "initialize");
 
-    private void flushAll(StringRedisTemplate template) {
-        RedisConnection connection = template.getConnectionFactory().getConnection();
-        try {
-            connection.serverCommands().flushAll();
-        } finally {
-            connection.close();
-        }
-    }
+		return new CoordinatorFixture(connectionFactory, template, listenerContainer, redissonClient, coordinator);
+	}
 
-    private WordAnalysisResult sample(String originalForm) {
-        return WordAnalysisResult.builder()
-                .originalForm(originalForm)
-                .sourceLanguageCode(LanguageCode.EN)
-                .targetLanguageCode(LanguageCode.KO)
-                .build();
-    }
+	private void flushAll(StringRedisTemplate template) {
+		RedisConnection connection = template.getConnectionFactory().getConnection();
+		try {
+			connection.serverCommands().flushAll();
+		}
+		finally {
+			connection.close();
+		}
+	}
 
-    private void sleep(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
-    }
+	private WordAnalysisResult sample(String originalForm) {
+		return WordAnalysisResult.builder()
+			.originalForm(originalForm)
+			.sourceLanguageCode(LanguageCode.EN)
+			.targetLanguageCode(LanguageCode.KO)
+			.build();
+	}
 
-    private record CoordinatorFixture(
-            JedisConnectionFactory connectionFactory,
-            StringRedisTemplate template,
-            RedisMessageListenerContainer listenerContainer,
-            RedissonClient redissonClient,
-            WordSingleFlightRedisCoordinator coordinator
-    ) {
-        void close() {
-            try {
-                ReflectionTestUtils.invokeMethod(coordinator, "shutdown");
-            } catch (Exception ignored) {
-            }
-            try {
-                listenerContainer.stop();
-            } catch (Exception ignored) {
-            }
-            try {
-                redissonClient.shutdown();
-            } catch (Exception ignored) {
-            }
-            try {
-                connectionFactory.destroy();
-            } catch (Exception ignored) {
-            }
-        }
-    }
+	private void sleep(long millis) {
+		try {
+			Thread.sleep(millis);
+		}
+		catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException(e);
+		}
+	}
+
+	private record CoordinatorFixture(JedisConnectionFactory connectionFactory, StringRedisTemplate template,
+			RedisMessageListenerContainer listenerContainer, RedissonClient redissonClient,
+			WordSingleFlightRedisCoordinator coordinator) {
+		void close() {
+			try {
+				ReflectionTestUtils.invokeMethod(coordinator, "shutdown");
+			}
+			catch (Exception ignored) {
+			}
+			try {
+				listenerContainer.stop();
+			}
+			catch (Exception ignored) {
+			}
+			try {
+				redissonClient.shutdown();
+			}
+			catch (Exception ignored) {
+			}
+			try {
+				connectionFactory.destroy();
+			}
+			catch (Exception ignored) {
+			}
+		}
+	}
+
 }

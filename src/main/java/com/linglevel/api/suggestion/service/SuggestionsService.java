@@ -15,42 +15,45 @@ import org.springframework.web.client.RestTemplate;
 @Service
 public class SuggestionsService {
 
-    private final String webhookUrl;
-    private final RestTemplate restTemplate;
-    private final UserRepository userRepository;
+	private final String webhookUrl;
 
-    public SuggestionsService(@Value("${discord.webhook.suggestion.url}") String webhookUrl,
-                              RestTemplate restTemplate,
-                              UserRepository userRepository) {
-        this.webhookUrl = webhookUrl;
-        this.restTemplate = restTemplate;
-        this.userRepository = userRepository;
-    }
+	private final RestTemplate restTemplate;
 
-    public SuggestionResponse saveSuggestion(SuggestionRequest request, String userId) {
-        User user = userRepository.findById(userId).orElse(null);
+	private final UserRepository userRepository;
 
-        String userInfo;
-        if (user != null) {
-            String accountEmail = user.getEmail() != null ? user.getEmail() : "계정 이메일 없음";
-            String inputEmail = request.getEmail() != null && !request.getEmail().equals("익명") ? request.getEmail() : "입력 이메일 없음";
-            userInfo = user.getId() + " | " + accountEmail;
-        } else {
-            userInfo = "사용자 정보 없음";
-        }
+	public SuggestionsService(@Value("${discord.webhook.suggestion.url}") String webhookUrl, RestTemplate restTemplate,
+			UserRepository userRepository) {
+		this.webhookUrl = webhookUrl;
+		this.restTemplate = restTemplate;
+		this.userRepository = userRepository;
+	}
 
-        String message = "**" + request.getTags() + "**(" + request.getEmail() + ")\n"
-                + "> " + userInfo + "\n"
-                + "```" + request.getContent() + "```";
+	public SuggestionResponse saveSuggestion(SuggestionRequest request, String userId) {
+		User user = userRepository.findById(userId).orElse(null);
 
-        DiscordWebhookRequest discordRequest = new DiscordWebhookRequest(message);
+		String userInfo;
+		if (user != null) {
+			String accountEmail = user.getEmail() != null ? user.getEmail() : "계정 이메일 없음";
+			String inputEmail = request.getEmail() != null && !request.getEmail().equals("익명") ? request.getEmail()
+					: "입력 이메일 없음";
+			userInfo = user.getId() + " | " + accountEmail;
+		}
+		else {
+			userInfo = "사용자 정보 없음";
+		}
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<DiscordWebhookRequest> requestEntity = new HttpEntity<>(discordRequest, headers);
+		String message = "**" + request.getTags() + "**(" + request.getEmail() + ")\n" + "> " + userInfo + "\n" + "```"
+				+ request.getContent() + "```";
 
-        restTemplate.postForEntity(webhookUrl, requestEntity, String.class);
+		DiscordWebhookRequest discordRequest = new DiscordWebhookRequest(message);
 
-        return new SuggestionResponse("Suggestion submitted successfully.");
-    }
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<DiscordWebhookRequest> requestEntity = new HttpEntity<>(discordRequest, headers);
+
+		restTemplate.postForEntity(webhookUrl, requestEntity, String.class);
+
+		return new SuggestionResponse("Suggestion submitted successfully.");
+	}
+
 }

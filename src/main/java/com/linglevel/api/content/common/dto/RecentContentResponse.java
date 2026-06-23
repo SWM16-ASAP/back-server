@@ -12,26 +12,41 @@ import java.util.List;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class RecentContentResponse {
-    private String contentId;
-    private ContentType contentType;
-    private String title;
-    private String author;
-    private String coverImageUrl;
-    private String difficultyLevel;
-    private List<String> tags;
-    private Integer readingTime;
 
-    // Progress fields
-    private Integer chapterCount;
-    private Integer currentReadChapterNumber;
-    private Integer chunkCount;
-    private Integer currentReadChunkNumber;
-    private Double progressPercentage;
-    private Boolean isCompleted;
+	private String contentId;
 
-    // CustomContent specific fields
-    private String originUrl;
-    private String originDomain;
+	private ContentType contentType;
 
-    private Instant lastStudiedAt;
+	private String title;
+
+	private String author;
+
+	private String coverImageUrl;
+
+	private String difficultyLevel;
+
+	private List<String> tags;
+
+	private Integer readingTime;
+
+	// Progress fields
+	private Integer chapterCount;
+
+	private Integer currentReadChapterNumber;
+
+	private Integer chunkCount;
+
+	private Integer currentReadChunkNumber;
+
+	private Double progressPercentage;
+
+	private Boolean isCompleted;
+
+	// CustomContent specific fields
+	private String originUrl;
+
+	private String originDomain;
+
+	private Instant lastStudiedAt;
+
 }

@@ -18,7 +18,8 @@ import lombok.NoArgsConstructor;
 @Schema(description = "단어 검색 요청")
 public class WordSearchRequest {
 
-    @NotNull(message = "번역 대상 언어는 필수입니다")
-    @Schema(description = "번역 대상 언어 코드", example = "KO", required = true)
-    private LanguageCode targetLanguage;
+	@NotNull(message = "번역 대상 언어는 필수입니다")
+	@Schema(description = "번역 대상 언어 코드", example = "KO", required = true)
+	private LanguageCode targetLanguage;
+
 }

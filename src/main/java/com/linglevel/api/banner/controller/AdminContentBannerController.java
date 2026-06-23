@@ -35,139 +35,125 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminContentBannerController {
 
-    private final ContentBannerService contentBannerService;
+	private final ContentBannerService contentBannerService;
 
-    @Operation(summary = "콘텐츠 배너 생성",
-               description = "새로운 콘텐츠 배너를 생성합니다. contentId와 contentType을 통해 실제 콘텐츠 정보를 자동으로 조회하여 설정합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "콘텐츠를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "400", description = "지원하지 않는 콘텐츠 타입",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping("/content-banners")
-    public ResponseEntity<ContentBannerResponse> createContentBanner(
-            @Valid @RequestBody CreateContentBannerRequest request) {
+	@Operation(summary = "콘텐츠 배너 생성",
+			description = "새로운 콘텐츠 배너를 생성합니다. contentId와 contentType을 통해 실제 콘텐츠 정보를 자동으로 조회하여 설정합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "콘텐츠를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "400", description = "지원하지 않는 콘텐츠 타입",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PostMapping("/content-banners")
+	public ResponseEntity<ContentBannerResponse> createContentBanner(
+			@Valid @RequestBody CreateContentBannerRequest request) {
 
-        log.info("Creating content banner for content: {} ({})", request.getContentId(), request.getContentType());
+		log.info("Creating content banner for content: {} ({})", request.getContentId(), request.getContentType());
 
-        ContentBannerResponse response = contentBannerService.createBanner(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
+		ContentBannerResponse response = contentBannerService.createBanner(request);
+		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+	}
 
-    @Operation(summary = "관리자용 콘텐츠 배너 목록 조회",
-               description = "관리자용 콘텐츠 배너 목록을 조회합니다. 모든 배너를 조회하며 국가별 필터링이 가능합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/content-banners")
-    public ResponseEntity<PageResponse<ContentBannerResponse>> getAdminContentBanners(
-            @ParameterObject @Valid @ModelAttribute GetAdminContentBannersRequest request) {
+	@Operation(summary = "관리자용 콘텐츠 배너 목록 조회", description = "관리자용 콘텐츠 배너 목록을 조회합니다. 모든 배너를 조회하며 국가별 필터링이 가능합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/content-banners")
+	public ResponseEntity<PageResponse<ContentBannerResponse>> getAdminContentBanners(
+			@ParameterObject @Valid @ModelAttribute GetAdminContentBannersRequest request) {
 
-        log.info("Getting admin content banners for country: {}, page: {}, size: {}",
-                request.getCountryCode(), request.getPage(), request.getLimit());
+		log.info("Getting admin content banners for country: {}, page: {}, size: {}", request.getCountryCode(),
+				request.getPage(), request.getLimit());
 
-        org.springframework.data.domain.Page<ContentBannerResponse> bannerPage =
-                contentBannerService.getBanners(request.getCountryCode(), request.getPage() - 1, request.getLimit());
+		org.springframework.data.domain.Page<ContentBannerResponse> bannerPage = contentBannerService
+			.getBanners(request.getCountryCode(), request.getPage() - 1, request.getLimit());
 
-        PageResponse<ContentBannerResponse> response = PageResponse.of(bannerPage, bannerPage.getContent());
+		PageResponse<ContentBannerResponse> response = PageResponse.of(bannerPage, bannerPage.getContent());
 
-        return ResponseEntity.ok(response);
-    }
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "콘텐츠 배너 상세 조회",
-               description = "특정 콘텐츠 배너의 상세 정보를 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "배너를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/content-banners/{bannerId}")
-    public ResponseEntity<ContentBannerResponse> getContentBanner(
-            @Parameter(description = "조회할 배너의 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bannerId) {
+	@Operation(summary = "콘텐츠 배너 상세 조회", description = "특정 콘텐츠 배너의 상세 정보를 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "배너를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/content-banners/{bannerId}")
+	public ResponseEntity<ContentBannerResponse> getContentBanner(@Parameter(description = "조회할 배너의 ID",
+			example = "60d0fe4f5311236168a109ca") @PathVariable String bannerId) {
 
-        log.info("Getting content banner: {}", bannerId);
+		log.info("Getting content banner: {}", bannerId);
 
-        ContentBannerResponse response = contentBannerService.getBanner(bannerId);
-        return ResponseEntity.ok(response);
-    }
+		ContentBannerResponse response = contentBannerService.getBanner(bannerId);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "콘텐츠 배너 수정",
-               description = "콘텐츠 배너의 정보를 부분 업데이트합니다. 제목, 설명, 순서, 활성화 상태 등을 변경할 수 있습니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "수정 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "배너를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "400", description = "최소 한 개의 필드가 필요함",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PatchMapping("/content-banners/{bannerId}")
-    public ResponseEntity<ContentBannerResponse> updateContentBanner(
-            @Parameter(description = "수정할 배너의 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bannerId,
-            @Valid @RequestBody UpdateContentBannerRequest request) {
+	@Operation(summary = "콘텐츠 배너 수정", description = "콘텐츠 배너의 정보를 부분 업데이트합니다. 제목, 설명, 순서, 활성화 상태 등을 변경할 수 있습니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "수정 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "배너를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "400", description = "최소 한 개의 필드가 필요함",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PatchMapping("/content-banners/{bannerId}")
+	public ResponseEntity<ContentBannerResponse> updateContentBanner(
+			@Parameter(description = "수정할 배너의 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String bannerId,
+			@Valid @RequestBody UpdateContentBannerRequest request) {
 
-        log.info("Updating content banner: {}", bannerId);
+		log.info("Updating content banner: {}", bannerId);
 
-        ContentBannerResponse response = contentBannerService.updateBanner(bannerId, request);
-        return ResponseEntity.ok(response);
-    }
+		ContentBannerResponse response = contentBannerService.updateBanner(bannerId, request);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "콘텐츠 배너 삭제",
-               description = "콘텐츠 배너를 삭제합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "삭제 성공",
-                    content = @Content(schema = @Schema(implementation = DeleteResponse.class))),
-            @ApiResponse(responseCode = "404", description = "배너를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @DeleteMapping("/content-banners/{bannerId}")
-    public ResponseEntity<DeleteResponse> deleteContentBanner(
-            @Parameter(description = "삭제할 배너의 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bannerId) {
+	@Operation(summary = "콘텐츠 배너 삭제", description = "콘텐츠 배너를 삭제합니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "삭제 성공",
+					content = @Content(schema = @Schema(implementation = DeleteResponse.class))),
+			@ApiResponse(responseCode = "404", description = "배너를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "유효하지 않은 API 키",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@DeleteMapping("/content-banners/{bannerId}")
+	public ResponseEntity<DeleteResponse> deleteContentBanner(@Parameter(description = "삭제할 배너의 ID",
+			example = "60d0fe4f5311236168a109ca") @PathVariable String bannerId) {
 
-        log.info("Deleting content banner: {}", bannerId);
+		log.info("Deleting content banner: {}", bannerId);
 
-        contentBannerService.deleteBanner(bannerId);
-        DeleteResponse response = new DeleteResponse("Banner deleted successfully.");
-        return ResponseEntity.ok(response);
-    }
+		contentBannerService.deleteBanner(bannerId);
+		DeleteResponse response = new DeleteResponse("Banner deleted successfully.");
+		return ResponseEntity.ok(response);
+	}
 
-    @ExceptionHandler(BannerException.class)
-    public ResponseEntity<ExceptionResponse> handleBannerException(BannerException e) {
-        log.info("Banner Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e.getMessage()));
-    }
+	@ExceptionHandler(BannerException.class)
+	public ResponseEntity<ExceptionResponse> handleBannerException(BannerException e) {
+		log.info("Banner Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e.getMessage()));
+	}
 
-    // 삭제 응답용 내부 클래스
-    @Schema(description = "삭제 응답")
-    public static class DeleteResponse {
-        @Schema(description = "응답 메시지", example = "Banner deleted successfully.")
-        private String message;
+	// 삭제 응답용 내부 클래스
+	@Schema(description = "삭제 응답")
+	public static class DeleteResponse {
 
-        public DeleteResponse(String message) {
-            this.message = message;
-        }
+		@Schema(description = "응답 메시지", example = "Banner deleted successfully.")
+		private String message;
 
-        public String getMessage() {
-            return message;
-        }
+		public DeleteResponse(String message) {
+			this.message = message;
+		}
 
-        public void setMessage(String message) {
-            this.message = message;
-        }
-    }
+		public String getMessage() {
+			return message;
+		}
+
+		public void setMessage(String message) {
+			this.message = message;
+		}
+
+	}
+
 }

@@ -9,15 +9,17 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ChapterRepository extends MongoRepository<Chapter, String>, ChapterRepositoryCustom {
-    Page<Chapter> findByBookId(String chapterId, Pageable pageable);
-    
-    List<Chapter> findByBookIdOrderByChapterNumber(String bookId);
 
-    Optional<Chapter> findByBookIdAndChapterNumber(String bookId, int chapterNumber);
-    
-    Optional<Chapter> findFirstByBookIdOrderByChapterNumberAsc(String chapterId);
+	Page<Chapter> findByBookId(String chapterId, Pageable pageable);
 
-    Integer countByBookId(String bookId);
+	List<Chapter> findByBookIdOrderByChapterNumber(String bookId);
 
-    Optional<Chapter> findById(String chapterId);
-} 
+	Optional<Chapter> findByBookIdAndChapterNumber(String bookId, int chapterNumber);
+
+	Optional<Chapter> findFirstByBookIdOrderByChapterNumberAsc(String chapterId);
+
+	Integer countByBookId(String bookId);
+
+	Optional<Chapter> findById(String chapterId);
+
+}

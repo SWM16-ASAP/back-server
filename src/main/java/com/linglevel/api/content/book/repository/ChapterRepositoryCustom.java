@@ -6,5 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface ChapterRepositoryCustom {
-    Page<Chapter> findChaptersWithFilters(String bookId, GetChaptersRequest request, String userId, Pageable pageable);
+
+	Page<Chapter> findChaptersWithFilters(String bookId, GetChaptersRequest request, String userId, Pageable pageable);
+
 }

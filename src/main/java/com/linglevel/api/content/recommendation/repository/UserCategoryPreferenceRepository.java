@@ -7,5 +7,6 @@ import java.util.Optional;
 
 public interface UserCategoryPreferenceRepository extends MongoRepository<UserCategoryPreference, String> {
 
-    Optional<UserCategoryPreference> findByUserId(String userId);
+	Optional<UserCategoryPreference> findByUserId(String userId);
+
 }

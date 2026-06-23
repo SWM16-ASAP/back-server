@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "OAuth 로그인 요청")
 public class OauthLoginRequest {
-    @Schema(description = "Firebase Auth Code", example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")  
-    private String authCode;
-} 
+
+	@Schema(description = "Firebase Auth Code", example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")
+	private String authCode;
+
+}

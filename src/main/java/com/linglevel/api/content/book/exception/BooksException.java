@@ -5,10 +5,12 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public class BooksException extends RuntimeException {
-    private final HttpStatus status;
 
-    public BooksException(BooksErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.status = errorCode.getStatus();
-    }
-} 
+	private final HttpStatus status;
+
+	public BooksException(BooksErrorCode errorCode) {
+		super(errorCode.getMessage());
+		this.status = errorCode.getStatus();
+	}
+
+}

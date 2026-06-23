@@ -18,28 +18,30 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CustomContentReadingTimeService {
 
-    private final CustomContentRepository customContentRepository;
-    private final CustomContentChunkRepository customContentChunkRepository;
-    private final ReadingTimeService readingTimeService;
+	private final CustomContentRepository customContentRepository;
 
-    @Transactional
-    public void updateReadingTime(String customContentId) {
-        CustomContent customContent = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
+	private final CustomContentChunkRepository customContentChunkRepository;
 
-        List<CustomContentChunk> chunks = customContentChunkRepository.findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
-                customContentId,
-                customContent.getDifficultyLevel()
-        );
+	private final ReadingTimeService readingTimeService;
 
-        int totalCharacters = chunks.stream()
-                .filter(chunk -> chunk.getType() == ChunkType.TEXT)
-                .mapToInt(chunk -> chunk.getChunkText().length())
-                .sum();
+	@Transactional
+	public void updateReadingTime(String customContentId) {
+		CustomContent customContent = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-        int readingTime = readingTimeService.calculateReadingTimeFromCharacters(totalCharacters);
-        customContent.setReadingTime(readingTime);
+		List<CustomContentChunk> chunks = customContentChunkRepository
+			.findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(customContentId,
+					customContent.getDifficultyLevel());
 
-        customContentRepository.save(customContent);
-    }
+		int totalCharacters = chunks.stream()
+			.filter(chunk -> chunk.getType() == ChunkType.TEXT)
+			.mapToInt(chunk -> chunk.getChunkText().length())
+			.sum();
+
+		int readingTime = readingTimeService.calculateReadingTimeFromCharacters(totalCharacters);
+		customContent.setReadingTime(readingTime);
+
+		customContentRepository.save(customContent);
+	}
+
 }

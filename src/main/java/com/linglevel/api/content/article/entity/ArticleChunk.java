@@ -14,25 +14,27 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "articleChunks")
 @CompoundIndex(name = "article_difficulty_chunk_idx", def = "{'articleId': 1, 'difficultyLevel': 1, 'chunkNumber': 1}")
 public class ArticleChunk {
-    @Id
-    private String id;
 
-    private String articleId;
+	@Id
+	private String id;
 
-    private Integer chunkNumber;
+	private String articleId;
 
-    private DifficultyLevel difficultyLevel;
+	private Integer chunkNumber;
 
-    private ChunkType type;
+	private DifficultyLevel difficultyLevel;
 
-    private String content;
+	private ChunkType type;
 
-    private String description;
-    
-    public void updateContent(String content, String description) {
-        this.content = content;
-        if (description != null) {
-            this.description = description;
-        }
-    }
+	private String content;
+
+	private String description;
+
+	public void updateContent(String content, String description) {
+		this.content = content;
+		if (description != null) {
+			this.description = description;
+		}
+	}
+
 }

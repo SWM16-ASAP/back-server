@@ -8,9 +8,10 @@ import java.util.Optional;
 
 public interface FeedSourceRepository extends MongoRepository<FeedSource, String> {
 
-    boolean existsByUrl(String url);
+	boolean existsByUrl(String url);
 
-    Optional<FeedSource> findByUrl(String url);
+	Optional<FeedSource> findByUrl(String url);
 
-    List<FeedSource> findByIsActiveTrue();
+	List<FeedSource> findByIsActiveTrue();
+
 }

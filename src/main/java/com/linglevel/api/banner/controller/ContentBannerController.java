@@ -30,49 +30,50 @@ import java.util.List;
 @Tag(name = "Content Banners", description = "콘텐츠 배너 관련 API")
 public class ContentBannerController {
 
-    private final ContentBannerService contentBannerService;
+	private final ContentBannerService contentBannerService;
 
-    @Operation(summary = "콘텐츠 배너 목록 조회",
-               description = "메인 페이지에 노출할 활성화된 콘텐츠 배너 목록을 조회합니다. 국가별로 필터링 가능하며, 표시 순서에 따라 정렬됩니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = ContentBannerListResponse.class))),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/content-banners")
-    public ResponseEntity<ContentBannerListResponse> getContentBanners(
-            @ParameterObject @Valid @ModelAttribute GetContentBannersRequest request) {
+	@Operation(summary = "콘텐츠 배너 목록 조회",
+			description = "메인 페이지에 노출할 활성화된 콘텐츠 배너 목록을 조회합니다. 국가별로 필터링 가능하며, 표시 순서에 따라 정렬됩니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "조회 성공",
+					content = @Content(schema = @Schema(implementation = ContentBannerListResponse.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/content-banners")
+	public ResponseEntity<ContentBannerListResponse> getContentBanners(
+			@ParameterObject @Valid @ModelAttribute GetContentBannersRequest request) {
 
-        log.info("Getting content banners for country: {}", request.getCountryCode());
+		log.info("Getting content banners for country: {}", request.getCountryCode());
 
-        List<ContentBannerResponse> banners = contentBannerService.getActiveBanners(request.getCountryCode());
+		List<ContentBannerResponse> banners = contentBannerService.getActiveBanners(request.getCountryCode());
 
-        ContentBannerListResponse response = new ContentBannerListResponse();
-        response.setData(banners);
+		ContentBannerListResponse response = new ContentBannerListResponse();
+		response.setData(banners);
 
-        return ResponseEntity.ok(response);
-    }
+		return ResponseEntity.ok(response);
+	}
 
-    @ExceptionHandler(BannerException.class)
-    public ResponseEntity<ExceptionResponse> handleBannerException(BannerException e) {
-        log.info("Banner Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e.getMessage()));
-    }
+	@ExceptionHandler(BannerException.class)
+	public ResponseEntity<ExceptionResponse> handleBannerException(BannerException e) {
+		log.info("Banner Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e.getMessage()));
+	}
 
-    // 내부 응답 클래스 - 리스트 래핑용
-    @Schema(description = "콘텐츠 배너 목록 응답")
-    public static class ContentBannerListResponse {
-        @Schema(description = "배너 목록")
-        private List<ContentBannerResponse> data;
+	// 내부 응답 클래스 - 리스트 래핑용
+	@Schema(description = "콘텐츠 배너 목록 응답")
+	public static class ContentBannerListResponse {
 
-        public List<ContentBannerResponse> getData() {
-            return data;
-        }
+		@Schema(description = "배너 목록")
+		private List<ContentBannerResponse> data;
 
-        public void setData(List<ContentBannerResponse> data) {
-            this.data = data;
-        }
-    }
+		public List<ContentBannerResponse> getData() {
+			return data;
+		}
+
+		public void setData(List<ContentBannerResponse> data) {
+			this.data = data;
+		}
+
+	}
+
 }

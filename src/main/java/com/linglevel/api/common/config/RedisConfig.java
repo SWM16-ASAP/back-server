@@ -18,58 +18,57 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class RedisConfig {
 
-    @Value("${spring.data.redis.host}")
-    private String host;
+	@Value("${spring.data.redis.host}")
+	private String host;
 
-    @Value("${spring.data.redis.port}")
-    private int port;
+	@Value("${spring.data.redis.port}")
+	private int port;
 
-    @Value("${spring.data.redis.ssl.enabled}")
-    private boolean ssl;
+	@Value("${spring.data.redis.ssl.enabled}")
+	private boolean ssl;
 
-    @Bean
-    public RedisConnectionFactory redisConnectionFactory() {
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
+	@Bean
+	public RedisConnectionFactory redisConnectionFactory() {
+		RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
 
-        JedisClientConfiguration clientConfig;
-        if (ssl) {
-            clientConfig = JedisClientConfiguration.builder()
-                    .useSsl()
-                    .build();
-        } else {
-            clientConfig = JedisClientConfiguration.builder().build();
-        }
+		JedisClientConfiguration clientConfig;
+		if (ssl) {
+			clientConfig = JedisClientConfiguration.builder().useSsl().build();
+		}
+		else {
+			clientConfig = JedisClientConfiguration.builder().build();
+		}
 
-        return new JedisConnectionFactory(config, clientConfig);
-    }
+		return new JedisConnectionFactory(config, clientConfig);
+	}
 
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate() {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(redisConnectionFactory());
+	@Bean
+	public RedisTemplate<String, Object> redisTemplate() {
+		RedisTemplate<String, Object> template = new RedisTemplate<>();
+		template.setConnectionFactory(redisConnectionFactory());
 
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-        template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+		template.setKeySerializer(new StringRedisSerializer());
+		template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+		template.setHashKeySerializer(new StringRedisSerializer());
+		template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
 
-        template.afterPropertiesSet();
-        return template;
-    }
+		template.afterPropertiesSet();
+		return template;
+	}
 
-    @Bean
-    public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory redisConnectionFactory) {
-        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
-        container.setConnectionFactory(redisConnectionFactory);
-        return container;
-    }
+	@Bean
+	public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory redisConnectionFactory) {
+		RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+		container.setConnectionFactory(redisConnectionFactory);
+		return container;
+	}
 
-    @Bean(destroyMethod = "shutdown")
-    public RedissonClient redissonClient() {
-        Config config = new Config();
-        String scheme = ssl ? "rediss://" : "redis://";
-        config.useSingleServer()
-                .setAddress(scheme + host + ":" + port);
-        return Redisson.create(config);
-    }
+	@Bean(destroyMethod = "shutdown")
+	public RedissonClient redissonClient() {
+		Config config = new Config();
+		String scheme = ssl ? "rediss://" : "redis://";
+		config.useSingleServer().setAddress(scheme + host + ":" + port);
+		return Redisson.create(config);
+	}
+
 }

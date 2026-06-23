@@ -20,102 +20,99 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChapterRepositoryImpl implements ChapterRepositoryCustom {
 
-    private final MongoTemplate mongoTemplate;
-    private final BookProgressRepository bookProgressRepository;
+	private final MongoTemplate mongoTemplate;
 
-    @Override
-    public Page<Chapter> findChaptersWithFilters(String bookId, GetChaptersRequest request, String userId, Pageable pageable) {
-        Query query = buildQuery(bookId, request, userId);
+	private final BookProgressRepository bookProgressRepository;
 
-        // 총 개수 조회 (필터링 적용 후)
-        long total = mongoTemplate.count(query, Chapter.class);
+	@Override
+	public Page<Chapter> findChaptersWithFilters(String bookId, GetChaptersRequest request, String userId,
+			Pageable pageable) {
+		Query query = buildQuery(bookId, request, userId);
 
-        // 페이지네이션 적용
-        query.with(pageable);
+		// 총 개수 조회 (필터링 적용 후)
+		long total = mongoTemplate.count(query, Chapter.class);
 
-        // 데이터 조회
-        List<Chapter> chapters = mongoTemplate.find(query, Chapter.class);
+		// 페이지네이션 적용
+		query.with(pageable);
 
-        return new PageImpl<>(chapters, pageable, total);
-    }
+		// 데이터 조회
+		List<Chapter> chapters = mongoTemplate.find(query, Chapter.class);
 
-    /**
-     * 동적 쿼리 빌드
-     */
-    private Query buildQuery(String bookId, GetChaptersRequest request, String userId) {
-        Query query = new Query();
+		return new PageImpl<>(chapters, pageable, total);
+	}
 
-        // bookId 필터는 항상 적용
-        query.addCriteria(Criteria.where("bookId").is(bookId));
+	/**
+	 * 동적 쿼리 빌드
+	 */
+	private Query buildQuery(String bookId, GetChaptersRequest request, String userId) {
+		Query query = new Query();
 
-        // 진도 필터 적용
-        applyProgressFilter(query, request.getProgress(), bookId, userId);
+		// bookId 필터는 항상 적용
+		query.addCriteria(Criteria.where("bookId").is(bookId));
 
-        return query;
-    }
+		// 진도 필터 적용
+		applyProgressFilter(query, request.getProgress(), bookId, userId);
 
-    /**
-     * 진도 필터 적용
-     */
-    private void applyProgressFilter(Query query, ProgressStatus progress, String bookId, String userId) {
-        if (progress == null || userId == null) {
-            return;
-        }
+		return query;
+	}
 
-        BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId)
-            .orElse(null);
+	/**
+	 * 진도 필터 적용
+	 */
+	private void applyProgressFilter(Query query, ProgressStatus progress, String bookId, String userId) {
+		if (progress == null || userId == null) {
+			return;
+		}
 
-        List<Integer> chapterNumbers = getChapterNumbersByProgress(bookId, bookProgress, progress);
+		BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId).orElse(null);
 
-        if (chapterNumbers == null) {
-            // null이면 필터링하지 않음 (모든 챕터 반환)
-            return;
-        }
+		List<Integer> chapterNumbers = getChapterNumbersByProgress(bookId, bookProgress, progress);
 
-        if (!chapterNumbers.isEmpty()) {
-            query.addCriteria(Criteria.where("chapterNumber").in(chapterNumbers));
-        } else {
-            // 조건에 맞는 챕터가 없으면 빈 결과 반환
-            query.addCriteria(Criteria.where("_id").is(null));
-        }
-    }
+		if (chapterNumbers == null) {
+			// null이면 필터링하지 않음 (모든 챕터 반환)
+			return;
+		}
 
-    /**
-     * 진도 상태별 챕터 번호 목록 조회
-     */
-    private List<Integer> getChapterNumbersByProgress(String bookId, BookProgress bookProgress, ProgressStatus progressStatus) {
-        // 모든 챕터 번호 조회
-        List<Chapter> allChapters = mongoTemplate.find(
-            Query.query(Criteria.where("bookId").is(bookId)),
-            Chapter.class
-        );
-        List<Integer> allChapterNumbers = allChapters.stream().map(Chapter::getChapterNumber).toList();
+		if (!chapterNumbers.isEmpty()) {
+			query.addCriteria(Criteria.where("chapterNumber").in(chapterNumbers));
+		}
+		else {
+			// 조건에 맞는 챕터가 없으면 빈 결과 반환
+			query.addCriteria(Criteria.where("_id").is(null));
+		}
+	}
 
-        if (bookProgress == null) {
-            return progressStatus == ProgressStatus.NOT_STARTED ? allChapterNumbers : List.of();
-        }
+	/**
+	 * 진도 상태별 챕터 번호 목록 조회
+	 */
+	private List<Integer> getChapterNumbersByProgress(String bookId, BookProgress bookProgress,
+			ProgressStatus progressStatus) {
+		// 모든 챕터 번호 조회
+		List<Chapter> allChapters = mongoTemplate.find(Query.query(Criteria.where("bookId").is(bookId)), Chapter.class);
+		List<Integer> allChapterNumbers = allChapters.stream().map(Chapter::getChapterNumber).toList();
 
-        Map<Integer, BookProgress.ChapterProgressInfo> progressInfoMap =
-            bookProgress.getChapterProgresses() == null
-                ? Map.of()
-                : bookProgress.getChapterProgresses().stream()
-                    .collect(Collectors.toMap(BookProgress.ChapterProgressInfo::getChapterNumber, Function.identity()));
+		if (bookProgress == null) {
+			return progressStatus == ProgressStatus.NOT_STARTED ? allChapterNumbers : List.of();
+		}
 
-        return allChapterNumbers.stream()
-            .filter(chapterNumber -> {
-                BookProgress.ChapterProgressInfo info = progressInfoMap.get(chapterNumber);
-                boolean isCompleted = info != null && Boolean.TRUE.equals(info.getIsCompleted());
-                boolean inProgress = info != null
-                    && !isCompleted
-                    && info.getProgressPercentage() != null
-                    && info.getProgressPercentage() > 0;
+		Map<Integer, BookProgress.ChapterProgressInfo> progressInfoMap = bookProgress.getChapterProgresses() == null
+				? Map.of()
+				: bookProgress.getChapterProgresses()
+					.stream()
+					.collect(Collectors.toMap(BookProgress.ChapterProgressInfo::getChapterNumber, Function.identity()));
 
-                return switch (progressStatus) {
-                    case COMPLETED -> isCompleted;
-                    case IN_PROGRESS -> inProgress;
-                    case NOT_STARTED -> !isCompleted && !inProgress;
-                };
-            })
-            .toList();
-    }
+		return allChapterNumbers.stream().filter(chapterNumber -> {
+			BookProgress.ChapterProgressInfo info = progressInfoMap.get(chapterNumber);
+			boolean isCompleted = info != null && Boolean.TRUE.equals(info.getIsCompleted());
+			boolean inProgress = info != null && !isCompleted && info.getProgressPercentage() != null
+					&& info.getProgressPercentage() > 0;
+
+			return switch (progressStatus) {
+				case COMPLETED -> isCompleted;
+				case IN_PROGRESS -> inProgress;
+				case NOT_STARTED -> !isCompleted && !inProgress;
+			};
+		}).toList();
+	}
+
 }

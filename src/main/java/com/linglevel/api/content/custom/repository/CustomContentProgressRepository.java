@@ -9,6 +9,9 @@ import java.util.Optional;
 
 @Repository
 public interface CustomContentProgressRepository extends MongoRepository<CustomContentProgress, String> {
-    Optional<CustomContentProgress> findByUserIdAndCustomId(String userId, String customId);
-    List<CustomContentProgress> findAllByUserId(String userId);
+
+	Optional<CustomContentProgress> findByUserIdAndCustomId(String userId, String customId);
+
+	List<CustomContentProgress> findAllByUserId(String userId);
+
 }

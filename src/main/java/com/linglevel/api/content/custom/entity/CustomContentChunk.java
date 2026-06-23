@@ -21,47 +21,48 @@ import java.time.Instant;
 @AllArgsConstructor
 @Document(collection = "customContentChunks")
 @CompoundIndexes({
-    @CompoundIndex(name = "custom_content_difficulty_chapter_chunk_idx", def = "{'customContentId': 1, 'difficultyLevel': 1, 'chapterNum': 1, 'chunkNum': 1}"),
-    @CompoundIndex(name = "user_deleted_created_idx", def = "{'userId': 1, 'isDeleted': 1, 'createdAt': -1}")
-})
+		@CompoundIndex(name = "custom_content_difficulty_chapter_chunk_idx",
+				def = "{'customContentId': 1, 'difficultyLevel': 1, 'chapterNum': 1, 'chunkNum': 1}"),
+		@CompoundIndex(name = "user_deleted_created_idx", def = "{'userId': 1, 'isDeleted': 1, 'createdAt': -1}") })
 public class CustomContentChunk {
-    
-    @Id
-    private String id;
 
-    @NotNull
-    @Indexed
-    private String customContentId;
+	@Id
+	private String id;
 
-    @NotNull
-    @Indexed
-    private String userId;
+	@NotNull
+	@Indexed
+	private String customContentId;
 
-    @NotNull
-    private DifficultyLevel difficultyLevel;
+	@NotNull
+	@Indexed
+	private String userId;
 
-    @NotNull
-    private Integer chapterNum;
+	@NotNull
+	private DifficultyLevel difficultyLevel;
 
-    @NotNull
-    private Integer chunkNum;
+	@NotNull
+	private Integer chapterNum;
 
-    @NotNull
-    private ChunkType type;
+	@NotNull
+	private Integer chunkNum;
 
-    @NotNull
-    private String chunkText;
+	@NotNull
+	private ChunkType type;
 
-    private String description;
+	@NotNull
+	private String chunkText;
 
-    @Builder.Default
-    private Boolean isDeleted = false;
+	private String description;
 
-    @CreatedDate
-    private Instant createdAt;
+	@Builder.Default
+	private Boolean isDeleted = false;
 
-    @LastModifiedDate
-    private Instant updatedAt;
+	@CreatedDate
+	private Instant createdAt;
 
-    private Instant deletedAt;
+	@LastModifiedDate
+	private Instant updatedAt;
+
+	private Instant deletedAt;
+
 }

@@ -15,54 +15,56 @@ import java.util.List;
 @Slf4j
 public class FeedCrawlingScheduler {
 
-    private final FeedSourceRepository feedSourceRepository;
-    private final FeedCrawlingService feedCrawlingService;
+	private final FeedSourceRepository feedSourceRepository;
 
-    /**
-     * 매일 새벽 3시에 활성화된 모든 FeedSource 크롤링 (한국 시간 기준)
-     */
-    @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
-    public void scheduledCrawling() {
-        log.info("Scheduled crawling started at 3 AM");
+	private final FeedCrawlingService feedCrawlingService;
 
-        List<FeedSource> sources = feedSourceRepository.findByIsActiveTrue();
+	/**
+	 * 매일 새벽 3시에 활성화된 모든 FeedSource 크롤링 (한국 시간 기준)
+	 */
+	@Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
+	public void scheduledCrawling() {
+		log.info("Scheduled crawling started at 3 AM");
 
-        log.info("Found {} active FeedSources to crawl", sources.size());
+		List<FeedSource> sources = feedSourceRepository.findByIsActiveTrue();
 
-        int totalCrawled = 0;
-        for (FeedSource source : sources) {
-            int count = feedCrawlingService.crawlFeedSource(source);
-            totalCrawled += count;
-        }
+		log.info("Found {} active FeedSources to crawl", sources.size());
 
-        log.info("Scheduled crawling completed: {} feeds collected", totalCrawled);
-    }
+		int totalCrawled = 0;
+		for (FeedSource source : sources) {
+			int count = feedCrawlingService.crawlFeedSource(source);
+			totalCrawled += count;
+		}
 
-    /**
-     * 수동 트리거: 모든 활성화된 FeedSource 즉시 크롤링
-     */
-    public int crawlAllSources() {
-        log.info("Manual crawling triggered for all sources");
+		log.info("Scheduled crawling completed: {} feeds collected", totalCrawled);
+	}
 
-        List<FeedSource> sources = feedSourceRepository.findByIsActiveTrue();
-        int totalCrawled = 0;
+	/**
+	 * 수동 트리거: 모든 활성화된 FeedSource 즉시 크롤링
+	 */
+	public int crawlAllSources() {
+		log.info("Manual crawling triggered for all sources");
 
-        for (FeedSource source : sources) {
-            int count = feedCrawlingService.crawlFeedSource(source);
-            totalCrawled += count;
-        }
+		List<FeedSource> sources = feedSourceRepository.findByIsActiveTrue();
+		int totalCrawled = 0;
 
-        log.info("Manual crawling completed: {} feeds collected", totalCrawled);
-        return totalCrawled;
-    }
+		for (FeedSource source : sources) {
+			int count = feedCrawlingService.crawlFeedSource(source);
+			totalCrawled += count;
+		}
 
-    /**
-     * 수동 트리거: 특정 FeedSource만 크롤링
-     */
-    public int crawlSingleSource(String feedSourceId) {
-        FeedSource source = feedSourceRepository.findById(feedSourceId)
-            .orElseThrow(() -> new IllegalArgumentException("FeedSource not found: " + feedSourceId));
+		log.info("Manual crawling completed: {} feeds collected", totalCrawled);
+		return totalCrawled;
+	}
 
-        return feedCrawlingService.crawlFeedSource(source);
-    }
+	/**
+	 * 수동 트리거: 특정 FeedSource만 크롤링
+	 */
+	public int crawlSingleSource(String feedSourceId) {
+		FeedSource source = feedSourceRepository.findById(feedSourceId)
+			.orElseThrow(() -> new IllegalArgumentException("FeedSource not found: " + feedSourceId));
+
+		return feedCrawlingService.crawlFeedSource(source);
+	}
+
 }

@@ -36,146 +36,159 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CustomContentService {
 
-    private final CustomContentRepository customContentRepository;
-    private final CustomContentChunkRepository customContentChunkRepository;
-    private final CustomContentProgressRepository customContentProgressRepository;
-    private final UserCustomContentRepository userCustomContentRepository;
-    private final CustomContentChunkService customContentChunkService;
+	private final CustomContentRepository customContentRepository;
 
-    public PageResponse<CustomContentResponse> getCustomContents(String userId, GetCustomContentsRequest request) {
-        log.info("Getting custom contents for user: {} with request: {}", userId, request);
+	private final CustomContentChunkRepository customContentChunkRepository;
 
-        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt"); // 기본값: 최신순
-        if (StringUtils.hasText(request.getSortBy())) {
-            sort = switch (request.getSortBy()) {
-                case "view_count" -> Sort.by(Sort.Direction.DESC, "viewCount");
-                case "average_rating" -> Sort.by(Sort.Direction.DESC, "averageRating");
-                default -> sort;
-            };
-        }
+	private final CustomContentProgressRepository customContentProgressRepository;
 
-        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
+	private final UserCustomContentRepository userCustomContentRepository;
 
-        // UserCustomContent와 CustomContent를 aggregation으로 조인하여 한 번에 조회
-        Page<CustomContent> page = customContentRepository.findCustomContentsByUserWithFilters(userId, request, pageable);
+	private final CustomContentChunkService customContentChunkService;
 
-        List<CustomContentResponse> responses = page.getContent().stream()
-                .map(content -> mapToResponse(content, userId))
-                .collect(Collectors.toList());
+	public PageResponse<CustomContentResponse> getCustomContents(String userId, GetCustomContentsRequest request) {
+		log.info("Getting custom contents for user: {} with request: {}", userId, request);
 
-        return new PageResponse<>(responses, page);
-    }
+		Sort sort = Sort.by(Sort.Direction.DESC, "createdAt"); // 기본값: 최신순
+		if (StringUtils.hasText(request.getSortBy())) {
+			sort = switch (request.getSortBy()) {
+				case "view_count" -> Sort.by(Sort.Direction.DESC, "viewCount");
+				case "average_rating" -> Sort.by(Sort.Direction.DESC, "averageRating");
+				default -> sort;
+			};
+		}
 
-    public CustomContentResponse getCustomContent(String userId, String customContentId) {
-        log.info("Getting custom content {} for user: {}", customContentId, userId);
+		Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
 
-        if (!userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId)) {
-            throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
-        }
+		// UserCustomContent와 CustomContent를 aggregation으로 조인하여 한 번에 조회
+		Page<CustomContent> page = customContentRepository.findCustomContentsByUserWithFilters(userId, request,
+				pageable);
 
-        CustomContent content = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
+		List<CustomContentResponse> responses = page.getContent()
+			.stream()
+			.map(content -> mapToResponse(content, userId))
+			.collect(Collectors.toList());
 
-        return mapToResponse(content, userId);
-    }
+		return new PageResponse<>(responses, page);
+	}
 
-    @Transactional
-    public CustomContentResponse updateCustomContent(String userId, String customContentId, UpdateCustomContentRequest request) {
-        log.info("Updating custom content {} for user: {}", customContentId, userId);
+	public CustomContentResponse getCustomContent(String userId, String customContentId) {
+		log.info("Getting custom content {} for user: {}", customContentId, userId);
 
-        if (!userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId)) {
-            throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
-        }
+		if (!userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId)) {
+			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
+		}
 
-        CustomContent content = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
+		CustomContent content = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-        if (request.getTitle() != null) {
-            content.setTitle(request.getTitle());
-        }
-        if (request.getTags() != null) {
-            content.setTags(request.getTags());
-        }
+		return mapToResponse(content, userId);
+	}
 
-        CustomContent updatedContent = customContentRepository.save(content);
-        return mapToResponse(updatedContent, userId);
-    }
+	@Transactional
+	public CustomContentResponse updateCustomContent(String userId, String customContentId,
+			UpdateCustomContentRequest request) {
+		log.info("Updating custom content {} for user: {}", customContentId, userId);
 
-    @Transactional
-    public void deleteCustomContent(String userId, String customContentId) {
-        log.info("Deleting custom content {} for user: {}", customContentId, userId);
+		if (!userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId)) {
+			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
+		}
 
-        UserCustomContent userCustomContent = userCustomContentRepository
-                .findByUserIdAndCustomContentId(userId, customContentId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
+		CustomContent content = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-        userCustomContentRepository.delete(userCustomContent);
-        log.info("Deleted UserCustomContent mapping for user: {} and content: {}", userId, customContentId);
-    }
+		if (request.getTitle() != null) {
+			content.setTitle(request.getTitle());
+		}
+		if (request.getTags() != null) {
+			content.setTags(request.getTags());
+		}
 
-    private CustomContentResponse mapToResponse(CustomContent content, String userId) {
-        // 진도 정보 조회
-        int currentReadChunkNumber = 0;
-        double progressPercentage = 0.0;
-        boolean isCompleted = false;
-        com.linglevel.api.content.common.DifficultyLevel currentDifficultyLevel = content.getDifficultyLevel(); // Fallback: CustomContent의 난이도
+		CustomContent updatedContent = customContentRepository.save(content);
+		return mapToResponse(updatedContent, userId);
+	}
 
-        if (userId != null) {
-            CustomContentProgress progress = customContentProgressRepository
-                .findByUserIdAndCustomId(userId, content.getId())
-                .orElse(null);
+	@Transactional
+	public void deleteCustomContent(String userId, String customContentId) {
+		log.info("Deleting custom content {} for user: {}", customContentId, userId);
 
-            if (progress != null) {
-                // [DTO_MAPPING] chunk에서 chunkNum 조회 (안전하게 처리)
-                try {
-                    CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
-                    currentReadChunkNumber = chunk.getChunkNum() != null ? chunk.getChunkNum() : 0;
-                } catch (Exception e) {
-                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
-                    currentReadChunkNumber = 0;
-                }
+		UserCustomContent userCustomContent = userCustomContentRepository
+			.findByUserIdAndCustomContentId(userId, customContentId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
-                // Progress가 있으면 currentDifficultyLevel 사용
-                if (progress.getCurrentDifficultyLevel() != null) {
-                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
-                }
+		userCustomContentRepository.delete(userCustomContent);
+		log.info("Deleted UserCustomContent mapping for user: {} and content: {}", userId, customContentId);
+	}
 
-                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
-                long totalChunksForLevel = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel);
+	private CustomContentResponse mapToResponse(CustomContent content, String userId) {
+		// 진도 정보 조회
+		int currentReadChunkNumber = 0;
+		double progressPercentage = 0.0;
+		boolean isCompleted = false;
+		com.linglevel.api.content.common.DifficultyLevel currentDifficultyLevel = content.getDifficultyLevel(); // Fallback:
+																												// CustomContent의
+																												// 난이도
 
-                if (totalChunksForLevel > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
-                }
+		if (userId != null) {
+			CustomContentProgress progress = customContentProgressRepository
+				.findByUserIdAndCustomId(userId, content.getId())
+				.orElse(null);
 
-                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+			if (progress != null) {
+				// [DTO_MAPPING] chunk에서 chunkNum 조회 (안전하게 처리)
+				try {
+					CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
+					currentReadChunkNumber = chunk.getChunkNum() != null ? chunk.getChunkNum() : 0;
+				}
+				catch (Exception e) {
+					log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
+					currentReadChunkNumber = 0;
+				}
 
-            }
-        }
-        CustomContentResponse response = new CustomContentResponse();
-        response.setId(content.getId());
-        response.setTitle(content.getTitle());
-        response.setAuthor(content.getAuthor());
-        response.setCoverImageUrl(content.getCoverImageUrl());
-        response.setDifficultyLevel(content.getDifficultyLevel());
-        response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
-        response.setChunkCount((int) customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel));
-        response.setCurrentReadChunkNumber(currentReadChunkNumber);
-        response.setProgressPercentage(progressPercentage);
-        response.setCurrentDifficultyLevel(currentDifficultyLevel);
-        response.setIsCompleted(isCompleted);
-        response.setReadingTime(content.getReadingTime());
-        response.setAverageRating(content.getAverageRating() != null ? content.getAverageRating().floatValue() : 0.0d);
-        response.setReviewCount(content.getReviewCount());
-        response.setViewCount(content.getViewCount());
-        response.setTags(content.getTags());
-        response.setOriginUrl(content.getOriginUrl());
-        response.setOriginDomain(content.getOriginDomain());
-        response.setCreatedAt(content.getCreatedAt());
-        response.setUpdatedAt(content.getUpdatedAt());
-        return response;
-    }
+				// Progress가 있으면 currentDifficultyLevel 사용
+				if (progress.getCurrentDifficultyLevel() != null) {
+					currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+				}
 
-    public boolean existsById(String customContentId) {
-        return customContentRepository.existsById(customContentId);
-    }
+				// V2: 현재 난이도 기준으로 동적으로 청크 수 계산
+				long totalChunksForLevel = customContentChunkRepository
+					.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel);
+
+				if (totalChunksForLevel > 0) {
+					progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
+				}
+
+				isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+
+			}
+		}
+		CustomContentResponse response = new CustomContentResponse();
+		response.setId(content.getId());
+		response.setTitle(content.getTitle());
+		response.setAuthor(content.getAuthor());
+		response.setCoverImageUrl(content.getCoverImageUrl());
+		response.setDifficultyLevel(content.getDifficultyLevel());
+		response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
+		response.setChunkCount((int) customContentChunkRepository
+			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel));
+		response.setCurrentReadChunkNumber(currentReadChunkNumber);
+		response.setProgressPercentage(progressPercentage);
+		response.setCurrentDifficultyLevel(currentDifficultyLevel);
+		response.setIsCompleted(isCompleted);
+		response.setReadingTime(content.getReadingTime());
+		response.setAverageRating(content.getAverageRating() != null ? content.getAverageRating().floatValue() : 0.0d);
+		response.setReviewCount(content.getReviewCount());
+		response.setViewCount(content.getViewCount());
+		response.setTags(content.getTags());
+		response.setOriginUrl(content.getOriginUrl());
+		response.setOriginDomain(content.getOriginDomain());
+		response.setCreatedAt(content.getCreatedAt());
+		response.setUpdatedAt(content.getUpdatedAt());
+		return response;
+	}
+
+	public boolean existsById(String customContentId) {
+		return customContentRepository.existsById(customContentId);
+	}
+
 }

@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "로그아웃 응답")
 public class LogoutResponse {
-    @Schema(description = "결과 메시지", example = "Successfully logged out.")
-    private String message;
-} 
+
+	@Schema(description = "결과 메시지", example = "Successfully logged out.")
+	private String message;
+
+}

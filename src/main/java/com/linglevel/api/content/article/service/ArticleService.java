@@ -39,306 +39,317 @@ import java.util.List;
 @Slf4j
 public class ArticleService {
 
-    private final ArticleRepository articleRepository;
-    private final ArticleProgressRepository articleProgressRepository;
-    private final ArticleChunkRepository articleChunkRepository;
-    private final ArticleImportService articleImportService;
-    private final ArticleReadingTimeService articleReadingTimeService;
-    private final ArticleChunkService articleChunkService;
-    private final S3AiService s3AiService;
-    private final S3TransferService s3TransferService;
-    private final S3UrlService s3UrlService;
-    private final ImageResizeService imageResizeService;
-    private final ArticlePathStrategy articlePathStrategy;
+	private final ArticleRepository articleRepository;
 
-    public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request, String userId) {
-        validateGetArticlesRequest(request);
+	private final ArticleProgressRepository articleProgressRepository;
 
-        Pageable pageable = createPageable(request);
+	private final ArticleChunkRepository articleChunkRepository;
 
-        // Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
-        Page<Article> articlePage = articleRepository.findArticlesWithFilters(request, userId, pageable);
+	private final ArticleImportService articleImportService;
 
-        List<ArticleResponse> articleResponses = articlePage.getContent().stream()
-                .map(article -> convertToArticleResponse(article, userId))
-                .collect(Collectors.toList());
+	private final ArticleReadingTimeService articleReadingTimeService;
 
-        return PageResponse.of(articlePage, articleResponses);
-    }
+	private final ArticleChunkService articleChunkService;
 
-    public ArticleResponse getArticle(String articleId, String userId) {
-        Article article = articleRepository.findById(articleId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
+	private final S3AiService s3AiService;
 
-        return convertToArticleResponse(article, userId);
-    }
+	private final S3TransferService s3TransferService;
 
-    @Transactional
-    public ArticleImportResponse importArticle(ArticleImportRequest request) {
-        log.info("Starting article import for file: {}", request.getId());
-        
-        ArticleImportData importData = s3AiService.downloadJsonFile(request.getId(), ArticleImportData.class, articlePathStrategy);
-        
-        Article article = createArticle(importData, request.getId());
-        Article savedArticle = articleRepository.save(article);
-        
-        s3TransferService.transferImagesFromAiToStatic(request.getId(), savedArticle.getId(), articlePathStrategy);
-        
-        String coverImageUrl = s3UrlService.getCoverImageUrl(savedArticle.getId(), articlePathStrategy);
-        savedArticle.setCoverImageUrl(coverImageUrl);
+	private final S3UrlService s3UrlService;
 
-        if (StringUtils.hasText(coverImageUrl)) {
-            try {
-                log.info("Auto-processing cover image for imported article: {}", savedArticle.getId());
+	private final ImageResizeService imageResizeService;
 
-                String originalCoverS3Key = articlePathStrategy.generateCoverImagePath(savedArticle.getId());
-                String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
+	private final ArticlePathStrategy articlePathStrategy;
 
-                savedArticle.setCoverImageUrl(smallImageUrl);
-                log.info("Successfully auto-processed cover image: {} → {}", savedArticle.getId(), smallImageUrl);
+	public PageResponse<ArticleResponse> getArticles(GetArticlesRequest request, String userId) {
+		validateGetArticlesRequest(request);
 
-            } catch (Exception e) {
-                log.warn("Failed to auto-process cover image for article: {}, keeping original URL", savedArticle.getId(), e);
-            }
-        }
+		Pageable pageable = createPageable(request);
 
-        articleRepository.save(savedArticle);
-        
-        articleImportService.createChunksFromLeveledResults(importData, savedArticle.getId());
-        
-        articleReadingTimeService.updateReadingTime(savedArticle.getId(), importData);
-        
-        log.info("Successfully imported article with id: {}", savedArticle.getId());
-        
-        ArticleImportResponse response = new ArticleImportResponse();
-        response.setId(savedArticle.getId());
-        return response;
-    }
+		// Custom Repository 사용 - 필터링 + 페이지네이션 통합 처리
+		Page<Article> articlePage = articleRepository.findArticlesWithFilters(request, userId, pageable);
 
-    private void validateGetArticlesRequest(GetArticlesRequest request) {
-        if (request.getSortBy() != null) {
-            if (!isValidSortBy(request.getSortBy())) {
-                throw new ArticleException(ArticleErrorCode.INVALID_SORT_BY);
-            }
-        }
-        
-        if (request.getLimit() != null && request.getLimit() > 100) {
-            request.setLimit(100);
-        }
-    }
+		List<ArticleResponse> articleResponses = articlePage.getContent()
+			.stream()
+			.map(article -> convertToArticleResponse(article, userId))
+			.collect(Collectors.toList());
 
-    private boolean isValidSortBy(String sortBy) {
-        return "view_count".equals(sortBy) || 
-               "average_rating".equals(sortBy) || 
-               "created_at".equals(sortBy);
-    }
+		return PageResponse.of(articlePage, articleResponses);
+	}
 
-    private Pageable createPageable(GetArticlesRequest request) {
-        Sort sort = createSort(request.getSortBy());
-        return PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
-    }
+	public ArticleResponse getArticle(String articleId, String userId) {
+		Article article = articleRepository.findById(articleId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
 
-    private Sort createSort(String sortBy) {
-        return switch (sortBy) {
-            case "view_count" -> Sort.by(Sort.Direction.DESC, "viewCount");
-            case "average_rating" -> Sort.by(Sort.Direction.DESC, "averageRating");
-            default -> Sort.by(Sort.Direction.DESC, "createdAt");
-        };
-    }
+		return convertToArticleResponse(article, userId);
+	}
 
-    private Article createArticle(ArticleImportData importData, String requestId) {
-        Article article = new Article();
-        article.setTitle(importData.getTitle());
-        article.setAuthor(importData.getAuthor());
+	@Transactional
+	public ArticleImportResponse importArticle(ArticleImportRequest request) {
+		log.info("Starting article import for file: {}", request.getId());
 
-        DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(
-                importData.getOriginalTextLevel().toUpperCase());
-        article.setDifficultyLevel(difficultyLevel);
+		ArticleImportData importData = s3AiService.downloadJsonFile(request.getId(), ArticleImportData.class,
+				articlePathStrategy);
 
-        String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, articlePathStrategy);
-        article.setCoverImageUrl(coverImageUrl);
+		Article article = createArticle(importData, request.getId());
+		Article savedArticle = articleRepository.save(article);
 
-        article.setReadingTime(0);
-        article.setAverageRating(0.0);
-        article.setReviewCount(0);
-        article.setViewCount(0);
+		s3TransferService.transferImagesFromAiToStatic(request.getId(), savedArticle.getId(), articlePathStrategy);
 
-        // 카테고리와 태그 파싱
-        parseCategoryAndTags(article, importData.getTags());
+		String coverImageUrl = s3UrlService.getCoverImageUrl(savedArticle.getId(), articlePathStrategy);
+		savedArticle.setCoverImageUrl(coverImageUrl);
 
-        // targetLanguageCode 매핑
-        if (importData.getTargetLanguageCode() != null && !importData.getTargetLanguageCode().isEmpty()) {
-            List<LanguageCode> targetLanguageCodes = importData.getTargetLanguageCode().stream()
-                    .map(code -> LanguageCode.valueOf(code.toUpperCase()))
-                    .collect(Collectors.toList());
-            article.setTargetLanguageCode(targetLanguageCodes);
-        } else {
-            // null이거나 빈 리스트면 모든 언어 코드로 설정
-            article.setTargetLanguageCode(LanguageCode.getAllCodes());
-        }
+		if (StringUtils.hasText(coverImageUrl)) {
+			try {
+				log.info("Auto-processing cover image for imported article: {}", savedArticle.getId());
 
-        article.setOriginUrl(importData.getOriginUrl());
-        article.setCreatedAt(Instant.now());
+				String originalCoverS3Key = articlePathStrategy.generateCoverImagePath(savedArticle.getId());
+				String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
 
-        return article;
-    }
+				savedArticle.setCoverImageUrl(smallImageUrl);
+				log.info("Successfully auto-processed cover image: {} → {}", savedArticle.getId(), smallImageUrl);
 
-    /**
-     * AI가 제공한 태그 리스트에서 카테고리 추출
-     * - 5개 특별 태그(Sports, Science, Tech, Business, Culture) 중 하나가 있으면 category로 설정
-     * - 카테고리는 tags 리스트에도 그대로 유지 (중복 허용)
-     * - 유저 선호도 분석 등에 활용
-     */
-    private void parseCategoryAndTags(Article article, List<String> importedTags) {
-        if (importedTags == null || importedTags.isEmpty()) {
-            article.setCategory(null);
-            article.setTags(List.of());
-            return;
-        }
+			}
+			catch (Exception e) {
+				log.warn("Failed to auto-process cover image for article: {}, keeping original URL",
+						savedArticle.getId(), e);
+			}
+		}
 
-        ContentCategory foundCategory = null;
+		articleRepository.save(savedArticle);
 
-        for (String tag : importedTags) {
-            ContentCategory category = ContentCategory.fromString(tag);
-            if (category != null && foundCategory == null) {
-                // 첫 번째로 발견된 카테고리 태그를 사용
-                foundCategory = category;
-            }
-        }
+		articleImportService.createChunksFromLeveledResults(importData, savedArticle.getId());
 
-        article.setCategory(foundCategory);
-        // 모든 태그를 그대로 유지
-        article.setTags(importedTags);
-    }
+		articleReadingTimeService.updateReadingTime(savedArticle.getId(), importData);
 
-    private ArticleResponse convertToArticleResponse(Article article, String userId) {
-        // 진도 정보 조회
-        int currentReadChunkNumber = 0;
-        double progressPercentage = 0.0;
-        boolean isCompleted = false;
-        DifficultyLevel currentDifficultyLevel = article.getDifficultyLevel(); // Fallback: Article의 난이도
+		log.info("Successfully imported article with id: {}", savedArticle.getId());
 
-        if (userId != null) {
-            ArticleProgress progress = articleProgressRepository
-                .findByUserIdAndArticleId(userId, article.getId())
-                .orElse(null);
+		ArticleImportResponse response = new ArticleImportResponse();
+		response.setId(savedArticle.getId());
+		return response;
+	}
 
-            if (progress != null) {
-                // [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
-                try {
-                    ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
-                    currentReadChunkNumber = chunk.getChunkNumber() != null ? chunk.getChunkNumber() : 0;
-                } catch (Exception e) {
-                    log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
-                    currentReadChunkNumber = 0;
-                }
+	private void validateGetArticlesRequest(GetArticlesRequest request) {
+		if (request.getSortBy() != null) {
+			if (!isValidSortBy(request.getSortBy())) {
+				throw new ArticleException(ArticleErrorCode.INVALID_SORT_BY);
+			}
+		}
 
-                // Progress가 있으면 currentDifficultyLevel 사용
-                if (progress.getCurrentDifficultyLevel() != null) {
-                    currentDifficultyLevel = progress.getCurrentDifficultyLevel();
-                }
+		if (request.getLimit() != null && request.getLimit() > 100) {
+			request.setLimit(100);
+		}
+	}
 
-                // V2: 현재 난이도 기준으로 동적으로 청크 수 계산
-                long totalChunksForLevel = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), currentDifficultyLevel);
+	private boolean isValidSortBy(String sortBy) {
+		return "view_count".equals(sortBy) || "average_rating".equals(sortBy) || "created_at".equals(sortBy);
+	}
 
-                if (totalChunksForLevel > 0) {
-                    progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
-                }
+	private Pageable createPageable(GetArticlesRequest request) {
+		Sort sort = createSort(request.getSortBy());
+		return PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
+	}
 
-                // DB에 저장된 완료 여부 사용
-                isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
-            }
-        }
+	private Sort createSort(String sortBy) {
+		return switch (sortBy) {
+			case "view_count" -> Sort.by(Sort.Direction.DESC, "viewCount");
+			case "average_rating" -> Sort.by(Sort.Direction.DESC, "averageRating");
+			default -> Sort.by(Sort.Direction.DESC, "createdAt");
+		};
+	}
 
-        ArticleResponse response = new ArticleResponse();
-        response.setId(article.getId());
-        response.setTitle(article.getTitle());
-        response.setAuthor(article.getAuthor());
-        response.setCoverImageUrl(article.getCoverImageUrl());
-        response.setDifficultyLevel(article.getDifficultyLevel());
-        response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(), currentDifficultyLevel));
-        response.setCurrentReadChunkNumber(currentReadChunkNumber);
-        response.setProgressPercentage(progressPercentage);
-        response.setCurrentDifficultyLevel(currentDifficultyLevel);
-        response.setIsCompleted(isCompleted);
-        response.setReadingTime(article.getReadingTime());
-        response.setAverageRating(article.getAverageRating());
-        response.setReviewCount(article.getReviewCount());
-        response.setViewCount(article.getViewCount());
-        response.setCategory(article.getCategory());
-        response.setTags(article.getTags());
+	private Article createArticle(ArticleImportData importData, String requestId) {
+		Article article = new Article();
+		article.setTitle(importData.getTitle());
+		article.setAuthor(importData.getAuthor());
 
-        // targetLanguageCode가 null이면 모든 언어 코드로 응답
-        List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
-        response.setTargetLanguageCode(
-            (targetLanguageCodes != null && !targetLanguageCodes.isEmpty())
-                ? targetLanguageCodes
-                : LanguageCode.getAllCodes()
-        );
+		DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(importData.getOriginalTextLevel().toUpperCase());
+		article.setDifficultyLevel(difficultyLevel);
 
-        response.setCreatedAt(article.getCreatedAt());
-        return response;
-    }
+		String coverImageUrl = s3UrlService.getCoverImageUrl(requestId, articlePathStrategy);
+		article.setCoverImageUrl(coverImageUrl);
 
-    public boolean existsById(String articleId) {
-        return articleRepository.existsById(articleId);
-    }
+		article.setReadingTime(0);
+		article.setAverageRating(0.0);
+		article.setReviewCount(0);
+		article.setViewCount(0);
 
-    public Article findById(String articleId) {
-        return articleRepository.findById(articleId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
-    }
+		// 카테고리와 태그 파싱
+		parseCategoryAndTags(article, importData.getTags());
 
-    public PageResponse<ArticleOriginResponse> getArticleOrigins(GetArticleOriginsRequest request) {
-        log.info("Fetching article origins with filters - tags: {}, targetLanguageCode: {}",
-                request.getTags(), request.getTargetLanguageCode());
+		// targetLanguageCode 매핑
+		if (importData.getTargetLanguageCode() != null && !importData.getTargetLanguageCode().isEmpty()) {
+			List<LanguageCode> targetLanguageCodes = importData.getTargetLanguageCode()
+				.stream()
+				.map(code -> LanguageCode.valueOf(code.toUpperCase()))
+				.collect(Collectors.toList());
+			article.setTargetLanguageCode(targetLanguageCodes);
+		}
+		else {
+			// null이거나 빈 리스트면 모든 언어 코드로 설정
+			article.setTargetLanguageCode(LanguageCode.getAllCodes());
+		}
 
-        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(),
-                Sort.by(Sort.Direction.DESC, "createdAt"));
+		article.setOriginUrl(importData.getOriginUrl());
+		article.setCreatedAt(Instant.now());
 
-        Page<Article> articlePage = articleRepository.findArticleOriginsWithFilters(request, pageable);
+		return article;
+	}
 
-        List<ArticleOriginResponse> responses = articlePage.getContent().stream()
-                .map(this::convertToArticleOriginResponse)
-                .collect(Collectors.toList());
+	/**
+	 * AI가 제공한 태그 리스트에서 카테고리 추출 - 5개 특별 태그(Sports, Science, Tech, Business, Culture) 중 하나가
+	 * 있으면 category로 설정 - 카테고리는 tags 리스트에도 그대로 유지 (중복 허용) - 유저 선호도 분석 등에 활용
+	 */
+	private void parseCategoryAndTags(Article article, List<String> importedTags) {
+		if (importedTags == null || importedTags.isEmpty()) {
+			article.setCategory(null);
+			article.setTags(List.of());
+			return;
+		}
 
-        return PageResponse.of(articlePage, responses);
-    }
+		ContentCategory foundCategory = null;
 
-    private ArticleOriginResponse convertToArticleOriginResponse(Article article) {
-        ArticleOriginResponse response = new ArticleOriginResponse();
-        response.setId(article.getId());
-        response.setTitle(article.getTitle());
-        response.setOriginUrl(article.getOriginUrl());
+		for (String tag : importedTags) {
+			ContentCategory category = ContentCategory.fromString(tag);
+			if (category != null && foundCategory == null) {
+				// 첫 번째로 발견된 카테고리 태그를 사용
+				foundCategory = category;
+			}
+		}
 
-        List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
-        response.setTargetLanguageCode(
-            (targetLanguageCodes != null && !targetLanguageCodes.isEmpty())
-                ? targetLanguageCodes
-                : LanguageCode.getAllCodes()
-        );
+		article.setCategory(foundCategory);
+		// 모든 태그를 그대로 유지
+		article.setTags(importedTags);
+	}
 
-        response.setCategory(article.getCategory());
-        response.setTags(article.getTags());
-        return response;
-    }
+	private ArticleResponse convertToArticleResponse(Article article, String userId) {
+		// 진도 정보 조회
+		int currentReadChunkNumber = 0;
+		double progressPercentage = 0.0;
+		boolean isCompleted = false;
+		DifficultyLevel currentDifficultyLevel = article.getDifficultyLevel(); // Fallback:
+																				// Article의
+																				// 난이도
 
-    @Transactional
-    public long migrateTargetLanguageCode() {
-        log.info("Starting migration: setting default targetLanguageCode for articles");
+		if (userId != null) {
+			ArticleProgress progress = articleProgressRepository.findByUserIdAndArticleId(userId, article.getId())
+				.orElse(null);
 
-        List<Article> articles = articleRepository.findAll();
-        long updatedCount = 0;
+			if (progress != null) {
+				// [DTO_MAPPING] chunk에서 chunkNumber 조회 (안전하게 처리)
+				try {
+					ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+					currentReadChunkNumber = chunk.getChunkNumber() != null ? chunk.getChunkNumber() : 0;
+				}
+				catch (Exception e) {
+					log.warn("Failed to find chunk for progress: {}", progress.getChunkId(), e);
+					currentReadChunkNumber = 0;
+				}
 
-        for (Article article : articles) {
-            if (article.getTargetLanguageCode() == null || article.getTargetLanguageCode().isEmpty()) {
-                article.setTargetLanguageCode(LanguageCode.getAllCodes());
-                articleRepository.save(article);
-                updatedCount++;
-            }
-        }
+				// Progress가 있으면 currentDifficultyLevel 사용
+				if (progress.getCurrentDifficultyLevel() != null) {
+					currentDifficultyLevel = progress.getCurrentDifficultyLevel();
+				}
 
-        log.info("Migration completed: updated {} articles", updatedCount);
-        return updatedCount;
-    }
+				// V2: 현재 난이도 기준으로 동적으로 청크 수 계산
+				long totalChunksForLevel = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(),
+						currentDifficultyLevel);
+
+				if (totalChunksForLevel > 0) {
+					progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
+				}
+
+				// DB에 저장된 완료 여부 사용
+				isCompleted = progress.getIsCompleted() != null ? progress.getIsCompleted() : false;
+			}
+		}
+
+		ArticleResponse response = new ArticleResponse();
+		response.setId(article.getId());
+		response.setTitle(article.getTitle());
+		response.setAuthor(article.getAuthor());
+		response.setCoverImageUrl(article.getCoverImageUrl());
+		response.setDifficultyLevel(article.getDifficultyLevel());
+		response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(),
+				currentDifficultyLevel));
+		response.setCurrentReadChunkNumber(currentReadChunkNumber);
+		response.setProgressPercentage(progressPercentage);
+		response.setCurrentDifficultyLevel(currentDifficultyLevel);
+		response.setIsCompleted(isCompleted);
+		response.setReadingTime(article.getReadingTime());
+		response.setAverageRating(article.getAverageRating());
+		response.setReviewCount(article.getReviewCount());
+		response.setViewCount(article.getViewCount());
+		response.setCategory(article.getCategory());
+		response.setTags(article.getTags());
+
+		// targetLanguageCode가 null이면 모든 언어 코드로 응답
+		List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
+		response.setTargetLanguageCode((targetLanguageCodes != null && !targetLanguageCodes.isEmpty())
+				? targetLanguageCodes : LanguageCode.getAllCodes());
+
+		response.setCreatedAt(article.getCreatedAt());
+		return response;
+	}
+
+	public boolean existsById(String articleId) {
+		return articleRepository.existsById(articleId);
+	}
+
+	public Article findById(String articleId) {
+		return articleRepository.findById(articleId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
+	}
+
+	public PageResponse<ArticleOriginResponse> getArticleOrigins(GetArticleOriginsRequest request) {
+		log.info("Fetching article origins with filters - tags: {}, targetLanguageCode: {}", request.getTags(),
+				request.getTargetLanguageCode());
+
+		Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(),
+				Sort.by(Sort.Direction.DESC, "createdAt"));
+
+		Page<Article> articlePage = articleRepository.findArticleOriginsWithFilters(request, pageable);
+
+		List<ArticleOriginResponse> responses = articlePage.getContent()
+			.stream()
+			.map(this::convertToArticleOriginResponse)
+			.collect(Collectors.toList());
+
+		return PageResponse.of(articlePage, responses);
+	}
+
+	private ArticleOriginResponse convertToArticleOriginResponse(Article article) {
+		ArticleOriginResponse response = new ArticleOriginResponse();
+		response.setId(article.getId());
+		response.setTitle(article.getTitle());
+		response.setOriginUrl(article.getOriginUrl());
+
+		List<LanguageCode> targetLanguageCodes = article.getTargetLanguageCode();
+		response.setTargetLanguageCode((targetLanguageCodes != null && !targetLanguageCodes.isEmpty())
+				? targetLanguageCodes : LanguageCode.getAllCodes());
+
+		response.setCategory(article.getCategory());
+		response.setTags(article.getTags());
+		return response;
+	}
+
+	@Transactional
+	public long migrateTargetLanguageCode() {
+		log.info("Starting migration: setting default targetLanguageCode for articles");
+
+		List<Article> articles = articleRepository.findAll();
+		long updatedCount = 0;
+
+		for (Article article : articles) {
+			if (article.getTargetLanguageCode() == null || article.getTargetLanguageCode().isEmpty()) {
+				article.setTargetLanguageCode(LanguageCode.getAllCodes());
+				articleRepository.save(article);
+				updatedCount++;
+			}
+		}
+
+		log.info("Migration completed: updated {} articles", updatedCount);
+		return updatedCount;
+	}
+
 }

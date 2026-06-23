@@ -26,118 +26,125 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CustomContentImportService {
 
-    private final CustomContentRepository customContentRepository;
-    private final CustomContentChunkRepository customContentChunkRepository;
-    private final S3UrlService s3UrlService;
-    private final ImageResizeService imageResizeService;
-    private final CustomContentPathStrategy pathStrategy;
+	private final CustomContentRepository customContentRepository;
 
+	private final CustomContentChunkRepository customContentChunkRepository;
 
-    public CustomContent createCustomContent(ContentRequest contentRequest, AiResultDto aiResult) {
-        String title = StringUtils.hasText(aiResult.getTitle()) ? aiResult.getTitle() : "Untitled Content";
+	private final S3UrlService s3UrlService;
 
-        // ContentRequest의 coverImageUrl이 있으면 우선 사용, 없으면 AI 결과의 coverImageUrl 사용
-        String coverImageUrl = StringUtils.hasText(contentRequest.getCoverImageUrl())
-                ? contentRequest.getCoverImageUrl()
-                : aiResult.getCoverImageUrl();
+	private final ImageResizeService imageResizeService;
 
-        String normalizedUrl = null;
-        if (StringUtils.hasText(contentRequest.getOriginUrl())) {
-            normalizedUrl = UrlNormalizer.normalize(contentRequest.getOriginUrl());
-        }
+	private final CustomContentPathStrategy pathStrategy;
 
-        CustomContent content = CustomContent.builder()
-                .userId(contentRequest.getUserId())
-                .title(title)
-                .author(contentRequest.getOriginAuthor())
-                .coverImageUrl(coverImageUrl)
-                .difficultyLevel(DifficultyLevel.fromCode(aiResult.getOriginalTextLevel()))
-                .targetDifficultyLevels(aiResult.getLeveledResults().stream().map(level -> DifficultyLevel.fromCode(level.getTextLevel())).collect(Collectors.toList()))
-                .readingTime(0) // Placeholder, can be calculated later
-                .originUrl(normalizedUrl != null ? normalizedUrl : contentRequest.getOriginUrl())
-                .originDomain(contentRequest.getOriginDomain())
-                .build();
+	public CustomContent createCustomContent(ContentRequest contentRequest, AiResultDto aiResult) {
+		String title = StringUtils.hasText(aiResult.getTitle()) ? aiResult.getTitle() : "Untitled Content";
 
-        CustomContent savedContent = customContentRepository.save(content);
+		// ContentRequest의 coverImageUrl이 있으면 우선 사용, 없으면 AI 결과의 coverImageUrl 사용
+		String coverImageUrl = StringUtils.hasText(contentRequest.getCoverImageUrl())
+				? contentRequest.getCoverImageUrl() : aiResult.getCoverImageUrl();
 
-        if (StringUtils.hasText(aiResult.getCoverImageUrl())) {
-            try {
-                log.info("Auto-processing cover image for imported custom content: {}", savedContent.getId());
-                String originalCoverS3Key = pathStrategy.generateCoverImagePath(savedContent.getId());
-                String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
-                savedContent.setCoverImageUrl(smallImageUrl);
-                customContentRepository.save(savedContent);
-                log.info("Successfully auto-processed cover image: {} → {}", savedContent.getId(), smallImageUrl);
-            } catch (Exception e) {
-                log.warn("Failed to auto-process cover image for custom content: {}, keeping original URL",
-                        savedContent.getId(), e);
-            }
-        }
+		String normalizedUrl = null;
+		if (StringUtils.hasText(contentRequest.getOriginUrl())) {
+			normalizedUrl = UrlNormalizer.normalize(contentRequest.getOriginUrl());
+		}
 
-        return savedContent;
-    }
+		CustomContent content = CustomContent.builder()
+			.userId(contentRequest.getUserId())
+			.title(title)
+			.author(contentRequest.getOriginAuthor())
+			.coverImageUrl(coverImageUrl)
+			.difficultyLevel(DifficultyLevel.fromCode(aiResult.getOriginalTextLevel()))
+			.targetDifficultyLevels(aiResult.getLeveledResults()
+				.stream()
+				.map(level -> DifficultyLevel.fromCode(level.getTextLevel()))
+				.collect(Collectors.toList()))
+			.readingTime(0) // Placeholder, can be calculated later
+			.originUrl(normalizedUrl != null ? normalizedUrl : contentRequest.getOriginUrl())
+			.originDomain(contentRequest.getOriginDomain())
+			.build();
 
-    public void createCustomContentChunks(CustomContent customContent, AiResultDto aiResult) {
-        List<CustomContentChunk> allChunks = new ArrayList<>();
+		CustomContent savedContent = customContentRepository.save(content);
 
-        if (aiResult.getLeveledResults() == null) {
-            log.warn("No leveled results found for custom content: {}", customContent.getId());
-            return;
-        }
+		if (StringUtils.hasText(aiResult.getCoverImageUrl())) {
+			try {
+				log.info("Auto-processing cover image for imported custom content: {}", savedContent.getId());
+				String originalCoverS3Key = pathStrategy.generateCoverImagePath(savedContent.getId());
+				String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
+				savedContent.setCoverImageUrl(smallImageUrl);
+				customContentRepository.save(savedContent);
+				log.info("Successfully auto-processed cover image: {} → {}", savedContent.getId(), smallImageUrl);
+			}
+			catch (Exception e) {
+				log.warn("Failed to auto-process cover image for custom content: {}, keeping original URL",
+						savedContent.getId(), e);
+			}
+		}
 
-        boolean hasCoverImage = StringUtils.hasText(customContent.getCoverImageUrl());
+		return savedContent;
+	}
 
-        for (AiResultDto.LeveledResult leveledResult : aiResult.getLeveledResults()) {
-            DifficultyLevel difficulty = DifficultyLevel.fromCode(leveledResult.getTextLevel());
-            int chapterCounter = 1;
+	public void createCustomContentChunks(CustomContent customContent, AiResultDto aiResult) {
+		List<CustomContentChunk> allChunks = new ArrayList<>();
 
-            for (AiResultDto.Chapter chapter : leveledResult.getChapters()) {
-                int chunkCounter = 1;
+		if (aiResult.getLeveledResults() == null) {
+			log.warn("No leveled results found for custom content: {}", customContent.getId());
+			return;
+		}
 
-                if (hasCoverImage && chapterCounter == 1) {
-                    CustomContentChunk coverImageChunk = CustomContentChunk.builder()
-                            .customContentId(customContent.getId())
-                            .userId(customContent.getUserId())
-                            .difficultyLevel(difficulty)
-                            .chapterNum(chapterCounter)
-                            .chunkNum(chunkCounter++)
-                            .type(ChunkType.IMAGE)
-                            .chunkText(customContent.getCoverImageUrl())
-                            .description("")
-                            .build();
-                    allChunks.add(coverImageChunk);
-                    log.debug("Added cover image chunk for difficulty {} at chapter {}", difficulty, chapterCounter);
-                }
+		boolean hasCoverImage = StringUtils.hasText(customContent.getCoverImageUrl());
 
-                for (AiResultDto.Chunk chunkData : chapter.getChunks()) {
-                    CustomContentChunk newChunk = createCustomContentChunk(chunkData, customContent.getId(), customContent.getUserId(), difficulty, chapterCounter, chunkCounter++);
-                    allChunks.add(newChunk);
-                }
-                chapterCounter++;
-            }
-        }
-        customContentChunkRepository.saveAll(allChunks);
-        log.info("Saved {} chunks for custom content {}", allChunks.size(), customContent.getId());
-    }
+		for (AiResultDto.LeveledResult leveledResult : aiResult.getLeveledResults()) {
+			DifficultyLevel difficulty = DifficultyLevel.fromCode(leveledResult.getTextLevel());
+			int chapterCounter = 1;
 
-    private CustomContentChunk createCustomContentChunk(AiResultDto.Chunk chunkData, String customContentId, String userId, DifficultyLevel difficulty, int chapterNum, int chunkNum) {
-        CustomContentChunk.CustomContentChunkBuilder builder = CustomContentChunk.builder()
-                .customContentId(customContentId)
-                .userId(userId)
-                .difficultyLevel(difficulty)
-                .chapterNum(chapterNum)
-                .chunkNum(chunkNum);
+			for (AiResultDto.Chapter chapter : leveledResult.getChapters()) {
+				int chunkCounter = 1;
 
-        if (Boolean.TRUE.equals(chunkData.getIsImage())) {
-            String imageUrl = s3UrlService.buildImageUrl(customContentId, chunkData.getChunkText(), pathStrategy);
-            builder.type(ChunkType.IMAGE)
-                    .chunkText(imageUrl)
-                    .description(chunkData.getDescription());
-        } else {
-            builder.type(ChunkType.TEXT)
-                    .chunkText(chunkData.getChunkText());
-        }
+				if (hasCoverImage && chapterCounter == 1) {
+					CustomContentChunk coverImageChunk = CustomContentChunk.builder()
+						.customContentId(customContent.getId())
+						.userId(customContent.getUserId())
+						.difficultyLevel(difficulty)
+						.chapterNum(chapterCounter)
+						.chunkNum(chunkCounter++)
+						.type(ChunkType.IMAGE)
+						.chunkText(customContent.getCoverImageUrl())
+						.description("")
+						.build();
+					allChunks.add(coverImageChunk);
+					log.debug("Added cover image chunk for difficulty {} at chapter {}", difficulty, chapterCounter);
+				}
 
-        return builder.build();
-    }
+				for (AiResultDto.Chunk chunkData : chapter.getChunks()) {
+					CustomContentChunk newChunk = createCustomContentChunk(chunkData, customContent.getId(),
+							customContent.getUserId(), difficulty, chapterCounter, chunkCounter++);
+					allChunks.add(newChunk);
+				}
+				chapterCounter++;
+			}
+		}
+		customContentChunkRepository.saveAll(allChunks);
+		log.info("Saved {} chunks for custom content {}", allChunks.size(), customContent.getId());
+	}
+
+	private CustomContentChunk createCustomContentChunk(AiResultDto.Chunk chunkData, String customContentId,
+			String userId, DifficultyLevel difficulty, int chapterNum, int chunkNum) {
+		CustomContentChunk.CustomContentChunkBuilder builder = CustomContentChunk.builder()
+			.customContentId(customContentId)
+			.userId(userId)
+			.difficultyLevel(difficulty)
+			.chapterNum(chapterNum)
+			.chunkNum(chunkNum);
+
+		if (Boolean.TRUE.equals(chunkData.getIsImage())) {
+			String imageUrl = s3UrlService.buildImageUrl(customContentId, chunkData.getChunkText(), pathStrategy);
+			builder.type(ChunkType.IMAGE).chunkText(imageUrl).description(chunkData.getDescription());
+		}
+		else {
+			builder.type(ChunkType.TEXT).chunkText(chunkData.getChunkText());
+		}
+
+		return builder.build();
+	}
+
 }

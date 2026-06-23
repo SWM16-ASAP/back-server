@@ -18,11 +18,18 @@ import java.time.Instant;
 @Builder
 public class CompletedContent {
 
-    private ContentType type;
-    private String contentId;
-    private String chapterId;
-    private Instant completedAt;
-    private Integer readingTime;
-    private ContentCategory category;
-    private DifficultyLevel difficultyLevel;
+	private ContentType type;
+
+	private String contentId;
+
+	private String chapterId;
+
+	private Instant completedAt;
+
+	private Integer readingTime;
+
+	private ContentCategory category;
+
+	private DifficultyLevel difficultyLevel;
+
 }

@@ -39,252 +39,241 @@ import java.util.function.Supplier;
 @Slf4j
 public class WordSingleFlightRedisCoordinator {
 
-    private static final String LOCK_PREFIX = "sf:word:lock";
-    private static final String DONE_PREFIX = "sf:word:done";
-    private static final String DONE_PATTERN = DONE_PREFIX + ":*";
+	private static final String LOCK_PREFIX = "sf:word:lock";
 
-    private final StringRedisTemplate stringRedisTemplate;
-    private final RedisMessageListenerContainer redisMessageListenerContainer;
-    private final RedissonClient redissonClient;
-    private final WordSingleFlightProperties properties;
+	private static final String DONE_PREFIX = "sf:word:done";
 
-    private final ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableFuture<Void>>> channelWaiters = new ConcurrentHashMap<>();
+	private static final String DONE_PATTERN = DONE_PREFIX + ":*";
 
-    private final MessageListener doneListener = this::onDoneMessage;
+	private final StringRedisTemplate stringRedisTemplate;
 
-    @PostConstruct
-    void initialize() {
-        redisMessageListenerContainer.addMessageListener(doneListener, new PatternTopic(DONE_PATTERN));
-    }
+	private final RedisMessageListenerContainer redisMessageListenerContainer;
 
-    @PreDestroy
-    void shutdown() {
+	private final RedissonClient redissonClient;
 
-    }
+	private final WordSingleFlightProperties properties;
 
-    public <T> T execute(
-            String word,
-            LanguageCode targetLanguage,
-            Supplier<T> leaderAction,
-            Supplier<Optional<T>> followerResultLookup
-    ) {
-        if (!properties.isEnabled()) {
-            return leaderAction.get();
-        }
+	private final ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableFuture<Void>>> channelWaiters = new ConcurrentHashMap<>();
 
-        KeySet keys = buildKeySet(word, targetLanguage);
-        RLock lock = createLock(keys.lockKey());
-        boolean lockAcquired = tryAcquireLeaderLock(lock);
-        if (lockAcquired) {
-            return executeWithLeaderLock(keys, lock, leaderAction, followerResultLookup);
-        }
+	private final MessageListener doneListener = this::onDoneMessage;
 
-        return waitAsFollower(keys, lock, leaderAction, followerResultLookup);
-    }
+	@PostConstruct
+	void initialize() {
+		redisMessageListenerContainer.addMessageListener(doneListener, new PatternTopic(DONE_PATTERN));
+	}
 
-    private <T> T executeWithLeaderLock(
-            KeySet keys,
-            RLock lock,
-            Supplier<T> leaderAction,
-            Supplier<Optional<T>> followerResultLookup
-    ) {
-        Optional<T> existing;
-        try {
-            existing = followerResultLookup.get();
-        } catch (RuntimeException | Error e) {
-            releaseLock(lock, keys.lockKey());
-            throw e;
-        }
+	@PreDestroy
+	void shutdown() {
 
-        if (existing.isPresent()) {
-            releaseThenPublishDone(keys, lock);
-            return existing.get();
-        }
+	}
 
-        return executeAsLeader(keys, lock, leaderAction);
-    }
+	public <T> T execute(String word, LanguageCode targetLanguage, Supplier<T> leaderAction,
+			Supplier<Optional<T>> followerResultLookup) {
+		if (!properties.isEnabled()) {
+			return leaderAction.get();
+		}
 
-    private <T> T executeAsLeader(
-            KeySet keys,
-            RLock lock,
-            Supplier<T> leaderAction
-    ) {
-        T result;
-        try {
-            result = leaderAction.get();
-        } catch (RuntimeException | Error e) {
-            completeLeaderAfterCompletion(keys, lock);
-            throw e;
-        }
+		KeySet keys = buildKeySet(word, targetLanguage);
+		RLock lock = createLock(keys.lockKey());
+		boolean lockAcquired = tryAcquireLeaderLock(lock);
+		if (lockAcquired) {
+			return executeWithLeaderLock(keys, lock, leaderAction, followerResultLookup);
+		}
 
-        completeLeaderAfterCommit(keys, lock);
-        return result;
-    }
+		return waitAsFollower(keys, lock, leaderAction, followerResultLookup);
+	}
 
-    private boolean tryAcquireLeaderLock(RLock lock) {
-        try {
-            // Use Redisson watchdog mode (no fixed lease time) to keep lock alive
-            // while leaderAction is still running, and release promptly on unlock.
-            return lock.tryLock(0, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while acquiring single-flight lock", e);
-        }
-    }
+	private <T> T executeWithLeaderLock(KeySet keys, RLock lock, Supplier<T> leaderAction,
+			Supplier<Optional<T>> followerResultLookup) {
+		Optional<T> existing;
+		try {
+			existing = followerResultLookup.get();
+		}
+		catch (RuntimeException | Error e) {
+			releaseLock(lock, keys.lockKey());
+			throw e;
+		}
 
-    private <T> T waitAsFollower(
-            KeySet keys,
-            RLock lock,
-            Supplier<T> leaderAction,
-            Supplier<Optional<T>> followerResultLookup
-    ) {
-        CompletableFuture<Void> signal = new CompletableFuture<>();
-        registerWaiter(keys.channel(), signal);
+		if (existing.isPresent()) {
+			releaseThenPublishDone(keys, lock);
+			return existing.get();
+		}
 
-        try {
-            boolean lockAcquiredAfterRegister = tryAcquireLeaderLock(lock);
-            if (lockAcquiredAfterRegister) {
-                return executeWithLeaderLock(keys, lock, leaderAction, followerResultLookup);
-            }
+		return executeAsLeader(keys, lock, leaderAction);
+	}
 
-            signal.get(properties.getWaitTimeoutMs(), TimeUnit.MILLISECONDS);
-        } catch (TimeoutException e) {
-            log.warn("Single-flight wait timed out for key digest={}", keys.digest());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Single-flight wait interrupted for key digest=" + keys.digest(), e);
-        } catch (ExecutionException e) {
-            throw new RuntimeException("Single-flight wait failed for key digest=" + keys.digest(), e);
-        } finally {
-            unregisterWaiter(keys.channel(), signal);
-        }
+	private <T> T executeAsLeader(KeySet keys, RLock lock, Supplier<T> leaderAction) {
+		T result;
+		try {
+			result = leaderAction.get();
+		}
+		catch (RuntimeException | Error e) {
+			completeLeaderAfterCompletion(keys, lock);
+			throw e;
+		}
 
-        Optional<T> finalResult = followerResultLookup.get();
-        if (finalResult.isPresent()) {
-            return finalResult.get();
-        }
+		completeLeaderAfterCommit(keys, lock);
+		return result;
+	}
 
-        throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
-    }
+	private boolean tryAcquireLeaderLock(RLock lock) {
+		try {
+			// Use Redisson watchdog mode (no fixed lease time) to keep lock alive
+			// while leaderAction is still running, and release promptly on unlock.
+			return lock.tryLock(0, TimeUnit.MILLISECONDS);
+		}
+		catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException("Interrupted while acquiring single-flight lock", e);
+		}
+	}
 
-    private void completeLeaderAfterCommit(KeySet keys, RLock lock) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            releaseThenPublishDone(keys, lock);
-            return;
-        }
+	private <T> T waitAsFollower(KeySet keys, RLock lock, Supplier<T> leaderAction,
+			Supplier<Optional<T>> followerResultLookup) {
+		CompletableFuture<Void> signal = new CompletableFuture<>();
+		registerWaiter(keys.channel(), signal);
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                releaseThenPublishDone(keys, lock);
-            }
+		try {
+			boolean lockAcquiredAfterRegister = tryAcquireLeaderLock(lock);
+			if (lockAcquiredAfterRegister) {
+				return executeWithLeaderLock(keys, lock, leaderAction, followerResultLookup);
+			}
 
-            @Override
-            public void afterCompletion(int status) {
-                if (status != STATUS_COMMITTED) {
-                    releaseLock(lock, keys.lockKey());
-                }
-            }
-        });
-    }
+			signal.get(properties.getWaitTimeoutMs(), TimeUnit.MILLISECONDS);
+		}
+		catch (TimeoutException e) {
+			log.warn("Single-flight wait timed out for key digest={}", keys.digest());
+		}
+		catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException("Single-flight wait interrupted for key digest=" + keys.digest(), e);
+		}
+		catch (ExecutionException e) {
+			throw new RuntimeException("Single-flight wait failed for key digest=" + keys.digest(), e);
+		}
+		finally {
+			unregisterWaiter(keys.channel(), signal);
+		}
 
-    private void completeLeaderAfterCompletion(KeySet keys, RLock lock) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            releaseThenPublishDone(keys, lock);
-            return;
-        }
+		Optional<T> finalResult = followerResultLookup.get();
+		if (finalResult.isPresent()) {
+			return finalResult.get();
+		}
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                releaseThenPublishDone(keys, lock);
-            }
-        });
-    }
+		throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
+	}
 
-    private void releaseThenPublishDone(KeySet keys, RLock lock) {
-        releaseLock(lock, keys.lockKey());
-        publishDone(keys.channel());
-    }
+	private void completeLeaderAfterCommit(KeySet keys, RLock lock) {
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			releaseThenPublishDone(keys, lock);
+			return;
+		}
 
-    private void publishDone(String channel) {
-        stringRedisTemplate.convertAndSend(channel, "done");
-    }
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				releaseThenPublishDone(keys, lock);
+			}
 
-    private void releaseLock(RLock lock, String lockKey) {
-        try {
-            lock.unlock();
-        } catch (IllegalMonitorStateException e) {
-            log.warn("Single-flight lock was not held at release time key={}", lockKey, e);
-        } catch (Exception e) {
-            log.warn("Failed to release single-flight lock key={}", lockKey, e);
-        }
-    }
+			@Override
+			public void afterCompletion(int status) {
+				if (status != STATUS_COMMITTED) {
+					releaseLock(lock, keys.lockKey());
+				}
+			}
+		});
+	}
 
-    private RLock createLock(String lockKey) {
-        return redissonClient.getLock(lockKey);
-    }
+	private void completeLeaderAfterCompletion(KeySet keys, RLock lock) {
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			releaseThenPublishDone(keys, lock);
+			return;
+		}
 
-    private void registerWaiter(String channel, CompletableFuture<Void> signal) {
-        channelWaiters.compute(channel, (key, waiters) -> {
-            CopyOnWriteArrayList<CompletableFuture<Void>> values = waiters == null
-                    ? new CopyOnWriteArrayList<>()
-                    : waiters;
-            values.add(signal);
-            return values;
-        });
-    }
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCompletion(int status) {
+				releaseThenPublishDone(keys, lock);
+			}
+		});
+	}
 
-    private void unregisterWaiter(String channel, CompletableFuture<Void> signal) {
-        channelWaiters.computeIfPresent(channel, (key, waiters) -> {
-            waiters.remove(signal);
-            return waiters.isEmpty() ? null : waiters;
-        });
-    }
+	private void releaseThenPublishDone(KeySet keys, RLock lock) {
+		releaseLock(lock, keys.lockKey());
+		publishDone(keys.channel());
+	}
 
-    private void onDoneMessage(Message message, byte[] pattern) {
-        String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
-        List<CompletableFuture<Void>> waiters = channelWaiters.remove(channel);
-        if (waiters == null || waiters.isEmpty()) {
-            return;
-        }
+	private void publishDone(String channel) {
+		stringRedisTemplate.convertAndSend(channel, "done");
+	}
 
-        for (CompletableFuture<Void> waiter : waiters) {
-            waiter.complete(null);
-        }
-    }
+	private void releaseLock(RLock lock, String lockKey) {
+		try {
+			lock.unlock();
+		}
+		catch (IllegalMonitorStateException e) {
+			log.warn("Single-flight lock was not held at release time key={}", lockKey, e);
+		}
+		catch (Exception e) {
+			log.warn("Failed to release single-flight lock key={}", lockKey, e);
+		}
+	}
 
-    private KeySet buildKeySet(String word, LanguageCode targetLanguage) {
-        String normalizedWord = word.trim().toLowerCase(Locale.ROOT);
-        String canonicalKey = String.join("|",
-                "word=" + normalizedWord,
-                "lang=" + targetLanguage.getCode(),
-                "resultSchema=" + properties.getResultSchemaVersion()
-        );
+	private RLock createLock(String lockKey) {
+		return redissonClient.getLock(lockKey);
+	}
 
-        String digest = sha256(canonicalKey);
-        String suffix = properties.getResultSchemaVersion() + ":" + digest;
+	private void registerWaiter(String channel, CompletableFuture<Void> signal) {
+		channelWaiters.compute(channel, (key, waiters) -> {
+			CopyOnWriteArrayList<CompletableFuture<Void>> values = waiters == null ? new CopyOnWriteArrayList<>()
+					: waiters;
+			values.add(signal);
+			return values;
+		});
+	}
 
-        return new KeySet(
-                LOCK_PREFIX + ":" + suffix,
-                DONE_PREFIX + ":" + suffix,
-                digest
-        );
-    }
+	private void unregisterWaiter(String channel, CompletableFuture<Void> signal) {
+		channelWaiters.computeIfPresent(channel, (key, waiters) -> {
+			waiters.remove(signal);
+			return waiters.isEmpty() ? null : waiters;
+		});
+	}
 
-    private String sha256(String value) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(value.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 is not available", e);
-        }
-    }
+	private void onDoneMessage(Message message, byte[] pattern) {
+		String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
+		List<CompletableFuture<Void>> waiters = channelWaiters.remove(channel);
+		if (waiters == null || waiters.isEmpty()) {
+			return;
+		}
 
-    private record KeySet(
-            String lockKey,
-            String channel,
-            String digest
-    ) { }
+		for (CompletableFuture<Void> waiter : waiters) {
+			waiter.complete(null);
+		}
+	}
+
+	private KeySet buildKeySet(String word, LanguageCode targetLanguage) {
+		String normalizedWord = word.trim().toLowerCase(Locale.ROOT);
+		String canonicalKey = String.join("|", "word=" + normalizedWord, "lang=" + targetLanguage.getCode(),
+				"resultSchema=" + properties.getResultSchemaVersion());
+
+		String digest = sha256(canonicalKey);
+		String suffix = properties.getResultSchemaVersion() + ":" + digest;
+
+		return new KeySet(LOCK_PREFIX + ":" + suffix, DONE_PREFIX + ":" + suffix, digest);
+	}
+
+	private String sha256(String value) {
+		try {
+			MessageDigest md = MessageDigest.getInstance("SHA-256");
+			byte[] digest = md.digest(value.getBytes(StandardCharsets.UTF_8));
+			return HexFormat.of().formatHex(digest);
+		}
+		catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException("SHA-256 is not available", e);
+		}
+	}
+
+	private record KeySet(String lockKey, String channel, String digest) {
+	}
+
 }

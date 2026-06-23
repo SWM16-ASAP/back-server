@@ -12,13 +12,15 @@ import java.util.Optional;
 
 @Repository
 public interface CrawlingDslRepository extends MongoRepository<CrawlingDsl, String> {
-    Optional<CrawlingDsl> findByDomain(String domain);
 
-    Page<CrawlingDsl> findAll(Pageable pageable);
+	Optional<CrawlingDsl> findByDomain(String domain);
 
-    Page<CrawlingDsl> findByContentTypeIn(List<FeedContentType> contentTypes, Pageable pageable);
+	Page<CrawlingDsl> findAll(Pageable pageable);
 
-    boolean existsByDomain(String domain);
+	Page<CrawlingDsl> findByContentTypeIn(List<FeedContentType> contentTypes, Pageable pageable);
 
-    void deleteByDomain(String domain);
+	boolean existsByDomain(String domain);
+
+	void deleteByDomain(String domain);
+
 }

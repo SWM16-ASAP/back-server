@@ -15,25 +15,27 @@ import java.time.Instant;
 @AllArgsConstructor
 @Document(collection = "crawlingDsl")
 public class CrawlingDsl {
-    @Id
-    private String id;
-    
-    @Indexed(unique = true)
-    private String domain;
 
-    private String name;
+	@Id
+	private String id;
 
-    private FeedContentType contentType;
+	@Indexed(unique = true)
+	private String domain;
 
-    private String titleDsl;
-    
-    private String contentDsl;
+	private String name;
 
-    private String coverImageDsl;
+	private FeedContentType contentType;
 
-    private String accessUrl;
+	private String titleDsl;
 
-    private Instant createdAt;
+	private String contentDsl;
 
-    private Instant updatedAt;
+	private String coverImageDsl;
+
+	private String accessUrl;
+
+	private Instant createdAt;
+
+	private Instant updatedAt;
+
 }
