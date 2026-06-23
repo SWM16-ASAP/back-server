@@ -3,6 +3,7 @@ package com.linglevel.api.word.service;
 import com.linglevel.api.word.dto.WordAnalysisResult;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
+import com.linglevel.api.word.model.Meaning;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -313,12 +314,12 @@ public class WordAiService {
 			}
 
 			// 2. 유효한 PartOfSpeech를 가진 meanings만 필터링
-			List<com.linglevel.api.word.dto.Meaning> originalMeanings = result.getMeanings();
-			List<com.linglevel.api.word.dto.Meaning> validMeanings = new ArrayList<>();
+			List<Meaning> originalMeanings = result.getMeanings();
+			List<Meaning> validMeanings = new ArrayList<>();
 
 			if (originalMeanings != null) {
 				int invalidCount = 0;
-				for (com.linglevel.api.word.dto.Meaning meaning : originalMeanings) {
+				for (Meaning meaning : originalMeanings) {
 					if (meaning.getPartOfSpeech() != null) {
 						validMeanings.add(meaning);
 					}
@@ -377,7 +378,7 @@ public class WordAiService {
 			.collect(Collectors.toList());
 
 		// meanings 병합 (중복 제거 - partOfSpeech와 meaning이 같은 것은 제외)
-		List<com.linglevel.api.word.dto.Meaning> mergedMeanings = results.stream()
+		List<Meaning> mergedMeanings = results.stream()
 			.flatMap(r -> r.getMeanings().stream())
 			.collect(Collectors.toMap(m -> m.getPartOfSpeech() + ":" + m.getMeaning(), m -> m,
 					(existing, replacement) -> existing))

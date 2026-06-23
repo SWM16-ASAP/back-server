@@ -8,6 +8,7 @@ import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
+import com.linglevel.api.word.mapper.WordResponseMapper;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
@@ -38,6 +39,8 @@ public class WordService {
 
 	private final WordPersistenceService wordPersistenceService;
 
+	private final WordResponseMapper wordResponseMapper;
+
 	public WordSearchResponse getOrCreateWords(String userId, String word, LanguageCode targetLanguage) {
 		List<WordVariant> wordVariants = getOrCreateWordEntities(word, targetLanguage);
 
@@ -63,13 +66,13 @@ public class WordService {
 
 			boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordVariant.getOriginalForm());
 
-			WordResponse response = convertToResponse(originalWord, isBookmarked, wordVariant.getVariantTypes(),
-					wordVariant.getOriginalForm());
+			WordResponse response = wordResponseMapper.toWordResponse(originalWord, isBookmarked,
+					wordVariant.getVariantTypes(), wordVariant.getOriginalForm());
 
 			results.add(response);
 		}
 
-		return WordSearchResponse.builder().searchedWord(word).results(results).build();
+		return wordResponseMapper.toWordSearchResponse(word, results);
 	}
 
 	public List<WordVariant> getOrCreateWordEntities(String word, LanguageCode targetLanguage) {
@@ -137,22 +140,6 @@ public class WordService {
 		}
 	}
 
-	private WordResponse convertToResponse(Word word, boolean isBookmarked, List<VariantType> variantTypes,
-			String originalForm) {
-		return WordResponse.builder()
-			.id(word.getId())
-			.originalForm(originalForm)
-			.variantTypes(variantTypes)
-			.sourceLanguageCode(word.getSourceLanguageCode())
-			.targetLanguageCode(word.getTargetLanguageCode())
-			.summary(word.getSummary())
-			.meanings(word.getMeanings()) // Meaning을 그대로 사용
-			.relatedForms(word.getRelatedForms())
-			.bookmarked(isBookmarked)
-			.isEssential(word.getIsEssential())
-			.build();
-	}
-
 	/**
 	 * 관리자 전용: 단어를 AI로 강제 재분석
 	 * @param word 재분석할 단어
@@ -195,13 +182,12 @@ public class WordService {
 				.findByWordAndTargetLanguageCode(wordVariant.getOriginalForm(), targetLanguage)
 				.orElseThrow(() -> new WordsException(WordsErrorCode.WORD_NOT_FOUND));
 
-			WordResponse response = convertToResponse(originalWord, false, // 어드민 API이므로
-																			// 북마크 체크하지 않음
+			WordResponse response = wordResponseMapper.toWordResponse(originalWord, false,
 					wordVariant.getVariantTypes(), wordVariant.getOriginalForm());
 			results.add(response);
 		}
 
-		return WordSearchResponse.builder().searchedWord(word).results(results).build();
+		return wordResponseMapper.toWordSearchResponse(word, results);
 	}
 
 }

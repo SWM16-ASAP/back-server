@@ -2,6 +2,8 @@ package com.linglevel.api.word.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.linglevel.api.i18n.LanguageCode;
+import com.linglevel.api.word.model.Meaning;
+import com.linglevel.api.word.model.RelatedForms;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;

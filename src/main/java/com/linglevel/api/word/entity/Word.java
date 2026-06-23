@@ -1,8 +1,8 @@
 package com.linglevel.api.word.entity;
 
 import com.linglevel.api.i18n.LanguageCode;
-import com.linglevel.api.word.dto.Meaning;
-import com.linglevel.api.word.dto.RelatedForms;
+import com.linglevel.api.word.model.Meaning;
+import com.linglevel.api.word.model.RelatedForms;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;

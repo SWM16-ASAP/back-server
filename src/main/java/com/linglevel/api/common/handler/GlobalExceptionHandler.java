@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import jakarta.validation.ConstraintViolationException;
 
@@ -51,6 +52,16 @@ public class GlobalExceptionHandler {
 
 		CommonException commonException = new CommonException(CommonErrorCode.INVALID_INPUT, specificError);
 		log.warn("Constraint violation: {}", specificError);
+		return ResponseEntity.status(commonException.getStatus()).body(new ExceptionResponse(commonException));
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ExceptionResponse> handleMethodArgumentTypeMismatchException(
+			MethodArgumentTypeMismatchException e) {
+		String specificError = String.format("%s: 올바르지 않은 값입니다", e.getName());
+
+		CommonException commonException = new CommonException(CommonErrorCode.INVALID_INPUT, specificError);
+		log.warn("Type mismatch: {}", specificError);
 		return ResponseEntity.status(commonException.getStatus()).body(new ExceptionResponse(commonException));
 	}
 

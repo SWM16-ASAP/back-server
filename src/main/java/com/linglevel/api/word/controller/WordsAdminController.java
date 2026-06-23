@@ -5,9 +5,11 @@ import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.EssentialWordsStatsResponse;
 import com.linglevel.api.word.dto.Oxford3000InitResponse;
 import com.linglevel.api.word.dto.WordSearchResponse;
+import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.service.Oxford3000Service;
 import com.linglevel.api.word.service.WordService;
+import com.linglevel.api.word.validator.WordValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -21,6 +23,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,11 +34,14 @@ import java.util.List;
 @Slf4j
 @Tag(name = "Words Admin", description = "단어 관리 API (관리자 전용)")
 @SecurityRequirement(name = "adminApiKey")
+@PreAuthorize("hasRole('ADMIN')")
 public class WordsAdminController {
 
 	private final WordService wordService;
 
 	private final Oxford3000Service oxford3000Service;
+
+	private final WordValidator wordValidator;
 
 	@Operation(summary = "단어 강제 재분석", description = """
 			관리자 전용: 단어를 AI로 강제 재분석합니다.
@@ -69,7 +75,13 @@ public class WordsAdminController {
 		log.info("Admin force-analyze: word='{}', targetLanguage={}, overwrite={}, deleteVariants={}", word,
 				targetLanguage, overwrite, deleteVariants);
 
-		WordSearchResponse response = wordService.forceReanalyzeWord(word, targetLanguage, overwrite, deleteVariants);
+		if (targetLanguage == LanguageCode.EN) {
+			throw new WordsException(WordsErrorCode.SAME_SOURCE_TARGET_LANGUAGE);
+		}
+
+		String validatedWord = wordValidator.validateAndPreprocess(word);
+		WordSearchResponse response = wordService.forceReanalyzeWord(validatedWord, targetLanguage, overwrite,
+				deleteVariants);
 		return ResponseEntity.ok(response);
 	}
 
