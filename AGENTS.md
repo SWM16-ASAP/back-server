@@ -35,7 +35,7 @@
 - README는 외부 방문자용으로 유지하고, 긴 설계 설명은 `docs` 아래에 둔다.
 - 문서화되지 않은 모듈은 `src/main/java/com/linglevel/api` 아래 실제 패키지와 테스트를 기준으로 맥락을 확인한다.
 - 커밋 메시지, 브랜치명, PR 제목과 본문은 [Repository Conventions](docs/templates/repository-conventions.md)를 따른다.
-- Java 포맷은 Spotless와 google-java-format AOSP 스타일을 기준으로 하며, 코드 변경 후 필요하면 `./gradlew spotlessCheck`를 실행한다.
+- Java 포맷은 Spring Java Format을 기준으로 하며, 코드 변경 후 필요하면 `./gradlew checkFormat`을 실행한다.
 - 구조 변경은 관련 architecture 문서와 decision 문서의 갱신 필요성을 함께 확인한다.
 - 운영 리스크가 있는 변경은 테스트, 로그, 메트릭, 부하 테스트 중 최소 하나로 검증 근거를 남긴다.
 - 외부 네트워크, AI 모델, 저장소, 푸시 알림에 의존하는 코드는 실패와 비용을 별도 리스크로 다룬다.

@@ -26,243 +26,225 @@ import java.util.stream.Collectors;
 @Slf4j
 public class WordPersistenceService {
 
-    private final WordRepository wordRepository;
-    private final WordVariantRepository wordVariantRepository;
-    private final InvalidWordRepository invalidWordRepository;
+	private final WordRepository wordRepository;
 
-    @Transactional
-    public List<WordVariant> saveAnalysisResults(
-            String word,
-            List<WordAnalysisResult> analysisResults,
-            Optional<InvalidWord> cachedInvalidWord
-    ) {
-        List<WordVariant> savedVariants = new ArrayList<>();
-        for (WordAnalysisResult analysisResult : analysisResults) {
-            WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
-            savedVariants.add(savedVariant);
-        }
+	private final WordVariantRepository wordVariantRepository;
 
-        cachedInvalidWord.ifPresent(invalidWord -> {
-            invalidWordRepository.delete(invalidWord);
-            log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)",
-                    word, invalidWord.getAttemptCount());
-        });
+	private final InvalidWordRepository invalidWordRepository;
 
-        return savedVariants;
-    }
+	@Transactional
+	public List<WordVariant> saveAnalysisResults(String word, List<WordAnalysisResult> analysisResults,
+			Optional<InvalidWord> cachedInvalidWord) {
+		List<WordVariant> savedVariants = new ArrayList<>();
+		for (WordAnalysisResult analysisResult : analysisResults) {
+			WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
+			savedVariants.add(savedVariant);
+		}
 
-    @Transactional
-    public List<WordVariant> forceSaveAnalysisResults(
-            String word,
-            LanguageCode targetLanguage,
-            boolean overwrite,
-            boolean deleteVariants,
-            List<WordAnalysisResult> analysisResults
-    ) {
-        if (overwrite) {
-            deleteExistingWords(word, targetLanguage, deleteVariants);
-        }
+		cachedInvalidWord.ifPresent(invalidWord -> {
+			invalidWordRepository.delete(invalidWord);
+			log.info("Removed word '{}' from invalid word cache after successful AI analysis (was attempt {}/3)", word,
+					invalidWord.getAttemptCount());
+		});
 
-        List<WordVariant> savedVariants = new ArrayList<>();
-        for (WordAnalysisResult analysisResult : analysisResults) {
-            WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
-            savedVariants.add(savedVariant);
-        }
+		return savedVariants;
+	}
 
-        return savedVariants;
-    }
+	@Transactional
+	public List<WordVariant> forceSaveAnalysisResults(String word, LanguageCode targetLanguage, boolean overwrite,
+			boolean deleteVariants, List<WordAnalysisResult> analysisResults) {
+		if (overwrite) {
+			deleteExistingWords(word, targetLanguage, deleteVariants);
+		}
 
-    @Transactional
-    public Word saveWord(WordAnalysisResult analysisResult) {
-        Word newWord = convertAnalysisResultToWord(analysisResult);
-        return wordRepository.save(newWord);
-    }
+		List<WordVariant> savedVariants = new ArrayList<>();
+		for (WordAnalysisResult analysisResult : analysisResults) {
+			WordVariant savedVariant = saveWordFromAnalysis(word, analysisResult);
+			savedVariants.add(savedVariant);
+		}
 
-    private WordVariant saveWordFromAnalysis(String word, WordAnalysisResult analysisResult) {
-        String originalForm = analysisResult.getOriginalForm();
-        LanguageCode sourceLanguageCode = analysisResult.getSourceLanguageCode();
-        LanguageCode targetLanguageCode = analysisResult.getTargetLanguageCode();
+		return savedVariants;
+	}
 
-        wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(
-                originalForm, sourceLanguageCode, targetLanguageCode
-        ).orElseGet(() -> {
-            Word newWord = convertAnalysisResultToWord(analysisResult);
-            Word savedWord = wordRepository.save(newWord);
-            log.info("Saved new word: {} ({} -> {})", originalForm, sourceLanguageCode, targetLanguageCode);
+	@Transactional
+	public Word saveWord(WordAnalysisResult analysisResult) {
+		Word newWord = convertAnalysisResultToWord(analysisResult);
+		return wordRepository.save(newWord);
+	}
 
-            saveWordVariants(savedWord);
+	private WordVariant saveWordFromAnalysis(String word, WordAnalysisResult analysisResult) {
+		String originalForm = analysisResult.getOriginalForm();
+		LanguageCode sourceLanguageCode = analysisResult.getSourceLanguageCode();
+		LanguageCode targetLanguageCode = analysisResult.getTargetLanguageCode();
 
-            return savedWord;
-        });
+		wordRepository
+			.findByWordAndSourceLanguageCodeAndTargetLanguageCode(originalForm, sourceLanguageCode, targetLanguageCode)
+			.orElseGet(() -> {
+				Word newWord = convertAnalysisResultToWord(analysisResult);
+				Word savedWord = wordRepository.save(newWord);
+				log.info("Saved new word: {} ({} -> {})", originalForm, sourceLanguageCode, targetLanguageCode);
 
-        Optional<WordVariant> existingVariant = wordVariantRepository.findByWordAndOriginalForm(word, originalForm);
-        if (existingVariant.isPresent()) {
-            log.info("Variant already exists: {} -> {}", word, originalForm);
-            return existingVariant.get();
-        }
+				saveWordVariants(savedWord);
 
-        List<VariantType> variantTypes = analysisResult.getVariantTypes() != null && !analysisResult.getVariantTypes().isEmpty()
-                ? analysisResult.getVariantTypes()
-                : List.of(VariantType.ORIGINAL_FORM);
+				return savedWord;
+			});
 
-        WordVariant inputVariant = createVariant(word, originalForm, variantTypes);
-        wordVariantRepository.save(inputVariant);
-        log.info("Saved input variant: {} -> {} ({})", word, originalForm, variantTypes);
+		Optional<WordVariant> existingVariant = wordVariantRepository.findByWordAndOriginalForm(word, originalForm);
+		if (existingVariant.isPresent()) {
+			log.info("Variant already exists: {} -> {}", word, originalForm);
+			return existingVariant.get();
+		}
 
-        return inputVariant;
-    }
+		List<VariantType> variantTypes = analysisResult.getVariantTypes() != null
+				&& !analysisResult.getVariantTypes().isEmpty() ? analysisResult.getVariantTypes()
+						: List.of(VariantType.ORIGINAL_FORM);
 
-    private void saveWordVariants(Word word) {
-        List<WordVariant> variants = new ArrayList<>();
+		WordVariant inputVariant = createVariant(word, originalForm, variantTypes);
+		wordVariantRepository.save(inputVariant);
+		log.info("Saved input variant: {} -> {} ({})", word, originalForm, variantTypes);
 
-        RelatedForms relatedForms = word.getRelatedForms();
-        if (relatedForms == null) {
-            return;
-        }
+		return inputVariant;
+	}
 
-        if (relatedForms.getConjugations() != null) {
-            var conj = relatedForms.getConjugations();
-            if (conj.getPast() != null && !conj.getPast().equals(word.getWord())) {
-                variants.add(createVariant(conj.getPast(), word.getWord(), List.of(VariantType.PAST_TENSE)));
-            }
-            if (conj.getPastParticiple() != null && !conj.getPastParticiple().equals(word.getWord())) {
-                variants.add(createVariant(conj.getPastParticiple(), word.getWord(), List.of(VariantType.PAST_PARTICIPLE)));
-            }
-            if (conj.getPresentParticiple() != null && !conj.getPresentParticiple().equals(word.getWord())) {
-                variants.add(createVariant(conj.getPresentParticiple(), word.getWord(), List.of(VariantType.PRESENT_PARTICIPLE)));
-            }
-            if (conj.getThirdPerson() != null && !conj.getThirdPerson().equals(word.getWord())) {
-                variants.add(createVariant(conj.getThirdPerson(), word.getWord(), List.of(VariantType.THIRD_PERSON)));
-            }
-        }
+	private void saveWordVariants(Word word) {
+		List<WordVariant> variants = new ArrayList<>();
 
-        if (relatedForms.getComparatives() != null) {
-            var comp = relatedForms.getComparatives();
-            if (comp.getComparative() != null && !comp.getComparative().equals(word.getWord())) {
-                variants.add(createVariant(comp.getComparative(), word.getWord(), List.of(VariantType.COMPARATIVE)));
-            }
-            if (comp.getSuperlative() != null && !comp.getSuperlative().equals(word.getWord())) {
-                variants.add(createVariant(comp.getSuperlative(), word.getWord(), List.of(VariantType.SUPERLATIVE)));
-            }
-        }
+		RelatedForms relatedForms = word.getRelatedForms();
+		if (relatedForms == null) {
+			return;
+		}
 
-        if (relatedForms.getPlural() != null) {
-            var plural = relatedForms.getPlural();
-            if (plural.getPlural() != null && !plural.getPlural().equals(word.getWord())) {
-                variants.add(createVariant(plural.getPlural(), word.getWord(), List.of(VariantType.PLURAL)));
-            }
-        }
+		if (relatedForms.getConjugations() != null) {
+			var conj = relatedForms.getConjugations();
+			if (conj.getPast() != null && !conj.getPast().equals(word.getWord())) {
+				variants.add(createVariant(conj.getPast(), word.getWord(), List.of(VariantType.PAST_TENSE)));
+			}
+			if (conj.getPastParticiple() != null && !conj.getPastParticiple().equals(word.getWord())) {
+				variants
+					.add(createVariant(conj.getPastParticiple(), word.getWord(), List.of(VariantType.PAST_PARTICIPLE)));
+			}
+			if (conj.getPresentParticiple() != null && !conj.getPresentParticiple().equals(word.getWord())) {
+				variants.add(createVariant(conj.getPresentParticiple(), word.getWord(),
+						List.of(VariantType.PRESENT_PARTICIPLE)));
+			}
+			if (conj.getThirdPerson() != null && !conj.getThirdPerson().equals(word.getWord())) {
+				variants.add(createVariant(conj.getThirdPerson(), word.getWord(), List.of(VariantType.THIRD_PERSON)));
+			}
+		}
 
-        if (!variants.isEmpty()) {
-            List<WordVariant> uniqueVariants = variants.stream()
-                    .collect(Collectors.toMap(
-                            WordVariant::getWord,
-                            variant -> variant,
-                            (existing, replacement) -> {
-                                List<VariantType> mergedTypes = new ArrayList<>(existing.getVariantTypes());
-                                replacement.getVariantTypes().forEach(type -> {
-                                    if (!mergedTypes.contains(type)) {
-                                        mergedTypes.add(type);
-                                    }
-                                });
-                                existing.setVariantTypes(mergedTypes);
-                                return existing;
-                            }
-                    ))
-                    .values()
-                    .stream()
-                    .toList();
+		if (relatedForms.getComparatives() != null) {
+			var comp = relatedForms.getComparatives();
+			if (comp.getComparative() != null && !comp.getComparative().equals(word.getWord())) {
+				variants.add(createVariant(comp.getComparative(), word.getWord(), List.of(VariantType.COMPARATIVE)));
+			}
+			if (comp.getSuperlative() != null && !comp.getSuperlative().equals(word.getWord())) {
+				variants.add(createVariant(comp.getSuperlative(), word.getWord(), List.of(VariantType.SUPERLATIVE)));
+			}
+		}
 
-            List<String> variantWords = uniqueVariants.stream()
-                    .map(WordVariant::getWord)
-                    .collect(Collectors.toList());
+		if (relatedForms.getPlural() != null) {
+			var plural = relatedForms.getPlural();
+			if (plural.getPlural() != null && !plural.getPlural().equals(word.getWord())) {
+				variants.add(createVariant(plural.getPlural(), word.getWord(), List.of(VariantType.PLURAL)));
+			}
+		}
 
-            List<WordVariant> existingVariants = wordVariantRepository.findByWordIn(variantWords);
-            List<String> existingWords = existingVariants.stream()
-                    .map(WordVariant::getWord)
-                    .toList();
+		if (!variants.isEmpty()) {
+			List<WordVariant> uniqueVariants = variants.stream()
+				.collect(Collectors.toMap(WordVariant::getWord, variant -> variant, (existing, replacement) -> {
+					List<VariantType> mergedTypes = new ArrayList<>(existing.getVariantTypes());
+					replacement.getVariantTypes().forEach(type -> {
+						if (!mergedTypes.contains(type)) {
+							mergedTypes.add(type);
+						}
+					});
+					existing.setVariantTypes(mergedTypes);
+					return existing;
+				}))
+				.values()
+				.stream()
+				.toList();
 
-            List<WordVariant> newVariants = uniqueVariants.stream()
-                    .filter(variant -> !existingWords.contains(variant.getWord()))
-                    .collect(Collectors.toList());
+			List<String> variantWords = uniqueVariants.stream().map(WordVariant::getWord).collect(Collectors.toList());
 
-            if (!newVariants.isEmpty()) {
-                wordVariantRepository.saveAll(newVariants);
-                newVariants.forEach(variant ->
-                        log.info("Saved variant: {} -> {} ({})", variant.getWord(), variant.getOriginalForm(), variant.getVariantTypes())
-                );
-            }
-        }
-    }
+			List<WordVariant> existingVariants = wordVariantRepository.findByWordIn(variantWords);
+			List<String> existingWords = existingVariants.stream().map(WordVariant::getWord).toList();
 
-    @Transactional
-    public void saveInvalidWord(String word) {
-        Optional<InvalidWord> existingInvalidWord = invalidWordRepository.findByWord(word);
+			List<WordVariant> newVariants = uniqueVariants.stream()
+				.filter(variant -> !existingWords.contains(variant.getWord()))
+				.collect(Collectors.toList());
 
-        if (existingInvalidWord.isPresent()) {
-            InvalidWord invalidWord = existingInvalidWord.get();
-            invalidWord.setAttemptCount(invalidWord.getAttemptCount() + 1);
-            invalidWordRepository.save(invalidWord);
-            log.info("Updated invalid word '{}' attempt count: {}", word, invalidWord.getAttemptCount());
-            return;
-        }
+			if (!newVariants.isEmpty()) {
+				wordVariantRepository.saveAll(newVariants);
+				newVariants.forEach(variant -> log.info("Saved variant: {} -> {} ({})", variant.getWord(),
+						variant.getOriginalForm(), variant.getVariantTypes()));
+			}
+		}
+	}
 
-        InvalidWord invalidWord = InvalidWord.builder()
-                .word(word)
-                .attemptedAt(LocalDateTime.now())
-                .attemptCount(1)
-                .build();
-        invalidWordRepository.save(invalidWord);
-        log.info("Cached invalid word '{}' permanently (attempt 1/3)", word);
-    }
+	@Transactional
+	public void saveInvalidWord(String word) {
+		Optional<InvalidWord> existingInvalidWord = invalidWordRepository.findByWord(word);
 
-    private void deleteExistingWords(String word, LanguageCode targetLanguage, boolean deleteVariants) {
-        List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
-        if (existingVariants.isEmpty()) {
-            return;
-        }
+		if (existingInvalidWord.isPresent()) {
+			InvalidWord invalidWord = existingInvalidWord.get();
+			invalidWord.setAttemptCount(invalidWord.getAttemptCount() + 1);
+			invalidWordRepository.save(invalidWord);
+			log.info("Updated invalid word '{}' attempt count: {}", word, invalidWord.getAttemptCount());
+			return;
+		}
 
-        for (WordVariant variant : existingVariants) {
-            String originalForm = variant.getOriginalForm();
-            wordRepository.findByWordAndTargetLanguageCode(
-                    originalForm, targetLanguage
-            ).ifPresent(wordToDelete -> {
-                wordRepository.delete(wordToDelete);
-                log.info("Deleted Word: {} (targetLanguage={})", originalForm, targetLanguage);
-            });
-        }
+		InvalidWord invalidWord = InvalidWord.builder()
+			.word(word)
+			.attemptedAt(LocalDateTime.now())
+			.attemptCount(1)
+			.build();
+		invalidWordRepository.save(invalidWord);
+		log.info("Cached invalid word '{}' permanently (attempt 1/3)", word);
+	}
 
-        if (deleteVariants) {
-            wordVariantRepository.deleteAll(existingVariants);
-            log.info("Deleted {} existing WordVariants for word '{}' (complete reset)", existingVariants.size(), word);
-            return;
-        }
+	private void deleteExistingWords(String word, LanguageCode targetLanguage, boolean deleteVariants) {
+		List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
+		if (existingVariants.isEmpty()) {
+			return;
+		}
 
-        log.info("Kept {} existing WordVariants for word '{}' (only Word deleted)", existingVariants.size(), word);
-    }
+		for (WordVariant variant : existingVariants) {
+			String originalForm = variant.getOriginalForm();
+			wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage).ifPresent(wordToDelete -> {
+				wordRepository.delete(wordToDelete);
+				log.info("Deleted Word: {} (targetLanguage={})", originalForm, targetLanguage);
+			});
+		}
 
-    private Word convertAnalysisResultToWord(WordAnalysisResult result) {
-        RelatedForms relatedForms = RelatedForms.builder()
-                .conjugations(result.getConjugations())
-                .comparatives(result.getComparatives())
-                .plural(result.getPlural())
-                .build();
+		if (deleteVariants) {
+			wordVariantRepository.deleteAll(existingVariants);
+			log.info("Deleted {} existing WordVariants for word '{}' (complete reset)", existingVariants.size(), word);
+			return;
+		}
 
-        return Word.builder()
-                .word(result.getOriginalForm())
-                .sourceLanguageCode(result.getSourceLanguageCode())
-                .targetLanguageCode(result.getTargetLanguageCode())
-                .summary(result.getSummary())
-                .meanings(result.getMeanings())
-                .relatedForms(relatedForms)
-                .build();
-    }
+		log.info("Kept {} existing WordVariants for word '{}' (only Word deleted)", existingVariants.size(), word);
+	}
 
-    private WordVariant createVariant(String variantWord, String originalForm, List<VariantType> types) {
-        return WordVariant.builder()
-                .word(variantWord)
-                .originalForm(originalForm)
-                .variantTypes(types)
-                .build();
-    }
+	private Word convertAnalysisResultToWord(WordAnalysisResult result) {
+		RelatedForms relatedForms = RelatedForms.builder()
+			.conjugations(result.getConjugations())
+			.comparatives(result.getComparatives())
+			.plural(result.getPlural())
+			.build();
+
+		return Word.builder()
+			.word(result.getOriginalForm())
+			.sourceLanguageCode(result.getSourceLanguageCode())
+			.targetLanguageCode(result.getTargetLanguageCode())
+			.summary(result.getSummary())
+			.meanings(result.getMeanings())
+			.relatedForms(relatedForms)
+			.build();
+	}
+
+	private WordVariant createVariant(String variantWord, String originalForm, List<VariantType> types) {
+		return WordVariant.builder().word(variantWord).originalForm(originalForm).variantTypes(types).build();
+	}
+
 }

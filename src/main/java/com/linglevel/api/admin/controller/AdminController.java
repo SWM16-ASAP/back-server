@@ -55,201 +55,212 @@ import java.util.List;
 @SecurityRequirement(name = "adminApiKey")
 public class AdminController {
 
-    private final AdminService adminService;
-    private final VersionService versionService;
-    private final NotificationService notificationService;
-    private final TicketService ticketService;
-    private final UserRepository userRepository;
-    private final ArticleService articleService;
-    private final StreakService streakService;
+	private final AdminService adminService;
 
-    @Operation(summary = "책 청크 수정", description = "어드민 권한으로 특정 책의 청크 내용을 수정합니다.")
-    @PutMapping("/books/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
-    public ResponseEntity<ChunkResponse> updateBookChunk(
-            @Parameter(description = "책 ID", required = true) @PathVariable String bookId,
-            @Parameter(description = "챕터 ID", required = true) @PathVariable String chapterId,
-            @Parameter(description = "청크 ID", required = true) @PathVariable String chunkId,
-            @Parameter(description = "청크 수정 요청", required = true) @Valid @RequestBody UpdateChunkRequest request) {
-        
-        log.info("Admin updating book chunk - bookId: {}, chapterId: {}, chunkId: {}", bookId, chapterId, chunkId);
-        
-        ChunkResponse response = adminService.updateBookChunk(bookId, chapterId, chunkId, request);
-        return ResponseEntity.ok(response);
-    }
+	private final VersionService versionService;
 
-    @Operation(summary = "기사 청크 수정", description = "어드민 권한으로 특정 기사의 청크 내용을 수정합니다.")
-    @PutMapping("/articles/{articleId}/chunks/{chunkId}")
-    public ResponseEntity<ArticleChunkResponse> updateArticleChunk(
-            @Parameter(description = "기사 ID", required = true) @PathVariable String articleId,
-            @Parameter(description = "청크 ID", required = true) @PathVariable String chunkId,
-            @Parameter(description = "청크 수정 요청", required = true) @Valid @RequestBody UpdateChunkRequest request) {
-        
-        log.info("Admin updating article chunk - articleId: {}, chunkId: {}", articleId, chunkId);
-        
-        ArticleChunkResponse response = adminService.updateArticleChunk(articleId, chunkId, request);
-        return ResponseEntity.ok(response);
-    }
+	private final NotificationService notificationService;
 
-    @Operation(summary = "책 삭제", description = "어드민 권한으로 특정 책과 관련된 모든 데이터(챕터, 청크, 진도, S3 파일 등)를 삭제합니다.")
-    @DeleteMapping("/books/{bookId}")
-    public ResponseEntity<MessageResponse> deleteBook(
-            @Parameter(description = "책 ID", required = true) @PathVariable String bookId) {
-        
-        log.info("Admin deleting book - bookId: {}", bookId);
-        
-        adminService.deleteBook(bookId);
-        return ResponseEntity.ok(new MessageResponse("Book and all related data deleted successfully."));
-    }
+	private final TicketService ticketService;
 
-    @Operation(summary = "기사 삭제", description = "어드민 권한으로 특정 기사와 관련된 모든 데이터(청크, S3 파일 등)를 삭제합니다.")
-    @DeleteMapping("/articles/{articleId}")
-    public ResponseEntity<MessageResponse> deleteArticle(
-            @Parameter(description = "기사 ID", required = true) @PathVariable String articleId) {
-        
-        log.info("Admin deleting article - articleId: {}", articleId);
-        
-        adminService.deleteArticle(articleId);
-        return ResponseEntity.ok(new MessageResponse("Article and all related data deleted successfully."));
-    }
+	private final UserRepository userRepository;
 
-    @Operation(summary = "앱 버전 업데이트", description = "어드민 권한으로 앱의 최신 버전 및 최소 요구 버전을 부분 업데이트합니다.")
-    @PatchMapping("/version")
-    public ResponseEntity<VersionUpdateResponse> updateVersion(
-            @Parameter(description = "버전 업데이트 요청", required = true) @Valid @RequestBody VersionUpdateRequest request) {
-        
-        log.info("Admin updating app version - latestVersion: {}, minimumVersion: {}", 
-                request.getLatestVersion(), request.getMinimumVersion());
-        
-        VersionUpdateResponse response = versionService.updateVersion(request);
-        return ResponseEntity.ok(response);
-    }
+	private final ArticleService articleService;
 
-    @Operation(summary = "브로드캐스트 알림 전송", description = "어드민 권한으로 전체 사용자에게 FCM 푸시 알림을 브로드캐스트합니다.")
-    @PostMapping("/notifications/broadcast")
-    public ResponseEntity<NotificationBroadcastResponse> broadcastNotification(
-            @Parameter(description = "브로드캐스트 알림 전송 요청", required = true) @Valid @RequestBody NotificationBroadcastRequest request) {
-        NotificationBroadcastResponse response = notificationService.sendBroadcastNotification(request);
-        return ResponseEntity.ok(response);
-    }
+	private final StreakService streakService;
 
-    @Operation(summary = "푸시 알림 전송", description = "어드민 권한으로 특정 사용자들에게 FCM 푸시 알림을 전송합니다.")
-    @PostMapping("/notifications/send")
-    public ResponseEntity<NotificationSendResponse> sendNotification(
-            @Parameter(description = "알림 전송 요청", required = true) @Valid @RequestBody NotificationSendRequest request) {
+	@Operation(summary = "책 청크 수정", description = "어드민 권한으로 특정 책의 청크 내용을 수정합니다.")
+	@PutMapping("/books/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
+	public ResponseEntity<ChunkResponse> updateBookChunk(
+			@Parameter(description = "책 ID", required = true) @PathVariable String bookId,
+			@Parameter(description = "챕터 ID", required = true) @PathVariable String chapterId,
+			@Parameter(description = "청크 ID", required = true) @PathVariable String chunkId,
+			@Parameter(description = "청크 수정 요청", required = true) @Valid @RequestBody UpdateChunkRequest request) {
 
-        NotificationSendResponse response = notificationService.sendNotificationFromRequest(request);
-        return ResponseEntity.ok(response);
-    }
+		log.info("Admin updating book chunk - bookId: {}, chapterId: {}, chunkId: {}", bookId, chapterId, chunkId);
 
-    @Operation(summary = "아티클 출시 알림 전송", description = "AI 서버가 새 아티클 출시 시 국가와 카테고리 기반으로 타겟 사용자에게 푸시 알림을 전송합니다.")
-    @PostMapping("/notifications/article-release")
-    public ResponseEntity<ArticleReleaseNotificationResponse> sendArticleReleaseNotification(
-            @Parameter(description = "아티클 출시 알림 전송 요청", required = true) @Valid @RequestBody ArticleReleaseNotificationRequest request) {
-        ArticleReleaseNotificationResponse response = notificationService.sendArticleReleaseNotification(request);
-        return ResponseEntity.ok(response);
-    }
+		ChunkResponse response = adminService.updateBookChunk(bookId, chapterId, chunkId, request);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "티켓 지급", description = "어드민 권한으로 사용자에게 티켓을 지급합니다.")
-    @PostMapping("/tickets/grant")
-    public ResponseEntity<GrantTicketResponse> grantTicket(
-            @Parameter(description = "티켓 지급 요청", required = true) @Valid @RequestBody GrantTicketRequest request) {
+	@Operation(summary = "기사 청크 수정", description = "어드민 권한으로 특정 기사의 청크 내용을 수정합니다.")
+	@PutMapping("/articles/{articleId}/chunks/{chunkId}")
+	public ResponseEntity<ArticleChunkResponse> updateArticleChunk(
+			@Parameter(description = "기사 ID", required = true) @PathVariable String articleId,
+			@Parameter(description = "청크 ID", required = true) @PathVariable String chunkId,
+			@Parameter(description = "청크 수정 요청", required = true) @Valid @RequestBody UpdateChunkRequest request) {
 
-        log.info("Admin granting tickets - userId: {}, amount: {}, reason: {}",
-                request.getUserId(), request.getAmount(), request.getReason());
+		log.info("Admin updating article chunk - articleId: {}, chunkId: {}", articleId, chunkId);
 
-        // 사용자 존재 여부 확인
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "User not found."));
+		ArticleChunkResponse response = adminService.updateArticleChunk(articleId, chunkId, request);
+		return ResponseEntity.ok(response);
+	}
 
-        String reason = request.getReason() != null ? request.getReason() : "관리자 지급";
-        int newBalance = ticketService.grantTicket(user.getId(), request.getAmount(), reason);
+	@Operation(summary = "책 삭제", description = "어드민 권한으로 특정 책과 관련된 모든 데이터(챕터, 청크, 진도, S3 파일 등)를 삭제합니다.")
+	@DeleteMapping("/books/{bookId}")
+	public ResponseEntity<MessageResponse> deleteBook(
+			@Parameter(description = "책 ID", required = true) @PathVariable String bookId) {
 
-        GrantTicketResponse response = GrantTicketResponse.builder()
-                .message("Tickets granted successfully.")
-                .userId(request.getUserId())
-                .amount(request.getAmount())
-                .newBalance(newBalance)
-                .build();
+		log.info("Admin deleting book - bookId: {}", bookId);
 
-        return ResponseEntity.ok(response);
-    }
+		adminService.deleteBook(bookId);
+		return ResponseEntity.ok(new MessageResponse("Book and all related data deleted successfully."));
+	}
 
-    @Operation(summary = "아티클 원본 URL 목록 조회", description = "어드민 권한으로 아티클의 원본 URL 목록을 필터링하여 조회합니다.")
-    @GetMapping("/articles/origins")
-    public ResponseEntity<PageResponse<ArticleOriginResponse>> getArticleOrigins(
-            @ParameterObject @ModelAttribute GetArticleOriginsRequest request) {
+	@Operation(summary = "기사 삭제", description = "어드민 권한으로 특정 기사와 관련된 모든 데이터(청크, S3 파일 등)를 삭제합니다.")
+	@DeleteMapping("/articles/{articleId}")
+	public ResponseEntity<MessageResponse> deleteArticle(
+			@Parameter(description = "기사 ID", required = true) @PathVariable String articleId) {
 
-        log.info("Admin fetching article origins - tags: {}, targetLanguageCode: {}",
-                request.getTags(), request.getTargetLanguageCode());
+		log.info("Admin deleting article - articleId: {}", articleId);
 
-        PageResponse<ArticleOriginResponse> response = articleService.getArticleOrigins(request);
-        return ResponseEntity.ok(response);
-    }
+		adminService.deleteArticle(articleId);
+		return ResponseEntity.ok(new MessageResponse("Article and all related data deleted successfully."));
+	}
 
-    @Operation(summary = "아티클 targetLanguageCode 마이그레이션", description = "targetLanguageCode가 null이거나 없는 모든 아티클에 [KO, EN, JA]를 설정합니다.")
-    @PostMapping("/articles/migrate/target-language-code")
-    public ResponseEntity<MessageResponse> migrateArticleTargetLanguageCode() {
-        log.info("Admin migrating article targetLanguageCode");
+	@Operation(summary = "앱 버전 업데이트", description = "어드민 권한으로 앱의 최신 버전 및 최소 요구 버전을 부분 업데이트합니다.")
+	@PatchMapping("/version")
+	public ResponseEntity<VersionUpdateResponse> updateVersion(
+			@Parameter(description = "버전 업데이트 요청", required = true) @Valid @RequestBody VersionUpdateRequest request) {
 
-        long updatedCount = articleService.migrateTargetLanguageCode();
+		log.info("Admin updating app version - latestVersion: {}, minimumVersion: {}", request.getLatestVersion(),
+				request.getMinimumVersion());
 
-        String message = String.format("Successfully updated %d articles with default target language codes [KO, EN, JA]", updatedCount);
-        return ResponseEntity.ok(new MessageResponse(message));
-    }
+		VersionUpdateResponse response = versionService.updateVersion(request);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "[Debug] 오늘의 스트릭 학습 상태 리셋", description = "디버깅용 API. 특정 사용자의 오늘 학습 완료 기록을 삭제하여, 스트릭을 달성하지 않은 상태로 되돌립니다.")
-    @PostMapping("/streaks/reset-today")
-    public ResponseEntity<MessageResponse> resetTodayStreak(@Valid @RequestBody ResetTodayStreakRequest request) {
-        adminService.resetTodayStreak(request.getUserId());
-        return ResponseEntity.ok(new MessageResponse("User " + request.getUserId() + "'s streak status for today has been reset."));
-    }
+	@Operation(summary = "브로드캐스트 알림 전송", description = "어드민 권한으로 전체 사용자에게 FCM 푸시 알림을 브로드캐스트합니다.")
+	@PostMapping("/notifications/broadcast")
+	public ResponseEntity<NotificationBroadcastResponse> broadcastNotification(
+			@Parameter(description = "브로드캐스트 알림 전송 요청",
+					required = true) @Valid @RequestBody NotificationBroadcastRequest request) {
+		NotificationBroadcastResponse response = notificationService.sendBroadcastNotification(request);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "스트릭 복구", description = "어드민 권한으로 특정 사용자의 누락된 스트릭을 복구합니다. MISSED 날짜는 COMPLETED로 변경하고, FREEZE_USED는 COMPLETED로 변경하며 프리즈를 보상합니다. 복구 범위 이후 날짜들도 프리즈를 사용하여 최대한 연결합니다.")
-    @PostMapping("/streaks/recover")
-    public ResponseEntity<RecoverStreakResponse> recoverStreak(
-            @Parameter(description = "스트릭 복구 요청", required = true) @Valid @RequestBody RecoverStreakRequest request) {
+	@Operation(summary = "푸시 알림 전송", description = "어드민 권한으로 특정 사용자들에게 FCM 푸시 알림을 전송합니다.")
+	@PostMapping("/notifications/send")
+	public ResponseEntity<NotificationSendResponse> sendNotification(
+			@Parameter(description = "알림 전송 요청", required = true) @Valid @RequestBody NotificationSendRequest request) {
 
-        log.info("Admin recovering streak - userId: {}, startDate: {}, endDate: {}",
-                request.getUserId(), request.getStartDate(), request.getEndDate());
+		NotificationSendResponse response = notificationService.sendNotificationFromRequest(request);
+		return ResponseEntity.ok(response);
+	}
 
-        // 사용자 존재 여부 확인
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "User not found."));
+	@Operation(summary = "아티클 출시 알림 전송", description = "AI 서버가 새 아티클 출시 시 국가와 카테고리 기반으로 타겟 사용자에게 푸시 알림을 전송합니다.")
+	@PostMapping("/notifications/article-release")
+	public ResponseEntity<ArticleReleaseNotificationResponse> sendArticleReleaseNotification(
+			@Parameter(description = "아티클 출시 알림 전송 요청",
+					required = true) @Valid @RequestBody ArticleReleaseNotificationRequest request) {
+		ArticleReleaseNotificationResponse response = notificationService.sendArticleReleaseNotification(request);
+		return ResponseEntity.ok(response);
+	}
 
-        // 스트릭 복구 실행
-        streakService.recoverStreak(request.getUserId(), request.getStartDate(), request.getEndDate());
+	@Operation(summary = "티켓 지급", description = "어드민 권한으로 사용자에게 티켓을 지급합니다.")
+	@PostMapping("/tickets/grant")
+	public ResponseEntity<GrantTicketResponse> grantTicket(
+			@Parameter(description = "티켓 지급 요청", required = true) @Valid @RequestBody GrantTicketRequest request) {
 
-        // 복구 후 UserStudyReport 조회
-        UserStudyReport updatedReport = streakService.recalculateUserStudyReport(request.getUserId());
+		log.info("Admin granting tickets - userId: {}, amount: {}, reason: {}", request.getUserId(),
+				request.getAmount(), request.getReason());
 
-        RecoverStreakResponse response = RecoverStreakResponse.builder()
-                .message("Streak recovered successfully.")
-                .userId(request.getUserId())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
-                .currentStreak(updatedReport.getCurrentStreak())
-                .longestStreak(updatedReport.getLongestStreak())
-                .lastCompletionDate(updatedReport.getLastCompletionDate())
-                .build();
+		// 사용자 존재 여부 확인
+		User user = userRepository.findById(request.getUserId())
+			.orElseThrow(() -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "User not found."));
 
-        log.info("Streak recovery completed for user {} - currentStreak: {}, longestStreak: {}",
-                request.getUserId(), updatedReport.getCurrentStreak(), updatedReport.getLongestStreak());
+		String reason = request.getReason() != null ? request.getReason() : "관리자 지급";
+		int newBalance = ticketService.grantTicket(user.getId(), request.getAmount(), reason);
 
-        return ResponseEntity.ok(response);
-    }
+		GrantTicketResponse response = GrantTicketResponse.builder()
+			.message("Tickets granted successfully.")
+			.userId(request.getUserId())
+			.amount(request.getAmount())
+			.newBalance(newBalance)
+			.build();
 
-    @ExceptionHandler(TicketException.class)
-    public ResponseEntity<ExceptionResponse> handleTicketException(TicketException e) {
-        log.error("Admin Ticket Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e));
-    }
+		return ResponseEntity.ok(response);
+	}
 
-    @ExceptionHandler(CommonException.class)
-    public ResponseEntity<ExceptionResponse> handleCommonException(CommonException e) {
-        log.error("Admin Common Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e));
-    }
+	@Operation(summary = "아티클 원본 URL 목록 조회", description = "어드민 권한으로 아티클의 원본 URL 목록을 필터링하여 조회합니다.")
+	@GetMapping("/articles/origins")
+	public ResponseEntity<PageResponse<ArticleOriginResponse>> getArticleOrigins(
+			@ParameterObject @ModelAttribute GetArticleOriginsRequest request) {
+
+		log.info("Admin fetching article origins - tags: {}, targetLanguageCode: {}", request.getTags(),
+				request.getTargetLanguageCode());
+
+		PageResponse<ArticleOriginResponse> response = articleService.getArticleOrigins(request);
+		return ResponseEntity.ok(response);
+	}
+
+	@Operation(summary = "아티클 targetLanguageCode 마이그레이션",
+			description = "targetLanguageCode가 null이거나 없는 모든 아티클에 [KO, EN, JA]를 설정합니다.")
+	@PostMapping("/articles/migrate/target-language-code")
+	public ResponseEntity<MessageResponse> migrateArticleTargetLanguageCode() {
+		log.info("Admin migrating article targetLanguageCode");
+
+		long updatedCount = articleService.migrateTargetLanguageCode();
+
+		String message = String
+			.format("Successfully updated %d articles with default target language codes [KO, EN, JA]", updatedCount);
+		return ResponseEntity.ok(new MessageResponse(message));
+	}
+
+	@Operation(summary = "[Debug] 오늘의 스트릭 학습 상태 리셋",
+			description = "디버깅용 API. 특정 사용자의 오늘 학습 완료 기록을 삭제하여, 스트릭을 달성하지 않은 상태로 되돌립니다.")
+	@PostMapping("/streaks/reset-today")
+	public ResponseEntity<MessageResponse> resetTodayStreak(@Valid @RequestBody ResetTodayStreakRequest request) {
+		adminService.resetTodayStreak(request.getUserId());
+		return ResponseEntity
+			.ok(new MessageResponse("User " + request.getUserId() + "'s streak status for today has been reset."));
+	}
+
+	@Operation(summary = "스트릭 복구",
+			description = "어드민 권한으로 특정 사용자의 누락된 스트릭을 복구합니다. MISSED 날짜는 COMPLETED로 변경하고, FREEZE_USED는 COMPLETED로 변경하며 프리즈를 보상합니다. 복구 범위 이후 날짜들도 프리즈를 사용하여 최대한 연결합니다.")
+	@PostMapping("/streaks/recover")
+	public ResponseEntity<RecoverStreakResponse> recoverStreak(
+			@Parameter(description = "스트릭 복구 요청", required = true) @Valid @RequestBody RecoverStreakRequest request) {
+
+		log.info("Admin recovering streak - userId: {}, startDate: {}, endDate: {}", request.getUserId(),
+				request.getStartDate(), request.getEndDate());
+
+		// 사용자 존재 여부 확인
+		User user = userRepository.findById(request.getUserId())
+			.orElseThrow(() -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "User not found."));
+
+		// 스트릭 복구 실행
+		streakService.recoverStreak(request.getUserId(), request.getStartDate(), request.getEndDate());
+
+		// 복구 후 UserStudyReport 조회
+		UserStudyReport updatedReport = streakService.recalculateUserStudyReport(request.getUserId());
+
+		RecoverStreakResponse response = RecoverStreakResponse.builder()
+			.message("Streak recovered successfully.")
+			.userId(request.getUserId())
+			.startDate(request.getStartDate())
+			.endDate(request.getEndDate())
+			.currentStreak(updatedReport.getCurrentStreak())
+			.longestStreak(updatedReport.getLongestStreak())
+			.lastCompletionDate(updatedReport.getLastCompletionDate())
+			.build();
+
+		log.info("Streak recovery completed for user {} - currentStreak: {}, longestStreak: {}", request.getUserId(),
+				updatedReport.getCurrentStreak(), updatedReport.getLongestStreak());
+
+		return ResponseEntity.ok(response);
+	}
+
+	@ExceptionHandler(TicketException.class)
+	public ResponseEntity<ExceptionResponse> handleTicketException(TicketException e) {
+		log.error("Admin Ticket Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
+	}
+
+	@ExceptionHandler(CommonException.class)
+	public ResponseEntity<ExceptionResponse> handleCommonException(CommonException e) {
+		log.error("Admin Common Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
+	}
 
 }

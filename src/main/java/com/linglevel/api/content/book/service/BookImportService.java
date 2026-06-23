@@ -21,68 +21,74 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BookImportService {
 
-    private final ChapterRepository chapterRepository;
-    private final ChunkRepository chunkRepository;
-    private final S3UrlService s3UrlService;
-    private final BookPathStrategy bookPathStrategy;
+	private final ChapterRepository chapterRepository;
 
-    public List<Chapter> createChaptersFromMetadata(BookImportData importData, String bookId) {
-        AtomicInteger chapterCounter = new AtomicInteger(1);
-        List<Chapter> chapters = importData.getChapterMetadata().stream()
-                .map(metadata -> {
-                    Chapter chapter = new Chapter();
-                    chapter.setBookId(bookId);
-                    chapter.setChapterNumber(chapterCounter.getAndIncrement());
-                    chapter.setTitle(metadata.getTitle());
-                    chapter.setDescription(metadata.getSummary());
-                    chapter.setReadingTime(0);
-                    return chapter;
-                })
-                .collect(Collectors.toList());
-        
-        return chapterRepository.saveAll(chapters);
-    }
+	private final ChunkRepository chunkRepository;
 
-    public void createChunksFromLeveledResults(BookImportData importData, List<Chapter> savedChapters, String databaseBookId) {
-        List<Chunk> allChunks = new ArrayList<>();
+	private final S3UrlService s3UrlService;
 
-        for (BookImportData.TextLevelData levelData : importData.getLeveledResults()) {
-            DifficultyLevel difficulty = DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase());
-            List<BookImportData.ChapterData> aiChapters = levelData.getChapters();
+	private final BookPathStrategy bookPathStrategy;
 
-            for (int i = 0; i < savedChapters.size(); i++) {
-                if (i >= aiChapters.size()) break; // Safety break if lists are not aligned
+	public List<Chapter> createChaptersFromMetadata(BookImportData importData, String bookId) {
+		AtomicInteger chapterCounter = new AtomicInteger(1);
+		List<Chapter> chapters = importData.getChapterMetadata().stream().map(metadata -> {
+			Chapter chapter = new Chapter();
+			chapter.setBookId(bookId);
+			chapter.setChapterNumber(chapterCounter.getAndIncrement());
+			chapter.setTitle(metadata.getTitle());
+			chapter.setDescription(metadata.getSummary());
+			chapter.setReadingTime(0);
+			return chapter;
+		}).collect(Collectors.toList());
 
-                Chapter savedChapter = savedChapters.get(i);
-                BookImportData.ChapterData aiChapterData = aiChapters.get(i);
+		return chapterRepository.saveAll(chapters);
+	}
 
-                int chunkCounter = 1;
-                for (BookImportData.ChunkData chunkData : aiChapterData.getChunks()) {
-                    Chunk chunk = createChunk(chunkData, savedChapter, difficulty, databaseBookId, chunkCounter++);
-                    allChunks.add(chunk);
-                }
-            }
-        }
-        chunkRepository.saveAll(allChunks);
-    }
-    
-    private Chunk createChunk(BookImportData.ChunkData chunkData, Chapter chapter, DifficultyLevel difficulty, String bookId, int chunkNumber) {
-        Chunk chunk = new Chunk();
-        chunk.setChapterId(chapter.getId());
-        chunk.setChunkNumber(chunkNumber);
-        chunk.setDifficultyLevel(difficulty);
-        
-        if (Boolean.TRUE.equals(chunkData.getIsImage())) {
-            chunk.setType(ChunkType.IMAGE);
-            String imageUrl = s3UrlService.buildImageUrl(bookId, chunkData.getChunkText(), bookPathStrategy);
-            chunk.setContent(imageUrl);
-            chunk.setDescription(chunkData.getDescription());
-        } else {
-            chunk.setType(ChunkType.TEXT);
-            chunk.setContent(chunkData.getChunkText());
-            chunk.setDescription(null);
-        }
-        
-        return chunk;
-    }
+	public void createChunksFromLeveledResults(BookImportData importData, List<Chapter> savedChapters,
+			String databaseBookId) {
+		List<Chunk> allChunks = new ArrayList<>();
+
+		for (BookImportData.TextLevelData levelData : importData.getLeveledResults()) {
+			DifficultyLevel difficulty = DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase());
+			List<BookImportData.ChapterData> aiChapters = levelData.getChapters();
+
+			for (int i = 0; i < savedChapters.size(); i++) {
+				if (i >= aiChapters.size())
+					break; // Safety break if lists are not aligned
+
+				Chapter savedChapter = savedChapters.get(i);
+				BookImportData.ChapterData aiChapterData = aiChapters.get(i);
+
+				int chunkCounter = 1;
+				for (BookImportData.ChunkData chunkData : aiChapterData.getChunks()) {
+					Chunk chunk = createChunk(chunkData, savedChapter, difficulty, databaseBookId, chunkCounter++);
+					allChunks.add(chunk);
+				}
+			}
+		}
+		chunkRepository.saveAll(allChunks);
+	}
+
+	private Chunk createChunk(BookImportData.ChunkData chunkData, Chapter chapter, DifficultyLevel difficulty,
+			String bookId, int chunkNumber) {
+		Chunk chunk = new Chunk();
+		chunk.setChapterId(chapter.getId());
+		chunk.setChunkNumber(chunkNumber);
+		chunk.setDifficultyLevel(difficulty);
+
+		if (Boolean.TRUE.equals(chunkData.getIsImage())) {
+			chunk.setType(ChunkType.IMAGE);
+			String imageUrl = s3UrlService.buildImageUrl(bookId, chunkData.getChunkText(), bookPathStrategy);
+			chunk.setContent(imageUrl);
+			chunk.setDescription(chunkData.getDescription());
+		}
+		else {
+			chunk.setType(ChunkType.TEXT);
+			chunk.setContent(chunkData.getChunkText());
+			chunk.setDescription(null);
+		}
+
+		return chunk;
+	}
+
 }

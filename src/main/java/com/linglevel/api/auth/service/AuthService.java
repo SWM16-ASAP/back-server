@@ -26,89 +26,93 @@ import java.util.Optional;
 @Slf4j
 public class AuthService {
 
-    private final FirebaseAuth firebaseAuth;
-    private final UserRepository userRepository;
-    private final JwtProvider jwtTokenProvider;
-    private final RefreshTokenService refreshTokenService;
-    private final FcmTokenService fcmTokenService;
+	private final FirebaseAuth firebaseAuth;
 
-    public LoginResponse authenticateWithFirebase(String authCode) {
-        try {
-            FirebaseToken decodedToken = firebaseAuth.verifyIdToken(authCode);
+	private final UserRepository userRepository;
 
-            String email = decodedToken.getEmail();
-            String provider = getProviderFromToken(decodedToken);
-            String username = provider + "_" + decodedToken.getUid();
+	private final JwtProvider jwtTokenProvider;
 
-            User user = findOrCreateUser(username, email, provider);
+	private final RefreshTokenService refreshTokenService;
 
-            String accessToken = jwtTokenProvider.createToken(user);
-            String refreshToken = refreshTokenService.createRefreshToken(user.getId());
-            
-            return LoginResponse.builder()
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .build();
-                    
-        } catch (FirebaseAuthException e) {
-            log.error("Firebase authentication failed: {}", e.getMessage());
-            throw new AuthException(AuthErrorCode.INVALID_FIREBASE_TOKEN);
-        }
-    }
+	private final FcmTokenService fcmTokenService;
 
-    private User findOrCreateUser(String username, String email, String provider) {
-        Optional<User> existingUser = userRepository.findByUsername(username);
-        
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-            user.setEmail(email);
-            return userRepository.save(user);
-        } else {
-            User newUser = User.builder()
-                    .username(username)
-                    .provider(provider)
-                    .email(email)
-                    .displayName(email)
-                    .role(UserRole.USER)
-                    .deleted(false)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            
-            log.info("Creating new user: {}", email);
-            return userRepository.save(newUser);
-        }
-    }
+	public LoginResponse authenticateWithFirebase(String authCode) {
+		try {
+			FirebaseToken decodedToken = firebaseAuth.verifyIdToken(authCode);
 
-    private String getProviderFromToken(FirebaseToken token) {
-        Map<String, Object> claims = token.getClaims();
-        Object firebase = claims.get("firebase");
+			String email = decodedToken.getEmail();
+			String provider = getProviderFromToken(decodedToken);
+			String username = provider + "_" + decodedToken.getUid();
 
-        if (firebase instanceof Map<?, ?> firebaseMap) {
-            Object signInProviderObj = firebaseMap.get("sign_in_provider");
+			User user = findOrCreateUser(username, email, provider);
 
-            if (signInProviderObj instanceof String signInProvider) {
-                return switch (signInProvider) {
-                    case "google.com" -> "google";
-                    case "apple.com" -> "apple";
-                    default -> signInProvider;
-                };
-            }
-        }
+			String accessToken = jwtTokenProvider.createToken(user);
+			String refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
-        return "unknown";
-    }
-    
-    public RefreshTokenResponse refreshToken(String refreshToken) {
-        return refreshTokenService.refreshAccessToken(refreshToken);
-    }
+			return LoginResponse.builder().accessToken(accessToken).refreshToken(refreshToken).build();
 
-    public void logout(String refreshToken) {
-        refreshTokenService.deleteRefreshToken(refreshToken);
-    }
+		}
+		catch (FirebaseAuthException e) {
+			log.error("Firebase authentication failed: {}", e.getMessage());
+			throw new AuthException(AuthErrorCode.INVALID_FIREBASE_TOKEN);
+		}
+	}
 
-    public void logoutAll(String userId) {
-        refreshTokenService.deleteAllRefreshTokens(userId);
-        fcmTokenService.deactivateAllTokens(userId);
-        log.info("Logged out all devices and deactivated all FCM tokens for user: {}", userId);
-    }
+	private User findOrCreateUser(String username, String email, String provider) {
+		Optional<User> existingUser = userRepository.findByUsername(username);
+
+		if (existingUser.isPresent()) {
+			User user = existingUser.get();
+			user.setEmail(email);
+			return userRepository.save(user);
+		}
+		else {
+			User newUser = User.builder()
+				.username(username)
+				.provider(provider)
+				.email(email)
+				.displayName(email)
+				.role(UserRole.USER)
+				.deleted(false)
+				.createdAt(LocalDateTime.now())
+				.build();
+
+			log.info("Creating new user: {}", email);
+			return userRepository.save(newUser);
+		}
+	}
+
+	private String getProviderFromToken(FirebaseToken token) {
+		Map<String, Object> claims = token.getClaims();
+		Object firebase = claims.get("firebase");
+
+		if (firebase instanceof Map<?, ?> firebaseMap) {
+			Object signInProviderObj = firebaseMap.get("sign_in_provider");
+
+			if (signInProviderObj instanceof String signInProvider) {
+				return switch (signInProvider) {
+					case "google.com" -> "google";
+					case "apple.com" -> "apple";
+					default -> signInProvider;
+				};
+			}
+		}
+
+		return "unknown";
+	}
+
+	public RefreshTokenResponse refreshToken(String refreshToken) {
+		return refreshTokenService.refreshAccessToken(refreshToken);
+	}
+
+	public void logout(String refreshToken) {
+		refreshTokenService.deleteRefreshToken(refreshToken);
+	}
+
+	public void logoutAll(String userId) {
+		refreshTokenService.deleteAllRefreshTokens(userId);
+		fcmTokenService.deactivateAllTokens(userId);
+		log.info("Logged out all devices and deactivated all FCM tokens for user: {}", userId);
+	}
+
 }

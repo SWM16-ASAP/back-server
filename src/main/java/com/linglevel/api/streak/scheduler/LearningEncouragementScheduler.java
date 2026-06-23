@@ -31,385 +31,403 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LearningEncouragementScheduler {
 
-    private final UserStudyReportRepository userStudyReportRepository;
-    private final DailyCompletionRepository dailyCompletionRepository;
-    private final FcmTokenRepository fcmTokenRepository;
-    private final FcmMessagingService fcmMessagingService;
-    private final StudyTimeAnalysisService studyTimeAnalysisService;
-    private final com.linglevel.api.fcm.service.FcmTokenService fcmTokenService;
+	private final UserStudyReportRepository userStudyReportRepository;
 
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-    private static final String NOTIFICATION_TYPE = "learning_encouragement";
-    private static final String CAMPAIGN_ID = "learning_encouragement";
+	private final DailyCompletionRepository dailyCompletionRepository;
 
-    // 새벽 시간대 제외 (조용한 시간)
-    private static final int QUIET_HOURS_START = 0;  // 00:00
-    private static final int QUIET_HOURS_END = 6;    // 06:00
+	private final FcmTokenRepository fcmTokenRepository;
 
-    /**
-     * 매시간 실행: 활성 유저의 평소 학습 시간에 맞춰 개인화된 학습 권장 알림 전송
-     * + 이탈 유저 복귀 유도 알림 (Day 1-4)
-     * 새벽 시간대(00:00-06:00)는 알림 미발송
-     */
-    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
-    public void sendLearningEncouragementNotifications() {
-        Instant startTime = Instant.now();
-        int currentHour = startTime.atZone(KST).getHour();
+	private final FcmMessagingService fcmMessagingService;
 
-        // 새벽 시간대는 알림 미발송
-        if (currentHour >= QUIET_HOURS_START && currentHour < QUIET_HOURS_END) {
-            log.info("[Learning Encouragement] Skipping quiet hours ({}:00 KST)", currentHour);
-            return;
-        }
+	private final StudyTimeAnalysisService studyTimeAnalysisService;
 
-        LocalDate today = LocalDate.now(KST);
-        log.info("[Learning Encouragement] Starting at {} (KST {}:00)", startTime, currentHour);
+	private final com.linglevel.api.fcm.service.FcmTokenService fcmTokenService;
 
-        int activeUserCount = 0;
-        int churnedUserCount = 0;
-        int usersMatchingTime = 0;
-        int usersWithoutCompletion = 0;
-        int usersWithTokens = 0;
-        int notificationsSent = 0;
-        int notificationsFailed = 0;
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
-        try {
-            // 1. 활성 유저 알림 처리
-            int[] activeResults = processActiveUsers(today, currentHour);
-            activeUserCount = activeResults[0];
-            usersMatchingTime += activeResults[1];
-            usersWithoutCompletion += activeResults[2];
-            usersWithTokens += activeResults[3];
-            notificationsSent += activeResults[4];
-            notificationsFailed += activeResults[5];
+	private static final String NOTIFICATION_TYPE = "learning_encouragement";
 
-            // 2. 이탈 유저 복귀 알림 처리 (Day 1-4)
-            int[] churnedResults = processChurnedUsers(today, currentHour, startTime);
-            churnedUserCount = churnedResults[0];
-            usersMatchingTime += churnedResults[1];
-            usersWithoutCompletion += churnedResults[2];
-            usersWithTokens += churnedResults[3];
-            notificationsSent += churnedResults[4];
-            notificationsFailed += churnedResults[5];
+	private static final String CAMPAIGN_ID = "learning_encouragement";
 
-            Instant endTime = Instant.now();
-            long durationMillis = Duration.between(startTime, endTime).toMillis();
+	// 새벽 시간대 제외 (조용한 시간)
+	private static final int QUIET_HOURS_START = 0; // 00:00
 
-            log.info("[Learning Encouragement] Completed. Active: {}, Churned: {}, Matching Time: {}, " +
-                            "Without Completion: {}, With Tokens: {}, Sent: {}, Failed: {}, Duration: {}ms",
-                    activeUserCount, churnedUserCount, usersMatchingTime, usersWithoutCompletion, usersWithTokens,
-                    notificationsSent, notificationsFailed, durationMillis);
+	private static final int QUIET_HOURS_END = 6; // 06:00
 
-        } catch (Exception e) {
-            log.error("[Learning Encouragement] Critical error. " +
-                            "Active: {}, Churned: {}, Matching Time: {}, Without Completion: {}, With Tokens: {}, " +
-                            "Sent: {}, Failed: {}",
-                    activeUserCount, churnedUserCount, usersMatchingTime, usersWithoutCompletion, usersWithTokens,
-                    notificationsSent, notificationsFailed, e);
-        }
-    }
+	/**
+	 * 매시간 실행: 활성 유저의 평소 학습 시간에 맞춰 개인화된 학습 권장 알림 전송 + 이탈 유저 복귀 유도 알림 (Day 1-4) 새벽
+	 * 시간대(00:00-06:00)는 알림 미발송
+	 */
+	@Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
+	public void sendLearningEncouragementNotifications() {
+		Instant startTime = Instant.now();
+		int currentHour = startTime.atZone(KST).getHour();
 
-    /**
-     * 활성 유저 알림 처리
-     * @return [candidateUsers, usersMatchingTime, usersWithoutCompletion, usersWithTokens, notificationsSent, notificationsFailed]
-     */
-    private int[] processActiveUsers(LocalDate today, int currentHour) {
-        int candidateUsers = 0;
-        int usersMatchingTime = 0;
-        int usersWithoutCompletion = 0;
-        int usersWithTokens = 0;
-        int notificationsSent = 0;
-        int notificationsFailed = 0;
+		// 새벽 시간대는 알림 미발송
+		if (currentHour >= QUIET_HOURS_START && currentHour < QUIET_HOURS_END) {
+			log.info("[Learning Encouragement] Skipping quiet hours ({}:00 KST)", currentHour);
+			return;
+		}
 
-        try {
-            // 1. 활성 유저 조회 (currentStreak > 0)
-            List<UserStudyReport> activeUsers = userStudyReportRepository.findByCurrentStreakGreaterThan(0);
-            candidateUsers = activeUsers.size();
+		LocalDate today = LocalDate.now(KST);
+		log.info("[Learning Encouragement] Starting at {} (KST {}:00)", startTime, currentHour);
 
-            log.debug("[Learning Encouragement - Active] Found {} active users", candidateUsers);
+		int activeUserCount = 0;
+		int churnedUserCount = 0;
+		int usersMatchingTime = 0;
+		int usersWithoutCompletion = 0;
+		int usersWithTokens = 0;
+		int notificationsSent = 0;
+		int notificationsFailed = 0;
 
-            // 2. 평소 학습 시간이 현재 시각과 일치하는 사용자 필터링
-            for (UserStudyReport report : activeUsers) {
-                String userId = report.getUserId();
+		try {
+			// 1. 활성 유저 알림 처리
+			int[] activeResults = processActiveUsers(today, currentHour);
+			activeUserCount = activeResults[0];
+			usersMatchingTime += activeResults[1];
+			usersWithoutCompletion += activeResults[2];
+			usersWithTokens += activeResults[3];
+			notificationsSent += activeResults[4];
+			notificationsFailed += activeResults[5];
 
-                // 2-1. 평소 학습 시간 확인 (DB에서 조회)
-                Optional<Integer> usualStudyHour = studyTimeAnalysisService.getPreferredStudyHour(userId);
-                if (usualStudyHour.isEmpty() || usualStudyHour.get() != currentHour) {
-                    continue;
-                }
-                usersMatchingTime++;
+			// 2. 이탈 유저 복귀 알림 처리 (Day 1-4)
+			int[] churnedResults = processChurnedUsers(today, currentHour, startTime);
+			churnedUserCount = churnedResults[0];
+			usersMatchingTime += churnedResults[1];
+			usersWithoutCompletion += churnedResults[2];
+			usersWithTokens += churnedResults[3];
+			notificationsSent += churnedResults[4];
+			notificationsFailed += churnedResults[5];
 
-                // 2-2. 오늘 학습 완료 여부 확인
-                boolean hasCompletedToday = dailyCompletionRepository
-                        .existsByUserIdAndCompletionDate(userId, today);
-                if (hasCompletedToday) {
-                    continue;
-                }
-                usersWithoutCompletion++;
+			Instant endTime = Instant.now();
+			long durationMillis = Duration.between(startTime, endTime).toMillis();
 
-                // 2-3. FCM 토큰 조회
-                List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
-                if (tokens.isEmpty()) {
-                    log.debug("[Learning Encouragement] No active FCM tokens for user: {}", userId);
-                    continue;
-                }
-                usersWithTokens++;
+			log.info(
+					"[Learning Encouragement] Completed. Active: {}, Churned: {}, Matching Time: {}, "
+							+ "Without Completion: {}, With Tokens: {}, Sent: {}, Failed: {}, Duration: {}ms",
+					activeUserCount, churnedUserCount, usersMatchingTime, usersWithoutCompletion, usersWithTokens,
+					notificationsSent, notificationsFailed, durationMillis);
 
-                List<String> fcmTokens = tokens.stream()
-                        .map(FcmToken::getFcmToken)
-                        .collect(Collectors.toList());
+		}
+		catch (Exception e) {
+			log.error(
+					"[Learning Encouragement] Critical error. "
+							+ "Active: {}, Churned: {}, Matching Time: {}, Without Completion: {}, With Tokens: {}, "
+							+ "Sent: {}, Failed: {}",
+					activeUserCount, churnedUserCount, usersMatchingTime, usersWithoutCompletion, usersWithTokens,
+					notificationsSent, notificationsFailed, e);
+		}
+	}
 
-                // 2-4. 언어 결정
-                LanguageCode languageCode = determineLanguageFromTokens(tokens);
+	/**
+	 * 활성 유저 알림 처리
+	 * @return [candidateUsers, usersMatchingTime, usersWithoutCompletion,
+	 * usersWithTokens, notificationsSent, notificationsFailed]
+	 */
+	private int[] processActiveUsers(LocalDate today, int currentHour) {
+		int candidateUsers = 0;
+		int usersMatchingTime = 0;
+		int usersWithoutCompletion = 0;
+		int usersWithTokens = 0;
+		int notificationsSent = 0;
+		int notificationsFailed = 0;
 
-                // 2-5. 학습 권장 메시지 생성
-                StreakReminderMessage.Message message = StreakReminderMessage.LEARNING_ENCOURAGEMENT
-                        .getRandomMessage(languageCode);
+		try {
+			// 1. 활성 유저 조회 (currentStreak > 0)
+			List<UserStudyReport> activeUsers = userStudyReportRepository.findByCurrentStreakGreaterThan(0);
+			candidateUsers = activeUsers.size();
 
-                FcmMessageRequest messageRequest = FcmMessageRequest.builder()
-                        .title(message.getTitle())
-                        .body(message.getBodyFormat())  // 스트릭 수 포맷팅 불필요
-                        .type(NOTIFICATION_TYPE)
-                        .campaignId(CAMPAIGN_ID)
-                        .action("open_app")
-                        .build();
+			log.debug("[Learning Encouragement - Active] Found {} active users", candidateUsers);
 
-                // 2-6. 알림 전송
-                try {
-                    if (fcmTokens.size() == 1) {
-                        fcmMessagingService.sendMessage(fcmTokens.get(0), messageRequest);
-                        notificationsSent++;
-                        log.debug("[Learning Encouragement - Active] Sent to user: {} (lang: {}, hour: {})",
-                                userId, languageCode, currentHour);
-                    } else {
-                        BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
+			// 2. 평소 학습 시간이 현재 시각과 일치하는 사용자 필터링
+			for (UserStudyReport report : activeUsers) {
+				String userId = report.getUserId();
 
-                        for (int i = 0; i < response.getResponses().size(); i++) {
-                            if (response.getResponses().get(i).isSuccessful()) {
-                                notificationsSent++;
-                            } else {
-                                notificationsFailed++;
-                                String failedToken = fcmTokens.get(i);
-                                log.warn("[Learning Encouragement] Failed to send to user: {}, token error: {}",
-                                        userId, response.getResponses().get(i).getException().getMessage());
-                                fcmTokenService.deactivateToken(failedToken);
-                            }
-                        }
+				// 2-1. 평소 학습 시간 확인 (DB에서 조회)
+				Optional<Integer> usualStudyHour = studyTimeAnalysisService.getPreferredStudyHour(userId);
+				if (usualStudyHour.isEmpty() || usualStudyHour.get() != currentHour) {
+					continue;
+				}
+				usersMatchingTime++;
 
-                        log.debug("[Learning Encouragement] Multicast to user: {} - Success: {}, Failed: {}",
-                                userId, response.getSuccessCount(), response.getFailureCount());
-                    }
-                } catch (Exception e) {
-                    notificationsFailed += fcmTokens.size();
-                    log.error("[Learning Encouragement - Active] Failed to send notification to user: {}", userId, e);
-                    if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
-                        fcmTokens.forEach(fcmTokenService::deactivateToken);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("[Learning Encouragement - Active] Error processing active users", e);
-        }
+				// 2-2. 오늘 학습 완료 여부 확인
+				boolean hasCompletedToday = dailyCompletionRepository.existsByUserIdAndCompletionDate(userId, today);
+				if (hasCompletedToday) {
+					continue;
+				}
+				usersWithoutCompletion++;
 
-        return new int[]{candidateUsers, usersMatchingTime, usersWithoutCompletion, usersWithTokens, notificationsSent, notificationsFailed};
-    }
+				// 2-3. FCM 토큰 조회
+				List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
+				if (tokens.isEmpty()) {
+					log.debug("[Learning Encouragement] No active FCM tokens for user: {}", userId);
+					continue;
+				}
+				usersWithTokens++;
 
-    /**
-     * 이탈 유저 복귀 알림 처리 (Day 1-4)
-     * @return [candidateUsers, usersMatchingTime, usersWithoutCompletion, usersWithTokens, notificationsSent, notificationsFailed]
-     */
-    private int[] processChurnedUsers(LocalDate today, int currentHour, Instant now) {
-        int candidateUsers = 0;
-        int usersMatchingTime = 0;
-        int usersWithoutCompletion = 0;
-        int usersWithTokens = 0;
-        int notificationsSent = 0;
-        int notificationsFailed = 0;
+				List<String> fcmTokens = tokens.stream().map(FcmToken::getFcmToken).collect(Collectors.toList());
 
-        try {
-            // Day 1-4 시간 윈도우에서 이탈 유저 조회
-            List<UserStudyReport> allChurnedCandidates = new ArrayList<>();
+				// 2-4. 언어 결정
+				LanguageCode languageCode = determineLanguageFromTokens(tokens);
 
-            // Day 1: 23-24시간 전
-            allChurnedCandidates.addAll(getChurnedUsersInTimeWindow(now, 23, 24));
+				// 2-5. 학습 권장 메시지 생성
+				StreakReminderMessage.Message message = StreakReminderMessage.LEARNING_ENCOURAGEMENT
+					.getRandomMessage(languageCode);
 
-            // Day 2: 47-48시간 전
-            allChurnedCandidates.addAll(getChurnedUsersInTimeWindow(now, 47, 48));
+				FcmMessageRequest messageRequest = FcmMessageRequest.builder()
+					.title(message.getTitle())
+					.body(message.getBodyFormat()) // 스트릭 수 포맷팅 불필요
+					.type(NOTIFICATION_TYPE)
+					.campaignId(CAMPAIGN_ID)
+					.action("open_app")
+					.build();
 
-            // Day 3: 71-72시간 전
-            allChurnedCandidates.addAll(getChurnedUsersInTimeWindow(now, 71, 72));
+				// 2-6. 알림 전송
+				try {
+					if (fcmTokens.size() == 1) {
+						fcmMessagingService.sendMessage(fcmTokens.get(0), messageRequest);
+						notificationsSent++;
+						log.debug("[Learning Encouragement - Active] Sent to user: {} (lang: {}, hour: {})", userId,
+								languageCode, currentHour);
+					}
+					else {
+						BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
 
-            // Day 4: 95-96시간 전
-            allChurnedCandidates.addAll(getChurnedUsersInTimeWindow(now, 95, 96));
+						for (int i = 0; i < response.getResponses().size(); i++) {
+							if (response.getResponses().get(i).isSuccessful()) {
+								notificationsSent++;
+							}
+							else {
+								notificationsFailed++;
+								String failedToken = fcmTokens.get(i);
+								log.warn("[Learning Encouragement] Failed to send to user: {}, token error: {}", userId,
+										response.getResponses().get(i).getException().getMessage());
+								fcmTokenService.deactivateToken(failedToken);
+							}
+						}
 
-            candidateUsers = allChurnedCandidates.size();
+						log.debug("[Learning Encouragement] Multicast to user: {} - Success: {}, Failed: {}", userId,
+								response.getSuccessCount(), response.getFailureCount());
+					}
+				}
+				catch (Exception e) {
+					notificationsFailed += fcmTokens.size();
+					log.error("[Learning Encouragement - Active] Failed to send notification to user: {}", userId, e);
+					if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
+						fcmTokens.forEach(fcmTokenService::deactivateToken);
+					}
+				}
+			}
+		}
+		catch (Exception e) {
+			log.error("[Learning Encouragement - Active] Error processing active users", e);
+		}
 
-            log.debug("[Learning Encouragement - Churned] Found {} churned users across all time windows", candidateUsers);
+		return new int[] { candidateUsers, usersMatchingTime, usersWithoutCompletion, usersWithTokens,
+				notificationsSent, notificationsFailed };
+	}
 
-            if (allChurnedCandidates.isEmpty()) {
-                return new int[]{0, 0, 0, 0, 0, 0};
-            }
+	/**
+	 * 이탈 유저 복귀 알림 처리 (Day 1-4)
+	 * @return [candidateUsers, usersMatchingTime, usersWithoutCompletion,
+	 * usersWithTokens, notificationsSent, notificationsFailed]
+	 */
+	private int[] processChurnedUsers(LocalDate today, int currentHour, Instant now) {
+		int candidateUsers = 0;
+		int usersMatchingTime = 0;
+		int usersWithoutCompletion = 0;
+		int usersWithTokens = 0;
+		int notificationsSent = 0;
+		int notificationsFailed = 0;
 
-            // 각 이탈 유저에 대해 처리
-            for (UserStudyReport report : allChurnedCandidates) {
-                String userId = report.getUserId();
+		try {
+			// Day 1-4 시간 윈도우에서 이탈 유저 조회
+			List<UserStudyReport> allChurnedCandidates = new ArrayList<>();
 
-                // 1. 평소 학습 시간 확인 (DB에서 조회)
-                Optional<Integer> usualStudyHour = studyTimeAnalysisService.getPreferredStudyHour(userId);
-                if (usualStudyHour.isEmpty() || usualStudyHour.get() != currentHour) {
-                    continue;
-                }
-                usersMatchingTime++;
+			// Day 1: 23-24시간 전
+			allChurnedCandidates.addAll(getChurnedUsersInTimeWindow(now, 23, 24));
 
-                // 2. 오늘 학습 완료 여부 확인 (복귀했으면 스킵)
-                boolean hasCompletedToday = dailyCompletionRepository
-                        .existsByUserIdAndCompletionDate(userId, today);
-                if (hasCompletedToday) {
-                    continue;
-                }
-                usersWithoutCompletion++;
+			// Day 2: 47-48시간 전
+			allChurnedCandidates.addAll(getChurnedUsersInTimeWindow(now, 47, 48));
 
-                // 3. FCM 토큰 조회
-                List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
-                if (tokens.isEmpty()) {
-                    log.debug("[Learning Encouragement - Churned] No active FCM tokens for user: {}", userId);
-                    continue;
-                }
-                usersWithTokens++;
+			// Day 3: 71-72시간 전
+			allChurnedCandidates.addAll(getChurnedUsersInTimeWindow(now, 71, 72));
 
-                List<String> fcmTokens = tokens.stream()
-                        .map(FcmToken::getFcmToken)
-                        .collect(Collectors.toList());
+			// Day 4: 95-96시간 전
+			allChurnedCandidates.addAll(getChurnedUsersInTimeWindow(now, 95, 96));
 
-                // 4. 언어 결정
-                LanguageCode languageCode = determineLanguageFromTokens(tokens);
+			candidateUsers = allChurnedCandidates.size();
 
-                // 5. 메시지 타입 결정 (Day 1-4에 따라)
-                StreakReminderMessage messageType = determineChurnedUserMessageType(report, now);
-                StreakReminderMessage.Message message = messageType.getRandomMessage(languageCode);
+			log.debug("[Learning Encouragement - Churned] Found {} churned users across all time windows",
+					candidateUsers);
 
-                // 스트릭이 0이므로 표시할 때는 이전 스트릭 사용 (없으면 1)
-                int displayStreak = report.getLongestStreak() > 0 ? report.getLongestStreak() : 1;
-                String body = message.getBodyFormat().contains("%d")
-                        ? String.format(message.getBodyFormat(), displayStreak)
-                        : message.getBodyFormat();
+			if (allChurnedCandidates.isEmpty()) {
+				return new int[] { 0, 0, 0, 0, 0, 0 };
+			}
 
-                FcmMessageRequest messageRequest = FcmMessageRequest.builder()
-                        .title(message.getTitle())
-                        .body(body)
-                        .type(NOTIFICATION_TYPE)
-                        .campaignId(CAMPAIGN_ID + "_churned")
-                        .action("open_app")
-                        .build();
+			// 각 이탈 유저에 대해 처리
+			for (UserStudyReport report : allChurnedCandidates) {
+				String userId = report.getUserId();
 
-                // 6. 알림 전송
-                try {
-                    if (fcmTokens.size() == 1) {
-                        fcmMessagingService.sendMessage(fcmTokens.get(0), messageRequest);
-                        notificationsSent++;
-                        log.debug("[Learning Encouragement - Churned] Sent to user: {} (lang: {}, type: {})",
-                                userId, languageCode, messageType);
-                    } else {
-                        BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
+				// 1. 평소 학습 시간 확인 (DB에서 조회)
+				Optional<Integer> usualStudyHour = studyTimeAnalysisService.getPreferredStudyHour(userId);
+				if (usualStudyHour.isEmpty() || usualStudyHour.get() != currentHour) {
+					continue;
+				}
+				usersMatchingTime++;
 
-                        for (int i = 0; i < response.getResponses().size(); i++) {
-                            if (response.getResponses().get(i).isSuccessful()) {
-                                notificationsSent++;
-                            } else {
-                                notificationsFailed++;
-                                String failedToken = fcmTokens.get(i);
-                                log.warn("[Learning Encouragement - Churned] Failed to send to user: {}, token error: {}",
-                                        userId, response.getResponses().get(i).getException().getMessage());
-                                fcmTokenService.deactivateToken(failedToken);
-                            }
-                        }
+				// 2. 오늘 학습 완료 여부 확인 (복귀했으면 스킵)
+				boolean hasCompletedToday = dailyCompletionRepository.existsByUserIdAndCompletionDate(userId, today);
+				if (hasCompletedToday) {
+					continue;
+				}
+				usersWithoutCompletion++;
 
-                        log.debug("[Learning Encouragement - Churned] Multicast to user: {} - Success: {}, Failed: {}",
-                                userId, response.getSuccessCount(), response.getFailureCount());
-                    }
-                } catch (Exception e) {
-                    notificationsFailed += fcmTokens.size();
-                    log.error("[Learning Encouragement - Churned] Failed to send notification to user: {}", userId, e);
-                    if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
-                        fcmTokens.forEach(fcmTokenService::deactivateToken);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("[Learning Encouragement - Churned] Error processing churned users", e);
-        }
+				// 3. FCM 토큰 조회
+				List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
+				if (tokens.isEmpty()) {
+					log.debug("[Learning Encouragement - Churned] No active FCM tokens for user: {}", userId);
+					continue;
+				}
+				usersWithTokens++;
 
-        return new int[]{candidateUsers, usersMatchingTime, usersWithoutCompletion, usersWithTokens, notificationsSent, notificationsFailed};
-    }
+				List<String> fcmTokens = tokens.stream().map(FcmToken::getFcmToken).collect(Collectors.toList());
 
-    /**
-     * 시간 윈도우 내의 이탈 유저 조회
-     */
-    private List<UserStudyReport> getChurnedUsersInTimeWindow(Instant now, int hoursAgoStart, int hoursAgoEnd) {
-        Instant windowEnd = now.minus(Duration.ofHours(hoursAgoEnd));
-        Instant windowStart = now.minus(Duration.ofHours(hoursAgoStart));
+				// 4. 언어 결정
+				LanguageCode languageCode = determineLanguageFromTokens(tokens);
 
-        return userStudyReportRepository.findChurnedUsersInTimeWindow(windowStart, windowEnd);
-    }
+				// 5. 메시지 타입 결정 (Day 1-4에 따라)
+				StreakReminderMessage messageType = determineChurnedUserMessageType(report, now);
+				StreakReminderMessage.Message message = messageType.getRandomMessage(languageCode);
 
-    /**
-     * 이탈 유저의 마지막 학습 시간을 기반으로 메시지 타입 결정
-     */
-    private StreakReminderMessage determineChurnedUserMessageType(UserStudyReport report, Instant now) {
-        Instant lastLearning = report.getLastLearningTimestamp();
-        if (lastLearning == null) {
-            return StreakReminderMessage.STREAK_LOST_DAY1;
-        }
+				// 스트릭이 0이므로 표시할 때는 이전 스트릭 사용 (없으면 1)
+				int displayStreak = report.getLongestStreak() > 0 ? report.getLongestStreak() : 1;
+				String body = message.getBodyFormat().contains("%d")
+						? String.format(message.getBodyFormat(), displayStreak) : message.getBodyFormat();
 
-        long hoursSinceLastLearning = Duration.between(lastLearning, now).toHours();
+				FcmMessageRequest messageRequest = FcmMessageRequest.builder()
+					.title(message.getTitle())
+					.body(body)
+					.type(NOTIFICATION_TYPE)
+					.campaignId(CAMPAIGN_ID + "_churned")
+					.action("open_app")
+					.build();
 
-        // Day 4 (95-96h)
-        if (hoursSinceLastLearning >= 95 && hoursSinceLastLearning < 96) {
-            return StreakReminderMessage.STREAK_LOST_DAY4;
-        }
+				// 6. 알림 전송
+				try {
+					if (fcmTokens.size() == 1) {
+						fcmMessagingService.sendMessage(fcmTokens.get(0), messageRequest);
+						notificationsSent++;
+						log.debug("[Learning Encouragement - Churned] Sent to user: {} (lang: {}, type: {})", userId,
+								languageCode, messageType);
+					}
+					else {
+						BatchResponse response = fcmMessagingService.sendMulticastMessage(fcmTokens, messageRequest);
 
-        // Day 3 (71-72h)
-        if (hoursSinceLastLearning >= 71 && hoursSinceLastLearning < 72) {
-            return StreakReminderMessage.STREAK_LOST_DAY3;
-        }
+						for (int i = 0; i < response.getResponses().size(); i++) {
+							if (response.getResponses().get(i).isSuccessful()) {
+								notificationsSent++;
+							}
+							else {
+								notificationsFailed++;
+								String failedToken = fcmTokens.get(i);
+								log.warn(
+										"[Learning Encouragement - Churned] Failed to send to user: {}, token error: {}",
+										userId, response.getResponses().get(i).getException().getMessage());
+								fcmTokenService.deactivateToken(failedToken);
+							}
+						}
 
-        // Day 2 (47-48h)
-        if (hoursSinceLastLearning >= 47 && hoursSinceLastLearning < 48) {
-            return StreakReminderMessage.STREAK_LOST_DAY2;
-        }
+						log.debug("[Learning Encouragement - Churned] Multicast to user: {} - Success: {}, Failed: {}",
+								userId, response.getSuccessCount(), response.getFailureCount());
+					}
+				}
+				catch (Exception e) {
+					notificationsFailed += fcmTokens.size();
+					log.error("[Learning Encouragement - Churned] Failed to send notification to user: {}", userId, e);
+					if (e instanceof com.linglevel.api.fcm.exception.FcmException) {
+						fcmTokens.forEach(fcmTokenService::deactivateToken);
+					}
+				}
+			}
+		}
+		catch (Exception e) {
+			log.error("[Learning Encouragement - Churned] Error processing churned users", e);
+		}
 
-        // Day 1 (23-24h)
-        return StreakReminderMessage.STREAK_LOST_DAY1;
-    }
+		return new int[] { candidateUsers, usersMatchingTime, usersWithoutCompletion, usersWithTokens,
+				notificationsSent, notificationsFailed };
+	}
 
-    /**
-     * FcmToken 리스트에서 사용자의 선호 언어를 결정합니다.
-     */
-    private LanguageCode determineLanguageFromTokens(List<FcmToken> tokens) {
-        if (tokens.isEmpty()) {
-            return LanguageCode.EN;
-        }
+	/**
+	 * 시간 윈도우 내의 이탈 유저 조회
+	 */
+	private List<UserStudyReport> getChurnedUsersInTimeWindow(Instant now, int hoursAgoStart, int hoursAgoEnd) {
+		Instant windowEnd = now.minus(Duration.ofHours(hoursAgoEnd));
+		Instant windowStart = now.minus(Duration.ofHours(hoursAgoStart));
 
-        CountryCode countryCode = tokens.get(0).getCountryCode();
-        return convertCountryCodeToLanguageCode(countryCode);
-    }
+		return userStudyReportRepository.findChurnedUsersInTimeWindow(windowStart, windowEnd);
+	}
 
-    /**
-     * CountryCode를 LanguageCode로 변환합니다.
-     */
-    private LanguageCode convertCountryCodeToLanguageCode(CountryCode countryCode) {
-        if (countryCode == null) {
-            return LanguageCode.EN;
-        }
+	/**
+	 * 이탈 유저의 마지막 학습 시간을 기반으로 메시지 타입 결정
+	 */
+	private StreakReminderMessage determineChurnedUserMessageType(UserStudyReport report, Instant now) {
+		Instant lastLearning = report.getLastLearningTimestamp();
+		if (lastLearning == null) {
+			return StreakReminderMessage.STREAK_LOST_DAY1;
+		}
 
-        switch (countryCode) {
-            case KR:
-                return LanguageCode.KO;
-            case JP:
-                return LanguageCode.JA;
-            case US:
-            default:
-                return LanguageCode.EN;
-        }
-    }
+		long hoursSinceLastLearning = Duration.between(lastLearning, now).toHours();
+
+		// Day 4 (95-96h)
+		if (hoursSinceLastLearning >= 95 && hoursSinceLastLearning < 96) {
+			return StreakReminderMessage.STREAK_LOST_DAY4;
+		}
+
+		// Day 3 (71-72h)
+		if (hoursSinceLastLearning >= 71 && hoursSinceLastLearning < 72) {
+			return StreakReminderMessage.STREAK_LOST_DAY3;
+		}
+
+		// Day 2 (47-48h)
+		if (hoursSinceLastLearning >= 47 && hoursSinceLastLearning < 48) {
+			return StreakReminderMessage.STREAK_LOST_DAY2;
+		}
+
+		// Day 1 (23-24h)
+		return StreakReminderMessage.STREAK_LOST_DAY1;
+	}
+
+	/**
+	 * FcmToken 리스트에서 사용자의 선호 언어를 결정합니다.
+	 */
+	private LanguageCode determineLanguageFromTokens(List<FcmToken> tokens) {
+		if (tokens.isEmpty()) {
+			return LanguageCode.EN;
+		}
+
+		CountryCode countryCode = tokens.get(0).getCountryCode();
+		return convertCountryCodeToLanguageCode(countryCode);
+	}
+
+	/**
+	 * CountryCode를 LanguageCode로 변환합니다.
+	 */
+	private LanguageCode convertCountryCodeToLanguageCode(CountryCode countryCode) {
+		if (countryCode == null) {
+			return LanguageCode.EN;
+		}
+
+		switch (countryCode) {
+			case KR:
+				return LanguageCode.KO;
+			case JP:
+				return LanguageCode.JA;
+			case US:
+			default:
+				return LanguageCode.EN;
+		}
+	}
+
 }

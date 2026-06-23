@@ -12,28 +12,29 @@ import lombok.Setter;
 @Setter
 public class GetArticleOriginsRequest {
 
-    @Schema(description = "카테고리 필터 (displayName 또는 enum 이름)", example = "Technology")
-    private String category;
+	@Schema(description = "카테고리 필터 (displayName 또는 enum 이름)", example = "Technology")
+	private String category;
 
-    @Schema(description = "태그 필터 (쉼표로 구분)", example = "technology,business")
-    private String tags;
+	@Schema(description = "태그 필터 (쉼표로 구분)", example = "technology,business")
+	private String tags;
 
-    @Schema(description = "타깃 언어 코드 필터", example = "KO")
-    private LanguageCode targetLanguageCode;
+	@Schema(description = "타깃 언어 코드 필터", example = "KO")
+	private LanguageCode targetLanguageCode;
 
-    @Schema(description = "페이지 번호", example = "1", defaultValue = "1", minimum = "1")
-    @Min(value = 1, message = "페이지 번호는 1 이상이어야 합니다.")
-    private Integer page = 1;
+	@Schema(description = "페이지 번호", example = "1", defaultValue = "1", minimum = "1")
+	@Min(value = 1, message = "페이지 번호는 1 이상이어야 합니다.")
+	private Integer page = 1;
 
-    @Schema(description = "페이지 당 항목 수", example = "10", defaultValue = "10", minimum = "1", maximum = "200")
-    @Min(value = 1, message = "페이지 당 항목 수는 1 이상이어야 합니다.")
-    @Max(value = 200, message = "페이지 당 항목 수는 200 이하여야 합니다.")
-    private Integer limit = 10;
+	@Schema(description = "페이지 당 항목 수", example = "10", defaultValue = "10", minimum = "1", maximum = "200")
+	@Min(value = 1, message = "페이지 당 항목 수는 1 이상이어야 합니다.")
+	@Max(value = 200, message = "페이지 당 항목 수는 200 이하여야 합니다.")
+	private Integer limit = 10;
 
-    /**
-     * category String을 ContentCategory enum으로 변환
-     */
-    public ContentCategory getCategoryEnum() {
-        return ContentCategory.fromString(category);
-    }
+	/**
+	 * category String을 ContentCategory enum으로 변환
+	 */
+	public ContentCategory getCategoryEnum() {
+		return ContentCategory.fromString(category);
+	}
+
 }

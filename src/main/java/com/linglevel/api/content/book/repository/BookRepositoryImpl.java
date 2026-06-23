@@ -19,191 +19,179 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Book Repository 커스텀 구현체
- * MongoTemplate + Criteria를 BooleanExpression 스타일로 사용
+ * Book Repository 커스텀 구현체 MongoTemplate + Criteria를 BooleanExpression 스타일로 사용
  */
 @RequiredArgsConstructor
 public class BookRepositoryImpl implements BookRepositoryCustom {
 
-    private final MongoTemplate mongoTemplate;
+	private final MongoTemplate mongoTemplate;
 
-    @Override
-    public Page<Book> findBooksWithFilters(GetBooksRequest request, String userId, Pageable pageable) {
-        Query query = buildQuery(request, userId);
+	@Override
+	public Page<Book> findBooksWithFilters(GetBooksRequest request, String userId, Pageable pageable) {
+		Query query = buildQuery(request, userId);
 
-        // 총 개수 조회 (필터링 적용 후)
-        long total = mongoTemplate.count(query, Book.class);
+		// 총 개수 조회 (필터링 적용 후)
+		long total = mongoTemplate.count(query, Book.class);
 
-        // 페이지네이션 적용
-        query.with(pageable);
+		// 페이지네이션 적용
+		query.with(pageable);
 
-        // 데이터 조회
-        List<Book> books = mongoTemplate.find(query, Book.class);
+		// 데이터 조회
+		List<Book> books = mongoTemplate.find(query, Book.class);
 
-        return new PageImpl<>(books, pageable, total);
-    }
+		return new PageImpl<>(books, pageable, total);
+	}
 
-    /**
-     * 동적 쿼리 빌드 (BooleanExpression 스타일)
-     */
-    private Query buildQuery(GetBooksRequest request, String userId) {
-        Query query = new Query();
+	/**
+	 * 동적 쿼리 빌드 (BooleanExpression 스타일)
+	 */
+	private Query buildQuery(GetBooksRequest request, String userId) {
+		Query query = new Query();
 
-        // 각 필터를 독립적인 메서드로 분리
-        applyTagsFilter(query, request.getTags());
-        applyKeywordFilter(query, request.getKeyword());
-        applyProgressFilter(query, request.getProgress(), userId);
-        applyCreatedAfterFilter(query, request.getCreatedAfter());
+		// 각 필터를 독립적인 메서드로 분리
+		applyTagsFilter(query, request.getTags());
+		applyKeywordFilter(query, request.getKeyword());
+		applyProgressFilter(query, request.getProgress(), userId);
+		applyCreatedAfterFilter(query, request.getCreatedAfter());
 
-        return query;
-    }
+		return query;
+	}
 
-    /**
-     * 태그 필터 적용
-     */
-    private void applyTagsFilter(Query query, String tags) {
-        if (!StringUtils.hasText(tags)) {
-            return;
-        }
+	/**
+	 * 태그 필터 적용
+	 */
+	private void applyTagsFilter(Query query, String tags) {
+		if (!StringUtils.hasText(tags)) {
+			return;
+		}
 
-        List<String> tagList = Arrays.asList(tags.split(","));
-        query.addCriteria(Criteria.where("tags").in(tagList));
-    }
+		List<String> tagList = Arrays.asList(tags.split(","));
+		query.addCriteria(Criteria.where("tags").in(tagList));
+	}
 
-    /**
-     * 키워드 필터 적용 (제목 또는 작가)
-     */
-    private void applyKeywordFilter(Query query, String keyword) {
-        if (!StringUtils.hasText(keyword)) {
-            return;
-        }
+	/**
+	 * 키워드 필터 적용 (제목 또는 작가)
+	 */
+	private void applyKeywordFilter(Query query, String keyword) {
+		if (!StringUtils.hasText(keyword)) {
+			return;
+		}
 
-        Criteria keywordCriteria = new Criteria().orOperator(
-            Criteria.where("title").regex(keyword, "i"),
-            Criteria.where("author").regex(keyword, "i")
-        );
-        query.addCriteria(keywordCriteria);
-    }
+		Criteria keywordCriteria = new Criteria().orOperator(Criteria.where("title").regex(keyword, "i"),
+				Criteria.where("author").regex(keyword, "i"));
+		query.addCriteria(keywordCriteria);
+	}
 
-    /**
-     * 진도 필터 적용
-     */
-    private void applyProgressFilter(Query query, ProgressStatus progress, String userId) {
-        if (progress == null || userId == null) {
-            return;
-        }
+	/**
+	 * 진도 필터 적용
+	 */
+	private void applyProgressFilter(Query query, ProgressStatus progress, String userId) {
+		if (progress == null || userId == null) {
+			return;
+		}
 
-        List<String> bookIds = getBookIdsByProgress(userId, progress);
-        if (!bookIds.isEmpty()) {
-            query.addCriteria(Criteria.where("id").in(bookIds));
-        } else {
-            query.addCriteria(Criteria.where("_id").is(null));
-        }
-    }
+		List<String> bookIds = getBookIdsByProgress(userId, progress);
+		if (!bookIds.isEmpty()) {
+			query.addCriteria(Criteria.where("id").in(bookIds));
+		}
+		else {
+			query.addCriteria(Criteria.where("_id").is(null));
+		}
+	}
 
-    /**
-     * 생성 시간 필터 적용 (해당 시간 이후)
-     */
-    private void applyCreatedAfterFilter(Query query, java.time.LocalDateTime createdAfter) {
-        if (createdAfter == null) {
-            return;
-        }
+	/**
+	 * 생성 시간 필터 적용 (해당 시간 이후)
+	 */
+	private void applyCreatedAfterFilter(Query query, java.time.LocalDateTime createdAfter) {
+		if (createdAfter == null) {
+			return;
+		}
 
-        query.addCriteria(Criteria.where("createdAt").gte(createdAfter));
-    }
+		query.addCriteria(Criteria.where("createdAt").gte(createdAfter));
+	}
 
-    /**
-     * 진도 상태별 책 ID 목록 조회
-     */
-    private List<String> getBookIdsByProgress(String userId, ProgressStatus progressStatus) {
-        return switch (progressStatus) {
-            case NOT_STARTED -> getNotStartedBookIds(userId);
-            case IN_PROGRESS -> getInProgressBookIds(userId);
-            case COMPLETED -> getCompletedBookIds(userId);
-        };
-    }
+	/**
+	 * 진도 상태별 책 ID 목록 조회
+	 */
+	private List<String> getBookIdsByProgress(String userId, ProgressStatus progressStatus) {
+		return switch (progressStatus) {
+			case NOT_STARTED -> getNotStartedBookIds(userId);
+			case IN_PROGRESS -> getInProgressBookIds(userId);
+			case COMPLETED -> getCompletedBookIds(userId);
+		};
+	}
 
-    /**
-     * 시작하지 않은 책 ID 목록 조회
-     */
-    private List<String> getNotStartedBookIds(String userId) {
-        // 모든 책 ID 조회
-        List<String> allBookIds = mongoTemplate.findAll(Book.class).stream()
-                .map(Book::getId)
-                .toList();
+	/**
+	 * 시작하지 않은 책 ID 목록 조회
+	 */
+	private List<String> getNotStartedBookIds(String userId) {
+		// 모든 책 ID 조회
+		List<String> allBookIds = mongoTemplate.findAll(Book.class).stream().map(Book::getId).toList();
 
-        // 시작한 책(진행 중/완료) ID 조회
-        List<String> startedBookIds = findStartedBookIds(userId);
-        Set<String> startedBookIdSet = new HashSet<>(startedBookIds);
+		// 시작한 책(진행 중/완료) ID 조회
+		List<String> startedBookIds = findStartedBookIds(userId);
+		Set<String> startedBookIdSet = new HashSet<>(startedBookIds);
 
-        // 시작하지 않은 책(완료/부분 읽기/완료 챕터 진행률이 없는 책)만 반환
-        return allBookIds.stream()
-                .filter(bookId -> !startedBookIdSet.contains(bookId))
-                .toList();
-    }
+		// 시작하지 않은 책(완료/부분 읽기/완료 챕터 진행률이 없는 책)만 반환
+		return allBookIds.stream().filter(bookId -> !startedBookIdSet.contains(bookId)).toList();
+	}
 
-    /**
-     * 진행 중인 책 ID 목록 조회
-     */
-    private List<String> getInProgressBookIds(String userId) {
-        Query query = new Query();
-        query.addCriteria(Criteria.where("userId").is(userId));
-        query.addCriteria(Criteria.where("isCompleted").is(false));
-        query.addCriteria(new Criteria().orOperator(
-                Criteria.where("normalizedProgress").gt(0),
-                partiallyReadChapterCriteria()
-        ));
+	/**
+	 * 진행 중인 책 ID 목록 조회
+	 */
+	private List<String> getInProgressBookIds(String userId) {
+		Query query = new Query();
+		query.addCriteria(Criteria.where("userId").is(userId));
+		query.addCriteria(Criteria.where("isCompleted").is(false));
+		query.addCriteria(
+				new Criteria().orOperator(Criteria.where("normalizedProgress").gt(0), partiallyReadChapterCriteria()));
 
-        return findBookIdsFromProgress(query);
-    }
+		return findBookIdsFromProgress(query);
+	}
 
-    /**
-     * 완료한 책 ID 목록 조회
-     */
-    private List<String> getCompletedBookIds(String userId) {
-        Query query = new Query();
-        query.addCriteria(Criteria.where("userId").is(userId));
-        query.addCriteria(Criteria.where("isCompleted").is(true));
+	/**
+	 * 완료한 책 ID 목록 조회
+	 */
+	private List<String> getCompletedBookIds(String userId) {
+		Query query = new Query();
+		query.addCriteria(Criteria.where("userId").is(userId));
+		query.addCriteria(Criteria.where("isCompleted").is(true));
 
-        return findBookIdsFromProgress(query);
-    }
+		return findBookIdsFromProgress(query);
+	}
 
-    /**
-     * 특정 사용자의 모든 진도 책 ID 조회
-     */
-    private List<String> findStartedBookIds(String userId) {
-        Query query = new Query();
-        query.addCriteria(Criteria.where("userId").is(userId));
-        query.addCriteria(new Criteria().orOperator(
-                Criteria.where("isCompleted").is(true),
-                Criteria.where("normalizedProgress").gt(0),
-                partiallyReadChapterCriteria()
-        ));
+	/**
+	 * 특정 사용자의 모든 진도 책 ID 조회
+	 */
+	private List<String> findStartedBookIds(String userId) {
+		Query query = new Query();
+		query.addCriteria(Criteria.where("userId").is(userId));
+		query.addCriteria(new Criteria().orOperator(Criteria.where("isCompleted").is(true),
+				Criteria.where("normalizedProgress").gt(0), partiallyReadChapterCriteria()));
 
-        return findBookIdsFromProgress(query);
-    }
+		return findBookIdsFromProgress(query);
+	}
 
-    private Criteria partiallyReadChapterCriteria() {
-        return Criteria.where("chapterProgresses").elemMatch(
-                Criteria.where("isCompleted").is(false)
-                        .and("progressPercentage").gt(0)
-        );
-    }
+	private Criteria partiallyReadChapterCriteria() {
+		return Criteria.where("chapterProgresses")
+			.elemMatch(Criteria.where("isCompleted").is(false).and("progressPercentage").gt(0));
+	}
 
-    /**
-     * Progress 컬렉션에서 bookId 추출
-     */
-    private List<String> findBookIdsFromProgress(Query query) {
-        return mongoTemplate.find(query, org.bson.Document.class, "bookProgress")
-                .stream()
-                .map(doc -> doc.getString("bookId"))
-                .toList();
-    }
+	/**
+	 * Progress 컬렉션에서 bookId 추출
+	 */
+	private List<String> findBookIdsFromProgress(Query query) {
+		return mongoTemplate.find(query, org.bson.Document.class, "bookProgress")
+			.stream()
+			.map(doc -> doc.getString("bookId"))
+			.toList();
+	}
 
-    @Override
-    public void incrementViewCount(String bookId) {
-        Query query = new Query(Criteria.where("id").is(bookId));
-        Update update = new Update().inc("viewCount", 1);
-        mongoTemplate.updateFirst(query, update, Book.class);
-    }
+	@Override
+	public void incrementViewCount(String bookId) {
+		Query query = new Query(Criteria.where("id").is(bookId));
+		Update update = new Update().inc("viewCount", 1);
+		mongoTemplate.updateFirst(query, update, Book.class);
+	}
+
 }

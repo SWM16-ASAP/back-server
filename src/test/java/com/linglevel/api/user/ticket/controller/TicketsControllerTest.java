@@ -45,207 +45,192 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(TicketsController.class)
 class TicketsControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+	@Autowired
+	private MockMvc mockMvc;
 
-    @MockitoBean
-    private TicketService ticketService;
+	@MockitoBean
+	private TicketService ticketService;
 
-    @MockitoBean
-    private UserRepository userRepository;
+	@MockitoBean
+	private UserRepository userRepository;
 
-    // SecurityConfig에 필요한 Mock Bean들
-    @MockitoBean
-    private JwtService jwtService;
-    @MockitoBean
-    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
-    @MockitoBean
-    private AdminAuthenticationFilter adminAuthenticationFilter;
-    @MockitoBean
-    private RateLimitFilter rateLimitFilter;
-    @MockitoBean
-    private ProxyManager<String> proxyManager;
-    @MockitoBean
-    private RateLimitProperties rateLimitProperties;
-    @MockitoBean
-    private RateLimitResolver rateLimitResolver;
+	// SecurityConfig에 필요한 Mock Bean들
+	@MockitoBean
+	private JwtService jwtService;
 
-    private User testUser;
-    private TicketBalanceResponse ticketBalanceResponse;
-    private TicketTransactionResponse ticketTransactionResponse;
+	@MockitoBean
+	private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
-    @BeforeEach
-    void setUp() {
-        testUser = User.builder()
-                .id("test-user-id")
-                .username("testuser")
-                .role(UserRole.USER)
-                .build();
+	@MockitoBean
+	private AdminAuthenticationFilter adminAuthenticationFilter;
 
-        ticketBalanceResponse = TicketBalanceResponse.builder()
-                .balance(10)
-                .updatedAt(LocalDateTime.now())
-                .build();
+	@MockitoBean
+	private RateLimitFilter rateLimitFilter;
 
-        ticketTransactionResponse = TicketTransactionResponse.builder()
-                .id("transaction-id")
-                .amount(-5)
-                .description("Test transaction")
-                .createdAt(LocalDateTime.now())
-                .build();
+	@MockitoBean
+	private ProxyManager<String> proxyManager;
 
-        // Mock filters to pass through the chain
-        try {
-            doAnswer(invocation -> {
-                invocation.getArgument(2, FilterChain.class).doFilter(invocation.getArgument(0), invocation.getArgument(1));
-                return null;
-            }).when(adminAuthenticationFilter).doFilter(any(), any(), any());
+	@MockitoBean
+	private RateLimitProperties rateLimitProperties;
 
-            doAnswer(invocation -> {
-                invocation.getArgument(2, FilterChain.class).doFilter(invocation.getArgument(0), invocation.getArgument(1));
-                return null;
-            }).when(rateLimitFilter).doFilter(any(), any(), any());
-        } catch (Exception e) {
-            // This should not happen in a test
-        }
-    }
+	@MockitoBean
+	private RateLimitResolver rateLimitResolver;
 
-    private Authentication getOauthAuthentication() {
-        JwtClaims claims = JwtClaims.builder()
-                .id(testUser.getId())
-                .username(testUser.getUsername())
-                .role(testUser.getRole())
-                .issuedAt(new Date())
-                .expiresAt(new Date(System.currentTimeMillis() + 3600000)) // 1시간 후 만료
-                .build();
-        return new UsernamePasswordAuthenticationToken(claims, null, List.of(new SimpleGrantedAuthority(testUser.getRole().getSecurityRole())));
-    }
+	private User testUser;
 
-    @Test
-    void 티켓잔고조회_성공() throws Exception {
-        // given
-        when(ticketService.getTicketBalance("test-user-id")).thenReturn(ticketBalanceResponse);
+	private TicketBalanceResponse ticketBalanceResponse;
 
-        // when & then
-        mockMvc.perform(get("/api/v1/tickets/balance")
-                        .with(authentication(getOauthAuthentication()))
-                        .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType("application/json;charset=UTF-8"))
-                .andExpect(jsonPath("$.balance").value(10))
-                .andExpect(jsonPath("$.updatedAt").exists());
+	private TicketTransactionResponse ticketTransactionResponse;
 
-        verify(ticketService).getTicketBalance("test-user-id");
-    }
+	@BeforeEach
+	void setUp() {
+		testUser = User.builder().id("test-user-id").username("testuser").role(UserRole.USER).build();
 
-    @Test
-    void 티켓잔고조회_사용자없음_500오류() throws Exception {
-        // given
-        when(ticketService.getTicketBalance(anyString())).thenThrow(new RuntimeException("User not found"));
+		ticketBalanceResponse = TicketBalanceResponse.builder().balance(10).updatedAt(LocalDateTime.now()).build();
 
-        // when & then
-        mockMvc.perform(get("/api/v1/tickets/balance")
-                        .with(authentication(getOauthAuthentication()))
-                        .with(csrf()))
-                .andExpect(status().isInternalServerError());
+		ticketTransactionResponse = TicketTransactionResponse.builder()
+			.id("transaction-id")
+			.amount(-5)
+			.description("Test transaction")
+			.createdAt(LocalDateTime.now())
+			.build();
 
-        verify(ticketService).getTicketBalance(anyString());
-    }
+		// Mock filters to pass through the chain
+		try {
+			doAnswer(invocation -> {
+				invocation.getArgument(2, FilterChain.class)
+					.doFilter(invocation.getArgument(0), invocation.getArgument(1));
+				return null;
+			}).when(adminAuthenticationFilter).doFilter(any(), any(), any());
 
-    @Test
-    void 티켓잔고조회_인증없음_401오류() throws Exception {
-        // when & then
-        mockMvc.perform(get("/api/v1/tickets/balance")
-                        .with(csrf()))
-                .andExpect(status().isUnauthorized());
+			doAnswer(invocation -> {
+				invocation.getArgument(2, FilterChain.class)
+					.doFilter(invocation.getArgument(0), invocation.getArgument(1));
+				return null;
+			}).when(rateLimitFilter).doFilter(any(), any(), any());
+		}
+		catch (Exception e) {
+			// This should not happen in a test
+		}
+	}
 
-        verify(ticketService, never()).getTicketBalance(anyString());
-    }
+	private Authentication getOauthAuthentication() {
+		JwtClaims claims = JwtClaims.builder()
+			.id(testUser.getId())
+			.username(testUser.getUsername())
+			.role(testUser.getRole())
+			.issuedAt(new Date())
+			.expiresAt(new Date(System.currentTimeMillis() + 3600000)) // 1시간 후 만료
+			.build();
+		return new UsernamePasswordAuthenticationToken(claims, null,
+				List.of(new SimpleGrantedAuthority(testUser.getRole().getSecurityRole())));
+	}
 
-    @Test
-    void 티켓거래내역조회_성공() throws Exception {
-        // given
-        Page<TicketTransactionResponse> transactionPage = new PageImpl<>(
-                List.of(ticketTransactionResponse),
-                PageRequest.of(0, 10),
-                1L
-        );
+	@Test
+	void 티켓잔고조회_성공() throws Exception {
+		// given
+		when(ticketService.getTicketBalance("test-user-id")).thenReturn(ticketBalanceResponse);
 
-        when(ticketService.getTicketTransactions("test-user-id", 1, 10))
-                .thenReturn(transactionPage);
+		// when & then
+		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(content().contentType("application/json;charset=UTF-8"))
+			.andExpect(jsonPath("$.balance").value(10))
+			.andExpect(jsonPath("$.updatedAt").exists());
 
-        // when & then
-        mockMvc.perform(get("/api/v1/tickets/transactions")
-                        .param("page", "1")
-                        .param("limit", "10")
-                        .with(authentication(getOauthAuthentication()))
-                        .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType("application/json;charset=UTF-8"))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data[0].id").value("transaction-id"))
-                .andExpect(jsonPath("$.data[0].amount").value(-5))
-                .andExpect(jsonPath("$.data[0].description").value("Test transaction"))
-                .andExpect(jsonPath("$.totalCount").value(1))
-                .andExpect(jsonPath("$.totalPages").value(1));
+		verify(ticketService).getTicketBalance("test-user-id");
+	}
 
-        verify(ticketService).getTicketTransactions("test-user-id", 1, 10);
-    }
+	@Test
+	void 티켓잔고조회_사용자없음_500오류() throws Exception {
+		// given
+		when(ticketService.getTicketBalance(anyString())).thenThrow(new RuntimeException("User not found"));
 
-    @Test
-    void 티켓거래내역조회_기본파라미터() throws Exception {
-        // given
-        Page<TicketTransactionResponse> emptyPage = new PageImpl<>(
-                List.of(),
-                PageRequest.of(0, 10),
-                0L
-        );
+		// when & then
+		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))
+			.andExpect(status().isInternalServerError());
 
-        when(ticketService.getTicketTransactions("test-user-id", 1, 10))
-                .thenReturn(emptyPage);
+		verify(ticketService).getTicketBalance(anyString());
+	}
 
-        // when & then
-        mockMvc.perform(get("/api/v1/tickets/transactions")
-                        .with(authentication(getOauthAuthentication()))
-                        .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType("application/json;charset=UTF-8"))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data").isEmpty())
-                .andExpect(jsonPath("$.totalCount").value(0));
+	@Test
+	void 티켓잔고조회_인증없음_401오류() throws Exception {
+		// when & then
+		mockMvc.perform(get("/api/v1/tickets/balance").with(csrf())).andExpect(status().isUnauthorized());
 
-        verify(ticketService).getTicketTransactions("test-user-id", 1, 10);
-    }
+		verify(ticketService, never()).getTicketBalance(anyString());
+	}
 
-    @Test
-    void 티켓예외처리_잔고부족() throws Exception {
-        // given
-        when(ticketService.getTicketBalance("test-user-id"))
-                .thenThrow(new TicketException(TicketErrorCode.INSUFFICIENT_BALANCE));
+	@Test
+	void 티켓거래내역조회_성공() throws Exception {
+		// given
+		Page<TicketTransactionResponse> transactionPage = new PageImpl<>(List.of(ticketTransactionResponse),
+				PageRequest.of(0, 10), 1L);
 
-        // when & then
-        mockMvc.perform(get("/api/v1/tickets/balance")
-                        .with(authentication(getOauthAuthentication()))
-                        .with(csrf()))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentType("application/json;charset=UTF-8"))
-                .andExpect(jsonPath("$.message").value("Insufficient ticket balance."));
+		when(ticketService.getTicketTransactions("test-user-id", 1, 10)).thenReturn(transactionPage);
 
-        verify(ticketService).getTicketBalance("test-user-id");
-    }
+		// when & then
+		mockMvc
+			.perform(get("/api/v1/tickets/transactions").param("page", "1")
+				.param("limit", "10")
+				.with(authentication(getOauthAuthentication()))
+				.with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(content().contentType("application/json;charset=UTF-8"))
+			.andExpect(jsonPath("$.data").isArray())
+			.andExpect(jsonPath("$.data[0].id").value("transaction-id"))
+			.andExpect(jsonPath("$.data[0].amount").value(-5))
+			.andExpect(jsonPath("$.data[0].description").value("Test transaction"))
+			.andExpect(jsonPath("$.totalCount").value(1))
+			.andExpect(jsonPath("$.totalPages").value(1));
 
-    @Test
-    void 티켓예외처리_티켓없음() throws Exception {
-        // given
-        when(ticketService.getTicketBalance("test-user-id"))
-                .thenThrow(new TicketException(TicketErrorCode.TICKET_NOT_FOUND));
+		verify(ticketService).getTicketTransactions("test-user-id", 1, 10);
+	}
 
-        // when & then
-        mockMvc.perform(get("/api/v1/tickets/balance")
-                        .with(authentication(getOauthAuthentication()))
-                        .with(csrf()))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentType("application/json;charset=UTF-8"))
-                .andExpect(jsonPath("$.message").value("Ticket not found."));
-    }
+	@Test
+	void 티켓거래내역조회_기본파라미터() throws Exception {
+		// given
+		Page<TicketTransactionResponse> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0L);
+
+		when(ticketService.getTicketTransactions("test-user-id", 1, 10)).thenReturn(emptyPage);
+
+		// when & then
+		mockMvc.perform(get("/api/v1/tickets/transactions").with(authentication(getOauthAuthentication())).with(csrf()))
+			.andExpect(status().isOk())
+			.andExpect(content().contentType("application/json;charset=UTF-8"))
+			.andExpect(jsonPath("$.data").isArray())
+			.andExpect(jsonPath("$.data").isEmpty())
+			.andExpect(jsonPath("$.totalCount").value(0));
+
+		verify(ticketService).getTicketTransactions("test-user-id", 1, 10);
+	}
+
+	@Test
+	void 티켓예외처리_잔고부족() throws Exception {
+		// given
+		when(ticketService.getTicketBalance("test-user-id"))
+			.thenThrow(new TicketException(TicketErrorCode.INSUFFICIENT_BALANCE));
+
+		// when & then
+		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))
+			.andExpect(status().isBadRequest())
+			.andExpect(content().contentType("application/json;charset=UTF-8"))
+			.andExpect(jsonPath("$.message").value("Insufficient ticket balance."));
+
+		verify(ticketService).getTicketBalance("test-user-id");
+	}
+
+	@Test
+	void 티켓예외처리_티켓없음() throws Exception {
+		// given
+		when(ticketService.getTicketBalance("test-user-id"))
+			.thenThrow(new TicketException(TicketErrorCode.TICKET_NOT_FOUND));
+
+		// when & then
+		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))
+			.andExpect(status().isNotFound())
+			.andExpect(content().contentType("application/json;charset=UTF-8"))
+			.andExpect(jsonPath("$.message").value("Ticket not found."));
+	}
+
 }

@@ -15,30 +15,30 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Document(collection = "user")
 public class User {
-    
-    @Id
-    private String id;
 
-    @NotNull
-    @Indexed(unique = true)
-    private String username;
+	@Id
+	private String id;
 
-    private String password;
+	@NotNull
+	@Indexed(unique = true)
+	private String username;
 
-    private String email;
+	private String password;
 
-    private String displayName;
+	private String email;
 
-    private String provider;
+	private String displayName;
 
-    private String profileImageUrl;
+	private String provider;
 
-    private UserRole role;
+	private String profileImageUrl;
 
-    private Boolean deleted;
+	private UserRole role;
 
-    private LocalDateTime createdAt;
+	private Boolean deleted;
 
-    private LocalDateTime deletedAt;
+	private LocalDateTime createdAt;
+
+	private LocalDateTime deletedAt;
 
 }

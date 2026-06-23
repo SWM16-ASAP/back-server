@@ -15,32 +15,33 @@ import java.time.LocalDateTime;
 @Document(collection = "contentBanners")
 public class ContentBanner {
 
-    @Id
-    private String id;
+	@Id
+	private String id;
 
-    private CountryCode countryCode;
+	private CountryCode countryCode;
 
-    private String contentId;
+	private String contentId;
 
-    private ContentType contentType;
+	private ContentType contentType;
 
-    private String contentTitle;
+	private String contentTitle;
 
-    private String contentAuthor;
+	private String contentAuthor;
 
-    private String contentCoverImageUrl;
+	private String contentCoverImageUrl;
 
-    private Integer contentReadingTime;
+	private Integer contentReadingTime;
 
-    private String subtitle;
+	private String subtitle;
 
-    private String title;
+	private String title;
 
-    private String description;
+	private String description;
 
-    private Integer displayOrder = 9;
+	private Integer displayOrder = 9;
 
-    private Boolean isActive = true;
+	private Boolean isActive = true;
 
-    private LocalDateTime createdAt;
+	private LocalDateTime createdAt;
+
 }

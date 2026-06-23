@@ -10,10 +10,11 @@ import java.util.Optional;
 
 @Repository
 public interface CustomContentRepository extends MongoRepository<CustomContent, String>, CustomContentRepositoryCustom {
-    
-    Page<CustomContent> findByUserIdAndIsDeletedFalse(String userId, Pageable pageable);
-    
-    Optional<CustomContent> findByIdAndIsDeletedFalse(String id);
 
-    Optional<CustomContent> findByOriginUrlAndIsDeletedFalse(String originUrl);
+	Page<CustomContent> findByUserIdAndIsDeletedFalse(String userId, Pageable pageable);
+
+	Optional<CustomContent> findByIdAndIsDeletedFalse(String id);
+
+	Optional<CustomContent> findByOriginUrlAndIsDeletedFalse(String originUrl);
+
 }

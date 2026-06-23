@@ -27,45 +27,45 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "FCM Token Management", description = "Firebase Cloud Messaging 토큰 관리 API")
 public class FcmController {
 
-    private final FcmTokenService fcmTokenService;
+	private final FcmTokenService fcmTokenService;
 
-    @Operation(summary = "FCM 토큰 등록/업데이트", 
-               description = "사용자의 FCM 토큰을 등록하거나 업데이트합니다. 동일한 사용자+디바이스 조합이 이미 존재하는 경우 토큰을 업데이트하고, 존재하지 않는 경우 새로 생성합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "FCM 토큰 업데이트 성공",
-                    content = @Content(schema = @Schema(implementation = FcmTokenUpdateResponse.class))),
-            @ApiResponse(responseCode = "201", description = "FCM 토큰 생성 성공",
-                    content = @Content(schema = @Schema(implementation = FcmTokenCreateResponse.class))),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 필드 누락)",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PutMapping("/token")
-    public ResponseEntity<?> upsertFcmToken(@Valid @RequestBody FcmTokenUpsertRequest request,
-                                             @AuthenticationPrincipal JwtClaims claims) {
+	@Operation(summary = "FCM 토큰 등록/업데이트",
+			description = "사용자의 FCM 토큰을 등록하거나 업데이트합니다. 동일한 사용자+디바이스 조합이 이미 존재하는 경우 토큰을 업데이트하고, 존재하지 않는 경우 새로 생성합니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "FCM 토큰 업데이트 성공",
+					content = @Content(schema = @Schema(implementation = FcmTokenUpdateResponse.class))),
+			@ApiResponse(responseCode = "201", description = "FCM 토큰 생성 성공",
+					content = @Content(schema = @Schema(implementation = FcmTokenCreateResponse.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 필드 누락)",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PutMapping("/token")
+	public ResponseEntity<?> upsertFcmToken(@Valid @RequestBody FcmTokenUpsertRequest request,
+			@AuthenticationPrincipal JwtClaims claims) {
 
-        FcmTokenUpsertResult result = fcmTokenService.upsertFcmToken(claims.getId(), request);
+		FcmTokenUpsertResult result = fcmTokenService.upsertFcmToken(claims.getId(), request);
 
-        if (result.isCreated()) {
-            FcmTokenCreateResponse response = FcmTokenCreateResponse.builder()
-                    .message("FCM token created successfully.")
-                    .tokenId(result.getTokenId())
-                    .build();
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } else {
-            FcmTokenUpdateResponse response = FcmTokenUpdateResponse.builder()
-                    .message("FCM token updated successfully.")
-                    .tokenId(result.getTokenId())
-                    .build();
-            return ResponseEntity.ok(response);
-        }
-    }
+		if (result.isCreated()) {
+			FcmTokenCreateResponse response = FcmTokenCreateResponse.builder()
+				.message("FCM token created successfully.")
+				.tokenId(result.getTokenId())
+				.build();
+			return ResponseEntity.status(HttpStatus.CREATED).body(response);
+		}
+		else {
+			FcmTokenUpdateResponse response = FcmTokenUpdateResponse.builder()
+				.message("FCM token updated successfully.")
+				.tokenId(result.getTokenId())
+				.build();
+			return ResponseEntity.ok(response);
+		}
+	}
 
-    @ExceptionHandler(FcmException.class)
-    public ResponseEntity<ExceptionResponse> handleFcmException(FcmException e) {
-        log.error("FCM Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e));
-    }
+	@ExceptionHandler(FcmException.class)
+	public ResponseEntity<ExceptionResponse> handleFcmException(FcmException e) {
+		log.error("FCM Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
+	}
+
 }

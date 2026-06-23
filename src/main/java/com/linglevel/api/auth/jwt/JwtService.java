@@ -12,20 +12,21 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class JwtService {
 
-    private final JwtProvider jwtProvider;
+	private final JwtProvider jwtProvider;
 
-    public JwtClaims extractJwtClaimsFromRequest(HttpServletRequest request) {
-        String token = extractTokenFromRequest(request);
-        return jwtProvider.parseTokenToJwtClaims(token);
-    }
+	public JwtClaims extractJwtClaimsFromRequest(HttpServletRequest request) {
+		String token = extractTokenFromRequest(request);
+		return jwtProvider.parseTokenToJwtClaims(token);
+	}
 
-    public String extractTokenFromRequest(HttpServletRequest request) {
-        String authorizationHeader = request.getHeader("Authorization");
+	public String extractTokenFromRequest(HttpServletRequest request) {
+		String authorizationHeader = request.getHeader("Authorization");
 
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            return authorizationHeader.substring(7);
-        }
+		if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+			return authorizationHeader.substring(7);
+		}
 
-        throw new AuthException(AuthErrorCode.INVALID_ACCESS_TOKEN);
-    }
+		throw new AuthException(AuthErrorCode.INVALID_ACCESS_TOKEN);
+	}
+
 }

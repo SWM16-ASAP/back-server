@@ -25,18 +25,19 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Suggestions", description = "고객 건의 관련 API")
 public class SuggestionsController {
 
-    private final SuggestionsService suggestionsService;
+	private final SuggestionsService suggestionsService;
 
-    @Operation(summary = "고객 건의 제출", description = "고객의 건의사항을 제출받습니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "건의 제출 성공",
-                    content = @Content(schema = @Schema(implementation = SuggestionResponse.class))),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping
-    public ResponseEntity<SuggestionResponse> submitSuggestion(@RequestBody SuggestionRequest request, @AuthenticationPrincipal JwtClaims claims) {
-        SuggestionResponse response = suggestionsService.saveSuggestion(request, claims.getId());
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "고객 건의 제출", description = "고객의 건의사항을 제출받습니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "201", description = "건의 제출 성공",
+					content = @Content(schema = @Schema(implementation = SuggestionResponse.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PostMapping
+	public ResponseEntity<SuggestionResponse> submitSuggestion(@RequestBody SuggestionRequest request,
+			@AuthenticationPrincipal JwtClaims claims) {
+		SuggestionResponse response = suggestionsService.saveSuggestion(request, claims.getId());
+		return ResponseEntity.ok(response);
+	}
+
 }

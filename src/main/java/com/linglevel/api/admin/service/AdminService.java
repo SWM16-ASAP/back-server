@@ -40,191 +40,201 @@ import java.util.List;
 @Transactional
 public class AdminService {
 
-    private final ChunkRepository chunkRepository;
-    private final ChapterRepository chapterRepository;
-    private final BookRepository bookRepository;
-    private final BookProgressRepository bookProgressRepository;
-    private final ArticleRepository articleRepository;
-    private final ArticleChunkRepository articleChunkRepository;
-    private final S3StaticService s3StaticService;
-    private final BookPathStrategy bookPathStrategy;
-    private final ArticlePathStrategy articlePathStrategy;
-    private final DailyCompletionRepository dailyCompletionRepository;
-    private final UserStudyReportRepository userStudyReportRepository;
+	private final ChunkRepository chunkRepository;
 
-    public ChunkResponse updateBookChunk(String bookId, String chapterId, String chunkId, UpdateChunkRequest request) {
-        log.info("Updating book chunk - bookId: {}, chapterId: {}, chunkId: {}", bookId, chapterId, chunkId);
+	private final ChapterRepository chapterRepository;
 
-        // 책 존재 확인
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
+	private final BookRepository bookRepository;
 
-        // 챕터 존재 확인
-        Chapter chapter = chapterRepository.findById(chapterId)
-                .orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
+	private final BookProgressRepository bookProgressRepository;
 
-        // 챕터가 해당 책에 속하는지 확인
-        if (!chapter.getBookId().equals(bookId)) {
-            throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND);
-        }
+	private final ArticleRepository articleRepository;
 
-        // 청크 존재 확인
-        Chunk chunk = chunkRepository.findById(chunkId)
-                .orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
+	private final ArticleChunkRepository articleChunkRepository;
 
-        // 청크가 해당 챕터에 속하는지 확인
-        if (!chunk.getChapterId().equals(chapterId)) {
-            throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
-        }
+	private final S3StaticService s3StaticService;
 
-        // 청크 내용 수정
-        chunk.updateContent(request.getContent(), request.getDescription());
-        Chunk updatedChunk = chunkRepository.save(chunk);
+	private final BookPathStrategy bookPathStrategy;
 
-        log.info("Book chunk updated successfully - chunkId: {}", chunkId);
+	private final ArticlePathStrategy articlePathStrategy;
 
-        return ChunkResponse.from(updatedChunk);
-    }
+	private final DailyCompletionRepository dailyCompletionRepository;
 
-    public ArticleChunkResponse updateArticleChunk(String articleId, String chunkId, UpdateChunkRequest request) {
-        log.info("Updating article chunk - articleId: {}, chunkId: {}", articleId, chunkId);
+	private final UserStudyReportRepository userStudyReportRepository;
 
-        // 기사 존재 확인
-        Article article = articleRepository.findById(articleId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
+	public ChunkResponse updateBookChunk(String bookId, String chapterId, String chunkId, UpdateChunkRequest request) {
+		log.info("Updating book chunk - bookId: {}, chapterId: {}, chunkId: {}", bookId, chapterId, chunkId);
 
-        // 청크 존재 확인
-        ArticleChunk chunk = articleChunkRepository.findById(chunkId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
+		// 책 존재 확인
+		Book book = bookRepository.findById(bookId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
 
-        // 청크가 해당 기사에 속하는지 확인
-        if (!chunk.getArticleId().equals(articleId)) {
-            throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
-        }
+		// 챕터 존재 확인
+		Chapter chapter = chapterRepository.findById(chapterId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
 
-        // 청크 내용 수정
-        chunk.updateContent(request.getContent(), request.getDescription());
-        ArticleChunk updatedChunk = articleChunkRepository.save(chunk);
+		// 챕터가 해당 책에 속하는지 확인
+		if (!chapter.getBookId().equals(bookId)) {
+			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND);
+		}
 
-        log.info("Article chunk updated successfully - chunkId: {}", chunkId);
+		// 청크 존재 확인
+		Chunk chunk = chunkRepository.findById(chunkId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
 
-        return ArticleChunkResponse.from(updatedChunk);
-    }
+		// 청크가 해당 챕터에 속하는지 확인
+		if (!chunk.getChapterId().equals(chapterId)) {
+			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
+		}
 
-    public void deleteBook(String bookId) {
-        log.info("Starting book deletion - bookId: {}", bookId);
+		// 청크 내용 수정
+		chunk.updateContent(request.getContent(), request.getDescription());
+		Chunk updatedChunk = chunkRepository.save(chunk);
 
-        // 책 존재 확인
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
+		log.info("Book chunk updated successfully - chunkId: {}", chunkId);
 
-        try {
-            // 1. S3에서 책 관련 파일들 삭제
-            s3StaticService.deleteFiles(bookId, bookPathStrategy);
-            log.info("S3 book files deleted successfully - bookId: {}", bookId);
+		return ChunkResponse.from(updatedChunk);
+	}
 
-            // 2. 책과 관련된 진도 기록 삭제
-            List<BookProgress> progressList = bookProgressRepository.findByBookId(bookId);
-            if (!progressList.isEmpty()) {
-                bookProgressRepository.deleteAll(progressList);
-                log.info("Book progress records deleted - count: {}", progressList.size());
-            }
+	public ArticleChunkResponse updateArticleChunk(String articleId, String chunkId, UpdateChunkRequest request) {
+		log.info("Updating article chunk - articleId: {}, chunkId: {}", articleId, chunkId);
 
-            // 3. 청크 삭제
-            List<Chapter> chapters = chapterRepository.findByBookIdOrderByChapterNumber(bookId);
-            for (Chapter chapter : chapters) {
-                List<Chunk> chunks = chunkRepository.findByChapterIdOrderByChunkNumber(chapter.getId());
-                if (!chunks.isEmpty()) {
-                    chunkRepository.deleteAll(chunks);
-                    log.info("Chunks deleted for chapter - chapterId: {}, count: {}", chapter.getId(), chunks.size());
-                }
-            }
+		// 기사 존재 확인
+		Article article = articleRepository.findById(articleId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
 
-            // 4. 챕터 삭제
-            if (!chapters.isEmpty()) {
-                chapterRepository.deleteAll(chapters);
-                log.info("Chapters deleted - count: {}", chapters.size());
-            }
+		// 청크 존재 확인
+		ArticleChunk chunk = articleChunkRepository.findById(chunkId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
 
-            // 5. 책 삭제
-            bookRepository.delete(book);
-            log.info("Book deleted successfully - bookId: {}", bookId);
+		// 청크가 해당 기사에 속하는지 확인
+		if (!chunk.getArticleId().equals(articleId)) {
+			throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
+		}
 
-        } catch (Exception e) {
-            log.error("Error during book deletion - bookId: {}, error: {}", bookId, e.getMessage(), e);
-            throw new BooksException(BooksErrorCode.BOOK_DELETION_FAILED);
-        }
-    }
+		// 청크 내용 수정
+		chunk.updateContent(request.getContent(), request.getDescription());
+		ArticleChunk updatedChunk = articleChunkRepository.save(chunk);
 
-    public void deleteArticle(String articleId) {
-        log.info("Starting article deletion - articleId: {}", articleId);
+		log.info("Article chunk updated successfully - chunkId: {}", chunkId);
 
-        // 기사 존재 확인
-        Article article = articleRepository.findById(articleId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
+		return ArticleChunkResponse.from(updatedChunk);
+	}
 
-        try {
-            // 1. S3에서 기사 관련 파일들 삭제
-            s3StaticService.deleteFiles(articleId, articlePathStrategy);
-            log.info("S3 article files deleted successfully - articleId: {}", articleId);
+	public void deleteBook(String bookId) {
+		log.info("Starting book deletion - bookId: {}", bookId);
 
-            // 2. 기사 청크 삭제
-            List<ArticleChunk> chunks = articleChunkRepository.findByArticleIdAndDifficultyLevelOrderByChunkNumber(
-                    articleId, article.getDifficultyLevel(), PageRequest.of(0, Integer.MAX_VALUE)).getContent();
-            if (!chunks.isEmpty()) {
-                articleChunkRepository.deleteAll(chunks);
-                log.info("Article chunks deleted - count: {}", chunks.size());
-            }
+		// 책 존재 확인
+		Book book = bookRepository.findById(bookId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
 
-            // 3. 기사 삭제
-            articleRepository.delete(article);
-            log.info("Article deleted successfully - articleId: {}", articleId);
+		try {
+			// 1. S3에서 책 관련 파일들 삭제
+			s3StaticService.deleteFiles(bookId, bookPathStrategy);
+			log.info("S3 book files deleted successfully - bookId: {}", bookId);
 
-        } catch (Exception e) {
-            log.error("Error during article deletion - articleId: {}, error: {}", articleId, e.getMessage(), e);
-            throw new ArticleException(ArticleErrorCode.ARTICLE_DELETION_FAILED);
-        }
-    }
+			// 2. 책과 관련된 진도 기록 삭제
+			List<BookProgress> progressList = bookProgressRepository.findByBookId(bookId);
+			if (!progressList.isEmpty()) {
+				bookProgressRepository.deleteAll(progressList);
+				log.info("Book progress records deleted - count: {}", progressList.size());
+			}
 
-    public void resetTodayStreak(String userId) {
-        log.info("Admin resetting today's streak for user: {}", userId);
+			// 3. 청크 삭제
+			List<Chapter> chapters = chapterRepository.findByBookIdOrderByChapterNumber(bookId);
+			for (Chapter chapter : chapters) {
+				List<Chunk> chunks = chunkRepository.findByChapterIdOrderByChunkNumber(chapter.getId());
+				if (!chunks.isEmpty()) {
+					chunkRepository.deleteAll(chunks);
+					log.info("Chunks deleted for chapter - chapterId: {}, count: {}", chapter.getId(), chunks.size());
+				}
+			}
 
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+			// 4. 챕터 삭제
+			if (!chapters.isEmpty()) {
+				chapterRepository.deleteAll(chapters);
+				log.info("Chapters deleted - count: {}", chapters.size());
+			}
 
-        dailyCompletionRepository.findByUserIdAndCompletionDate(userId, today)
-                .ifPresent(todayCompletion -> {
-                    List<String> todayContentIds = todayCompletion.getCompletedContents() != null
-                            ? todayCompletion.getCompletedContents().stream()
-                                .map(c -> c.getContentId())
-                                .toList()
-                            : List.of();
+			// 5. 책 삭제
+			bookRepository.delete(book);
+			log.info("Book deleted successfully - bookId: {}", bookId);
 
-                    dailyCompletionRepository.delete(todayCompletion);
-                    log.info("Deleted today's DailyCompletion for user: {}", userId);
+		}
+		catch (Exception e) {
+			log.error("Error during book deletion - bookId: {}, error: {}", bookId, e.getMessage(), e);
+			throw new BooksException(BooksErrorCode.BOOK_DELETION_FAILED);
+		}
+	}
 
-                    userStudyReportRepository.findByUserId(userId).ifPresent(report -> {
-                        if (report.getCompletedContentIds() != null && !todayContentIds.isEmpty()) {
-                            report.getCompletedContentIds().removeAll(todayContentIds);
-                        }
+	public void deleteArticle(String articleId) {
+		log.info("Starting article deletion - articleId: {}", articleId);
 
-                        if (report.getLastCompletionDate() != null && report.getLastCompletionDate().isEqual(today)) {
-                            dailyCompletionRepository.findTopByUserIdAndCompletionDateBeforeOrderByCompletionDateDesc(userId, today)
-                                    .ifPresentOrElse(
-                                            lastCompletion -> {
-                                                report.setLastCompletionDate(lastCompletion.getCompletionDate());
-                                                report.setCurrentStreak(lastCompletion.getStreakCount() != null ? lastCompletion.getStreakCount() : 0);
-                                            },
-                                            () -> {
-                                                report.setLastCompletionDate(null);
-                                                report.setCurrentStreak(0);
-                                                report.setStreakStartDate(null);
-                                            }
-                                    );
-                        }
+		// 기사 존재 확인
+		Article article = articleRepository.findById(articleId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND));
 
-                        userStudyReportRepository.save(report);
-                        log.info("UserStudyReport reverted for user: {}", userId);
-                    });
-                });
-    }
+		try {
+			// 1. S3에서 기사 관련 파일들 삭제
+			s3StaticService.deleteFiles(articleId, articlePathStrategy);
+			log.info("S3 article files deleted successfully - articleId: {}", articleId);
+
+			// 2. 기사 청크 삭제
+			List<ArticleChunk> chunks = articleChunkRepository
+				.findByArticleIdAndDifficultyLevelOrderByChunkNumber(articleId, article.getDifficultyLevel(),
+						PageRequest.of(0, Integer.MAX_VALUE))
+				.getContent();
+			if (!chunks.isEmpty()) {
+				articleChunkRepository.deleteAll(chunks);
+				log.info("Article chunks deleted - count: {}", chunks.size());
+			}
+
+			// 3. 기사 삭제
+			articleRepository.delete(article);
+			log.info("Article deleted successfully - articleId: {}", articleId);
+
+		}
+		catch (Exception e) {
+			log.error("Error during article deletion - articleId: {}, error: {}", articleId, e.getMessage(), e);
+			throw new ArticleException(ArticleErrorCode.ARTICLE_DELETION_FAILED);
+		}
+	}
+
+	public void resetTodayStreak(String userId) {
+		log.info("Admin resetting today's streak for user: {}", userId);
+
+		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+
+		dailyCompletionRepository.findByUserIdAndCompletionDate(userId, today).ifPresent(todayCompletion -> {
+			List<String> todayContentIds = todayCompletion.getCompletedContents() != null
+					? todayCompletion.getCompletedContents().stream().map(c -> c.getContentId()).toList() : List.of();
+
+			dailyCompletionRepository.delete(todayCompletion);
+			log.info("Deleted today's DailyCompletion for user: {}", userId);
+
+			userStudyReportRepository.findByUserId(userId).ifPresent(report -> {
+				if (report.getCompletedContentIds() != null && !todayContentIds.isEmpty()) {
+					report.getCompletedContentIds().removeAll(todayContentIds);
+				}
+
+				if (report.getLastCompletionDate() != null && report.getLastCompletionDate().isEqual(today)) {
+					dailyCompletionRepository
+						.findTopByUserIdAndCompletionDateBeforeOrderByCompletionDateDesc(userId, today)
+						.ifPresentOrElse(lastCompletion -> {
+							report.setLastCompletionDate(lastCompletion.getCompletionDate());
+							report.setCurrentStreak(
+									lastCompletion.getStreakCount() != null ? lastCompletion.getStreakCount() : 0);
+						}, () -> {
+							report.setLastCompletionDate(null);
+							report.setCurrentStreak(0);
+							report.setStreakStartDate(null);
+						});
+				}
+
+				userStudyReportRepository.save(report);
+				log.info("UserStudyReport reverted for user: {}", userId);
+			});
+		});
+	}
+
 }

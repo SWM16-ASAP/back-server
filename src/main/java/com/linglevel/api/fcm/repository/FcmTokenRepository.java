@@ -8,17 +8,18 @@ import java.util.Optional;
 
 public interface FcmTokenRepository extends MongoRepository<FcmToken, String> {
 
-    Optional<FcmToken> findByUserIdAndDeviceId(String userId, String deviceId);
+	Optional<FcmToken> findByUserIdAndDeviceId(String userId, String deviceId);
 
-    List<FcmToken> findByUserId(String userId);
+	List<FcmToken> findByUserId(String userId);
 
-    Optional<FcmToken> findByFcmToken(String fcmToken);
+	Optional<FcmToken> findByFcmToken(String fcmToken);
 
-    Optional<FcmToken> findFirstByFcmToken(String fcmToken);
+	Optional<FcmToken> findFirstByFcmToken(String fcmToken);
 
-    List<FcmToken> findByUserIdAndIsActive(String userId, Boolean isActive);
+	List<FcmToken> findByUserIdAndIsActive(String userId, Boolean isActive);
 
-    List<FcmToken> findByIsActive(Boolean isActive);
+	List<FcmToken> findByIsActive(Boolean isActive);
 
-    List<FcmToken> findAllByFcmTokenIn(List<String> fcmTokens);
+	List<FcmToken> findAllByFcmTokenIn(List<String> fcmTokens);
+
 }

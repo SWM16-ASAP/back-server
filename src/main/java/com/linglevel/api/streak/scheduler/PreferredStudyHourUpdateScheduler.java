@@ -13,71 +13,74 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * 사용자의 선호 학습 시간(preferredStudyHour)을 주기적으로 재계산하는 스케줄러
- * 매일 새벽 3시에 실행하여 모든 활성 사용자의 학습 패턴을 업데이트합니다.
+ * 사용자의 선호 학습 시간(preferredStudyHour)을 주기적으로 재계산하는 스케줄러 매일 새벽 3시에 실행하여 모든 활성 사용자의 학습 패턴을
+ * 업데이트합니다.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class PreferredStudyHourUpdateScheduler {
 
-    private final UserStudyReportRepository userStudyReportRepository;
-    private final StudyTimeAnalysisService studyTimeAnalysisService;
+	private final UserStudyReportRepository userStudyReportRepository;
 
-    private static final int BATCH_SIZE = 100; // 한 번에 처리할 사용자 수
+	private final StudyTimeAnalysisService studyTimeAnalysisService;
 
-    /**
-     * 매일 새벽 3시에 실행: 모든 활성 사용자의 선호 학습 시간 재계산
-     */
-    @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
-    public void updatePreferredStudyHours() {
-        Instant startTime = Instant.now();
-        log.info("[Preferred Study Hour Update] Starting batch update");
+	private static final int BATCH_SIZE = 100; // 한 번에 처리할 사용자 수
 
-        int totalUsers = 0;
-        int updatedUsers = 0;
-        int failedUsers = 0;
+	/**
+	 * 매일 새벽 3시에 실행: 모든 활성 사용자의 선호 학습 시간 재계산
+	 */
+	@Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
+	public void updatePreferredStudyHours() {
+		Instant startTime = Instant.now();
+		log.info("[Preferred Study Hour Update] Starting batch update");
 
-        try {
-            // 활성 사용자 조회 (currentStreak > 0)
-            List<UserStudyReport> activeUsers = userStudyReportRepository.findByCurrentStreakGreaterThan(0);
-            totalUsers = activeUsers.size();
+		int totalUsers = 0;
+		int updatedUsers = 0;
+		int failedUsers = 0;
 
-            log.info("[Preferred Study Hour Update] Found {} active users to update", totalUsers);
+		try {
+			// 활성 사용자 조회 (currentStreak > 0)
+			List<UserStudyReport> activeUsers = userStudyReportRepository.findByCurrentStreakGreaterThan(0);
+			totalUsers = activeUsers.size();
 
-            // 배치로 처리
-            for (int i = 0; i < activeUsers.size(); i += BATCH_SIZE) {
-                int end = Math.min(i + BATCH_SIZE, activeUsers.size());
-                List<UserStudyReport> batch = activeUsers.subList(i, end);
+			log.info("[Preferred Study Hour Update] Found {} active users to update", totalUsers);
 
-                for (UserStudyReport report : batch) {
-                    try {
-                        String userId = report.getUserId();
+			// 배치로 처리
+			for (int i = 0; i < activeUsers.size(); i += BATCH_SIZE) {
+				int end = Math.min(i + BATCH_SIZE, activeUsers.size());
+				List<UserStudyReport> batch = activeUsers.subList(i, end);
 
-                        // 선호 학습 시간 재계산 및 저장
-                        studyTimeAnalysisService.calculateAndSavePreferredStudyHour(userId);
-                        updatedUsers++;
+				for (UserStudyReport report : batch) {
+					try {
+						String userId = report.getUserId();
 
-                        if (updatedUsers % 100 == 0) {
-                            log.info("[Preferred Study Hour Update] Progress: {}/{} users updated",
-                                    updatedUsers, totalUsers);
-                        }
-                    } catch (Exception e) {
-                        failedUsers++;
-                        log.warn("[Preferred Study Hour Update] Failed to update user: {}",
-                                report.getUserId(), e);
-                    }
-                }
-            }
+						// 선호 학습 시간 재계산 및 저장
+						studyTimeAnalysisService.calculateAndSavePreferredStudyHour(userId);
+						updatedUsers++;
 
-            Instant endTime = Instant.now();
+						if (updatedUsers % 100 == 0) {
+							log.info("[Preferred Study Hour Update] Progress: {}/{} users updated", updatedUsers,
+									totalUsers);
+						}
+					}
+					catch (Exception e) {
+						failedUsers++;
+						log.warn("[Preferred Study Hour Update] Failed to update user: {}", report.getUserId(), e);
+					}
+				}
+			}
 
-            log.info("[Preferred Study Hour Update] Completed. Total: {}, Updated: {}, Failed: {}, Duration: {}ms",
-                    totalUsers, updatedUsers, failedUsers, Duration.between(startTime, endTime).toMillis());
+			Instant endTime = Instant.now();
 
-        } catch (Exception e) {
-            log.error("[Preferred Study Hour Update] Critical error. Total: {}, Updated: {}, Failed: {}",
-                    totalUsers, updatedUsers, failedUsers, e);
-        }
-    }
+			log.info("[Preferred Study Hour Update] Completed. Total: {}, Updated: {}, Failed: {}, Duration: {}ms",
+					totalUsers, updatedUsers, failedUsers, Duration.between(startTime, endTime).toMillis());
+
+		}
+		catch (Exception e) {
+			log.error("[Preferred Study Hour Update] Critical error. Total: {}, Updated: {}, Failed: {}", totalUsers,
+					updatedUsers, failedUsers, e);
+		}
+	}
+
 }

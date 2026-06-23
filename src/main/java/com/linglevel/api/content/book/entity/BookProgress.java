@@ -22,78 +22,79 @@ import java.util.List;
 @Document(collection = "bookProgress")
 @CompoundIndex(name = "idx_user_book_progress", def = "{'userId': 1, 'bookId': 1}", unique = true)
 public class BookProgress {
-    @Id
-    private String id;
 
-    private String userId;
+	@Id
+	private String id;
 
-    private String bookId;
+	private String userId;
 
-    private String chapterId;
+	private String bookId;
 
-    private String chunkId;
+	private String chapterId;
 
-    private Integer currentReadChapterNumber;
+	private String chunkId;
 
-    private Integer maxReadChapterNumber;
+	private Integer currentReadChapterNumber;
 
-    /**
-     * 챕터 우선 정렬 기준의 최대 도달 청크 위치값.
-     * 비교 순서는 (chapterNumber, chunkNumber)이며 chapter가 우선한다.
-     */
-    private Integer maxReadChunkNumber;
+	private Integer maxReadChapterNumber;
 
-    // V2 Progress Fields
-    private Double normalizedProgress;
+	/**
+	 * 챕터 우선 정렬 기준의 최대 도달 청크 위치값. 비교 순서는 (chapterNumber, chunkNumber)이며 chapter가 우선한다.
+	 */
+	private Integer maxReadChunkNumber;
 
-    private Double maxNormalizedProgress;
+	// V2 Progress Fields
+	private Double normalizedProgress;
 
-    private DifficultyLevel currentDifficultyLevel;
+	private Double maxNormalizedProgress;
 
-    /**
-     * 챕터별 진행률 정보 (배열 구조)
-     * 각 챕터의 진행 상태, 완료 여부, 완료 시점을 저장
-     */
-    private List<ChapterProgressInfo> chapterProgresses = new ArrayList<>();
+	private DifficultyLevel currentDifficultyLevel;
 
-    /**
-     * 책 전체 완료 여부
-     * 모든 챕터가 완료되었을 때만 true로 설정되는 특수 조건
-     */
-    private Boolean isCompleted = false;
+	/**
+	 * 챕터별 진행률 정보 (배열 구조) 각 챕터의 진행 상태, 완료 여부, 완료 시점을 저장
+	 */
+	private List<ChapterProgressInfo> chapterProgresses = new ArrayList<>();
 
-    private Instant completedAt;
+	/**
+	 * 책 전체 완료 여부 모든 챕터가 완료되었을 때만 true로 설정되는 특수 조건
+	 */
+	private Boolean isCompleted = false;
 
-    @LastModifiedDate
-    private Instant updatedAt;
+	private Instant completedAt;
 
-    /**
-     * 챕터 진행률 정보를 담는 내부 클래스
-     */
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ChapterProgressInfo {
-        /**
-         * 챕터 번호
-         */
-        private Integer chapterNumber;
+	@LastModifiedDate
+	private Instant updatedAt;
 
-        /**
-         * 챕터 내 진행률 (0-100%)
-         */
-        private Double progressPercentage;
+	/**
+	 * 챕터 진행률 정보를 담는 내부 클래스
+	 */
+	@Getter
+	@Setter
+	@Builder
+	@NoArgsConstructor
+	@AllArgsConstructor
+	public static class ChapterProgressInfo {
 
-        /**
-         * 챕터 완료 여부
-         */
-        private Boolean isCompleted;
+		/**
+		 * 챕터 번호
+		 */
+		private Integer chapterNumber;
 
-        /**
-         * 챕터 완료 시점 (첫 완료 시점)
-         */
-        private Instant completedAt;
-    }
+		/**
+		 * 챕터 내 진행률 (0-100%)
+		 */
+		private Double progressPercentage;
+
+		/**
+		 * 챕터 완료 여부
+		 */
+		private Boolean isCompleted;
+
+		/**
+		 * 챕터 완료 시점 (첫 완료 시점)
+		 */
+		private Instant completedAt;
+
+	}
+
 }

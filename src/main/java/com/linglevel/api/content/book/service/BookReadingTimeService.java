@@ -18,43 +18,49 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookReadingTimeService {
 
-    private final BookRepository bookRepository;
-    private final ChapterRepository chapterRepository;
-    private final ReadingTimeService readingTimeService;
+	private final BookRepository bookRepository;
 
-    public void updateReadingTimes(String bookId, BookImportData importData) {
-        Book book = bookRepository.findById(bookId)
-            .orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
-        
-        List<Chapter> chapters = chapterRepository.findByBookIdOrderByChapterNumber(bookId);
-        
-        int totalBookReadingTime = 0;
-        
-        for (Chapter chapter : chapters) {
-            int chapterReadingTime = calculateChapterReadingTime(chapter.getChapterNumber(), book.getDifficultyLevel(), importData);
-            chapter.setReadingTime(chapterReadingTime);
-            totalBookReadingTime += chapterReadingTime;
-        }
-        
-        book.setReadingTime(totalBookReadingTime);
-        
-        chapterRepository.saveAll(chapters);
-        bookRepository.save(book);
-    }
-    
-    private int calculateChapterReadingTime(int chapterNumber, DifficultyLevel difficultyLevel, BookImportData importData) {
-        int totalCharacters = importData.getLeveledResults().stream()
-            .filter(levelData -> DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase()) == difficultyLevel)
-            .flatMap(levelData -> levelData.getChapters().stream())
-            .filter(chapterData -> chapterData.getChapterNum() == chapterNumber)
-            .flatMap(chapterData -> chapterData.getChunks().stream())
-            .mapToInt(chunkData -> chunkData.getChunkText().length())
-            .sum();
-        
-        return calculateReadingTimeFromCharacters(totalCharacters);
-    }
-    
-    private int calculateReadingTimeFromCharacters(int characterCount) {
-        return readingTimeService.calculateReadingTimeFromCharacters(characterCount);
-    }
+	private final ChapterRepository chapterRepository;
+
+	private final ReadingTimeService readingTimeService;
+
+	public void updateReadingTimes(String bookId, BookImportData importData) {
+		Book book = bookRepository.findById(bookId)
+			.orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
+
+		List<Chapter> chapters = chapterRepository.findByBookIdOrderByChapterNumber(bookId);
+
+		int totalBookReadingTime = 0;
+
+		for (Chapter chapter : chapters) {
+			int chapterReadingTime = calculateChapterReadingTime(chapter.getChapterNumber(), book.getDifficultyLevel(),
+					importData);
+			chapter.setReadingTime(chapterReadingTime);
+			totalBookReadingTime += chapterReadingTime;
+		}
+
+		book.setReadingTime(totalBookReadingTime);
+
+		chapterRepository.saveAll(chapters);
+		bookRepository.save(book);
+	}
+
+	private int calculateChapterReadingTime(int chapterNumber, DifficultyLevel difficultyLevel,
+			BookImportData importData) {
+		int totalCharacters = importData.getLeveledResults()
+			.stream()
+			.filter(levelData -> DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase()) == difficultyLevel)
+			.flatMap(levelData -> levelData.getChapters().stream())
+			.filter(chapterData -> chapterData.getChapterNum() == chapterNumber)
+			.flatMap(chapterData -> chapterData.getChunks().stream())
+			.mapToInt(chunkData -> chunkData.getChunkText().length())
+			.sum();
+
+		return calculateReadingTimeFromCharacters(totalCharacters);
+	}
+
+	private int calculateReadingTimeFromCharacters(int characterCount) {
+		return readingTimeService.calculateReadingTimeFromCharacters(characterCount);
+	}
+
 }

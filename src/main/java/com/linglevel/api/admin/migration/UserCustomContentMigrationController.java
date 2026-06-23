@@ -21,8 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * UserCustomContent 마이그레이션 컨트롤러
- * 기존 CustomContent의 userId를 기반으로 UserCustomContent 매핑 생성
+ * UserCustomContent 마이그레이션 컨트롤러 기존 CustomContent의 userId를 기반으로 UserCustomContent 매핑 생성
  */
 @RestController
 @RequestMapping("/api/v1/admin/migration")
@@ -32,94 +31,101 @@ import java.util.List;
 @SecurityRequirement(name = "adminApiKey")
 public class UserCustomContentMigrationController {
 
-    private final CustomContentRepository customContentRepository;
-    private final UserCustomContentRepository userCustomContentRepository;
+	private final CustomContentRepository customContentRepository;
 
-    @PostMapping("/custom-content-to-user-mapping")
-    @Operation(
-            summary = "CustomContent → UserCustomContent 마이그레이션",
-            description = "기존 CustomContent의 userId를 기반으로 UserCustomContent 매핑 생성. " +
-                          "이미 삭제된 콘텐츠는 제외하고 처리됩니다."
-    )
-    @Transactional
-    public MigrationResult migrateCustomContentToUserMapping() {
-        log.warn("Starting CustomContent to UserCustomContent migration...");
+	private final UserCustomContentRepository userCustomContentRepository;
 
-        // 삭제되지 않은 모든 CustomContent 조회
-        List<CustomContent> allContents = customContentRepository.findAll().stream()
-                .filter(content -> content.getIsDeleted() == null || !content.getIsDeleted())
-                .toList();
+	@PostMapping("/custom-content-to-user-mapping")
+	@Operation(summary = "CustomContent → UserCustomContent 마이그레이션",
+			description = "기존 CustomContent의 userId를 기반으로 UserCustomContent 매핑 생성. " + "이미 삭제된 콘텐츠는 제외하고 처리됩니다.")
+	@Transactional
+	public MigrationResult migrateCustomContentToUserMapping() {
+		log.warn("Starting CustomContent to UserCustomContent migration...");
 
-        int total = allContents.size();
-        int created = 0;
-        int skipped = 0;
-        int failed = 0;
+		// 삭제되지 않은 모든 CustomContent 조회
+		List<CustomContent> allContents = customContentRepository.findAll()
+			.stream()
+			.filter(content -> content.getIsDeleted() == null || !content.getIsDeleted())
+			.toList();
 
-        log.info("Found {} active CustomContent records to migrate", total);
+		int total = allContents.size();
+		int created = 0;
+		int skipped = 0;
+		int failed = 0;
 
-        for (CustomContent content : allContents) {
-            try {
-                String userId = content.getUserId();
-                String customContentId = content.getId();
-                String contentRequestId = content.getContentRequestId();
+		log.info("Found {} active CustomContent records to migrate", total);
 
-                // userId가 없는 경우 스킵 (데이터 무결성 문제)
-                if (userId == null || userId.isBlank()) {
-                    log.warn("Skipping content {} - missing userId", customContentId);
-                    skipped++;
-                    continue;
-                }
+		for (CustomContent content : allContents) {
+			try {
+				String userId = content.getUserId();
+				String customContentId = content.getId();
+				String contentRequestId = content.getContentRequestId();
 
-                // 이미 매핑이 존재하는지 확인
-                boolean exists = userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId);
-                if (exists) {
-                    log.debug("Mapping already exists for user: {} and content: {}", userId, customContentId);
-                    skipped++;
-                    continue;
-                }
+				// userId가 없는 경우 스킵 (데이터 무결성 문제)
+				if (userId == null || userId.isBlank()) {
+					log.warn("Skipping content {} - missing userId", customContentId);
+					skipped++;
+					continue;
+				}
 
-                // UserCustomContent 생성
-                UserCustomContent userCustomContent = UserCustomContent.builder()
-                        .userId(userId)
-                        .customContentId(customContentId)
-                        .contentRequestId(contentRequestId)
-                        .build();
+				// 이미 매핑이 존재하는지 확인
+				boolean exists = userCustomContentRepository.existsByUserIdAndCustomContentId(userId, customContentId);
+				if (exists) {
+					log.debug("Mapping already exists for user: {} and content: {}", userId, customContentId);
+					skipped++;
+					continue;
+				}
 
-                try {
-                    userCustomContentRepository.save(userCustomContent);
-                    created++;
-                    log.debug("Created mapping for user: {} and content: {}", userId, customContentId);
-                } catch (DuplicateKeyException e) {
-                    // Compound Index의 unique 제약 조건 위반 (거의 발생하지 않음)
-                    log.info("Duplicate mapping detected for user: {} and content: {} - skipping", userId, customContentId);
-                    skipped++;
-                }
+				// UserCustomContent 생성
+				UserCustomContent userCustomContent = UserCustomContent.builder()
+					.userId(userId)
+					.customContentId(customContentId)
+					.contentRequestId(contentRequestId)
+					.build();
 
-            } catch (Exception e) {
-                failed++;
-                log.error("Failed to migrate content: {} (userId: {})",
-                        content.getId(), content.getUserId(), e);
-            }
-        }
+				try {
+					userCustomContentRepository.save(userCustomContent);
+					created++;
+					log.debug("Created mapping for user: {} and content: {}", userId, customContentId);
+				}
+				catch (DuplicateKeyException e) {
+					// Compound Index의 unique 제약 조건 위반 (거의 발생하지 않음)
+					log.info("Duplicate mapping detected for user: {} and content: {} - skipping", userId,
+							customContentId);
+					skipped++;
+				}
 
-        MigrationResult result = MigrationResult.builder()
-                .totalContents(total)
-                .createdMappings(created)
-                .skippedMappings(skipped)
-                .failedMappings(failed)
-                .build();
+			}
+			catch (Exception e) {
+				failed++;
+				log.error("Failed to migrate content: {} (userId: {})", content.getId(), content.getUserId(), e);
+			}
+		}
 
-        log.warn("Migration complete: {}", result);
-        return result;
-    }
+		MigrationResult result = MigrationResult.builder()
+			.totalContents(total)
+			.createdMappings(created)
+			.skippedMappings(skipped)
+			.failedMappings(failed)
+			.build();
 
-    @Data
-    @Builder
-    @AllArgsConstructor
-    public static class MigrationResult {
-        private int totalContents;
-        private int createdMappings;
-        private int skippedMappings;
-        private int failedMappings;
-    }
+		log.warn("Migration complete: {}", result);
+		return result;
+	}
+
+	@Data
+	@Builder
+	@AllArgsConstructor
+	public static class MigrationResult {
+
+		private int totalContents;
+
+		private int createdMappings;
+
+		private int skippedMappings;
+
+		private int failedMappings;
+
+	}
+
 }

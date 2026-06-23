@@ -14,22 +14,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "나의 읽기 진도 조회 요청")
 public class GetBooksProgressRequest {
-    
-    @Schema(description = "페이지 번호",
-            example = "1",
-            minimum = "1",
-            defaultValue = "1")
-    @Min(value = 1, message = "페이지 번호는 1 이상이어야 합니다.")
-    @Builder.Default
-    private Integer page = 1;
-    
-    @Schema(description = "페이지 크기",
-            example = "10",
-            minimum = "1",
-            maximum = "200",
-            defaultValue = "10")
-    @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다.")
-    @Max(value = 200, message = "페이지 크기는 200 이하여야 합니다.")
-    @Builder.Default
-    private Integer limit = 10;
-} 
+
+	@Schema(description = "페이지 번호", example = "1", minimum = "1", defaultValue = "1")
+	@Min(value = 1, message = "페이지 번호는 1 이상이어야 합니다.")
+	@Builder.Default
+	private Integer page = 1;
+
+	@Schema(description = "페이지 크기", example = "10", minimum = "1", maximum = "200", defaultValue = "10")
+	@Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다.")
+	@Max(value = 200, message = "페이지 크기는 200 이하여야 합니다.")
+	@Builder.Default
+	private Integer limit = 10;
+
+}

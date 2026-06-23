@@ -16,12 +16,13 @@ import java.util.Map;
 @Schema(description = "필수 단어 통계 응답")
 public class EssentialWordsStatsResponse {
 
-    @Schema(description = "총 필수 단어 수", example = "3000")
-    private Long totalEssentialWords;
+	@Schema(description = "총 필수 단어 수", example = "3000")
+	private Long totalEssentialWords;
 
-    @Schema(description = "언어별 필수 단어 수")
-    private Map<LanguageCode, Long> countByTargetLanguage;
+	@Schema(description = "언어별 필수 단어 수")
+	private Map<LanguageCode, Long> countByTargetLanguage;
 
-    @Schema(description = "원본 언어별 필수 단어 수")
-    private Map<LanguageCode, Long> countBySourceLanguage;
+	@Schema(description = "원본 언어별 필수 단어 수")
+	private Map<LanguageCode, Long> countBySourceLanguage;
+
 }

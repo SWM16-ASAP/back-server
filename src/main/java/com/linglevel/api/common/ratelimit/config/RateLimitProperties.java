@@ -11,23 +11,26 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "rate.limit")
 public class RateLimitProperties {
 
-    private boolean enabled = true;
+	private boolean enabled = true;
 
-    private int capacity;
+	private int capacity;
 
-    private Refill refill = new Refill();
+	private Refill refill = new Refill();
 
-    @Getter
-    @Setter
-    public static class Refill {
+	@Getter
+	@Setter
+	public static class Refill {
 
-        private Duration duration = new Duration();
+		private Duration duration = new Duration();
 
-        @Getter
-        @Setter
-        public static class Duration {
+		@Getter
+		@Setter
+		public static class Duration {
 
-            private long minutes;
-        }
-    }
+			private long minutes;
+
+		}
+
+	}
+
 }

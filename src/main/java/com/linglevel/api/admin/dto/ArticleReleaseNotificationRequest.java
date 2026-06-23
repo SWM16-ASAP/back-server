@@ -17,33 +17,35 @@ import java.util.List;
 @Schema(description = "아티클 출시 알림 전송 요청")
 public class ArticleReleaseNotificationRequest {
 
-    @Schema(description = "출시된 아티클 목록", required = true)
-    @NotEmpty(message = "Articles are required")
-    @Valid
-    private List<ArticleInfo> articles;
+	@Schema(description = "출시된 아티클 목록", required = true)
+	@NotEmpty(message = "Articles are required")
+	@Valid
+	private List<ArticleInfo> articles;
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Schema(description = "아티클 정보")
-    public static class ArticleInfo {
+	@Data
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@Schema(description = "아티클 정보")
+	public static class ArticleInfo {
 
-        @Schema(description = "아티클 ID", example = "article-123", required = true)
-        @NotBlank(message = "Article ID is required")
-        private String articleId;
+		@Schema(description = "아티클 ID", example = "article-123", required = true)
+		@NotBlank(message = "Article ID is required")
+		private String articleId;
 
-        @Schema(description = "타겟 언어 코드 목록 (null이면 모든 언어)", example = "[\"KO\", \"EN\"]")
-        private List<LanguageCode> targetLanguageCodes;
+		@Schema(description = "타겟 언어 코드 목록 (null이면 모든 언어)", example = "[\"KO\", \"EN\"]")
+		private List<LanguageCode> targetLanguageCodes;
 
-        @Schema(description = "타겟 카테고리 (displayName 또는 enum 이름)", example = "Technology", required = true)
-        @NotNull(message = "Target category is required")
-        private String targetCategory;
+		@Schema(description = "타겟 카테고리 (displayName 또는 enum 이름)", example = "Technology", required = true)
+		@NotNull(message = "Target category is required")
+		private String targetCategory;
 
-        /**
-         * targetCategory String을 ContentCategory enum으로 변환
-         */
-        public ContentCategory getTargetCategoryEnum() {
-            return ContentCategory.fromString(targetCategory);
-        }
-    }
+		/**
+		 * targetCategory String을 ContentCategory enum으로 변환
+		 */
+		public ContentCategory getTargetCategoryEnum() {
+			return ContentCategory.fromString(targetCategory);
+		}
+
+	}
+
 }

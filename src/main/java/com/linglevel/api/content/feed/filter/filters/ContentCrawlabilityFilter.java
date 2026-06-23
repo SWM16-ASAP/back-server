@@ -15,106 +15,103 @@ import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Component;
 
 /**
- * 콘텐츠 크롤링 가능성 필터
- * CrawlingDsl을 사용하여 실제로 텍스트를 추출할 수 있는지 검증
+ * 콘텐츠 크롤링 가능성 필터 CrawlingDsl을 사용하여 실제로 텍스트를 추출할 수 있는지 검증
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ContentCrawlabilityFilter implements FeedFilter {
 
-    private static final String FILTER_NAME = "ContentCrawlabilityFilter";
-    private final CrawlingDslRepository crawlingDslRepository;
-    private final CrawlingService crawlingService;
+	private static final String FILTER_NAME = "ContentCrawlabilityFilter";
 
-    @Override
-    public FeedFilterResult filter(SyndEntry entry, FeedSource feedSource) {
-        String url = entry.getLink();
+	private final CrawlingDslRepository crawlingDslRepository;
 
-        if (url == null) {
-            return FeedFilterResult.fail(FILTER_NAME, "URL is null");
-        }
+	private final CrawlingService crawlingService;
 
-        String domain = extractDomain(url);
-        if (domain == null) {
-            log.warn("Failed to extract domain from URL: {}", url);
-            return FeedFilterResult.pass(); // 도메인 추출 실패는 패스
-        }
+	@Override
+	public FeedFilterResult filter(SyndEntry entry, FeedSource feedSource) {
+		String url = entry.getLink();
 
-        // YouTube는 프론트에서 검수
-        if (domain.equals("youtube.com")) {
-            log.debug("YouTube URL detected, skipping crawlability check: {}", url);
-            return FeedFilterResult.pass();
-        }
+		if (url == null) {
+			return FeedFilterResult.fail(FILTER_NAME, "URL is null");
+		}
 
-        if (!isCrawlable(url, domain)) {
-            return FeedFilterResult.fail(FILTER_NAME,
-                "Unable to extract content from URL: " + url);
-        }
+		String domain = extractDomain(url);
+		if (domain == null) {
+			log.warn("Failed to extract domain from URL: {}", url);
+			return FeedFilterResult.pass(); // 도메인 추출 실패는 패스
+		}
 
-        return FeedFilterResult.pass();
-    }
+		// YouTube는 프론트에서 검수
+		if (domain.equals("youtube.com")) {
+			log.debug("YouTube URL detected, skipping crawlability check: {}", url);
+			return FeedFilterResult.pass();
+		}
 
-    private boolean isCrawlable(String url, String domain) {
-        CrawlingDsl crawlingDsl = crawlingDslRepository.findByDomain(domain).orElse(null);
+		if (!isCrawlable(url, domain)) {
+			return FeedFilterResult.fail(FILTER_NAME, "Unable to extract content from URL: " + url);
+		}
 
-        if (crawlingDsl == null) {
-            return false;
-        }
+		return FeedFilterResult.pass();
+	}
 
-        // 2. contentDsl이 없으면 패스
-        if (crawlingDsl.getContentDsl() == null || crawlingDsl.getContentDsl().trim().isEmpty()) {
-            log.debug("No contentDsl defined for domain: {}", domain);
-            return true;
-        }
+	private boolean isCrawlable(String url, String domain) {
+		CrawlingDsl crawlingDsl = crawlingDslRepository.findByDomain(domain).orElse(null);
 
-        // 3. 실제 크롤링 시도
-        try {
-            log.debug("Testing crawlability for URL: {} with DSL", url);
+		if (crawlingDsl == null) {
+			return false;
+		}
 
-            Document doc = Jsoup.connect(url)
-                .timeout(10000)
-                .userAgent("Mozilla/5.0")
-                .get();
+		// 2. contentDsl이 없으면 패스
+		if (crawlingDsl.getContentDsl() == null || crawlingDsl.getContentDsl().trim().isEmpty()) {
+			log.debug("No contentDsl defined for domain: {}", domain);
+			return true;
+		}
 
-            CrawlerDsl crawler = new CrawlerDsl(doc);
-            String extractedContent = crawler.executeAsString(crawlingDsl.getContentDsl());
+		// 3. 실제 크롤링 시도
+		try {
+			log.debug("Testing crawlability for URL: {} with DSL", url);
 
-            // 추출된 콘텐츠가 없거나 너무 짧으면 실패
-            if (extractedContent == null || extractedContent.trim().isEmpty()) {
-                log.warn("No content extracted from URL: {}", url);
-                return false;
-            }
+			Document doc = Jsoup.connect(url).timeout(10000).userAgent("Mozilla/5.0").get();
 
-            // 콘텐츠가 너무 짧거나 길면 실패
-            if (extractedContent.trim().length() < 100 || extractedContent.trim().length() > 15_000) {
-                log.warn("Extracted content too short ({} chars) from URL: {}",
-                    extractedContent.trim().length(), url);
-                return false;
-            }
+			CrawlerDsl crawler = new CrawlerDsl(doc);
+			String extractedContent = crawler.executeAsString(crawlingDsl.getContentDsl());
 
-            log.debug("Successfully extracted {} chars from URL: {}",
-                extractedContent.trim().length(), url);
-            return true;
+			// 추출된 콘텐츠가 없거나 너무 짧으면 실패
+			if (extractedContent == null || extractedContent.trim().isEmpty()) {
+				log.warn("No content extracted from URL: {}", url);
+				return false;
+			}
 
-        } catch (Exception e) {
-            log.warn("Failed to test crawlability for URL: {}", url, e);
-            // 크롤링 실패는 soft-delete 처리 (콘텐츠를 추출할 수 없음)
-            return false;
-        }
-    }
+			// 콘텐츠가 너무 짧거나 길면 실패
+			if (extractedContent.trim().length() < 100 || extractedContent.trim().length() > 15_000) {
+				log.warn("Extracted content too short ({} chars) from URL: {}", extractedContent.trim().length(), url);
+				return false;
+			}
 
-    private String extractDomain(String urlString) {
-        return crawlingService.extractDomain(urlString);
-    }
+			log.debug("Successfully extracted {} chars from URL: {}", extractedContent.trim().length(), url);
+			return true;
 
-    @Override
-    public String getName() {
-        return FILTER_NAME;
-    }
+		}
+		catch (Exception e) {
+			log.warn("Failed to test crawlability for URL: {}", url, e);
+			// 크롤링 실패는 soft-delete 처리 (콘텐츠를 추출할 수 없음)
+			return false;
+		}
+	}
 
-    @Override
-    public int getOrder() {
-        return 100; // 실제 HTTP 요청이 필요하므로 가장 나중에 실행
-    }
+	private String extractDomain(String urlString) {
+		return crawlingService.extractDomain(urlString);
+	}
+
+	@Override
+	public String getName() {
+		return FILTER_NAME;
+	}
+
+	@Override
+	public int getOrder() {
+		return 100; // 실제 HTTP 요청이 필요하므로 가장 나중에 실행
+	}
+
 }

@@ -25,4 +25,4 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Run checks
-        run: ./gradlew spotlessCheck test
+        run: ./gradlew checkFormat test

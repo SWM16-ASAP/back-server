@@ -6,10 +6,11 @@ import org.springframework.http.HttpStatus;
 @Getter
 public class FeedException extends RuntimeException {
 
-    private final HttpStatus status;
+	private final HttpStatus status;
 
-    public FeedException(FeedErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.status = errorCode.getStatus();
-    }
+	public FeedException(FeedErrorCode errorCode) {
+		super(errorCode.getMessage());
+		this.status = errorCode.getStatus();
+	}
+
 }

@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "리프레시 토큰 요청")
 public class RefreshTokenRequest {
-    @Schema(description = "Refresh Token")
-    private String refreshToken;
-} 
+
+	@Schema(description = "Refresh Token")
+	private String refreshToken;
+
+}

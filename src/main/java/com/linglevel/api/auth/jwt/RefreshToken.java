@@ -16,19 +16,21 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class RefreshToken {
-    @Id
-    private String id;
-    
-    @Indexed(unique = true)
-    private String tokenId;
-    
-    @Indexed
-    private String userId;
-    
-    @Indexed(name = "ttl_expires_at", expireAfter = "0s")
-    private LocalDateTime expiresAt;
-    
-    public boolean isExpired() {
-        return expiresAt.isBefore(LocalDateTime.now());
-    }
+
+	@Id
+	private String id;
+
+	@Indexed(unique = true)
+	private String tokenId;
+
+	@Indexed
+	private String userId;
+
+	@Indexed(name = "ttl_expires_at", expireAfter = "0s")
+	private LocalDateTime expiresAt;
+
+	public boolean isExpired() {
+		return expiresAt.isBefore(LocalDateTime.now());
+	}
+
 }

@@ -17,29 +17,30 @@ import java.util.List;
 @Document(collection = "feedSources")
 public class FeedSource {
 
-    @Id
-    private String id;
+	@Id
+	private String id;
 
-    @Indexed(unique = true)
-    private String url;
+	@Indexed(unique = true)
+	private String url;
 
-    private String domain;
+	private String domain;
 
-    private String name;
+	private String name;
 
-    private String coverImageDsl;
+	private String coverImageDsl;
 
-    private FeedContentType contentType;
+	private FeedContentType contentType;
 
-    @Indexed
-    private ContentCategory category;
+	@Indexed
+	private ContentCategory category;
 
-    private List<String> tags;
+	private List<String> tags;
 
-    @Indexed
-    private Boolean isActive;
+	@Indexed
+	private Boolean isActive;
 
-    private Instant createdAt;
+	private Instant createdAt;
 
-    private Instant updatedAt;
+	private Instant updatedAt;
+
 }

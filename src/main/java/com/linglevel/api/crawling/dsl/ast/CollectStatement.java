@@ -6,5 +6,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class CollectStatement {
-    private final ASTNode expr;
+
+	private final ASTNode expr;
+
 }

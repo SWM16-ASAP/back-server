@@ -16,33 +16,34 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @Component
 public class RateLimitResolver {
 
-    private final RequestMappingHandlerMapping handlerMapping;
+	private final RequestMappingHandlerMapping handlerMapping;
 
-    public RateLimitResolver(@Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping) {
-        this.handlerMapping = handlerMapping;
-    }
+	public RateLimitResolver(@Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping) {
+		this.handlerMapping = handlerMapping;
+	}
 
-    /**
-     * Extracts @RateLimit annotation from the handler method if present.
-     *
-     * @param request HTTP request
-     * @return RateLimit annotation if found, null otherwise
-     */
-    public RateLimit resolveRateLimit(HttpServletRequest request) {
-        try {
-            HandlerExecutionChain handlerChain = handlerMapping.getHandler(request);
-            if (handlerChain == null) {
-                return null;
-            }
+	/**
+	 * Extracts @RateLimit annotation from the handler method if present.
+	 * @param request HTTP request
+	 * @return RateLimit annotation if found, null otherwise
+	 */
+	public RateLimit resolveRateLimit(HttpServletRequest request) {
+		try {
+			HandlerExecutionChain handlerChain = handlerMapping.getHandler(request);
+			if (handlerChain == null) {
+				return null;
+			}
 
-            Object handler = handlerChain.getHandler();
-            if (handler instanceof HandlerMethod) {
-                HandlerMethod handlerMethod = (HandlerMethod) handler;
-                return handlerMethod.getMethodAnnotation(RateLimit.class);
-            }
-        } catch (Exception e) {
-            log.debug("Failed to resolve handler method for rate limit annotation", e);
-        }
-        return null;
-    }
+			Object handler = handlerChain.getHandler();
+			if (handler instanceof HandlerMethod) {
+				HandlerMethod handlerMethod = (HandlerMethod) handler;
+				return handlerMethod.getMethodAnnotation(RateLimit.class);
+			}
+		}
+		catch (Exception e) {
+			log.debug("Failed to resolve handler method for rate limit annotation", e);
+		}
+		return null;
+	}
+
 }

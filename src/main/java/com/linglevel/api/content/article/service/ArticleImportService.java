@@ -19,51 +19,56 @@ import java.util.List;
 @Slf4j
 public class ArticleImportService {
 
-    private final ArticleChunkRepository articleChunkRepository;
-    private final S3UrlService s3UrlService;
-    private final ArticlePathStrategy articlePathStrategy;
+	private final ArticleChunkRepository articleChunkRepository;
 
-    public void createChunksFromLeveledResults(ArticleImportData importData, String articleId) {
-        log.info("Creating chunks for article: {}", articleId);
-        
-        List<ArticleChunk> allChunks = new ArrayList<>();
-        
-        for (ArticleImportData.TextLevelData levelData : importData.getLeveledResults()) {
-            DifficultyLevel difficulty = DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase());
-            
-            // 챕터는 1개가 보장되므로 첫 번째 챕터만 사용
-            if (!levelData.getChapters().isEmpty()) {
-                ArticleImportData.ChapterData chapterData = levelData.getChapters().get(0);
-                
-                int chunkCounter = 1;
-                for (ArticleImportData.ChunkData chunkData : chapterData.getChunks()) {
-                    ArticleChunk chunk = createArticleChunk(chunkData, articleId, difficulty, chunkCounter++);
-                    allChunks.add(chunk);
-                }
-            }
-        }
-        
-        List<ArticleChunk> savedChunks = articleChunkRepository.saveAll(allChunks);
-        log.info("Successfully created {} chunks for article: {}", savedChunks.size(), articleId);
-    }
+	private final S3UrlService s3UrlService;
 
-    private ArticleChunk createArticleChunk(ArticleImportData.ChunkData chunkData, String articleId, DifficultyLevel difficulty, int chunkNumber) {
-        ArticleChunk chunk = new ArticleChunk();
-        chunk.setArticleId(articleId);
-        chunk.setChunkNumber(chunkNumber);
-        chunk.setDifficultyLevel(difficulty);
-        
-        if (Boolean.TRUE.equals(chunkData.getIsImage())) {
-            chunk.setType(ChunkType.IMAGE);
-            String imageUrl = s3UrlService.buildImageUrl(articleId, chunkData.getChunkText(), articlePathStrategy);
-            chunk.setContent(imageUrl);
-            chunk.setDescription(chunkData.getDescription());
-        } else {
-            chunk.setType(ChunkType.TEXT);
-            chunk.setContent(chunkData.getChunkText());
-            chunk.setDescription(null);
-        }
-        
-        return chunk;
-    }
+	private final ArticlePathStrategy articlePathStrategy;
+
+	public void createChunksFromLeveledResults(ArticleImportData importData, String articleId) {
+		log.info("Creating chunks for article: {}", articleId);
+
+		List<ArticleChunk> allChunks = new ArrayList<>();
+
+		for (ArticleImportData.TextLevelData levelData : importData.getLeveledResults()) {
+			DifficultyLevel difficulty = DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase());
+
+			// 챕터는 1개가 보장되므로 첫 번째 챕터만 사용
+			if (!levelData.getChapters().isEmpty()) {
+				ArticleImportData.ChapterData chapterData = levelData.getChapters().get(0);
+
+				int chunkCounter = 1;
+				for (ArticleImportData.ChunkData chunkData : chapterData.getChunks()) {
+					ArticleChunk chunk = createArticleChunk(chunkData, articleId, difficulty, chunkCounter++);
+					allChunks.add(chunk);
+				}
+			}
+		}
+
+		List<ArticleChunk> savedChunks = articleChunkRepository.saveAll(allChunks);
+		log.info("Successfully created {} chunks for article: {}", savedChunks.size(), articleId);
+	}
+
+	private ArticleChunk createArticleChunk(ArticleImportData.ChunkData chunkData, String articleId,
+			DifficultyLevel difficulty, int chunkNumber) {
+		ArticleChunk chunk = new ArticleChunk();
+		chunk.setArticleId(articleId);
+		chunk.setChunkNumber(chunkNumber);
+		chunk.setDifficultyLevel(difficulty);
+
+		if (Boolean.TRUE.equals(chunkData.getIsImage())) {
+			chunk.setType(ChunkType.IMAGE);
+			String imageUrl = s3UrlService.buildImageUrl(articleId, chunkData.getChunkText(), articlePathStrategy);
+			chunk.setContent(imageUrl);
+			chunk.setDescription(chunkData.getDescription());
+		}
+		else {
+			chunk.setType(ChunkType.TEXT);
+			chunk.setContent(chunkData.getChunkText());
+			chunk.setDescription(null);
+		}
+
+		return chunk;
+	}
+
 }

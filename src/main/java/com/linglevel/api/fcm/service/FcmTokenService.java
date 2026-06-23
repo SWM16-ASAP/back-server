@@ -24,165 +24,165 @@ import java.util.Optional;
 @Slf4j
 public class FcmTokenService {
 
-    private final FcmTokenRepository fcmTokenRepository;
-    private final FirebaseMessaging firebaseMessaging;
+	private final FcmTokenRepository fcmTokenRepository;
 
-    /**
-     * FCM 토큰 유효성 검증
-     */
-    private boolean validateFcmToken(String fcmToken) {
-        try {
-            Message testMessage = Message.builder()
-                    .setToken(fcmToken)
-                    .setNotification(Notification.builder()
-                            .setTitle("Token Validation")
-                            .setBody("This is a test message")
-                            .build())
-                    .build();
+	private final FirebaseMessaging firebaseMessaging;
 
-            // dry-run으로 토큰 검증 (실제 전송 안함)
-            firebaseMessaging.send(testMessage, true);
-            return true;
-        } catch (FirebaseMessagingException e) {
-            log.warn("Invalid FCM token: {}, error: {}", fcmToken, e.getMessage());
-            return false;
-        }
-    }
+	/**
+	 * FCM 토큰 유효성 검증
+	 */
+	private boolean validateFcmToken(String fcmToken) {
+		try {
+			Message testMessage = Message.builder()
+				.setToken(fcmToken)
+				.setNotification(
+						Notification.builder().setTitle("Token Validation").setBody("This is a test message").build())
+				.build();
 
-    /**
-     * FCM 토큰을 비활성화합니다.
-     * 전송 실패한 토큰을 비활성화하여 더 이상 사용하지 않도록 합니다.
-     */
-    public void deactivateToken(String fcmToken) {
-        try {
-            Optional<FcmToken> tokenOpt = fcmTokenRepository.findByFcmToken(fcmToken);
-            if (tokenOpt.isPresent()) {
-                FcmToken token = tokenOpt.get();
-                token.setIsActive(false);
-                token.setUpdatedAt(LocalDateTime.now());
-                fcmTokenRepository.save(token);
-                log.info("Deactivated invalid FCM token for user: {}, device: {}",
-                         token.getUserId(), token.getDeviceId());
-            } else {
-                log.warn("FCM token not found in database for deactivation");
-            }
-        } catch (Exception e) {
-            log.error("Failed to deactivate FCM token", e);
-        }
-    }
+			// dry-run으로 토큰 검증 (실제 전송 안함)
+			firebaseMessaging.send(testMessage, true);
+			return true;
+		}
+		catch (FirebaseMessagingException e) {
+			log.warn("Invalid FCM token: {}, error: {}", fcmToken, e.getMessage());
+			return false;
+		}
+	}
 
-    /**
-     * 특정 사용자의 특정 디바이스 FCM 토큰을 비활성화합니다.
-     * 로그아웃 시 사용됩니다.
-     */
-    public void deactivateTokenByDevice(String userId, String deviceId) {
-        try {
-            Optional<FcmToken> tokenOpt = fcmTokenRepository.findByUserIdAndDeviceId(userId, deviceId);
-            if (tokenOpt.isPresent()) {
-                FcmToken token = tokenOpt.get();
-                token.setIsActive(false);
-                token.setUpdatedAt(LocalDateTime.now());
-                fcmTokenRepository.save(token);
-                log.info("Deactivated FCM token on logout - user: {}, device: {}", userId, deviceId);
-            } else {
-                log.debug("No FCM token found for user: {}, device: {}", userId, deviceId);
-            }
-        } catch (Exception e) {
-            log.error("Failed to deactivate FCM token for user: {}, device: {}", userId, deviceId, e);
-        }
-    }
+	/**
+	 * FCM 토큰을 비활성화합니다. 전송 실패한 토큰을 비활성화하여 더 이상 사용하지 않도록 합니다.
+	 */
+	public void deactivateToken(String fcmToken) {
+		try {
+			Optional<FcmToken> tokenOpt = fcmTokenRepository.findByFcmToken(fcmToken);
+			if (tokenOpt.isPresent()) {
+				FcmToken token = tokenOpt.get();
+				token.setIsActive(false);
+				token.setUpdatedAt(LocalDateTime.now());
+				fcmTokenRepository.save(token);
+				log.info("Deactivated invalid FCM token for user: {}, device: {}", token.getUserId(),
+						token.getDeviceId());
+			}
+			else {
+				log.warn("FCM token not found in database for deactivation");
+			}
+		}
+		catch (Exception e) {
+			log.error("Failed to deactivate FCM token", e);
+		}
+	}
 
-    /**
-     * 특정 사용자의 모든 FCM 토큰을 비활성화합니다.
-     * 전체 로그아웃 또는 계정 삭제 시 사용됩니다.
-     */
-    public void deactivateAllTokens(String userId) {
-        try {
-            List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
-            if (tokens.isEmpty()) {
-                log.debug("No active FCM tokens found for user: {}", userId);
-                return;
-            }
+	/**
+	 * 특정 사용자의 특정 디바이스 FCM 토큰을 비활성화합니다. 로그아웃 시 사용됩니다.
+	 */
+	public void deactivateTokenByDevice(String userId, String deviceId) {
+		try {
+			Optional<FcmToken> tokenOpt = fcmTokenRepository.findByUserIdAndDeviceId(userId, deviceId);
+			if (tokenOpt.isPresent()) {
+				FcmToken token = tokenOpt.get();
+				token.setIsActive(false);
+				token.setUpdatedAt(LocalDateTime.now());
+				fcmTokenRepository.save(token);
+				log.info("Deactivated FCM token on logout - user: {}, device: {}", userId, deviceId);
+			}
+			else {
+				log.debug("No FCM token found for user: {}, device: {}", userId, deviceId);
+			}
+		}
+		catch (Exception e) {
+			log.error("Failed to deactivate FCM token for user: {}, device: {}", userId, deviceId, e);
+		}
+	}
 
-            int deactivatedCount = 0;
-            for (FcmToken token : tokens) {
-                token.setIsActive(false);
-                token.setUpdatedAt(LocalDateTime.now());
-                fcmTokenRepository.save(token);
-                deactivatedCount++;
-            }
+	/**
+	 * 특정 사용자의 모든 FCM 토큰을 비활성화합니다. 전체 로그아웃 또는 계정 삭제 시 사용됩니다.
+	 */
+	public void deactivateAllTokens(String userId) {
+		try {
+			List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
+			if (tokens.isEmpty()) {
+				log.debug("No active FCM tokens found for user: {}", userId);
+				return;
+			}
 
-            log.info("Deactivated {} FCM token(s) for user: {}", deactivatedCount, userId);
-        } catch (Exception e) {
-            log.error("Failed to deactivate all FCM tokens for user: {}", userId, e);
-        }
-    }
+			int deactivatedCount = 0;
+			for (FcmToken token : tokens) {
+				token.setIsActive(false);
+				token.setUpdatedAt(LocalDateTime.now());
+				fcmTokenRepository.save(token);
+				deactivatedCount++;
+			}
 
-    public FcmTokenUpsertResult upsertFcmToken(String userId, FcmTokenUpsertRequest request) {
-        try {
-            // FCM 토큰 유효성 검증
-            if (!validateFcmToken(request.getFcmToken())) {
-                throw new FcmException(FcmErrorCode.INVALID_FCM_TOKEN_FORMAT);
-            }
+			log.info("Deactivated {} FCM token(s) for user: {}", deactivatedCount, userId);
+		}
+		catch (Exception e) {
+			log.error("Failed to deactivate all FCM tokens for user: {}", userId, e);
+		}
+	}
 
-            // countryCode가 제공되지 않으면 기본값 US 사용
-            CountryCode countryCode = request.getCountryCode() != null ? request.getCountryCode() : CountryCode.US;
+	public FcmTokenUpsertResult upsertFcmToken(String userId, FcmTokenUpsertRequest request) {
+		try {
+			// FCM 토큰 유효성 검증
+			if (!validateFcmToken(request.getFcmToken())) {
+				throw new FcmException(FcmErrorCode.INVALID_FCM_TOKEN_FORMAT);
+			}
 
-            // 1. 같은 fcmToken이 다른 유저/기기에 할당되어 있는지 확인
-            Optional<FcmToken> existingFcmToken = fcmTokenRepository.findFirstByFcmToken(request.getFcmToken());
-            if (existingFcmToken.isPresent()) {
-                FcmToken oldToken = existingFcmToken.get();
-                if (!oldToken.getUserId().equals(userId) || !oldToken.getDeviceId().equals(request.getDeviceId())) {
-                    fcmTokenRepository.delete(oldToken);
-                }
-            }
+			// countryCode가 제공되지 않으면 기본값 US 사용
+			CountryCode countryCode = request.getCountryCode() != null ? request.getCountryCode() : CountryCode.US;
 
-            Optional<FcmToken> existingToken = fcmTokenRepository.findByUserIdAndDeviceId(userId, request.getDeviceId());
+			// 1. 같은 fcmToken이 다른 유저/기기에 할당되어 있는지 확인
+			Optional<FcmToken> existingFcmToken = fcmTokenRepository.findFirstByFcmToken(request.getFcmToken());
+			if (existingFcmToken.isPresent()) {
+				FcmToken oldToken = existingFcmToken.get();
+				if (!oldToken.getUserId().equals(userId) || !oldToken.getDeviceId().equals(request.getDeviceId())) {
+					fcmTokenRepository.delete(oldToken);
+				}
+			}
 
-            if (existingToken.isPresent()) {
-                // 기존 토큰 업데이트
-                FcmToken token = existingToken.get();
-                token.setFcmToken(request.getFcmToken());
-                token.setPlatform(request.getPlatform());
-                token.setCountryCode(countryCode);
-                token.setAppVersion(request.getAppVersion());
-                token.setOsVersion(request.getOsVersion());
-                token.setUpdatedAt(LocalDateTime.now());
-                token.setIsActive(true);
+			Optional<FcmToken> existingToken = fcmTokenRepository.findByUserIdAndDeviceId(userId,
+					request.getDeviceId());
 
-                FcmToken savedToken = fcmTokenRepository.save(token);
-                log.info("FCM token updated for user: {}, device: {}", userId, request.getDeviceId());
+			if (existingToken.isPresent()) {
+				// 기존 토큰 업데이트
+				FcmToken token = existingToken.get();
+				token.setFcmToken(request.getFcmToken());
+				token.setPlatform(request.getPlatform());
+				token.setCountryCode(countryCode);
+				token.setAppVersion(request.getAppVersion());
+				token.setOsVersion(request.getOsVersion());
+				token.setUpdatedAt(LocalDateTime.now());
+				token.setIsActive(true);
 
-                return FcmTokenUpsertResult.builder()
-                        .tokenId(savedToken.getId())
-                        .created(false)
-                        .build();
-            } else {
-                // 새 토큰 생성
-                FcmToken newToken = FcmToken.builder()
-                        .userId(userId)
-                        .deviceId(request.getDeviceId())
-                        .fcmToken(request.getFcmToken())
-                        .platform(request.getPlatform())
-                        .countryCode(countryCode)
-                        .appVersion(request.getAppVersion())
-                        .osVersion(request.getOsVersion())
-                        .createdAt(LocalDateTime.now())
-                        .updatedAt(LocalDateTime.now())
-                        .isActive(true)
-                        .build();
+				FcmToken savedToken = fcmTokenRepository.save(token);
+				log.info("FCM token updated for user: {}, device: {}", userId, request.getDeviceId());
 
-                FcmToken savedToken = fcmTokenRepository.save(newToken);
-                log.info("FCM token created for user: {}, device: {}", userId, request.getDeviceId());
+				return FcmTokenUpsertResult.builder().tokenId(savedToken.getId()).created(false).build();
+			}
+			else {
+				// 새 토큰 생성
+				FcmToken newToken = FcmToken.builder()
+					.userId(userId)
+					.deviceId(request.getDeviceId())
+					.fcmToken(request.getFcmToken())
+					.platform(request.getPlatform())
+					.countryCode(countryCode)
+					.appVersion(request.getAppVersion())
+					.osVersion(request.getOsVersion())
+					.createdAt(LocalDateTime.now())
+					.updatedAt(LocalDateTime.now())
+					.isActive(true)
+					.build();
 
-                return FcmTokenUpsertResult.builder()
-                        .tokenId(savedToken.getId())
-                        .created(true)
-                        .build();
-            }
-        } catch (Exception e) {
-            log.error("Failed to upsert FCM token for user: {}, device: {}", userId, request.getDeviceId(), e);
-            throw new FcmException(FcmErrorCode.TOKEN_CREATION_FAILED);
-        }
-    }
+				FcmToken savedToken = fcmTokenRepository.save(newToken);
+				log.info("FCM token created for user: {}, device: {}", userId, request.getDeviceId());
+
+				return FcmTokenUpsertResult.builder().tokenId(savedToken.getId()).created(true).build();
+			}
+		}
+		catch (Exception e) {
+			log.error("Failed to upsert FCM token for user: {}, device: {}", userId, request.getDeviceId(), e);
+			throw new FcmException(FcmErrorCode.TOKEN_CREATION_FAILED);
+		}
+	}
+
 }

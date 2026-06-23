@@ -23,202 +23,197 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class ArticleProgressService {
 
-    private final ArticleService articleService;
-    private final ArticleChunkService articleChunkService;
-    private final ArticleProgressRepository articleProgressRepository;
-    private final ArticleChunkRepository articleChunkRepository;
-    private final ProgressCalculationService progressCalculationService;
-    private final ReadingCompletionService readingCompletionService;
-    private final StreakService streakService;
+	private final ArticleService articleService;
 
-    @Transactional
-    public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request, String userId) {
-        // 아티클 존재 여부 확인
-        if (!articleService.existsById(articleId)) {
-            throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
-        }
+	private final ArticleChunkService articleChunkService;
 
-        // chunkId로부터 chunk 정보 조회
-        ArticleChunk chunk = articleChunkService.findById(request.getChunkId());
+	private final ArticleProgressRepository articleProgressRepository;
 
-        // chunk가 해당 article에 속하는지 검증
-        if (chunk.getArticleId() == null || !chunk.getArticleId().equals(articleId)) {
-            throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND_IN_ARTICLE);
-        }
+	private final ArticleChunkRepository articleChunkRepository;
 
-        ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
-                .orElse(new ArticleProgress());
+	private final ProgressCalculationService progressCalculationService;
 
-        // [MIGRATION] V2 진행률 필드 마이그레이션
-        ensureMigrated(articleProgress, chunk);
+	private final ReadingCompletionService readingCompletionService;
 
-        // Null 체크
-        if (chunk.getChunkNumber() == null) {
-            throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
-        }
+	private final StreakService streakService;
 
-        articleProgress.setUserId(userId);
-        articleProgress.setArticleId(articleId);
-        articleProgress.setChunkId(request.getChunkId());
+	@Transactional
+	public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request,
+			String userId) {
+		// 아티클 존재 여부 확인
+		if (!articleService.existsById(articleId)) {
+			throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
+		}
 
-        // [V2_CORE] V2 필드: 정규화된 진행률 계산
-        long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
-            articleId, chunk.getDifficultyLevel()
-        );
-        double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-            chunk.getChunkNumber(), totalChunks
-        );
+		// chunkId로부터 chunk 정보 조회
+		ArticleChunk chunk = articleChunkService.findById(request.getChunkId());
 
-        articleProgress.setNormalizedProgress(normalizedProgress);
-        articleProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+		// chunk가 해당 article에 속하는지 검증
+		if (chunk.getArticleId() == null || !chunk.getArticleId().equals(articleId)) {
+			throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND_IN_ARTICLE);
+		}
 
-        // maxNormalizedProgress 업데이트 (누적 최대값)
-        if (progressCalculationService.shouldUpdateMaxProgress(
-                articleProgress.getMaxNormalizedProgress(), normalizedProgress)) {
-            articleProgress.setMaxNormalizedProgress(normalizedProgress);
-        }
+		ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
+			.orElse(new ArticleProgress());
 
-        // 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
-        Article article = articleService.findById(articleId);
-        Long readTimeSeconds = readingCompletionService.processReadingCompletion(
-                userId,
-                ContentType.ARTICLE,
-                articleId,
-                article.getCategory()
-        );
+		// [MIGRATION] V2 진행률 필드 마이그레이션
+		ensureMigrated(articleProgress, chunk);
 
-        // 스트릭 검사 및 완료 처리 로직
-        boolean streakUpdated = false;
-        if (isLastChunk(chunk)) {
-            // 첫 완료 시에만 isCompleted와 completedAt 설정
-            if (articleProgress.getCompletedAt() == null) {
-                articleProgress.setIsCompleted(true);
-                articleProgress.setCompletedAt(java.time.Instant.now());
-            }
+		// Null 체크
+		if (chunk.getChunkNumber() == null) {
+			throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
+		}
 
-            // 스트릭 업데이트 (30초 이상 읽은 경우에만)
-            if (readTimeSeconds != null && readTimeSeconds >= 30) {
-                streakService.addStudyTime(userId, readTimeSeconds);
-                streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
-                streakService.addCompletedContent(userId, ContentType.ARTICLE, articleId, streakUpdated);
-            }
-        }
+		articleProgress.setUserId(userId);
+		articleProgress.setArticleId(articleId);
+		articleProgress.setChunkId(request.getChunkId());
 
-        articleProgressRepository.save(articleProgress);
+		// [V2_CORE] V2 필드: 정규화된 진행률 계산
+		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId,
+				chunk.getDifficultyLevel());
+		double normalizedProgress = progressCalculationService.calculateNormalizedProgress(chunk.getChunkNumber(),
+				totalChunks);
 
-        return convertToArticleProgressResponse(articleProgress, streakUpdated);
-    }
+		articleProgress.setNormalizedProgress(normalizedProgress);
+		articleProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
-    private boolean isLastChunk(ArticleChunk chunk) {
-        long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
-            chunk.getArticleId(), chunk.getDifficultyLevel()
-        );
-        return chunk.getChunkNumber() >= totalChunks;
-    }
+		// maxNormalizedProgress 업데이트 (누적 최대값)
+		if (progressCalculationService.shouldUpdateMaxProgress(articleProgress.getMaxNormalizedProgress(),
+				normalizedProgress)) {
+			articleProgress.setMaxNormalizedProgress(normalizedProgress);
+		}
 
-    /**
-     * V2 마이그레이션 보장
-     * updateProgress 시점에 한 번만 실행
-     */
-    private void ensureMigrated(ArticleProgress progress, ArticleChunk chunk) {
-        boolean needsMigration = false;
+		// 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
+		Article article = articleService.findById(articleId);
+		Long readTimeSeconds = readingCompletionService.processReadingCompletion(userId, ContentType.ARTICLE, articleId,
+				article.getCategory());
 
-        // V2 필드 초기화
-        if (progress.getNormalizedProgress() == null) {
-            long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
-                chunk.getArticleId(), chunk.getDifficultyLevel()
-            );
-            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-                chunk.getChunkNumber(), totalChunks
-            );
-            progress.setNormalizedProgress(normalizedProgress);
-            progress.setMaxNormalizedProgress(normalizedProgress);
-            needsMigration = true;
-        }
+		// 스트릭 검사 및 완료 처리 로직
+		boolean streakUpdated = false;
+		if (isLastChunk(chunk)) {
+			// 첫 완료 시에만 isCompleted와 completedAt 설정
+			if (articleProgress.getCompletedAt() == null) {
+				articleProgress.setIsCompleted(true);
+				articleProgress.setCompletedAt(java.time.Instant.now());
+			}
 
-        if (progress.getCurrentDifficultyLevel() == null) {
-            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
-            needsMigration = true;
-        }
+			// 스트릭 업데이트 (30초 이상 읽은 경우에만)
+			if (readTimeSeconds != null && readTimeSeconds >= 30) {
+				streakService.addStudyTime(userId, readTimeSeconds);
+				streakUpdated = streakService.updateStreak(userId, ContentType.ARTICLE, articleId);
+				streakService.addCompletedContent(userId, ContentType.ARTICLE, articleId, streakUpdated);
+			}
+		}
 
-        if (needsMigration) {
-            log.info("V2 migration completed for ArticleProgress id={}, userId={}",
-                progress.getId(), progress.getUserId());
-        }
-    }
+		articleProgressRepository.save(articleProgress);
 
+		return convertToArticleProgressResponse(articleProgress, streakUpdated);
+	}
 
-    @Transactional(readOnly = true)
-    public ArticleProgressResponse getProgress(String articleId, String userId) {
-        // 아티클 존재 여부 확인
-        if (!articleService.existsById(articleId)) {
-            throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
-        }
+	private boolean isLastChunk(ArticleChunk chunk) {
+		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(chunk.getArticleId(),
+				chunk.getDifficultyLevel());
+		return chunk.getChunkNumber() >= totalChunks;
+	}
 
-        ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
-                .orElseGet(() -> initializeProgress(userId, articleId));
+	/**
+	 * V2 마이그레이션 보장 updateProgress 시점에 한 번만 실행
+	 */
+	private void ensureMigrated(ArticleProgress progress, ArticleChunk chunk) {
+		boolean needsMigration = false;
 
-        return convertToArticleProgressResponse(articleProgress, false);
-    }
+		// V2 필드 초기화
+		if (progress.getNormalizedProgress() == null) {
+			long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(chunk.getArticleId(),
+					chunk.getDifficultyLevel());
+			double normalizedProgress = progressCalculationService.calculateNormalizedProgress(chunk.getChunkNumber(),
+					totalChunks);
+			progress.setNormalizedProgress(normalizedProgress);
+			progress.setMaxNormalizedProgress(normalizedProgress);
+			needsMigration = true;
+		}
 
-    private ArticleProgress initializeProgress(String userId, String articleId) {
-        // 첫 번째 청크로 초기화
-        ArticleChunk firstChunk = articleChunkService.findFirstByArticleId(articleId);
+		if (progress.getCurrentDifficultyLevel() == null) {
+			progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+			needsMigration = true;
+		}
 
-        ArticleProgress newProgress = new ArticleProgress();
-        newProgress.setUserId(userId);
-        newProgress.setArticleId(articleId);
-        newProgress.setChunkId(firstChunk.getId());
+		if (needsMigration) {
+			log.info("V2 migration completed for ArticleProgress id={}, userId={}", progress.getId(),
+					progress.getUserId());
+		}
+	}
 
-        // [V2_CORE] V2 필드: 초기 진행률 계산
-        long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(
-            articleId, firstChunk.getDifficultyLevel()
-        );
-        double initialProgress = progressCalculationService.calculateNormalizedProgress(
-            firstChunk.getChunkNumber(), totalChunks
-        );
+	@Transactional(readOnly = true)
+	public ArticleProgressResponse getProgress(String articleId, String userId) {
+		// 아티클 존재 여부 확인
+		if (!articleService.existsById(articleId)) {
+			throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
+		}
 
-        newProgress.setNormalizedProgress(initialProgress);
-        newProgress.setMaxNormalizedProgress(initialProgress);
-        newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
+		ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
+			.orElseGet(() -> initializeProgress(userId, articleId));
 
-        return articleProgressRepository.save(newProgress);
-    }
+		return convertToArticleProgressResponse(articleProgress, false);
+	}
 
-    @Transactional
-    public void deleteProgress(String articleId, String userId) {
-        if (!articleService.existsById(articleId)) {
-            throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
-        }
+	private ArticleProgress initializeProgress(String userId, String articleId) {
+		// 첫 번째 청크로 초기화
+		ArticleChunk firstChunk = articleChunkService.findFirstByArticleId(articleId);
 
-        ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
-                .orElseThrow(() -> new ArticleException(ArticleErrorCode.PROGRESS_NOT_FOUND));
+		ArticleProgress newProgress = new ArticleProgress();
+		newProgress.setUserId(userId);
+		newProgress.setArticleId(articleId);
+		newProgress.setChunkId(firstChunk.getId());
 
-        articleProgressRepository.delete(articleProgress);
-    }
+		// [V2_CORE] V2 필드: 초기 진행률 계산
+		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId,
+				firstChunk.getDifficultyLevel());
+		double initialProgress = progressCalculationService.calculateNormalizedProgress(firstChunk.getChunkNumber(),
+				totalChunks);
 
-    private ArticleProgressResponse convertToArticleProgressResponse(ArticleProgress progress, boolean streakUpdated) {
-        // [DTO_MAPPING] chunk에서 chunkNumber 조회
-        ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+		newProgress.setNormalizedProgress(initialProgress);
+		newProgress.setMaxNormalizedProgress(initialProgress);
+		newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
 
-        // [SAFETY] 마이그레이션이 안 되어 있는 경우 경고 로그
-        if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
-            log.warn("ArticleProgress {} not migrated yet - this should only happen on read-only access",
-                progress.getId());
-        }
+		return articleProgressRepository.save(newProgress);
+	}
 
-        return ArticleProgressResponse.builder()
-                .id(progress.getId())
-                .userId(progress.getUserId())
-                .articleId(progress.getArticleId())
-                .chunkId(progress.getChunkId())
-                .currentReadChunkNumber(chunk.getChunkNumber())
-                .isCompleted(progress.getIsCompleted())
-                .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
-                .normalizedProgress(progress.getNormalizedProgress())
-                .maxNormalizedProgress(progress.getMaxNormalizedProgress())
-                .streakUpdated(streakUpdated)
-                .updatedAt(progress.getUpdatedAt())
-                .build();
-    }
+	@Transactional
+	public void deleteProgress(String articleId, String userId) {
+		if (!articleService.existsById(articleId)) {
+			throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
+		}
+
+		ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
+			.orElseThrow(() -> new ArticleException(ArticleErrorCode.PROGRESS_NOT_FOUND));
+
+		articleProgressRepository.delete(articleProgress);
+	}
+
+	private ArticleProgressResponse convertToArticleProgressResponse(ArticleProgress progress, boolean streakUpdated) {
+		// [DTO_MAPPING] chunk에서 chunkNumber 조회
+		ArticleChunk chunk = articleChunkService.findById(progress.getChunkId());
+
+		// [SAFETY] 마이그레이션이 안 되어 있는 경우 경고 로그
+		if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
+			log.warn("ArticleProgress {} not migrated yet - this should only happen on read-only access",
+					progress.getId());
+		}
+
+		return ArticleProgressResponse.builder()
+			.id(progress.getId())
+			.userId(progress.getUserId())
+			.articleId(progress.getArticleId())
+			.chunkId(progress.getChunkId())
+			.currentReadChunkNumber(chunk.getChunkNumber())
+			.isCompleted(progress.getIsCompleted())
+			.currentDifficultyLevel(progress.getCurrentDifficultyLevel())
+			.normalizedProgress(progress.getNormalizedProgress())
+			.maxNormalizedProgress(progress.getMaxNormalizedProgress())
+			.streakUpdated(streakUpdated)
+			.updatedAt(progress.getUpdatedAt())
+			.build();
+	}
+
 }

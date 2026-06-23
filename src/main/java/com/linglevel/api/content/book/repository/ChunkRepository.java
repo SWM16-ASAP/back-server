@@ -13,47 +13,44 @@ import org.springframework.data.mongodb.repository.Aggregation;
 import java.util.Optional;
 
 public interface ChunkRepository extends MongoRepository<Chunk, String> {
-    Page<Chunk> findByChapterIdAndDifficultyLevel(String chapterId, DifficultyLevel difficultyLevel, Pageable pageable);
 
-    Optional<Chunk> findFirstByChapterIdOrderByChunkNumberAsc(String chapterId);
+	Page<Chunk> findByChapterIdAndDifficultyLevel(String chapterId, DifficultyLevel difficultyLevel, Pageable pageable);
 
-    Optional<Chunk> findById(String chunkId);
+	Optional<Chunk> findFirstByChapterIdOrderByChunkNumberAsc(String chapterId);
 
-    List<Chunk> findByChapterIdOrderByChunkNumber(String chapterId);
+	Optional<Chunk> findById(String chunkId);
 
-    // V2 Progress: Count chunks by difficulty level
-    long countByChapterIdAndDifficultyLevel(String chapterId, DifficultyLevel difficultyLevel);
+	List<Chunk> findByChapterIdOrderByChunkNumber(String chapterId);
 
-    @Aggregation(pipeline = {
-        """
-        {
-            $match: {
-                chapterId: { $in: ?0 }
-            }
-        }
-        """,
-        """
-        {
-            $group: {
-                _id: {
-                    chapterId: '$chapterId',
-                    difficultyLevel: '$difficultyLevel'
-                },
-                count: { $sum: 1 }
-            }
-        }
-        """,
-        """
-        {
-            $project: {
-                chapterId: '$_id.chapterId',
-                difficultyLevel: '$_id.difficultyLevel',
-                count: 1,
-                _id: 0
-            }
-        }
-        """
-    })
-    List<ChunkCountByLevelDto> findChunkCountsByChapterIds(List<String> chapterIds);
+	// V2 Progress: Count chunks by difficulty level
+	long countByChapterIdAndDifficultyLevel(String chapterId, DifficultyLevel difficultyLevel);
+
+	@Aggregation(pipeline = { """
+			{
+			    $match: {
+			        chapterId: { $in: ?0 }
+			    }
+			}
+			""", """
+			{
+			    $group: {
+			        _id: {
+			            chapterId: '$chapterId',
+			            difficultyLevel: '$difficultyLevel'
+			        },
+			        count: { $sum: 1 }
+			    }
+			}
+			""", """
+			{
+			    $project: {
+			        chapterId: '$_id.chapterId',
+			        difficultyLevel: '$_id.difficultyLevel',
+			        count: 1,
+			        _id: 0
+			    }
+			}
+			""" })
+	List<ChunkCountByLevelDto> findChunkCountsByChapterIds(List<String> chapterIds);
 
 }

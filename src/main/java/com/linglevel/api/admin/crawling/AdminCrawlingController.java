@@ -33,59 +33,51 @@ import jakarta.validation.Valid;
 @SecurityRequirement(name = "adminApiKey")
 public class AdminCrawlingController {
 
-    private final CrawlingService crawlingService;
+	private final CrawlingService crawlingService;
 
-    @Operation(summary = "어드민 - DSL 생성", description = "어드민 권한으로 새로운 도메인의 제목/본문 추출 DSL을 추가합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 필드 누락)",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 API 키)",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "409", description = "도메인이 이미 존재함",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PostMapping("/crawling-dsl")
-    public ResponseEntity<CreateDslResponse> createDsl(
-            @Valid @RequestBody CreateDslRequest request) {
-        CreateDslResponse response = crawlingService.createDsl(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
+	@Operation(summary = "어드민 - DSL 생성", description = "어드민 권한으로 새로운 도메인의 제목/본문 추출 DSL을 추가합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 필드 누락)",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 API 키)",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "409", description = "도메인이 이미 존재함",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PostMapping("/crawling-dsl")
+	public ResponseEntity<CreateDslResponse> createDsl(@Valid @RequestBody CreateDslRequest request) {
+		CreateDslResponse response = crawlingService.createDsl(request);
+		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+	}
 
-    @Operation(summary = "어드민 - DSL 업데이트", description = "어드민 권한으로 특정 도메인의 제목/본문 추출 DSL을 업데이트합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "업데이트 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (제목/본문 DSL 필드 누락)",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 API 키)",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "404", description = "도메인을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @PutMapping("/crawling-dsl/{domain}")
-    public ResponseEntity<UpdateDslResponse> updateDsl(
-            @Parameter(description = "업데이트할 도메인명", example = "coupang.com")
-            @PathVariable String domain,
-            @Valid @RequestBody UpdateDslRequest request) {
-        UpdateDslResponse response = crawlingService.updateDsl(domain, request);
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "어드민 - DSL 업데이트", description = "어드민 권한으로 특정 도메인의 제목/본문 추출 DSL을 업데이트합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "업데이트 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청 (제목/본문 DSL 필드 누락)",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 API 키)",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "404", description = "도메인을 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@PutMapping("/crawling-dsl/{domain}")
+	public ResponseEntity<UpdateDslResponse> updateDsl(
+			@Parameter(description = "업데이트할 도메인명", example = "coupang.com") @PathVariable String domain,
+			@Valid @RequestBody UpdateDslRequest request) {
+		UpdateDslResponse response = crawlingService.updateDsl(domain, request);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "어드민 - DSL 삭제", description = "어드민 권한으로 특정 도메인과 관련된 제목/본문 추출 DSL을 삭제합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "삭제 성공",
-                    content = @Content(schema = @Schema(implementation = MessageResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 API 키)",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "404", description = "도메인을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @DeleteMapping("/crawling-dsl/{domain}")
-    public ResponseEntity<MessageResponse> deleteDsl(
-            @Parameter(description = "삭제할 도메인명", example = "coupang.com")
-            @PathVariable String domain) {
-        crawlingService.deleteDsl(domain);
-        return ResponseEntity.ok(new MessageResponse("DSL deleted successfully."));
-    }
+	@Operation(summary = "어드민 - DSL 삭제", description = "어드민 권한으로 특정 도메인과 관련된 제목/본문 추출 DSL을 삭제합니다.")
+	@ApiResponses(value = {
+			@ApiResponse(responseCode = "200", description = "삭제 성공",
+					content = @Content(schema = @Schema(implementation = MessageResponse.class))),
+			@ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 API 키)",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "404", description = "도메인을 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@DeleteMapping("/crawling-dsl/{domain}")
+	public ResponseEntity<MessageResponse> deleteDsl(
+			@Parameter(description = "삭제할 도메인명", example = "coupang.com") @PathVariable String domain) {
+		crawlingService.deleteDsl(domain);
+		return ResponseEntity.ok(new MessageResponse("DSL deleted successfully."));
+	}
 
 }

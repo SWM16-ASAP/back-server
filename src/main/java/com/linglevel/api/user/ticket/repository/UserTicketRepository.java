@@ -6,5 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.Optional;
 
 public interface UserTicketRepository extends MongoRepository<UserTicket, String> {
-    Optional<UserTicket> findByUserId(String userId);
+
+	Optional<UserTicket> findByUserId(String userId);
+
 }

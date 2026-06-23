@@ -12,51 +12,42 @@ import org.springframework.stereotype.Service;
 /**
  * 콘텐츠 읽기 완료 처리 공통 서비스
  *
- * 모든 콘텐츠 타입(Article, CustomContent, Book)에서 공통으로 사용하는
- * 읽기 완료 로직을 처리합니다.
+ * 모든 콘텐츠 타입(Article, CustomContent, Book)에서 공통으로 사용하는 읽기 완료 로직을 처리합니다.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ReadingCompletionService {
 
-    private final ReadingSessionService readingSessionService;
-    private final ApplicationEventPublisher eventPublisher;
+	private final ReadingSessionService readingSessionService;
 
-    /**
-     * 읽기 완료 처리 (30초 이상 읽은 경우만)
-     *
-     * @param userId 사용자 ID
-     * @param contentType 콘텐츠 타입
-     * @param contentId 콘텐츠 ID
-     * @param category 카테고리 (nullable, Book은 null)
-     * @return 읽은 시간(초), 30초 미만이면 null
-     */
-    public Long processReadingCompletion (
-            String userId,
-            ContentType contentType,
-            String contentId,
-            ContentCategory category) {
+	private final ApplicationEventPublisher eventPublisher;
 
-        boolean sessionValid = readingSessionService.isReadingSessionValid(userId, contentType, contentId);
+	/**
+	 * 읽기 완료 처리 (30초 이상 읽은 경우만)
+	 * @param userId 사용자 ID
+	 * @param contentType 콘텐츠 타입
+	 * @param contentId 콘텐츠 ID
+	 * @param category 카테고리 (nullable, Book은 null)
+	 * @return 읽은 시간(초), 30초 미만이면 null
+	 */
+	public Long processReadingCompletion(String userId, ContentType contentType, String contentId,
+			ContentCategory category) {
 
-        if (!sessionValid) {
-            return null;
-        }
+		boolean sessionValid = readingSessionService.isReadingSessionValid(userId, contentType, contentId);
 
-        long readTimeSeconds = readingSessionService.getReadingSessionSeconds(userId, contentType, contentId);
+		if (!sessionValid) {
+			return null;
+		}
 
-        eventPublisher.publishEvent(new ContentAccessEvent(
-                this,
-                userId,
-                contentId,
-                contentType,
-                category,
-                (int) readTimeSeconds
-        ));
+		long readTimeSeconds = readingSessionService.getReadingSessionSeconds(userId, contentType, contentId);
 
-        readingSessionService.deleteReadingSession(userId);
+		eventPublisher.publishEvent(
+				new ContentAccessEvent(this, userId, contentId, contentType, category, (int) readTimeSeconds));
 
-        return readTimeSeconds;
-    }
+		readingSessionService.deleteReadingSession(userId);
+
+		return readTimeSeconds;
+	}
+
 }

@@ -13,10 +13,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class Bucket4jConfig {
 
-    @Bean
-    public ProxyManager<String> proxyManager(RedissonClient redissonClient) {
-        Redisson redisson = (Redisson) redissonClient;
-        return Bucket4jRedisson.casBasedBuilder(redisson.getCommandExecutor())
-                .build();
-    }
+	@Bean
+	public ProxyManager<String> proxyManager(RedissonClient redissonClient) {
+		Redisson redisson = (Redisson) redissonClient;
+		return Bucket4jRedisson.casBasedBuilder(redisson.getCommandExecutor()).build();
+	}
+
 }

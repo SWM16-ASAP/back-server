@@ -8,7 +8,8 @@ import lombok.Data;
 @AllArgsConstructor
 @Schema(description = "책 import 응답 DTO")
 public class BookImportResponse {
-    
-    @Schema(description = "생성된 책의 식별자", example = "60d0fe4f5311236168a109ca")
-    private String id;
-} 
+
+	@Schema(description = "생성된 책의 식별자", example = "60d0fe4f5311236168a109ca")
+	private String id;
+
+}

@@ -13,7 +13,11 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Builder
 public class ReadingSession implements Serializable {
-    private ContentType contentType;
-    private String contentId;
-    private Long startedAtMillis;  // Epoch milliseconds for Redis serialization
+
+	private ContentType contentType;
+
+	private String contentId;
+
+	private Long startedAtMillis; // Epoch milliseconds for Redis serialization
+
 }

@@ -32,261 +32,264 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TicketServiceTest {
 
-    @Mock
-    private UserTicketRepository userTicketRepository;
+	@Mock
+	private UserTicketRepository userTicketRepository;
 
-    @Mock
-    private TicketTransactionRepository ticketTransactionRepository;
+	@Mock
+	private TicketTransactionRepository ticketTransactionRepository;
 
-    @InjectMocks
-    private TicketService ticketService;
+	@InjectMocks
+	private TicketService ticketService;
 
-    private final String userId = "test-user-id";
-    private UserTicket userTicket;
-    private TicketTransaction transaction;
+	private final String userId = "test-user-id";
 
-    @BeforeEach
-    void setUp() {
-        userTicket = UserTicket.builder()
-                .id("ticket-id")
-                .userId(userId)
-                .balance(10)
-                .version(1L)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+	private UserTicket userTicket;
 
-        transaction = TicketTransaction.builder()
-                .id("transaction-id")
-                .userId(userId)
-                .amount(-5)
-                .description("Test transaction")
-                .status(TransactionStatus.CONFIRMED)
-                .createdAt(LocalDateTime.now())
-                .build();
-    }
+	private TicketTransaction transaction;
 
-    @Nested
-    @DisplayName("티켓 잔고 조회 테스트")
-    class GetTicketBalanceTest {
+	@BeforeEach
+	void setUp() {
+		userTicket = UserTicket.builder()
+			.id("ticket-id")
+			.userId(userId)
+			.balance(10)
+			.version(1L)
+			.createdAt(LocalDateTime.now())
+			.updatedAt(LocalDateTime.now())
+			.build();
 
-        @Test
-        void 기존사용자_티켓잔고조회_성공() {
-            // given
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+		transaction = TicketTransaction.builder()
+			.id("transaction-id")
+			.userId(userId)
+			.amount(-5)
+			.description("Test transaction")
+			.status(TransactionStatus.CONFIRMED)
+			.createdAt(LocalDateTime.now())
+			.build();
+	}
 
-            // when
-            TicketBalanceResponse response = ticketService.getTicketBalance(userId);
+	@Nested
+	@DisplayName("티켓 잔고 조회 테스트")
+	class GetTicketBalanceTest {
 
-            // then
-            assertThat(response.getBalance()).isEqualTo(10);
-            assertThat(response.getUpdatedAt()).isEqualTo(userTicket.getUpdatedAt());
-            verify(userTicketRepository).findByUserId(userId);
-        }
+		@Test
+		void 기존사용자_티켓잔고조회_성공() {
+			// given
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
 
-        @Test
-        void 신규사용자_티켓생성및잔고조회_성공() {
-            // given
-            UserTicket newUserTicket = UserTicket.builder()
-                    .userId(userId)
-                    .balance(10)
-                    .build();
+			// when
+			TicketBalanceResponse response = ticketService.getTicketBalance(userId);
 
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.empty());
-            when(userTicketRepository.save(any(UserTicket.class))).thenReturn(newUserTicket);
+			// then
+			assertThat(response.getBalance()).isEqualTo(10);
+			assertThat(response.getUpdatedAt()).isEqualTo(userTicket.getUpdatedAt());
+			verify(userTicketRepository).findByUserId(userId);
+		}
 
-            // when
-            TicketBalanceResponse response = ticketService.getTicketBalance(userId);
+		@Test
+		void 신규사용자_티켓생성및잔고조회_성공() {
+			// given
+			UserTicket newUserTicket = UserTicket.builder().userId(userId).balance(10).build();
 
-            // then
-            assertThat(response.getBalance()).isEqualTo(10);
-            verify(userTicketRepository).findByUserId(userId);
-            verify(userTicketRepository).save(any(UserTicket.class));
-            verify(ticketTransactionRepository).save(any(TicketTransaction.class));
-        }
-    }
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.empty());
+			when(userTicketRepository.save(any(UserTicket.class))).thenReturn(newUserTicket);
 
-    @Nested
-    @DisplayName("티켓 거래 내역 조회 테스트")
-    class GetTicketTransactionsTest {
+			// when
+			TicketBalanceResponse response = ticketService.getTicketBalance(userId);
 
-        @Test
-        void 티켓거래내역조회_성공() {
-            // given
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+			// then
+			assertThat(response.getBalance()).isEqualTo(10);
+			verify(userTicketRepository).findByUserId(userId);
+			verify(userTicketRepository).save(any(UserTicket.class));
+			verify(ticketTransactionRepository).save(any(TicketTransaction.class));
+		}
 
-            Page<TicketTransaction> transactionPage = new PageImpl<>(
-                    List.of(transaction),
-                    PageRequest.of(0, 10),
-                    1L
-            );
-            when(ticketTransactionRepository.findByUserIdAndStatusOrderByCreatedAtDesc(
-                    eq(userId), eq(TransactionStatus.CONFIRMED), any(PageRequest.class)))
-                    .thenReturn(transactionPage);
+	}
 
-            // when
-            Page<TicketTransactionResponse> result = ticketService.getTicketTransactions(userId, 1, 10);
+	@Nested
+	@DisplayName("티켓 거래 내역 조회 테스트")
+	class GetTicketTransactionsTest {
 
-            // then
-            assertThat(result.getContent()).hasSize(1);
-            assertThat(result.getContent().get(0).getAmount()).isEqualTo(-5);
-            assertThat(result.getContent().get(0).getDescription()).isEqualTo("Test transaction");
-            verify(ticketTransactionRepository).findByUserIdAndStatusOrderByCreatedAtDesc(
-                    eq(userId), eq(TransactionStatus.CONFIRMED), any(PageRequest.class));
-        }
-    }
+		@Test
+		void 티켓거래내역조회_성공() {
+			// given
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
 
-    @Nested
-    @DisplayName("티켓 예약 테스트")
-    class ReserveTicketTest {
+			Page<TicketTransaction> transactionPage = new PageImpl<>(List.of(transaction), PageRequest.of(0, 10), 1L);
+			when(ticketTransactionRepository.findByUserIdAndStatusOrderByCreatedAtDesc(eq(userId),
+					eq(TransactionStatus.CONFIRMED), any(PageRequest.class)))
+				.thenReturn(transactionPage);
 
-        @Test
-        void 티켓예약_성공() {
-            // given
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
-            when(userTicketRepository.save(any(UserTicket.class))).thenReturn(userTicket);
+			// when
+			Page<TicketTransactionResponse> result = ticketService.getTicketTransactions(userId, 1, 10);
 
-            // when
-            String reservationId = ticketService.reserveTicket(userId, 5, "Test reservation");
+			// then
+			assertThat(result.getContent()).hasSize(1);
+			assertThat(result.getContent().get(0).getAmount()).isEqualTo(-5);
+			assertThat(result.getContent().get(0).getDescription()).isEqualTo("Test transaction");
+			verify(ticketTransactionRepository).findByUserIdAndStatusOrderByCreatedAtDesc(eq(userId),
+					eq(TransactionStatus.CONFIRMED), any(PageRequest.class));
+		}
 
-            // then
-            assertThat(reservationId).isNotNull();
-            assertThat(UUID.fromString(reservationId)).isNotNull(); // UUID 형식 검증
-            verify(userTicketRepository).save(any(UserTicket.class));
-            verify(ticketTransactionRepository).save(any(TicketTransaction.class));
-        }
+	}
 
-        @Test
-        void 잔고부족으로_티켓예약_실패() {
-            // given
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+	@Nested
+	@DisplayName("티켓 예약 테스트")
+	class ReserveTicketTest {
 
-            // when & then
-            assertThatThrownBy(() -> ticketService.reserveTicket(userId, 15, "Test reservation"))
-                    .isInstanceOf(TicketException.class);
+		@Test
+		void 티켓예약_성공() {
+			// given
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+			when(userTicketRepository.save(any(UserTicket.class))).thenReturn(userTicket);
 
-            verify(userTicketRepository, never()).save(any(UserTicket.class));
-            verify(ticketTransactionRepository, never()).save(any(TicketTransaction.class));
-        }
-    }
+			// when
+			String reservationId = ticketService.reserveTicket(userId, 5, "Test reservation");
 
-    @Nested
-    @DisplayName("예약 확정 테스트")
-    class ConfirmReservationTest {
+			// then
+			assertThat(reservationId).isNotNull();
+			assertThat(UUID.fromString(reservationId)).isNotNull(); // UUID 형식 검증
+			verify(userTicketRepository).save(any(UserTicket.class));
+			verify(ticketTransactionRepository).save(any(TicketTransaction.class));
+		}
 
-        @Test
-        void 예약확정_성공() {
-            // given
-            String reservationId = "test-reservation-id";
-            TicketTransaction reservedTransaction = TicketTransaction.builder()
-                    .id("transaction-id")
-                    .userId(userId)
-                    .amount(-5)
-                    .description("Reserved transaction")
-                    .status(TransactionStatus.RESERVED)
-                    .reservationId(reservationId)
-                    .build();
+		@Test
+		void 잔고부족으로_티켓예약_실패() {
+			// given
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
 
-            when(ticketTransactionRepository.findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED))
-                    .thenReturn(Optional.of(reservedTransaction));
+			// when & then
+			assertThatThrownBy(() -> ticketService.reserveTicket(userId, 15, "Test reservation"))
+				.isInstanceOf(TicketException.class);
 
-            // when
-            ticketService.confirmReservation(reservationId);
+			verify(userTicketRepository, never()).save(any(UserTicket.class));
+			verify(ticketTransactionRepository, never()).save(any(TicketTransaction.class));
+		}
 
-            // then
-            verify(ticketTransactionRepository).save(any(TicketTransaction.class));
-        }
+	}
 
-        @Test
-        void 존재하지않는예약_확정시_예외발생() {
-            // given
-            String reservationId = "non-existent-reservation-id";
-            when(ticketTransactionRepository.findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED))
-                    .thenReturn(Optional.empty());
+	@Nested
+	@DisplayName("예약 확정 테스트")
+	class ConfirmReservationTest {
 
-            // when & then
-            assertThatThrownBy(() -> ticketService.confirmReservation(reservationId))
-                    .isInstanceOf(TicketException.class);
-        }
-    }
+		@Test
+		void 예약확정_성공() {
+			// given
+			String reservationId = "test-reservation-id";
+			TicketTransaction reservedTransaction = TicketTransaction.builder()
+				.id("transaction-id")
+				.userId(userId)
+				.amount(-5)
+				.description("Reserved transaction")
+				.status(TransactionStatus.RESERVED)
+				.reservationId(reservationId)
+				.build();
 
-    @Nested
-    @DisplayName("예약 취소 테스트")
-    class CancelReservationTest {
+			when(ticketTransactionRepository.findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED))
+				.thenReturn(Optional.of(reservedTransaction));
 
-        @Test
-        void 예약취소_성공() {
-            // given
-            String reservationId = "test-reservation-id";
-            TicketTransaction reservedTransaction = TicketTransaction.builder()
-                    .id("transaction-id")
-                    .userId(userId)
-                    .amount(-5)
-                    .description("Reserved transaction")
-                    .status(TransactionStatus.RESERVED)
-                    .reservationId(reservationId)
-                    .build();
+			// when
+			ticketService.confirmReservation(reservationId);
 
-            when(ticketTransactionRepository.findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED))
-                    .thenReturn(Optional.of(reservedTransaction));
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+			// then
+			verify(ticketTransactionRepository).save(any(TicketTransaction.class));
+		}
 
-            // when
-            ticketService.cancelReservation(reservationId);
+		@Test
+		void 존재하지않는예약_확정시_예외발생() {
+			// given
+			String reservationId = "non-existent-reservation-id";
+			when(ticketTransactionRepository.findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED))
+				.thenReturn(Optional.empty());
 
-            // then
-            verify(userTicketRepository).save(any(UserTicket.class));
-            verify(ticketTransactionRepository).save(any(TicketTransaction.class));
-        }
-    }
+			// when & then
+			assertThatThrownBy(() -> ticketService.confirmReservation(reservationId))
+				.isInstanceOf(TicketException.class);
+		}
 
-    @Nested
-    @DisplayName("티켓 사용 테스트")
-    class SpendTicketTest {
+	}
 
-        @Test
-        void 티켓사용_성공() {
-            // given
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
-            when(userTicketRepository.save(any(UserTicket.class))).thenReturn(userTicket);
+	@Nested
+	@DisplayName("예약 취소 테스트")
+	class CancelReservationTest {
 
-            // when
-            int remainingBalance = ticketService.spendTicket(userId, 5, "Test spend");
+		@Test
+		void 예약취소_성공() {
+			// given
+			String reservationId = "test-reservation-id";
+			TicketTransaction reservedTransaction = TicketTransaction.builder()
+				.id("transaction-id")
+				.userId(userId)
+				.amount(-5)
+				.description("Reserved transaction")
+				.status(TransactionStatus.RESERVED)
+				.reservationId(reservationId)
+				.build();
 
-            // then
-            assertThat(remainingBalance).isEqualTo(5); // 10 - 5 = 5
-            verify(userTicketRepository).save(any(UserTicket.class));
-            verify(ticketTransactionRepository).save(any(TicketTransaction.class));
-        }
+			when(ticketTransactionRepository.findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED))
+				.thenReturn(Optional.of(reservedTransaction));
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
 
-        @Test
-        void 잔고부족으로_티켓사용_실패() {
-            // given
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+			// when
+			ticketService.cancelReservation(reservationId);
 
-            // when & then
-            assertThatThrownBy(() -> ticketService.spendTicket(userId, 15, "Test spend"))
-                    .isInstanceOf(TicketException.class);
-        }
-    }
+			// then
+			verify(userTicketRepository).save(any(UserTicket.class));
+			verify(ticketTransactionRepository).save(any(TicketTransaction.class));
+		}
 
-    @Nested
-    @DisplayName("티켓 지급 테스트")
-    class GrantTicketTest {
+	}
 
-        @Test
-        void 티켓지급_성공() {
-            // given
-            when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
-            when(userTicketRepository.save(any(UserTicket.class))).thenReturn(userTicket);
+	@Nested
+	@DisplayName("티켓 사용 테스트")
+	class SpendTicketTest {
 
-            // when
-            int newBalance = ticketService.grantTicket(userId, 5, "Test grant");
+		@Test
+		void 티켓사용_성공() {
+			// given
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+			when(userTicketRepository.save(any(UserTicket.class))).thenReturn(userTicket);
 
-            // then
-            assertThat(newBalance).isEqualTo(15); // 10 + 5 = 15
-            verify(userTicketRepository).save(any(UserTicket.class));
-            verify(ticketTransactionRepository).save(any(TicketTransaction.class));
-        }
-    }
+			// when
+			int remainingBalance = ticketService.spendTicket(userId, 5, "Test spend");
+
+			// then
+			assertThat(remainingBalance).isEqualTo(5); // 10 - 5 = 5
+			verify(userTicketRepository).save(any(UserTicket.class));
+			verify(ticketTransactionRepository).save(any(TicketTransaction.class));
+		}
+
+		@Test
+		void 잔고부족으로_티켓사용_실패() {
+			// given
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+
+			// when & then
+			assertThatThrownBy(() -> ticketService.spendTicket(userId, 15, "Test spend"))
+				.isInstanceOf(TicketException.class);
+		}
+
+	}
+
+	@Nested
+	@DisplayName("티켓 지급 테스트")
+	class GrantTicketTest {
+
+		@Test
+		void 티켓지급_성공() {
+			// given
+			when(userTicketRepository.findByUserId(userId)).thenReturn(Optional.of(userTicket));
+			when(userTicketRepository.save(any(UserTicket.class))).thenReturn(userTicket);
+
+			// when
+			int newBalance = ticketService.grantTicket(userId, 5, "Test grant");
+
+			// then
+			assertThat(newBalance).isEqualTo(15); // 10 + 5 = 15
+			verify(userTicketRepository).save(any(UserTicket.class));
+			verify(ticketTransactionRepository).save(any(TicketTransaction.class));
+		}
+
+	}
+
 }

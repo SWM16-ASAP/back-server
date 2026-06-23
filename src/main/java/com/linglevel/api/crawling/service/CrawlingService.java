@@ -25,146 +25,151 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class  CrawlingService {
+public class CrawlingService {
 
-    private final CrawlingDslRepository crawlingDslRepository;
+	private final CrawlingDslRepository crawlingDslRepository;
 
-    public DslLookupResponse lookupDsl(String url, boolean validateOnly) {
-        if (url == null || url.trim().isEmpty()) {
-            throw new CrawlingException(CrawlingErrorCode.URL_PARAMETER_REQUIRED);
-        }
+	public DslLookupResponse lookupDsl(String url, boolean validateOnly) {
+		if (url == null || url.trim().isEmpty()) {
+			throw new CrawlingException(CrawlingErrorCode.URL_PARAMETER_REQUIRED);
+		}
 
-        String domain = extractDomain(url);
-        Optional<CrawlingDsl> crawlingDsl = crawlingDslRepository.findByDomain(domain);
+		String domain = extractDomain(url);
+		Optional<CrawlingDsl> crawlingDsl = crawlingDslRepository.findByDomain(domain);
 
-        if (crawlingDsl.isPresent()) {
-            if (validateOnly) {
-                return DslLookupResponse.builder()
-                        .domain(domain)
-                        .valid(true)
-                        .message("URL is valid for crawling.")
-                        .build();
-            } else {
-                return DslLookupResponse.builder()
-                        .domain(domain)
-                        .titleDsl(crawlingDsl.get().getTitleDsl())
-                        .contentDsl(crawlingDsl.get().getContentDsl())
-                        .coverImageDsl(crawlingDsl.get().getCoverImageDsl())
-                        .accessUrl(crawlingDsl.get().getAccessUrl())
-                        .valid(true)
-                        .build();
-            }
-        } else {
-            return DslLookupResponse.builder()
-                    .domain(domain)
-                    .valid(false)
-                    .message("DSL not available for this domain.")
-                    .build();
-        }
-    }
+		if (crawlingDsl.isPresent()) {
+			if (validateOnly) {
+				return DslLookupResponse.builder()
+					.domain(domain)
+					.valid(true)
+					.message("URL is valid for crawling.")
+					.build();
+			}
+			else {
+				return DslLookupResponse.builder()
+					.domain(domain)
+					.titleDsl(crawlingDsl.get().getTitleDsl())
+					.contentDsl(crawlingDsl.get().getContentDsl())
+					.coverImageDsl(crawlingDsl.get().getCoverImageDsl())
+					.accessUrl(crawlingDsl.get().getAccessUrl())
+					.valid(true)
+					.build();
+			}
+		}
+		else {
+			return DslLookupResponse.builder()
+				.domain(domain)
+				.valid(false)
+				.message("DSL not available for this domain.")
+				.build();
+		}
+	}
 
-    public Page<DomainsResponse> getDomains(int page, int limit, List<FeedContentType> contentTypes) {
-        Pageable pageable = PageRequest.of(page - 1, limit);
-        Page<CrawlingDsl> domains;
+	public Page<DomainsResponse> getDomains(int page, int limit, List<FeedContentType> contentTypes) {
+		Pageable pageable = PageRequest.of(page - 1, limit);
+		Page<CrawlingDsl> domains;
 
-        if (contentTypes == null || contentTypes.isEmpty()) {
-            domains = crawlingDslRepository.findAll(pageable);
-        } else {
-            domains = crawlingDslRepository.findByContentTypeIn(contentTypes, pageable);
-        }
+		if (contentTypes == null || contentTypes.isEmpty()) {
+			domains = crawlingDslRepository.findAll(pageable);
+		}
+		else {
+			domains = crawlingDslRepository.findByContentTypeIn(contentTypes, pageable);
+		}
 
-        return domains.map(dsl -> DomainsResponse.builder()
-                .id(dsl.getId())
-                .domain(dsl.getDomain())
-                .name(dsl.getName())
-                .contentType(dsl.getContentType())
-                .accessUrl(dsl.getAccessUrl())
-                .build());
-    }
+		return domains.map(dsl -> DomainsResponse.builder()
+			.id(dsl.getId())
+			.domain(dsl.getDomain())
+			.name(dsl.getName())
+			.contentType(dsl.getContentType())
+			.accessUrl(dsl.getAccessUrl())
+			.build());
+	}
 
-    public CreateDslResponse createDsl(CreateDslRequest request) {
-        if (crawlingDslRepository.existsByDomain(request.getDomain())) {
-            throw new CrawlingException(CrawlingErrorCode.DOMAIN_ALREADY_EXISTS);
-        }
+	public CreateDslResponse createDsl(CreateDslRequest request) {
+		if (crawlingDslRepository.existsByDomain(request.getDomain())) {
+			throw new CrawlingException(CrawlingErrorCode.DOMAIN_ALREADY_EXISTS);
+		}
 
-        CrawlingDsl crawlingDsl = CrawlingDsl.builder()
-                .domain(request.getDomain())
-                .name(request.getName())
-                .contentType(request.getContentType())
-                .titleDsl(request.getTitleDsl())
-                .contentDsl(request.getContentDsl())
-                .coverImageDsl(request.getCoverImageDsl())
-                .accessUrl(request.getAccessUrl())
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
+		CrawlingDsl crawlingDsl = CrawlingDsl.builder()
+			.domain(request.getDomain())
+			.name(request.getName())
+			.contentType(request.getContentType())
+			.titleDsl(request.getTitleDsl())
+			.contentDsl(request.getContentDsl())
+			.coverImageDsl(request.getCoverImageDsl())
+			.accessUrl(request.getAccessUrl())
+			.createdAt(Instant.now())
+			.updatedAt(Instant.now())
+			.build();
 
-        CrawlingDsl saved = crawlingDslRepository.save(crawlingDsl);
+		CrawlingDsl saved = crawlingDslRepository.save(crawlingDsl);
 
-        return CreateDslResponse.builder()
-                .id(saved.getId())
-                .domain(saved.getDomain())
-                .message("DSL created successfully.")
-                .build();
-    }
+		return CreateDslResponse.builder()
+			.id(saved.getId())
+			.domain(saved.getDomain())
+			.message("DSL created successfully.")
+			.build();
+	}
 
-    public UpdateDslResponse updateDsl(String domain, UpdateDslRequest request) {
-        CrawlingDsl crawlingDsl = crawlingDslRepository.findByDomain(domain)
-                .orElseThrow(() -> new CrawlingException(CrawlingErrorCode.DOMAIN_NOT_FOUND));
+	public UpdateDslResponse updateDsl(String domain, UpdateDslRequest request) {
+		CrawlingDsl crawlingDsl = crawlingDslRepository.findByDomain(domain)
+			.orElseThrow(() -> new CrawlingException(CrawlingErrorCode.DOMAIN_NOT_FOUND));
 
-        crawlingDsl.setName(request.getName());
-        crawlingDsl.setTitleDsl(request.getTitleDsl());
-        crawlingDsl.setContentDsl(request.getContentDsl());
-        crawlingDsl.setCoverImageDsl(request.getCoverImageDsl());
+		crawlingDsl.setName(request.getName());
+		crawlingDsl.setTitleDsl(request.getTitleDsl());
+		crawlingDsl.setContentDsl(request.getContentDsl());
+		crawlingDsl.setCoverImageDsl(request.getCoverImageDsl());
 
-        // contentType은 옵셔널 - null이 아닐 경우에만 업데이트
-        if (request.getContentType() != null) {
-            crawlingDsl.setContentType(request.getContentType());
-        }
+		// contentType은 옵셔널 - null이 아닐 경우에만 업데이트
+		if (request.getContentType() != null) {
+			crawlingDsl.setContentType(request.getContentType());
+		}
 
-        // accessUrl은 옵셔널 - null이 아닐 경우에만 업데이트
-        if (request.getAccessUrl() != null) {
-            crawlingDsl.setAccessUrl(request.getAccessUrl());
-        }
+		// accessUrl은 옵셔널 - null이 아닐 경우에만 업데이트
+		if (request.getAccessUrl() != null) {
+			crawlingDsl.setAccessUrl(request.getAccessUrl());
+		}
 
-        crawlingDsl.setUpdatedAt(Instant.now());
+		crawlingDsl.setUpdatedAt(Instant.now());
 
-        CrawlingDsl updated = crawlingDslRepository.save(crawlingDsl);
+		CrawlingDsl updated = crawlingDslRepository.save(crawlingDsl);
 
-        return UpdateDslResponse.builder()
-                .id(updated.getId())
-                .domain(updated.getDomain())
-                .name(updated.getName())
-                .titleDsl(updated.getTitleDsl())
-                .contentDsl(updated.getContentDsl())
-                .coverImageDsl(updated.getCoverImageDsl())
-                .accessUrl(updated.getAccessUrl())
-                .message("DSL updated successfully.")
-                .build();
-    }
+		return UpdateDslResponse.builder()
+			.id(updated.getId())
+			.domain(updated.getDomain())
+			.name(updated.getName())
+			.titleDsl(updated.getTitleDsl())
+			.contentDsl(updated.getContentDsl())
+			.coverImageDsl(updated.getCoverImageDsl())
+			.accessUrl(updated.getAccessUrl())
+			.message("DSL updated successfully.")
+			.build();
+	}
 
-    public void deleteDsl(String domain) {
-        if (!crawlingDslRepository.existsByDomain(domain)) {
-            throw new CrawlingException(CrawlingErrorCode.DOMAIN_NOT_FOUND);
-        }
-        crawlingDslRepository.deleteByDomain(domain);
-    }
+	public void deleteDsl(String domain) {
+		if (!crawlingDslRepository.existsByDomain(domain)) {
+			throw new CrawlingException(CrawlingErrorCode.DOMAIN_NOT_FOUND);
+		}
+		crawlingDslRepository.deleteByDomain(domain);
+	}
 
-    public String extractDomain(String url) {
-        try {
-            URL parsedUrl = new URL(url);
-            String host = parsedUrl.getHost().toLowerCase();
+	public String extractDomain(String url) {
+		try {
+			URL parsedUrl = new URL(url);
+			String host = parsedUrl.getHost().toLowerCase();
 
-            Pattern pattern = Pattern.compile("([^.]+\\.[^.]+)$");
-            Matcher matcher = pattern.matcher(host);
+			Pattern pattern = Pattern.compile("([^.]+\\.[^.]+)$");
+			Matcher matcher = pattern.matcher(host);
 
-            if (matcher.find()) {
-                return matcher.group(1);
-            }
+			if (matcher.find()) {
+				return matcher.group(1);
+			}
 
-            return host;
-        } catch (MalformedURLException e) {
-            return null;
-        }
-    }
+			return host;
+		}
+		catch (MalformedURLException e) {
+			return null;
+		}
+	}
+
 }

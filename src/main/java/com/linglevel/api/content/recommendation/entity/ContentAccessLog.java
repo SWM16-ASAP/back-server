@@ -16,25 +16,24 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "contentAccessLogs")
-@CompoundIndexes({
-        @CompoundIndex(name = "user_accessed_idx", def = "{'userId': 1, 'accessedAt': -1}"),
-        @CompoundIndex(name = "user_category_idx", def = "{'userId': 1, 'category': 1}"),
-        @CompoundIndex(name = "user_content_type_idx", def = "{'userId': 1, 'contentType': 1}")
-})
+@CompoundIndexes({ @CompoundIndex(name = "user_accessed_idx", def = "{'userId': 1, 'accessedAt': -1}"),
+		@CompoundIndex(name = "user_category_idx", def = "{'userId': 1, 'category': 1}"),
+		@CompoundIndex(name = "user_content_type_idx", def = "{'userId': 1, 'contentType': 1}") })
 public class ContentAccessLog {
 
-    @Id
-    private String id;
+	@Id
+	private String id;
 
-    private String userId;
+	private String userId;
 
-    private String contentId;
+	private String contentId;
 
-    private ContentType contentType;
+	private ContentType contentType;
 
-    private ContentCategory category;
+	private ContentCategory category;
 
-    private Integer readTimeSeconds;
+	private Integer readTimeSeconds;
 
-    private Instant accessedAt;
+	private Instant accessedAt;
+
 }

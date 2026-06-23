@@ -19,50 +19,51 @@ import java.util.List;
 @AllArgsConstructor
 @Document(collection = "contentRequests")
 public class ContentRequest {
-    
-    @Id
-    private String id;
 
-    @NotNull
-    @Indexed
-    private String userId;
+	@Id
+	private String id;
 
-    @NotNull
-    private String title;
+	@NotNull
+	@Indexed
+	private String userId;
 
-    private String originalText;
+	@NotNull
+	private String title;
 
-    @NotNull
-    private ContentType contentType;
+	private String originalText;
 
-    private String originAuthor;
+	@NotNull
+	private ContentType contentType;
 
-    private List<DifficultyLevel> targetDifficultyLevels;
+	private String originAuthor;
 
-    private String originUrl;
+	private List<DifficultyLevel> targetDifficultyLevels;
 
-    private String originDomain;
+	private String originUrl;
 
-    private String coverImageUrl;
+	private String originDomain;
 
-    @NotNull
-    @Builder.Default
-    private ContentRequestStatus status = ContentRequestStatus.PENDING;
+	private String coverImageUrl;
 
-    @Builder.Default
-    private Integer progress = 0;
+	@NotNull
+	@Builder.Default
+	private ContentRequestStatus status = ContentRequestStatus.PENDING;
 
-    @CreatedDate
-    private Instant createdAt;
+	@Builder.Default
+	private Integer progress = 0;
 
-    private Instant completedAt;
+	@CreatedDate
+	private Instant createdAt;
 
-    private Instant deletedAt;
+	private Instant completedAt;
 
-    private String errorMessage;
+	private Instant deletedAt;
 
-    private String resultCustomContentId;
+	private String errorMessage;
 
-    @LastModifiedDate
-    private Instant updatedAt;
+	private String resultCustomContentId;
+
+	@LastModifiedDate
+	private Instant updatedAt;
+
 }

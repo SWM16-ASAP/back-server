@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SuggestionResponse {
-    @Schema(description = "응답 메시지", example = "Suggestion submitted successfully.")
-    private String message;
+
+	@Schema(description = "응답 메시지", example = "Suggestion submitted successfully.")
+	private String message;
+
 }

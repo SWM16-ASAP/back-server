@@ -21,72 +21,67 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class RefreshTokenService {
-    
-    private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
-    private final JwtProvider jwtProvider;
-    
-    @Value("${jwt.refresh-token-expiration}")
-    private long refreshTokenExpirationMs;
-    
-    @Transactional
-    public String createRefreshToken(String userId) {
-        String tokenId = UUID.randomUUID().toString();
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(refreshTokenExpirationMs / 1000);
 
-        RefreshToken refreshToken = RefreshToken.builder()
-                .tokenId(tokenId)
-                .userId(userId)
-                .expiresAt(expiresAt)
-                .build();
+	private final RefreshTokenRepository refreshTokenRepository;
 
-        refreshTokenRepository.save(refreshToken);
-        log.info("Refresh token created for user: {}", userId);
+	private final UserRepository userRepository;
 
-        return tokenId;
-    }
-    
-    @Transactional
-    public RefreshTokenResponse refreshAccessToken(String refreshTokenId) {
-        RefreshToken storedToken = refreshTokenRepository.findByTokenId(refreshTokenId)
-                .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_REFRESH_TOKEN));
-        
-        if (storedToken.isExpired()) {
-            refreshTokenRepository.delete(storedToken);
-            throw new AuthException(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
-        }
-        
-        User user = userRepository.findById(storedToken.getUserId())
-                .orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
-        
-        if (user.getDeleted() != null && user.getDeleted()) {
-            refreshTokenRepository.delete(storedToken);
-            throw new UsersException(UsersErrorCode.USER_ACCOUNT_DELETED);
-        }
-        
-        String newAccessToken = jwtProvider.createToken(user);
-        String newRefreshToken = createRefreshToken(user.getId());
-        
-        log.info("Access token refreshed for user: {}", user.getId());
-        
-        return RefreshTokenResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken)
-                .build();
-    }
-    
-    @Transactional
-    public void deleteRefreshToken(String tokenId) {
-        refreshTokenRepository.findByTokenId(tokenId)
-                .ifPresent(token -> {
-                    refreshTokenRepository.delete(token);
-                    log.info("Refresh token deleted: {} for user: {}", tokenId, token.getUserId());
-                });
-    }
+	private final JwtProvider jwtProvider;
 
-    @Transactional
-    public void deleteAllRefreshTokens(String userId) {
-        refreshTokenRepository.deleteByUserId(userId);
-        log.info("All refresh tokens deleted for user: {}", userId);
-    }
+	@Value("${jwt.refresh-token-expiration}")
+	private long refreshTokenExpirationMs;
+
+	@Transactional
+	public String createRefreshToken(String userId) {
+		String tokenId = UUID.randomUUID().toString();
+		LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(refreshTokenExpirationMs / 1000);
+
+		RefreshToken refreshToken = RefreshToken.builder().tokenId(tokenId).userId(userId).expiresAt(expiresAt).build();
+
+		refreshTokenRepository.save(refreshToken);
+		log.info("Refresh token created for user: {}", userId);
+
+		return tokenId;
+	}
+
+	@Transactional
+	public RefreshTokenResponse refreshAccessToken(String refreshTokenId) {
+		RefreshToken storedToken = refreshTokenRepository.findByTokenId(refreshTokenId)
+			.orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_REFRESH_TOKEN));
+
+		if (storedToken.isExpired()) {
+			refreshTokenRepository.delete(storedToken);
+			throw new AuthException(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
+		}
+
+		User user = userRepository.findById(storedToken.getUserId())
+			.orElseThrow(() -> new UsersException(UsersErrorCode.USER_NOT_FOUND));
+
+		if (user.getDeleted() != null && user.getDeleted()) {
+			refreshTokenRepository.delete(storedToken);
+			throw new UsersException(UsersErrorCode.USER_ACCOUNT_DELETED);
+		}
+
+		String newAccessToken = jwtProvider.createToken(user);
+		String newRefreshToken = createRefreshToken(user.getId());
+
+		log.info("Access token refreshed for user: {}", user.getId());
+
+		return RefreshTokenResponse.builder().accessToken(newAccessToken).refreshToken(newRefreshToken).build();
+	}
+
+	@Transactional
+	public void deleteRefreshToken(String tokenId) {
+		refreshTokenRepository.findByTokenId(tokenId).ifPresent(token -> {
+			refreshTokenRepository.delete(token);
+			log.info("Refresh token deleted: {} for user: {}", tokenId, token.getUserId());
+		});
+	}
+
+	@Transactional
+	public void deleteAllRefreshTokens(String userId) {
+		refreshTokenRepository.deleteByUserId(userId);
+		log.info("All refresh tokens deleted for user: {}", userId);
+	}
+
 }

@@ -15,28 +15,25 @@ import java.util.Base64;
 
 @Configuration
 public class FirebaseConfig {
-    
-    @Value("${firebase.config}")
-    private String firebaseConfig;
-    
-    @Bean
-    public FirebaseAuth firebaseAuth() throws IOException {
-        byte[] decodedConfig = Base64.getDecoder().decode(firebaseConfig);
-        
-        GoogleCredentials credentials = GoogleCredentials.fromStream(
-            new ByteArrayInputStream(decodedConfig)
-        );
 
-        FirebaseOptions options = FirebaseOptions.builder()
-                .setCredentials(credentials)
-                .build();
+	@Value("${firebase.config}")
+	private String firebaseConfig;
 
-        FirebaseApp.initializeApp(options);
-        return FirebaseAuth.getInstance(FirebaseApp.getInstance());
-    }
-    
-    @Bean
-    public FirebaseMessaging firebaseMessaging(FirebaseAuth firebaseAuth) {
-        return FirebaseMessaging.getInstance(FirebaseApp.getInstance());
-    }
+	@Bean
+	public FirebaseAuth firebaseAuth() throws IOException {
+		byte[] decodedConfig = Base64.getDecoder().decode(firebaseConfig);
+
+		GoogleCredentials credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(decodedConfig));
+
+		FirebaseOptions options = FirebaseOptions.builder().setCredentials(credentials).build();
+
+		FirebaseApp.initializeApp(options);
+		return FirebaseAuth.getInstance(FirebaseApp.getInstance());
+	}
+
+	@Bean
+	public FirebaseMessaging firebaseMessaging(FirebaseAuth firebaseAuth) {
+		return FirebaseMessaging.getInstance(FirebaseApp.getInstance());
+	}
+
 }

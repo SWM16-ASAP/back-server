@@ -15,34 +15,36 @@ import java.util.List;
 @AllArgsConstructor
 @Schema(description = "공통 페이지네이션 응답")
 public class PageResponse<T> {
-    @Schema(description = "응답 데이터")
-    private List<T> data;
-    
-    @Schema(description = "현재 페이지", example = "1")
-    private int currentPage;
-    
-    @Schema(description = "전체 페이지", example = "10")
-    private int totalPages;
-    
-    @Schema(description = "전체 항목 수", example = "100")
-    private int totalCount;
-    
-    @Schema(description = "다음 페이지 존재 여부", example = "true")
-    private boolean hasNext;
-    
-    @Schema(description = "이전 페이지 존재 여부", example = "false")
-    private boolean hasPrevious;
 
-    public PageResponse(List<T> data, Page<?> page) {
-        this.data = data;
-        this.currentPage = page.getNumber() + 1; // 0-based to 1-based
-        this.totalPages = page.getTotalPages();
-        this.totalCount = (int) page.getTotalElements(); // 총 항목 수
-        this.hasNext = page.hasNext();
-        this.hasPrevious = page.hasPrevious();
-    }
+	@Schema(description = "응답 데이터")
+	private List<T> data;
 
-    public static <T> PageResponse<T> of(Page<?> page, List<T> data) {
-        return new PageResponse<>(data, page);
-    }
-} 
+	@Schema(description = "현재 페이지", example = "1")
+	private int currentPage;
+
+	@Schema(description = "전체 페이지", example = "10")
+	private int totalPages;
+
+	@Schema(description = "전체 항목 수", example = "100")
+	private int totalCount;
+
+	@Schema(description = "다음 페이지 존재 여부", example = "true")
+	private boolean hasNext;
+
+	@Schema(description = "이전 페이지 존재 여부", example = "false")
+	private boolean hasPrevious;
+
+	public PageResponse(List<T> data, Page<?> page) {
+		this.data = data;
+		this.currentPage = page.getNumber() + 1; // 0-based to 1-based
+		this.totalPages = page.getTotalPages();
+		this.totalCount = (int) page.getTotalElements(); // 총 항목 수
+		this.hasNext = page.hasNext();
+		this.hasPrevious = page.hasPrevious();
+	}
+
+	public static <T> PageResponse<T> of(Page<?> page, List<T> data) {
+		return new PageResponse<>(data, page);
+	}
+
+}

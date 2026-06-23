@@ -12,12 +12,14 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Document(collection = "appVersion")
 public class AppVersion {
-    @Id
-    private String id;
-    
-    private String latestVersion;
-    
-    private String minimumVersion;
-    
-    private LocalDateTime updatedAt;
+
+	@Id
+	private String id;
+
+	private String latestVersion;
+
+	private String minimumVersion;
+
+	private LocalDateTime updatedAt;
+
 }

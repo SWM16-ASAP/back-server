@@ -12,9 +12,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "리프레시 토큰 응답")
 public class RefreshTokenResponse {
-    @Schema(description = "새로운 Access Token")
-    private String accessToken;
-    
-    @Schema(description = "새로운 Refresh Token")
-    private String refreshToken;
-} 
+
+	@Schema(description = "새로운 Access Token")
+	private String accessToken;
+
+	@Schema(description = "새로운 Refresh Token")
+	private String refreshToken;
+
+}

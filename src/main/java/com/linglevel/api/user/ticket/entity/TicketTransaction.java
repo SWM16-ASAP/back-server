@@ -16,20 +16,21 @@ import java.time.LocalDateTime;
 @Document(collection = "ticketTransactions")
 @CompoundIndex(name = "userId_createdAt", def = "{'userId': 1, 'createdAt': -1}")
 public class TicketTransaction {
-    
-    @Id
-    private String id;
-    
-    private String userId;
-    
-    private Integer amount; // 양수: 획득, 음수: 사용
-    
-    private String description;
-    
-    private TransactionStatus status;
-    
-    private String reservationId; // 예약 그룹 ID
-    
-    @CreatedDate
-    private LocalDateTime createdAt;
+
+	@Id
+	private String id;
+
+	private String userId;
+
+	private Integer amount; // 양수: 획득, 음수: 사용
+
+	private String description;
+
+	private TransactionStatus status;
+
+	private String reservationId; // 예약 그룹 ID
+
+	@CreatedDate
+	private LocalDateTime createdAt;
+
 }

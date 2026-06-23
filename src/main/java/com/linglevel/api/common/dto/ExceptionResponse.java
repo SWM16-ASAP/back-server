@@ -12,10 +12,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "공통 예외처리 응답")
 public class ExceptionResponse {
-    @Schema(description = "에러 메시지", example = "error message")
-    private String message;
 
-    public ExceptionResponse(Exception exception) {
-        this.message = exception.getMessage();
-    }
+	@Schema(description = "에러 메시지", example = "error message")
+	private String message;
+
+	public ExceptionResponse(Exception exception) {
+		this.message = exception.getMessage();
+	}
+
 }

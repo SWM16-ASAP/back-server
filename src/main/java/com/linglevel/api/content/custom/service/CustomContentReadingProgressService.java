@@ -28,196 +28,192 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class CustomContentReadingProgressService {
 
-    private final CustomContentService customContentService;
-    private final CustomContentChunkService customContentChunkService;
-    private final CustomContentProgressRepository customContentProgressRepository;
-    private final CustomContentChunkRepository customContentChunkRepository;
-    private final ProgressCalculationService progressCalculationService;
-    private final ReadingCompletionService readingCompletionService;
-    private final StreakService streakService;
+	private final CustomContentService customContentService;
 
+	private final CustomContentChunkService customContentChunkService;
 
-    @Transactional
-    public CustomContentReadingProgressResponse updateProgress(String customId, CustomContentReadingProgressUpdateRequest request, String userId) {
-        // 커스텀 콘텐츠 존재 여부 확인
-        if (!customContentService.existsById(customId)) {
-            throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
-        }
+	private final CustomContentProgressRepository customContentProgressRepository;
 
-        // chunkId로부터 chunk 정보 조회
-        CustomContentChunk chunk = customContentChunkService.findById(request.getChunkId());
+	private final CustomContentChunkRepository customContentChunkRepository;
 
-        // chunk가 해당 custom content에 속하는지 검증
-        if (chunk.getCustomContentId() == null || !chunk.getCustomContentId().equals(customId)) {
-            throw new CustomContentException(CustomContentErrorCode.CHUNK_NOT_FOUND_IN_CUSTOM_CONTENT);
-        }
+	private final ProgressCalculationService progressCalculationService;
 
-        CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
-                .orElse(new CustomContentProgress());
+	private final ReadingCompletionService readingCompletionService;
 
-        ensureMigrated(customProgress, chunk);
+	private final StreakService streakService;
 
-        // Null 체크
-        if (chunk.getChunkNum() == null) {
-            throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND);
-        }
+	@Transactional
+	public CustomContentReadingProgressResponse updateProgress(String customId,
+			CustomContentReadingProgressUpdateRequest request, String userId) {
+		// 커스텀 콘텐츠 존재 여부 확인
+		if (!customContentService.existsById(customId)) {
+			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
+		}
 
-        customProgress.setUserId(userId);
-        customProgress.setCustomId(customId);
-        customProgress.setChunkId(request.getChunkId());
+		// chunkId로부터 chunk 정보 조회
+		CustomContentChunk chunk = customContentChunkService.findById(request.getChunkId());
 
-        // [V2_CORE] V2 필드: 정규화된 진행률 계산
-        long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
-            customId, chunk.getDifficultyLevel()
-        );
-        double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-            chunk.getChunkNum(), totalChunks
-        );
+		// chunk가 해당 custom content에 속하는지 검증
+		if (chunk.getCustomContentId() == null || !chunk.getCustomContentId().equals(customId)) {
+			throw new CustomContentException(CustomContentErrorCode.CHUNK_NOT_FOUND_IN_CUSTOM_CONTENT);
+		}
 
-        customProgress.setNormalizedProgress(normalizedProgress);
-        customProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+		CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
+			.orElse(new CustomContentProgress());
 
-        // maxNormalizedProgress 업데이트 (누적 최대값)
-        if (progressCalculationService.shouldUpdateMaxProgress(
-                customProgress.getMaxNormalizedProgress(), normalizedProgress)) {
-            customProgress.setMaxNormalizedProgress(normalizedProgress);
-        }
+		ensureMigrated(customProgress, chunk);
 
-        // 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
-        // CustomContent는 Feed에서 생성되므로 category는 null, EventListener에서 Feed 업데이트 처리
-        Long readTimeSeconds = readingCompletionService.processReadingCompletion(
-                userId,
-                ContentType.CUSTOM,
-                customId,
-                null
-        );
+		// Null 체크
+		if (chunk.getChunkNum() == null) {
+			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND);
+		}
 
-        // 스트릭 검사 및 완료 처리 로직
-        boolean streakUpdated = false;
-        if (isLastChunk(chunk)) {
-            // 첫 완료 시에만 isCompleted와 completedAt 설정
-            if (customProgress.getCompletedAt() == null) {
-                customProgress.setIsCompleted(true);
-                customProgress.setCompletedAt(java.time.Instant.now());
-            }
+		customProgress.setUserId(userId);
+		customProgress.setCustomId(customId);
+		customProgress.setChunkId(request.getChunkId());
 
-            // 스트릭 업데이트 (30초 이상 읽은 경우에만)
-            if (readTimeSeconds != null && readTimeSeconds >= 30) {
-                streakService.addStudyTime(userId, readTimeSeconds);
-                streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
-                streakService.addCompletedContent(userId, ContentType.CUSTOM, customId, streakUpdated);
-            }
-        }
+		// [V2_CORE] V2 필드: 정규화된 진행률 계산
+		long totalChunks = customContentChunkRepository
+			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(customId, chunk.getDifficultyLevel());
+		double normalizedProgress = progressCalculationService.calculateNormalizedProgress(chunk.getChunkNum(),
+				totalChunks);
 
-        customContentProgressRepository.save(customProgress);
+		customProgress.setNormalizedProgress(normalizedProgress);
+		customProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
-        return convertToCustomContentReadingProgressResponse(customProgress, streakUpdated);
-    }
+		// maxNormalizedProgress 업데이트 (누적 최대값)
+		if (progressCalculationService.shouldUpdateMaxProgress(customProgress.getMaxNormalizedProgress(),
+				normalizedProgress)) {
+			customProgress.setMaxNormalizedProgress(normalizedProgress);
+		}
 
-    private boolean isLastChunk(CustomContentChunk chunk) {
-        long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
-            chunk.getCustomContentId(), chunk.getDifficultyLevel()
-        );
-        return chunk.getChunkNum() >= totalChunks;
-    }
+		// 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
+		// CustomContent는 Feed에서 생성되므로 category는 null, EventListener에서 Feed 업데이트 처리
+		Long readTimeSeconds = readingCompletionService.processReadingCompletion(userId, ContentType.CUSTOM, customId,
+				null);
 
-    private void ensureMigrated(CustomContentProgress progress, CustomContentChunk chunk) {
-        boolean needsMigration = false;
+		// 스트릭 검사 및 완료 처리 로직
+		boolean streakUpdated = false;
+		if (isLastChunk(chunk)) {
+			// 첫 완료 시에만 isCompleted와 completedAt 설정
+			if (customProgress.getCompletedAt() == null) {
+				customProgress.setIsCompleted(true);
+				customProgress.setCompletedAt(java.time.Instant.now());
+			}
 
-        if (progress.getNormalizedProgress() == null) {
-            long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
-                chunk.getCustomContentId(), chunk.getDifficultyLevel()
-            );
-            double normalizedProgress = progressCalculationService.calculateNormalizedProgress(
-                chunk.getChunkNum(), totalChunks
-            );
-            progress.setNormalizedProgress(normalizedProgress);
-            progress.setMaxNormalizedProgress(normalizedProgress);
-            needsMigration = true;
-        }
+			// 스트릭 업데이트 (30초 이상 읽은 경우에만)
+			if (readTimeSeconds != null && readTimeSeconds >= 30) {
+				streakService.addStudyTime(userId, readTimeSeconds);
+				streakUpdated = streakService.updateStreak(userId, ContentType.CUSTOM, customId);
+				streakService.addCompletedContent(userId, ContentType.CUSTOM, customId, streakUpdated);
+			}
+		}
 
-        if (progress.getCurrentDifficultyLevel() == null) {
-            progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
-            needsMigration = true;
-        }
+		customContentProgressRepository.save(customProgress);
 
-        if (needsMigration) {
-            log.info("V2 migration completed for CustomContentProgress id={}, userId={}",
-                progress.getId(), progress.getUserId());
-        }
-    }
+		return convertToCustomContentReadingProgressResponse(customProgress, streakUpdated);
+	}
 
+	private boolean isLastChunk(CustomContentChunk chunk) {
+		long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+				chunk.getCustomContentId(), chunk.getDifficultyLevel());
+		return chunk.getChunkNum() >= totalChunks;
+	}
 
-    @Transactional(readOnly = true)
-    public CustomContentReadingProgressResponse getProgress(String customId, String userId) {
-        // 커스텀 콘텐츠 존재 여부 확인
-        if (!customContentService.existsById(customId)) {
-            throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
-        }
+	private void ensureMigrated(CustomContentProgress progress, CustomContentChunk chunk) {
+		boolean needsMigration = false;
 
-        CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
-                .orElseGet(() -> initializeProgress(userId, customId));
+		if (progress.getNormalizedProgress() == null) {
+			long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+					chunk.getCustomContentId(), chunk.getDifficultyLevel());
+			double normalizedProgress = progressCalculationService.calculateNormalizedProgress(chunk.getChunkNum(),
+					totalChunks);
+			progress.setNormalizedProgress(normalizedProgress);
+			progress.setMaxNormalizedProgress(normalizedProgress);
+			needsMigration = true;
+		}
 
-        return convertToCustomContentReadingProgressResponse(customProgress, false);
-    }
+		if (progress.getCurrentDifficultyLevel() == null) {
+			progress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
+			needsMigration = true;
+		}
 
-    private CustomContentProgress initializeProgress(String userId, String customId) {
-        // 첫 번째 청크로 초기화
-        CustomContentChunk firstChunk = customContentChunkService.findFirstByCustomContentId(customId);
+		if (needsMigration) {
+			log.info("V2 migration completed for CustomContentProgress id={}, userId={}", progress.getId(),
+					progress.getUserId());
+		}
+	}
 
-        CustomContentProgress newProgress = new CustomContentProgress();
-        newProgress.setUserId(userId);
-        newProgress.setCustomId(customId);
-        newProgress.setChunkId(firstChunk.getId());
+	@Transactional(readOnly = true)
+	public CustomContentReadingProgressResponse getProgress(String customId, String userId) {
+		// 커스텀 콘텐츠 존재 여부 확인
+		if (!customContentService.existsById(customId)) {
+			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
+		}
 
-        // [V2_CORE] V2 필드: 초기 진행률 계산
-        long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
-            customId, firstChunk.getDifficultyLevel()
-        );
-        double initialProgress = progressCalculationService.calculateNormalizedProgress(
-            firstChunk.getChunkNum(), totalChunks
-        );
+		CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
+			.orElseGet(() -> initializeProgress(userId, customId));
 
-        newProgress.setNormalizedProgress(initialProgress);
-        newProgress.setMaxNormalizedProgress(initialProgress);
-        newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
+		return convertToCustomContentReadingProgressResponse(customProgress, false);
+	}
 
-        return customContentProgressRepository.save(newProgress);
-    }
+	private CustomContentProgress initializeProgress(String userId, String customId) {
+		// 첫 번째 청크로 초기화
+		CustomContentChunk firstChunk = customContentChunkService.findFirstByCustomContentId(customId);
 
-    @Transactional
-    public void deleteProgress(String customId, String userId) {
-        if (!customContentService.existsById(customId)) {
-            throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
-        }
+		CustomContentProgress newProgress = new CustomContentProgress();
+		newProgress.setUserId(userId);
+		newProgress.setCustomId(customId);
+		newProgress.setChunkId(firstChunk.getId());
 
-        CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
-                .orElseThrow(() -> new CustomContentException(CustomContentErrorCode.PROGRESS_NOT_FOUND));
+		// [V2_CORE] V2 필드: 초기 진행률 계산
+		long totalChunks = customContentChunkRepository
+			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(customId, firstChunk.getDifficultyLevel());
+		double initialProgress = progressCalculationService.calculateNormalizedProgress(firstChunk.getChunkNum(),
+				totalChunks);
 
-        customContentProgressRepository.delete(customProgress);
-    }
+		newProgress.setNormalizedProgress(initialProgress);
+		newProgress.setMaxNormalizedProgress(initialProgress);
+		newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
 
-    private CustomContentReadingProgressResponse convertToCustomContentReadingProgressResponse(CustomContentProgress progress, boolean streakUpdated) {
-        // [DTO_MAPPING] chunk에서 chunkNum 조회
-        CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
+		return customContentProgressRepository.save(newProgress);
+	}
 
-        if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
-            log.warn("CustomContentProgress {} not migrated yet - this should only happen on read-only access",
-                progress.getId());
-        }
+	@Transactional
+	public void deleteProgress(String customId, String userId) {
+		if (!customContentService.existsById(customId)) {
+			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
+		}
 
-        return CustomContentReadingProgressResponse.builder()
-                .id(progress.getId())
-                .userId(progress.getUserId())
-                .customId(progress.getCustomId())
-                .chunkId(progress.getChunkId())
-                .currentReadChunkNumber(chunk.getChunkNum())
-                .isCompleted(progress.getIsCompleted())
-                .currentDifficultyLevel(progress.getCurrentDifficultyLevel())
-                .normalizedProgress(progress.getNormalizedProgress())
-                .maxNormalizedProgress(progress.getMaxNormalizedProgress())
-                .streakUpdated(streakUpdated)
-                .updatedAt(progress.getUpdatedAt())
-                .build();
-    }
+		CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
+			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.PROGRESS_NOT_FOUND));
+
+		customContentProgressRepository.delete(customProgress);
+	}
+
+	private CustomContentReadingProgressResponse convertToCustomContentReadingProgressResponse(
+			CustomContentProgress progress, boolean streakUpdated) {
+		// [DTO_MAPPING] chunk에서 chunkNum 조회
+		CustomContentChunk chunk = customContentChunkService.findById(progress.getChunkId());
+
+		if (progress.getNormalizedProgress() == null || progress.getCurrentDifficultyLevel() == null) {
+			log.warn("CustomContentProgress {} not migrated yet - this should only happen on read-only access",
+					progress.getId());
+		}
+
+		return CustomContentReadingProgressResponse.builder()
+			.id(progress.getId())
+			.userId(progress.getUserId())
+			.customId(progress.getCustomId())
+			.chunkId(progress.getChunkId())
+			.currentReadChunkNumber(chunk.getChunkNum())
+			.isCompleted(progress.getIsCompleted())
+			.currentDifficultyLevel(progress.getCurrentDifficultyLevel())
+			.normalizedProgress(progress.getNormalizedProgress())
+			.maxNormalizedProgress(progress.getMaxNormalizedProgress())
+			.streakUpdated(streakUpdated)
+			.updatedAt(progress.getUpdatedAt())
+			.build();
+	}
+
 }

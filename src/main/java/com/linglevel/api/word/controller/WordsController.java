@@ -40,34 +40,35 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Words", description = "단어 관련 API")
 public class WordsController {
 
-    private final WordService wordService;
-    private final WordValidator wordValidator;
+	private final WordService wordService;
 
-    @Operation(summary = "단일 단어 조회", description = "특정 단어의 상세 정보를 조회합니다. Homograph인 경우 여러 결과를 반환합니다. 현재 사용자의 북마크 상태도 함께 반환됩니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "단어를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @RateLimit(capacity = 30, refillMinutes = 1, keyType = KeyType.USER)
-    @GetMapping("/{word}")
-    public ResponseEntity<WordSearchResponse> getWord(
-            @Parameter(description = "조회할 단어", example = "saw")
-            @PathVariable String word,
-            @ParameterObject @Valid @ModelAttribute WordSearchRequest request,
-            @AuthenticationPrincipal JwtClaims claims) {
-        if (request.getTargetLanguage() == LanguageCode.EN) throw new WordsException(WordsErrorCode.SAME_SOURCE_TARGET_LANGUAGE);
-        String validatedWord = wordValidator.validateAndPreprocess(word);
-        WordSearchResponse response = wordService.getOrCreateWords(claims.getId(), validatedWord, request.getTargetLanguage());
-        return ResponseEntity.ok(response);
-    }
+	private final WordValidator wordValidator;
 
-    @ExceptionHandler(WordsException.class)
-    public ResponseEntity<ExceptionResponse> handleWordsException(WordsException e) {
-        log.info("Words Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e));
-    }
+	@Operation(summary = "단일 단어 조회",
+			description = "특정 단어의 상세 정보를 조회합니다. Homograph인 경우 여러 결과를 반환합니다. 현재 사용자의 북마크 상태도 함께 반환됩니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "단어를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "인증 실패",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@RateLimit(capacity = 30, refillMinutes = 1, keyType = KeyType.USER)
+	@GetMapping("/{word}")
+	public ResponseEntity<WordSearchResponse> getWord(
+			@Parameter(description = "조회할 단어", example = "saw") @PathVariable String word,
+			@ParameterObject @Valid @ModelAttribute WordSearchRequest request,
+			@AuthenticationPrincipal JwtClaims claims) {
+		if (request.getTargetLanguage() == LanguageCode.EN)
+			throw new WordsException(WordsErrorCode.SAME_SOURCE_TARGET_LANGUAGE);
+		String validatedWord = wordValidator.validateAndPreprocess(word);
+		WordSearchResponse response = wordService.getOrCreateWords(claims.getId(), validatedWord,
+				request.getTargetLanguage());
+		return ResponseEntity.ok(response);
+	}
+
+	@ExceptionHandler(WordsException.class)
+	public ResponseEntity<ExceptionResponse> handleWordsException(WordsException e) {
+		log.info("Words Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
+	}
+
 }

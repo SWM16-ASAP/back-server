@@ -15,50 +15,46 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
-@Profile({"dev", "local"})
+@Profile({ "dev", "local" })
 @Configuration
 @EnableWebSecurity
 public class SwaggerFormLoginSecurityConfig {
 
-    private final PasswordEncoder passwordEncoder;
-    @Value("${api.docs.user.username}")
-    private String username;
-    @Value("${api.docs.user.password}")
-    private String password;
+	private final PasswordEncoder passwordEncoder;
 
-    public SwaggerFormLoginSecurityConfig(PasswordEncoder passwordEncoder) {
-        this.passwordEncoder = passwordEncoder;
-    }
+	@Value("${api.docs.user.username}")
+	private String username;
 
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
-        
-        http.securityMatcher("/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**", "/login")
-                .authorizeHttpRequests(authorize -> authorize
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(session -> 
-                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                )
-                .csrf(csrf -> csrf.disable())
-                .formLogin(form -> form
-                        .defaultSuccessUrl("/swagger-ui/index.html", true)
-                        .permitAll()
-                )
-                .userDetailsService(swaggerUserDetailsService());
+	@Value("${api.docs.user.password}")
+	private String password;
 
-        return http.build();
-    }
+	public SwaggerFormLoginSecurityConfig(PasswordEncoder passwordEncoder) {
+		this.passwordEncoder = passwordEncoder;
+	}
 
-    @Bean
-    public InMemoryUserDetailsManager swaggerUserDetailsService() {
-        UserDetails user = User.builder()
-                .username(username)
-                .password(passwordEncoder.encode(password))
-                .roles("SWAGGER")
-                .build();
+	@Bean
+	@Order(Ordered.HIGHEST_PRECEDENCE)
+	public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
 
-        return new InMemoryUserDetailsManager(user);
-    }
+		http.securityMatcher("/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**", "/login")
+			.authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
+			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+			.csrf(csrf -> csrf.disable())
+			.formLogin(form -> form.defaultSuccessUrl("/swagger-ui/index.html", true).permitAll())
+			.userDetailsService(swaggerUserDetailsService());
+
+		return http.build();
+	}
+
+	@Bean
+	public InMemoryUserDetailsManager swaggerUserDetailsService() {
+		UserDetails user = User.builder()
+			.username(username)
+			.password(passwordEncoder.encode(password))
+			.roles("SWAGGER")
+			.build();
+
+		return new InMemoryUserDetailsManager(user);
+	}
+
 }

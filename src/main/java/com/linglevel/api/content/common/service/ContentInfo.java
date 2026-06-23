@@ -14,12 +14,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ContentInfo {
 
-    private String title;
-    private String author;
-    private String coverImageUrl;
-    private Integer readingTime;
+	private String title;
 
-    public boolean isPresent() {
-        return title != null;
-    }
+	private String author;
+
+	private String coverImageUrl;
+
+	private Integer readingTime;
+
+	public boolean isPresent() {
+		return title != null;
+	}
+
 }

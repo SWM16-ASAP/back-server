@@ -7,12 +7,14 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class SuggestionRequest {
-    @Schema(description = "건의자 이메일", example = "user@example.com")
-    private String email = "익명";
 
-    @Schema(description = "건의 태그 (쉼표로 구분)", example = "bug,ui,feature")
-    private String tags = "태그없음";
+	@Schema(description = "건의자 이메일", example = "user@example.com")
+	private String email = "익명";
 
-    @Schema(description = "건의 내용", example = "이런이런 기능이 추가되었으면 좋겠습니다.", required = true)
-    private String content;
+	@Schema(description = "건의 태그 (쉼표로 구분)", example = "bug,ui,feature")
+	private String tags = "태그없음";
+
+	@Schema(description = "건의 내용", example = "이런이런 기능이 추가되었으면 좋겠습니다.", required = true)
+	private String content;
+
 }

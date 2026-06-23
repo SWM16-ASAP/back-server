@@ -17,15 +17,14 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Push Logs", description = "푸시 알림 로그 API")
 public class PushLogController {
 
-    private final PushLogService pushLogService;
+	private final PushLogService pushLogService;
 
-    @PostMapping("/opened")
-    @Operation(
-            summary = "푸시 알림 오픈 리포트",
-            description = "클라이언트에서 사용자가 푸시 알림을 탭하여 열었을 때 서버에 리포트합니다. 인증 불필요 (userId는 요청 본문에 포함)."
-    )
-    public ResponseEntity<Void> logOpened(@Valid @RequestBody PushOpenedRequest request) {
-        pushLogService.logOpened(request.getUserId(), request.getCampaignId(), request.getOpenedAt());
-        return ResponseEntity.ok().build();
-    }
+	@PostMapping("/opened")
+	@Operation(summary = "푸시 알림 오픈 리포트",
+			description = "클라이언트에서 사용자가 푸시 알림을 탭하여 열었을 때 서버에 리포트합니다. 인증 불필요 (userId는 요청 본문에 포함).")
+	public ResponseEntity<Void> logOpened(@Valid @RequestBody PushOpenedRequest request) {
+		pushLogService.logOpened(request.getUserId(), request.getCampaignId(), request.getOpenedAt());
+		return ResponseEntity.ok().build();
+	}
+
 }

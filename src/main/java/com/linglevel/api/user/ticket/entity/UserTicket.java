@@ -17,22 +17,23 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Document(collection = "userTickets")
 public class UserTicket {
-    
-    @Id
-    private String id;
-    
-    @Indexed(unique = true)
-    private String userId;
-    
-    @Builder.Default
-    private Integer balance = 0;
-    
-    @Version
-    private Long version;
-    
-    @CreatedDate
-    private LocalDateTime createdAt;
-    
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
+
+	@Id
+	private String id;
+
+	@Indexed(unique = true)
+	private String userId;
+
+	@Builder.Default
+	private Integer balance = 0;
+
+	@Version
+	private Long version;
+
+	@CreatedDate
+	private LocalDateTime createdAt;
+
+	@LastModifiedDate
+	private LocalDateTime updatedAt;
+
 }

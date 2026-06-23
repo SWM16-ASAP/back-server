@@ -12,13 +12,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateDslResponse {
-    
-    @Schema(description = "생성된 DSL ID", example = "60d0fe4f5311236168a109ca")
-    private String id;
-    
-    @Schema(description = "도메인명", example = "coupang.com")
-    private String domain;
-    
-    @Schema(description = "응답 메시지", example = "DSL created successfully.")
-    private String message;
+
+	@Schema(description = "생성된 DSL ID", example = "60d0fe4f5311236168a109ca")
+	private String id;
+
+	@Schema(description = "도메인명", example = "coupang.com")
+	private String domain;
+
+	@Schema(description = "응답 메시지", example = "DSL created successfully.")
+	private String message;
+
 }

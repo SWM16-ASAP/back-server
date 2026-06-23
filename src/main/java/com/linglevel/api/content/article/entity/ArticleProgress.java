@@ -19,26 +19,28 @@ import java.time.Instant;
 @Document(collection = "articleProgress")
 @CompoundIndex(name = "idx_user_article_progress", def = "{'userId': 1, 'articleId': 1}", unique = true)
 public class ArticleProgress {
-    @Id
-    private String id;
 
-    private String userId;
+	@Id
+	private String id;
 
-    private String articleId;
+	private String userId;
 
-    private String chunkId;
+	private String articleId;
 
-    // V2 Progress Fields
-    private Double normalizedProgress;
+	private String chunkId;
 
-    private Double maxNormalizedProgress;
+	// V2 Progress Fields
+	private Double normalizedProgress;
 
-    private DifficultyLevel currentDifficultyLevel;
+	private Double maxNormalizedProgress;
 
-    private Boolean isCompleted = false;
+	private DifficultyLevel currentDifficultyLevel;
 
-    private Instant completedAt;
+	private Boolean isCompleted = false;
 
-    @LastModifiedDate
-    private Instant updatedAt;
+	private Instant completedAt;
+
+	@LastModifiedDate
+	private Instant updatedAt;
+
 }

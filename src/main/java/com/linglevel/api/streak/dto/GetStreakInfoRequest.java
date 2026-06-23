@@ -15,7 +15,8 @@ import lombok.NoArgsConstructor;
 @Schema(description = "스트릭 정보 조회 요청")
 public class GetStreakInfoRequest {
 
-    @Builder.Default
-    @Schema(description = "언어 코드 (기본값: EN)", example = "EN", required = false)
-    private LanguageCode languageCode = LanguageCode.EN;
+	@Builder.Default
+	@Schema(description = "언어 코드 (기본값: EN)", example = "EN", required = false)
+	private LanguageCode languageCode = LanguageCode.EN;
+
 }

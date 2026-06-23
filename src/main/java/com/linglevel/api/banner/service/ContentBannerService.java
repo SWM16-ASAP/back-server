@@ -27,163 +27,163 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ContentBannerService {
 
-    private final ContentBannerRepository contentBannerRepository;
-    private final ContentInfoProviderFactory contentInfoProviderFactory;
+	private final ContentBannerRepository contentBannerRepository;
 
-    /**
-     * 활성화된 배너 목록 조회 (국가별, 표시순서)
-     */
-    public List<ContentBannerResponse> getActiveBanners(CountryCode countryCode) {
-        log.debug("Getting active banners for country: {}", countryCode);
+	private final ContentInfoProviderFactory contentInfoProviderFactory;
 
-        List<ContentBanner> banners = contentBannerRepository
-                .findByCountryCodeAndIsActiveTrueOrderByDisplayOrderAsc(countryCode);
+	/**
+	 * 활성화된 배너 목록 조회 (국가별, 표시순서)
+	 */
+	public List<ContentBannerResponse> getActiveBanners(CountryCode countryCode) {
+		log.debug("Getting active banners for country: {}", countryCode);
 
-        return banners.stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
-    }
+		List<ContentBanner> banners = contentBannerRepository
+			.findByCountryCodeAndIsActiveTrueOrderByDisplayOrderAsc(countryCode);
 
-    /**
-     * 배너 목록 조회 (페이지네이션)
-     */
-    public Page<ContentBannerResponse> getBanners(CountryCode countryCode, int page, int size) {
-        log.debug("Getting banners for country: {}, page: {}, size: {}", countryCode, page, size);
+		return banners.stream().map(this::convertToResponse).collect(Collectors.toList());
+	}
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("displayOrder").ascending());
-        Page<ContentBanner> bannerPage = contentBannerRepository.findByCountryCode(countryCode, pageable);
+	/**
+	 * 배너 목록 조회 (페이지네이션)
+	 */
+	public Page<ContentBannerResponse> getBanners(CountryCode countryCode, int page, int size) {
+		log.debug("Getting banners for country: {}, page: {}, size: {}", countryCode, page, size);
 
-        return bannerPage.map(this::convertToResponse);
-    }
+		Pageable pageable = PageRequest.of(page, size, Sort.by("displayOrder").ascending());
+		Page<ContentBanner> bannerPage = contentBannerRepository.findByCountryCode(countryCode, pageable);
 
-    /**
-     * 특정 배너 조회
-     */
-    public ContentBannerResponse getBanner(String bannerId) {
-        log.debug("Getting banner by id: {}", bannerId);
+		return bannerPage.map(this::convertToResponse);
+	}
 
-        ContentBanner banner = contentBannerRepository.findById(bannerId)
-                .orElseThrow(() -> new BannerException(BannerErrorCode.BANNER_NOT_FOUND));
+	/**
+	 * 특정 배너 조회
+	 */
+	public ContentBannerResponse getBanner(String bannerId) {
+		log.debug("Getting banner by id: {}", bannerId);
 
-        return convertToResponse(banner);
-    }
+		ContentBanner banner = contentBannerRepository.findById(bannerId)
+			.orElseThrow(() -> new BannerException(BannerErrorCode.BANNER_NOT_FOUND));
 
-    /**
-     * 배너 생성
-     */
-    public ContentBannerResponse createBanner(CreateContentBannerRequest request) {
-        log.info("Creating new banner for content: {} ({})", request.getContentId(), request.getContentType());
+		return convertToResponse(banner);
+	}
 
-        // displayOrder가 제공되지 않았거나 중복인 경우 처리
-        Integer displayOrder = request.getDisplayOrder();
-        if (displayOrder == null || contentBannerRepository.existsByCountryCodeAndDisplayOrder(request.getCountryCode(), displayOrder)) {
-            displayOrder = getNextDisplayOrder(request.getCountryCode());
-            log.debug("Using next available display order: {}", displayOrder);
-        }
+	/**
+	 * 배너 생성
+	 */
+	public ContentBannerResponse createBanner(CreateContentBannerRequest request) {
+		log.info("Creating new banner for content: {} ({})", request.getContentId(), request.getContentType());
 
-        ContentBanner banner = new ContentBanner();
-        banner.setCountryCode(request.getCountryCode());
-        banner.setContentId(request.getContentId());
-        banner.setContentType(request.getContentType());
-        banner.setSubtitle(request.getSubtitle());
-        banner.setTitle(request.getTitle());
-        banner.setDescription(request.getDescription());
-        banner.setDisplayOrder(displayOrder);
-        banner.setIsActive(request.getIsActive());
-        banner.setCreatedAt(LocalDateTime.now());
+		// displayOrder가 제공되지 않았거나 중복인 경우 처리
+		Integer displayOrder = request.getDisplayOrder();
+		if (displayOrder == null
+				|| contentBannerRepository.existsByCountryCodeAndDisplayOrder(request.getCountryCode(), displayOrder)) {
+			displayOrder = getNextDisplayOrder(request.getCountryCode());
+			log.debug("Using next available display order: {}", displayOrder);
+		}
 
-        ContentInfo contentInfo = contentInfoProviderFactory.getContentInfo(
-                request.getContentId(), request.getContentType());
+		ContentBanner banner = new ContentBanner();
+		banner.setCountryCode(request.getCountryCode());
+		banner.setContentId(request.getContentId());
+		banner.setContentType(request.getContentType());
+		banner.setSubtitle(request.getSubtitle());
+		banner.setTitle(request.getTitle());
+		banner.setDescription(request.getDescription());
+		banner.setDisplayOrder(displayOrder);
+		banner.setIsActive(request.getIsActive());
+		banner.setCreatedAt(LocalDateTime.now());
 
-        banner.setContentTitle(contentInfo.getTitle());
-        banner.setContentAuthor(contentInfo.getAuthor());
-        banner.setContentCoverImageUrl(contentInfo.getCoverImageUrl());
-        banner.setContentReadingTime(contentInfo.getReadingTime());
+		ContentInfo contentInfo = contentInfoProviderFactory.getContentInfo(request.getContentId(),
+				request.getContentType());
 
-        ContentBanner savedBanner = contentBannerRepository.save(banner);
-        log.info("Banner created successfully with id: {}", savedBanner.getId());
+		banner.setContentTitle(contentInfo.getTitle());
+		banner.setContentAuthor(contentInfo.getAuthor());
+		banner.setContentCoverImageUrl(contentInfo.getCoverImageUrl());
+		banner.setContentReadingTime(contentInfo.getReadingTime());
 
-        return convertToResponse(savedBanner);
-    }
+		ContentBanner savedBanner = contentBannerRepository.save(banner);
+		log.info("Banner created successfully with id: {}", savedBanner.getId());
 
-    /**
-     * 배너 수정
-     */
-    public ContentBannerResponse updateBanner(String bannerId, UpdateContentBannerRequest request) {
-        log.info("Updating banner: {}", bannerId);
+		return convertToResponse(savedBanner);
+	}
 
-        ContentBanner banner = contentBannerRepository.findById(bannerId)
-                .orElseThrow(() -> new BannerException(BannerErrorCode.BANNER_NOT_FOUND));
+	/**
+	 * 배너 수정
+	 */
+	public ContentBannerResponse updateBanner(String bannerId, UpdateContentBannerRequest request) {
+		log.info("Updating banner: {}", bannerId);
 
-        if (request.getTitle() != null) {
-            banner.setTitle(request.getTitle());
-        }
-        if (request.getSubtitle() != null) {
-            banner.setSubtitle(request.getSubtitle());
-        }
-        if (request.getDescription() != null) {
-            banner.setDescription(request.getDescription());
-        }
-        if (request.getDisplayOrder() != null) {
-            banner.setDisplayOrder(request.getDisplayOrder());
-        }
-        if (request.getIsActive() != null) {
-            banner.setIsActive(request.getIsActive());
-        }
+		ContentBanner banner = contentBannerRepository.findById(bannerId)
+			.orElseThrow(() -> new BannerException(BannerErrorCode.BANNER_NOT_FOUND));
 
-        ContentBanner updatedBanner = contentBannerRepository.save(banner);
-        log.info("Banner updated successfully: {}", bannerId);
+		if (request.getTitle() != null) {
+			banner.setTitle(request.getTitle());
+		}
+		if (request.getSubtitle() != null) {
+			banner.setSubtitle(request.getSubtitle());
+		}
+		if (request.getDescription() != null) {
+			banner.setDescription(request.getDescription());
+		}
+		if (request.getDisplayOrder() != null) {
+			banner.setDisplayOrder(request.getDisplayOrder());
+		}
+		if (request.getIsActive() != null) {
+			banner.setIsActive(request.getIsActive());
+		}
 
-        return convertToResponse(updatedBanner);
-    }
+		ContentBanner updatedBanner = contentBannerRepository.save(banner);
+		log.info("Banner updated successfully: {}", bannerId);
 
-    /**
-     * 배너 삭제
-     */
-    public void deleteBanner(String bannerId) {
-        log.info("Deleting banner: {}", bannerId);
+		return convertToResponse(updatedBanner);
+	}
 
-        if (!contentBannerRepository.existsById(bannerId)) {
-            throw new BannerException(BannerErrorCode.BANNER_NOT_FOUND);
-        }
+	/**
+	 * 배너 삭제
+	 */
+	public void deleteBanner(String bannerId) {
+		log.info("Deleting banner: {}", bannerId);
 
-        contentBannerRepository.deleteById(bannerId);
-        log.info("Banner deleted successfully: {}", bannerId);
-    }
+		if (!contentBannerRepository.existsById(bannerId)) {
+			throw new BannerException(BannerErrorCode.BANNER_NOT_FOUND);
+		}
 
-    /**
-     * 다음 사용 가능한 표시순서 조회
-     */
-    private Integer getNextDisplayOrder(CountryCode countryCode) {
-        List<ContentBanner> banners = contentBannerRepository
-                .findByCountryCodeOrderByDisplayOrderDesc(countryCode);
+		contentBannerRepository.deleteById(bannerId);
+		log.info("Banner deleted successfully: {}", bannerId);
+	}
 
-        if (banners.isEmpty()) {
-            return 1;
-        }
+	/**
+	 * 다음 사용 가능한 표시순서 조회
+	 */
+	private Integer getNextDisplayOrder(CountryCode countryCode) {
+		List<ContentBanner> banners = contentBannerRepository.findByCountryCodeOrderByDisplayOrderDesc(countryCode);
 
-        return banners.get(0).getDisplayOrder() + 1;
-    }
+		if (banners.isEmpty()) {
+			return 1;
+		}
 
-    /**
-     * Entity를 Response DTO로 변환
-     */
-    private ContentBannerResponse convertToResponse(ContentBanner banner) {
-        ContentBannerResponse response = new ContentBannerResponse();
-        response.setId(banner.getId());
-        response.setCountryCode(banner.getCountryCode());
-        response.setContentId(banner.getContentId());
-        response.setContentType(banner.getContentType());
-        response.setContentTitle(banner.getContentTitle());
-        response.setContentAuthor(banner.getContentAuthor());
-        response.setContentCoverImageUrl(banner.getContentCoverImageUrl());
-        response.setContentReadingTime(banner.getContentReadingTime());
-        response.setSubtitle(banner.getSubtitle());
-        response.setTitle(banner.getTitle());
-        response.setDescription(banner.getDescription());
-        response.setDisplayOrder(banner.getDisplayOrder());
-        response.setIsActive(banner.getIsActive());
-        response.setCreatedAt(banner.getCreatedAt());
-        return response;
-    }
+		return banners.get(0).getDisplayOrder() + 1;
+	}
+
+	/**
+	 * Entity를 Response DTO로 변환
+	 */
+	private ContentBannerResponse convertToResponse(ContentBanner banner) {
+		ContentBannerResponse response = new ContentBannerResponse();
+		response.setId(banner.getId());
+		response.setCountryCode(banner.getCountryCode());
+		response.setContentId(banner.getContentId());
+		response.setContentType(banner.getContentType());
+		response.setContentTitle(banner.getContentTitle());
+		response.setContentAuthor(banner.getContentAuthor());
+		response.setContentCoverImageUrl(banner.getContentCoverImageUrl());
+		response.setContentReadingTime(banner.getContentReadingTime());
+		response.setSubtitle(banner.getSubtitle());
+		response.setTitle(banner.getTitle());
+		response.setDescription(banner.getDescription());
+		response.setDisplayOrder(banner.getDisplayOrder());
+		response.setIsActive(banner.getIsActive());
+		response.setCreatedAt(banner.getCreatedAt());
+		return response;
+	}
+
 }

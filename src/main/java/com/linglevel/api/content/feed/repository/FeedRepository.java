@@ -9,11 +9,12 @@ import java.util.Optional;
 
 public interface FeedRepository extends MongoRepository<Feed, String> {
 
-    boolean existsByUrl(String url);
+	boolean existsByUrl(String url);
 
-    Optional<Feed> findByUrl(String url);
+	Optional<Feed> findByUrl(String url);
 
-    List<Feed> findByDeletedFalse();
+	List<Feed> findByDeletedFalse();
 
-    Optional<Feed> findByIdAndDeletedFalse(String id);
+	Optional<Feed> findByIdAndDeletedFalse(String id);
+
 }

@@ -9,6 +9,7 @@ import lombok.Getter;
 @Schema(description = "메시지 응답")
 public class MessageResponse {
 
-    @Schema(description = "응답 메시지", example = "User account deleted successfully.")
-    private String message;
+	@Schema(description = "응답 메시지", example = "User account deleted successfully.")
+	private String message;
+
 }

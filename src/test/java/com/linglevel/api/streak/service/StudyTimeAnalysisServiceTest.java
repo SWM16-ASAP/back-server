@@ -28,211 +28,204 @@ import static org.mockito.Mockito.*;
 @DisplayName("학습 시간 분석 서비스 테스트")
 class StudyTimeAnalysisServiceTest {
 
-    @Mock
-    private DailyCompletionRepository dailyCompletionRepository;
+	@Mock
+	private DailyCompletionRepository dailyCompletionRepository;
 
-    @Mock
-    private UserStudyReportRepository userStudyReportRepository;
+	@Mock
+	private UserStudyReportRepository userStudyReportRepository;
 
-    @InjectMocks
-    private StudyTimeAnalysisService service;
+	@InjectMocks
+	private StudyTimeAnalysisService service;
 
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-    private UserStudyReport testReport;
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
-    @BeforeEach
-    void setUp() {
-        testReport = new UserStudyReport();
-        testReport.setUserId("test-user");
-        testReport.setCurrentStreak(5);
-    }
+	private UserStudyReport testReport;
 
-    @Test
-    @DisplayName("DB에 저장된 선호 시간이 있으면 바로 반환")
-    void getPreferredStudyHour_WithExistingValue_ReturnsStoredValue() {
-        // given
-        testReport.setPreferredStudyHour(14);
-        when(userStudyReportRepository.findByUserId("test-user"))
-                .thenReturn(Optional.of(testReport));
+	@BeforeEach
+	void setUp() {
+		testReport = new UserStudyReport();
+		testReport.setUserId("test-user");
+		testReport.setCurrentStreak(5);
+	}
 
-        // when
-        Optional<Integer> result = service.getPreferredStudyHour("test-user");
+	@Test
+	@DisplayName("DB에 저장된 선호 시간이 있으면 바로 반환")
+	void getPreferredStudyHour_WithExistingValue_ReturnsStoredValue() {
+		// given
+		testReport.setPreferredStudyHour(14);
+		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
 
-        // then
-        assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(14);
-        verify(dailyCompletionRepository, never()).findByUserIdAndCompletionDateAfter(any(), any());
-    }
+		// when
+		Optional<Integer> result = service.getPreferredStudyHour("test-user");
 
-    @Test
-    @DisplayName("DB에 저장된 값이 없으면 즉시 계산하여 저장")
-    void getPreferredStudyHour_WithoutExistingValue_CalculatesAndSaves() {
-        // given
-        testReport.setPreferredStudyHour(null);
-        when(userStudyReportRepository.findByUserId("test-user"))
-                .thenReturn(Optional.of(testReport));
+		// then
+		assertThat(result).isPresent();
+		assertThat(result.get()).isEqualTo(14);
+		verify(dailyCompletionRepository, never()).findByUserIdAndCompletionDateAfter(any(), any());
+	}
 
-        List<DailyCompletion> completions = createCompletionsAtHour(14, 5);
-        when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
-                .thenReturn(completions);
+	@Test
+	@DisplayName("DB에 저장된 값이 없으면 즉시 계산하여 저장")
+	void getPreferredStudyHour_WithoutExistingValue_CalculatesAndSaves() {
+		// given
+		testReport.setPreferredStudyHour(null);
+		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
 
-        // when
-        Optional<Integer> result = service.getPreferredStudyHour("test-user");
+		List<DailyCompletion> completions = createCompletionsAtHour(14, 5);
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+			.thenReturn(completions);
 
-        // then
-        assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(14);
-        verify(userStudyReportRepository).save(argThat(report ->
-                report.getPreferredStudyHour() == 14 &&
-                report.getPreferredStudyHourUpdatedAt() != null
-        ));
-    }
+		// when
+		Optional<Integer> result = service.getPreferredStudyHour("test-user");
 
-    @Test
-    @DisplayName("가장 빈번한 학습 시간대 계산 - 단일 시간대")
-    void calculateAndSavePreferredStudyHour_SingleFrequentHour() {
-        // given
-        when(userStudyReportRepository.findByUserId("test-user"))
-                .thenReturn(Optional.of(testReport));
+		// then
+		assertThat(result).isPresent();
+		assertThat(result.get()).isEqualTo(14);
+		verify(userStudyReportRepository).save(argThat(
+				report -> report.getPreferredStudyHour() == 14 && report.getPreferredStudyHourUpdatedAt() != null));
+	}
 
-        // 14시에 5번, 15시에 2번 학습
-        List<DailyCompletion> completions = new ArrayList<>();
-        completions.addAll(createCompletionsAtHour(14, 5));
-        completions.addAll(createCompletionsAtHour(15, 2));
+	@Test
+	@DisplayName("가장 빈번한 학습 시간대 계산 - 단일 시간대")
+	void calculateAndSavePreferredStudyHour_SingleFrequentHour() {
+		// given
+		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
 
-        when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
-                .thenReturn(completions);
+		// 14시에 5번, 15시에 2번 학습
+		List<DailyCompletion> completions = new ArrayList<>();
+		completions.addAll(createCompletionsAtHour(14, 5));
+		completions.addAll(createCompletionsAtHour(15, 2));
 
-        // when
-        Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+			.thenReturn(completions);
 
-        // then
-        assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(14);
-    }
+		// when
+		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
 
-    @Test
-    @DisplayName("가장 빈번한 학습 시간대 계산 - 여러 시간대")
-    void calculateAndSavePreferredStudyHour_MultipleHours() {
-        // given
-        when(userStudyReportRepository.findByUserId("test-user"))
-                .thenReturn(Optional.of(testReport));
+		// then
+		assertThat(result).isPresent();
+		assertThat(result.get()).isEqualTo(14);
+	}
 
-        // 20시에 3번, 14시에 2번, 15시에 2번
-        List<DailyCompletion> completions = new ArrayList<>();
-        completions.addAll(createCompletionsAtHour(20, 3));
-        completions.addAll(createCompletionsAtHour(14, 2));
-        completions.addAll(createCompletionsAtHour(15, 2));
+	@Test
+	@DisplayName("가장 빈번한 학습 시간대 계산 - 여러 시간대")
+	void calculateAndSavePreferredStudyHour_MultipleHours() {
+		// given
+		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
 
-        when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
-                .thenReturn(completions);
+		// 20시에 3번, 14시에 2번, 15시에 2번
+		List<DailyCompletion> completions = new ArrayList<>();
+		completions.addAll(createCompletionsAtHour(20, 3));
+		completions.addAll(createCompletionsAtHour(14, 2));
+		completions.addAll(createCompletionsAtHour(15, 2));
 
-        // when
-        Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+			.thenReturn(completions);
 
-        // then
-        assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(20);
-    }
+		// when
+		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
 
-    @Test
-    @DisplayName("학습 데이터가 없으면 Empty 반환")
-    void calculateAndSavePreferredStudyHour_NoData_ReturnsEmpty() {
-        // given
-        when(userStudyReportRepository.findByUserId("test-user"))
-                .thenReturn(Optional.of(testReport));
-        when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
-                .thenReturn(List.of());
+		// then
+		assertThat(result).isPresent();
+		assertThat(result.get()).isEqualTo(20);
+	}
 
-        // when
-        Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
+	@Test
+	@DisplayName("학습 데이터가 없으면 Empty 반환")
+	void calculateAndSavePreferredStudyHour_NoData_ReturnsEmpty() {
+		// given
+		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+			.thenReturn(List.of());
 
-        // then
-        assertThat(result).isEmpty();
-        verify(userStudyReportRepository, never()).save(any());
-    }
+		// when
+		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
 
-    @Test
-    @DisplayName("사용자가 없으면 Empty 반환")
-    void getPreferredStudyHour_UserNotFound_ReturnsEmpty() {
-        // given
-        when(userStudyReportRepository.findByUserId("non-existent-user"))
-                .thenReturn(Optional.empty());
+		// then
+		assertThat(result).isEmpty();
+		verify(userStudyReportRepository, never()).save(any());
+	}
 
-        // when
-        Optional<Integer> result = service.getPreferredStudyHour("non-existent-user");
+	@Test
+	@DisplayName("사용자가 없으면 Empty 반환")
+	void getPreferredStudyHour_UserNotFound_ReturnsEmpty() {
+		// given
+		when(userStudyReportRepository.findByUserId("non-existent-user")).thenReturn(Optional.empty());
 
-        // then
-        assertThat(result).isEmpty();
-    }
+		// when
+		Optional<Integer> result = service.getPreferredStudyHour("non-existent-user");
 
-    @Test
-    @DisplayName("UTC 시각을 KST로 정확히 변환하여 계산")
-    void calculateAndSavePreferredStudyHour_UtcToKstConversion() {
-        // given
-        when(userStudyReportRepository.findByUserId("test-user"))
-                .thenReturn(Optional.of(testReport));
+		// then
+		assertThat(result).isEmpty();
+	}
 
-        // UTC 05:00 = KST 14:00
-        Instant utcTime = ZonedDateTime.of(2025, 1, 10, 5, 0, 0, 0, ZoneId.of("UTC")).toInstant();
-        List<DailyCompletion> completions = createCompletionsAtInstant(utcTime, 3);
+	@Test
+	@DisplayName("UTC 시각을 KST로 정확히 변환하여 계산")
+	void calculateAndSavePreferredStudyHour_UtcToKstConversion() {
+		// given
+		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
 
-        when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
-                .thenReturn(completions);
+		// UTC 05:00 = KST 14:00
+		Instant utcTime = ZonedDateTime.of(2025, 1, 10, 5, 0, 0, 0, ZoneId.of("UTC")).toInstant();
+		List<DailyCompletion> completions = createCompletionsAtInstant(utcTime, 3);
 
-        // when
-        Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+			.thenReturn(completions);
 
-        // then
-        assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(14); // KST 14시여야 함
-    }
+		// when
+		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
 
-    /**
-     * 특정 KST 시간에 n번 학습한 DailyCompletion 생성
-     */
-    private List<DailyCompletion> createCompletionsAtHour(int kstHour, int count) {
-        List<DailyCompletion> completions = new ArrayList<>();
+		// then
+		assertThat(result).isPresent();
+		assertThat(result.get()).isEqualTo(14); // KST 14시여야 함
+	}
 
-        for (int i = 0; i < count; i++) {
-            DailyCompletion completion = new DailyCompletion();
-            completion.setUserId("test-user");
-            completion.setCompletionDate(LocalDate.now(KST).minusDays(i));
+	/**
+	 * 특정 KST 시간에 n번 학습한 DailyCompletion 생성
+	 */
+	private List<DailyCompletion> createCompletionsAtHour(int kstHour, int count) {
+		List<DailyCompletion> completions = new ArrayList<>();
 
-            // KST 시간 -> UTC로 변환
-            ZonedDateTime kstTime = ZonedDateTime.of(2025, 1, 10, kstHour, 0, 0, 0, KST);
-            Instant utcInstant = kstTime.toInstant();
+		for (int i = 0; i < count; i++) {
+			DailyCompletion completion = new DailyCompletion();
+			completion.setUserId("test-user");
+			completion.setCompletionDate(LocalDate.now(KST).minusDays(i));
 
-            DailyCompletion.CompletedContent content = DailyCompletion.CompletedContent.builder()
-                    .completedAt(utcInstant)
-                    .build();
+			// KST 시간 -> UTC로 변환
+			ZonedDateTime kstTime = ZonedDateTime.of(2025, 1, 10, kstHour, 0, 0, 0, KST);
+			Instant utcInstant = kstTime.toInstant();
 
-            completion.setCompletedContents(List.of(content));
-            completions.add(completion);
-        }
+			DailyCompletion.CompletedContent content = DailyCompletion.CompletedContent.builder()
+				.completedAt(utcInstant)
+				.build();
 
-        return completions;
-    }
+			completion.setCompletedContents(List.of(content));
+			completions.add(completion);
+		}
 
-    /**
-     * 특정 Instant에 n번 학습한 DailyCompletion 생성
-     */
-    private List<DailyCompletion> createCompletionsAtInstant(Instant instant, int count) {
-        List<DailyCompletion> completions = new ArrayList<>();
+		return completions;
+	}
 
-        for (int i = 0; i < count; i++) {
-            DailyCompletion completion = new DailyCompletion();
-            completion.setUserId("test-user");
-            completion.setCompletionDate(LocalDate.now(KST).minusDays(i));
+	/**
+	 * 특정 Instant에 n번 학습한 DailyCompletion 생성
+	 */
+	private List<DailyCompletion> createCompletionsAtInstant(Instant instant, int count) {
+		List<DailyCompletion> completions = new ArrayList<>();
 
-            DailyCompletion.CompletedContent content = DailyCompletion.CompletedContent.builder()
-                    .completedAt(instant)
-                    .build();
+		for (int i = 0; i < count; i++) {
+			DailyCompletion completion = new DailyCompletion();
+			completion.setUserId("test-user");
+			completion.setCompletionDate(LocalDate.now(KST).minusDays(i));
 
-            completion.setCompletedContents(List.of(content));
-            completions.add(completion);
-        }
+			DailyCompletion.CompletedContent content = DailyCompletion.CompletedContent.builder()
+				.completedAt(instant)
+				.build();
 
-        return completions;
-    }
+			completion.setCompletedContents(List.of(content));
+			completions.add(completion);
+		}
+
+		return completions;
+	}
+
 }

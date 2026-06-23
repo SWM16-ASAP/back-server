@@ -27,21 +27,20 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Contents", description = "통합 콘텐츠 관련 API")
 public class ContentController {
 
-    private final ContentService contentService;
+	private final ContentService contentService;
 
-    @Operation(summary = "최근 공부 콘텐츠 목록 조회", description = "사용자가 최근에 공부한 모든 타입의 콘텐츠 목록을 최신순으로 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/recent")
-    public ResponseEntity<PageResponse<RecentContentResponse>> getRecentContents(
-            @AuthenticationPrincipal JwtClaims claims,
-            @ParameterObject @ModelAttribute GetRecentContentsRequest request) {
-        PageResponse<RecentContentResponse> response = contentService.getRecentContents(claims.getId(), request);
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "최근 공부 콘텐츠 목록 조회", description = "사용자가 최근에 공부한 모든 타입의 콘텐츠 목록을 최신순으로 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "401", description = "인증 실패",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/recent")
+	public ResponseEntity<PageResponse<RecentContentResponse>> getRecentContents(
+			@AuthenticationPrincipal JwtClaims claims,
+			@ParameterObject @ModelAttribute GetRecentContentsRequest request) {
+		PageResponse<RecentContentResponse> response = contentService.getRecentContents(claims.getId(), request);
+		return ResponseEntity.ok(response);
+	}
+
 }

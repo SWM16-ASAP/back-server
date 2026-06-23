@@ -9,11 +9,13 @@ import java.util.Optional;
 
 @Repository
 public interface WordVariantRepository extends MongoRepository<WordVariant, String> {
-    List<WordVariant> findAllByWord(String word);
 
-    List<WordVariant> findByWordIn(List<String> words);
+	List<WordVariant> findAllByWord(String word);
 
-    Optional<WordVariant> findByWordAndOriginalForm(String word, String originalForm);
+	List<WordVariant> findByWordIn(List<String> words);
 
-    List<WordVariant> findAllByOriginalForm(String originalForm);
+	Optional<WordVariant> findByWordAndOriginalForm(String word, String originalForm);
+
+	List<WordVariant> findAllByOriginalForm(String originalForm);
+
 }

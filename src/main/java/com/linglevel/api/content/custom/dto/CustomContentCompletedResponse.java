@@ -14,10 +14,11 @@ import lombok.Setter;
 @AllArgsConstructor
 @Schema(description = "AI 콘텐츠 처리 완료 웹훅 응답")
 public class CustomContentCompletedResponse {
-    
-    @Schema(description = "요청 ID", example = "60d0fe4f5311236168a109ca")
-    private String requestId;
-    
-    @Schema(description = "처리 상태", example = "completed")
-    private String status;
+
+	@Schema(description = "요청 ID", example = "60d0fe4f5311236168a109ca")
+	private String requestId;
+
+	@Schema(description = "처리 상태", example = "completed")
+	private String status;
+
 }

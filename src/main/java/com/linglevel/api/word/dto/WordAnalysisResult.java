@@ -22,37 +22,39 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WordAnalysisResult {
-    @NotBlank(message = "originalForm은 필수입니다")
-    @JsonProperty("originalForm")
-    private String originalForm;
 
-    @NotEmpty(message = "variantTypes는 최소 1개 이상이어야 합니다")
-    @JsonProperty("variantTypes")
-    private List<VariantType> variantTypes;
+	@NotBlank(message = "originalForm은 필수입니다")
+	@JsonProperty("originalForm")
+	private String originalForm;
 
-    @NotNull(message = "sourceLanguageCode는 필수입니다")
-    @JsonProperty("sourceLanguageCode")
-    private LanguageCode sourceLanguageCode;
+	@NotEmpty(message = "variantTypes는 최소 1개 이상이어야 합니다")
+	@JsonProperty("variantTypes")
+	private List<VariantType> variantTypes;
 
-    @NotNull(message = "targetLanguageCode는 필수입니다")
-    @JsonProperty("targetLanguageCode")
-    private LanguageCode targetLanguageCode;
+	@NotNull(message = "sourceLanguageCode는 필수입니다")
+	@JsonProperty("sourceLanguageCode")
+	private LanguageCode sourceLanguageCode;
 
-    @Size(max = 3, message = "summary는 최대 3개까지 가능합니다")
-    @JsonProperty("summary")
-    private List<String> summary;
+	@NotNull(message = "targetLanguageCode는 필수입니다")
+	@JsonProperty("targetLanguageCode")
+	private LanguageCode targetLanguageCode;
 
-    @Size(max = 15, message = "meanings는 최대 15개까지 가능합니다")
-    @Valid
-    @JsonProperty("meanings")
-    private List<Meaning> meanings;
+	@Size(max = 3, message = "summary는 최대 3개까지 가능합니다")
+	@JsonProperty("summary")
+	private List<String> summary;
 
-    @JsonProperty("conjugations")
-    private RelatedForms.Conjugations conjugations;
+	@Size(max = 15, message = "meanings는 최대 15개까지 가능합니다")
+	@Valid
+	@JsonProperty("meanings")
+	private List<Meaning> meanings;
 
-    @JsonProperty("comparatives")
-    private RelatedForms.Comparatives comparatives;
+	@JsonProperty("conjugations")
+	private RelatedForms.Conjugations conjugations;
 
-    @JsonProperty("plural")
-    private RelatedForms.Plural plural;
+	@JsonProperty("comparatives")
+	private RelatedForms.Comparatives comparatives;
+
+	@JsonProperty("plural")
+	private RelatedForms.Plural plural;
+
 }

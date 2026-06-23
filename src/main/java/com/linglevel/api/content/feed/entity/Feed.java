@@ -17,42 +17,43 @@ import java.util.List;
 @Document(collection = "feeds")
 public class Feed {
 
-    @Id
-    private String id;
+	@Id
+	private String id;
 
-    private FeedContentType contentType;
+	private FeedContentType contentType;
 
-    private String title;
+	private String title;
 
-    @Indexed(unique = true)
-    private String url;
+	@Indexed(unique = true)
+	private String url;
 
-    private String thumbnailUrl;
+	private String thumbnailUrl;
 
-    private String author;
+	private String author;
 
-    private String description;
+	private String description;
 
-    @Indexed
-    private ContentCategory category;
+	@Indexed
+	private ContentCategory category;
 
-    private List<String> tags;
+	private List<String> tags;
 
-    private String sourceProvider;
+	private String sourceProvider;
 
-    @Indexed
-    private Instant publishedAt;
+	@Indexed
+	private Instant publishedAt;
 
-    private Integer displayOrder;
+	private Integer displayOrder;
 
-    private Integer viewCount;
+	private Integer viewCount;
 
-    private Double avgReadTimeSeconds;
+	private Double avgReadTimeSeconds;
 
-    private Instant createdAt;
+	private Instant createdAt;
 
-    @Builder.Default
-    private Boolean deleted = false;
+	@Builder.Default
+	private Boolean deleted = false;
 
-    private Instant deletedAt;
+	private Instant deletedAt;
+
 }

@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "로그아웃 요청")
 public class LogoutRequest {
-    @Schema(description = "Refresh Token")
-    private String refreshToken;
+
+	@Schema(description = "Refresh Token")
+	private String refreshToken;
+
 }

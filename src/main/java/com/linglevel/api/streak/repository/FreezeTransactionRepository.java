@@ -13,10 +13,11 @@ import java.util.List;
 
 public interface FreezeTransactionRepository extends MongoRepository<FreezeTransaction, String> {
 
-    Page<FreezeTransaction> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
+	Page<FreezeTransaction> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
 
-    boolean existsByUserIdAndAmountAndCreatedAtBetween(String userId, int amount, Instant start, Instant end);
+	boolean existsByUserIdAndAmountAndCreatedAtBetween(String userId, int amount, Instant start, Instant end);
 
-    List<FreezeTransaction> findByUserIdAndAmountAndCreatedAtBetween(String userId, int amount, Instant start, Instant end);
+	List<FreezeTransaction> findByUserIdAndAmountAndCreatedAtBetween(String userId, int amount, Instant start,
+			Instant end);
 
 }

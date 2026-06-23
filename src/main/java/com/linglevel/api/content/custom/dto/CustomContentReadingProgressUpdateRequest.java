@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "커스텀 콘텐츠 읽기 진도 업데이트 요청")
 public class CustomContentReadingProgressUpdateRequest {
-    @Schema(description = "청크 ID", example = "60d0fe4f5311236168c172db")
-    private String chunkId;
+
+	@Schema(description = "청크 ID", example = "60d0fe4f5311236168c172db")
+	private String chunkId;
+
 }

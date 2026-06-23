@@ -32,8 +32,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
-
-
 @RestController
 @RequestMapping("/api/v1/books")
 @RequiredArgsConstructor
@@ -41,164 +39,134 @@ import jakarta.validation.Valid;
 @Tag(name = "Books", description = "도서 관련 API")
 public class BooksController {
 
-    private final BookService bookService;
-    private final ChapterService chapterService;
-    private final ChunkService chunkService;
-    private final ReadingSessionService readingSessionService;
+	private final BookService bookService;
 
+	private final ChapterService chapterService;
 
-    @Operation(summary = "책 목록 조회", description = "책 목록을 조건에 따라 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping
-    public ResponseEntity<PageResponse<BookResponse>> getBooks(
-            @ParameterObject @Valid @ModelAttribute GetBooksRequest request,
-            @AuthenticationPrincipal JwtClaims claims) {
-        String userId = claims != null ? claims.getId() : null;
-        PageResponse<BookResponse> response = bookService.getBooks(request, userId);
-        return ResponseEntity.ok(response);
-    }
+	private final ChunkService chunkService;
 
-    @Operation(summary = "단일 책 조회", description = "특정 책의 상세 정보를 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/{bookId}")
-    public ResponseEntity<BookResponse> getBook(
-            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bookId,
-            @Parameter(description = "언어 코드", example = "EN")
-            @RequestParam(defaultValue = "EN") LanguageCode languageCode,
-            @AuthenticationPrincipal JwtClaims claims) {
-        String userId = claims != null ? claims.getId() : null;
-        BookResponse response = bookService.getBook(bookId, userId, languageCode);
-        return ResponseEntity.ok(response);
-    }
+	private final ReadingSessionService readingSessionService;
 
-    @Operation(summary = "챕터 목록 조회", description = "특정 책의 챕터 목록을 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/{bookId}/chapters")
-    public ResponseEntity<PageResponse<ChapterResponse>> getChapters(
-            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bookId,
-            @ParameterObject @Valid @ModelAttribute GetChaptersRequest request,
-            @AuthenticationPrincipal JwtClaims claims) {
-        String userId = claims != null ? claims.getId() : null;
-        PageResponse<ChapterResponse> response = chapterService.getChapters(bookId, request, userId);
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "책 목록 조회", description = "책 목록을 조건에 따라 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping
+	public ResponseEntity<PageResponse<BookResponse>> getBooks(
+			@ParameterObject @Valid @ModelAttribute GetBooksRequest request,
+			@AuthenticationPrincipal JwtClaims claims) {
+		String userId = claims != null ? claims.getId() : null;
+		PageResponse<BookResponse> response = bookService.getBooks(request, userId);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "단일 챕터 조회", description = "특정 챕터의 상세 정보를 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "책 또는 챕터를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/{bookId}/chapters/{chapterId}")
-    public ResponseEntity<ChapterResponse> getChapter(
-            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bookId,
-            @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapterId,
-            @AuthenticationPrincipal JwtClaims claims) {
-        String userId = claims != null ? claims.getId() : null;
-        ChapterResponse response = chapterService.getChapter(bookId, chapterId, userId);
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "단일 책 조회", description = "특정 책의 상세 정보를 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/{bookId}")
+	public ResponseEntity<BookResponse> getBook(
+			@Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String bookId,
+			@Parameter(description = "언어 코드",
+					example = "EN") @RequestParam(defaultValue = "EN") LanguageCode languageCode,
+			@AuthenticationPrincipal JwtClaims claims) {
+		String userId = claims != null ? claims.getId() : null;
+		BookResponse response = bookService.getBook(bookId, userId, languageCode);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "청크 목록 조회", description = "특정 챕터의 청크 목록을 난이도별로 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "챕터를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
-            @ApiResponse(responseCode = "400", description = "잘못된 난이도 레벨",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/{bookId}/chapters/{chapterId}/chunks")
-    public ResponseEntity<PageResponse<ChunkResponse>> getChunks(
-            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bookId,
-            @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapterId,
-            @ParameterObject @Valid @ModelAttribute GetChunksRequest request,
-            @AuthenticationPrincipal JwtClaims claims) {
+	@Operation(summary = "챕터 목록 조회", description = "특정 책의 챕터 목록을 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "책을 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/{bookId}/chapters")
+	public ResponseEntity<PageResponse<ChapterResponse>> getChapters(
+			@Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String bookId,
+			@ParameterObject @Valid @ModelAttribute GetChaptersRequest request,
+			@AuthenticationPrincipal JwtClaims claims) {
+		String userId = claims != null ? claims.getId() : null;
+		PageResponse<ChapterResponse> response = chapterService.getChapters(bookId, request, userId);
+		return ResponseEntity.ok(response);
+	}
 
-        if (claims != null) {
-            readingSessionService.startReadingSession(
-                claims.getId(),
-                ContentType.BOOK,
-                chapterId
-            );
-        }
+	@Operation(summary = "단일 챕터 조회", description = "특정 챕터의 상세 정보를 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "책 또는 챕터를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/{bookId}/chapters/{chapterId}")
+	public ResponseEntity<ChapterResponse> getChapter(
+			@Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String bookId,
+			@Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb") @PathVariable String chapterId,
+			@AuthenticationPrincipal JwtClaims claims) {
+		String userId = claims != null ? claims.getId() : null;
+		ChapterResponse response = chapterService.getChapter(bookId, chapterId, userId);
+		return ResponseEntity.ok(response);
+	}
 
-        String userId = claims != null ? claims.getId() : null;
-        PageResponse<ChunkResponse> response = chunkService.getChunks(bookId, chapterId, request, userId);
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "청크 목록 조회", description = "특정 챕터의 청크 목록을 난이도별로 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "챕터를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 난이도 레벨",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/{bookId}/chapters/{chapterId}/chunks")
+	public ResponseEntity<PageResponse<ChunkResponse>> getChunks(
+			@Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String bookId,
+			@Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb") @PathVariable String chapterId,
+			@ParameterObject @Valid @ModelAttribute GetChunksRequest request,
+			@AuthenticationPrincipal JwtClaims claims) {
 
-    @Operation(summary = "단일 청크 조회", description = "특정 청크의 상세 정보를 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "책, 챕터 또는 청크를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
-    public ResponseEntity<ChunkResponse> getChunk(
-            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bookId,
-            @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapterId,
-            @Parameter(description = "청크 ID", example = "60d0fe4f5311236168a109cd")
-            @PathVariable String chunkId) {
-        ChunkResponse response = chunkService.getChunk(bookId, chapterId, chunkId);
-        return ResponseEntity.ok(response);
-    }
+		if (claims != null) {
+			readingSessionService.startReadingSession(claims.getId(), ContentType.BOOK, chapterId);
+		}
 
-    @Operation(summary = "챕터 네비게이션 조회", description = "특정 챕터의 이전/다음 챕터 정보를 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "책 또는 챕터를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/{bookId}/chapters/{chapterId}/navigation")
-    public ResponseEntity<ChapterNavigationResponse> getChapterNavigation(
-            @Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String bookId,
-            @Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb")
-            @PathVariable String chapterId) {
-        ChapterNavigationResponse response = chapterService.getChapterNavigation(bookId, chapterId);
-        return ResponseEntity.ok(response);
-    }
+		String userId = claims != null ? claims.getId() : null;
+		PageResponse<ChunkResponse> response = chunkService.getChunks(bookId, chapterId, request, userId);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "책 데이터 import", description = "S3에 저장된 JSON 파일을 읽어서 새로운 책과 관련 챕터, 청크 데이터를 생성합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "500", description = "import 실패",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @SecurityRequirement(name = "adminApiKey")
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/import")
-    public ResponseEntity<BookImportResponse> importBook(
-            @RequestBody BookImportRequest request) {
+	@Operation(summary = "단일 청크 조회", description = "특정 청크의 상세 정보를 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "책, 챕터 또는 청크를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/{bookId}/chapters/{chapterId}/chunks/{chunkId}")
+	public ResponseEntity<ChunkResponse> getChunk(
+			@Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String bookId,
+			@Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb") @PathVariable String chapterId,
+			@Parameter(description = "청크 ID", example = "60d0fe4f5311236168a109cd") @PathVariable String chunkId) {
+		ChunkResponse response = chunkService.getChunk(bookId, chapterId, chunkId);
+		return ResponseEntity.ok(response);
+	}
 
-        BookImportResponse response = bookService.importBook(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
+	@Operation(summary = "챕터 네비게이션 조회", description = "특정 챕터의 이전/다음 챕터 정보를 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "책 또는 챕터를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/{bookId}/chapters/{chapterId}/navigation")
+	public ResponseEntity<ChapterNavigationResponse> getChapterNavigation(
+			@Parameter(description = "책 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String bookId,
+			@Parameter(description = "챕터 ID", example = "60d0fe4f5311236168a109cb") @PathVariable String chapterId) {
+		ChapterNavigationResponse response = chapterService.getChapterNavigation(bookId, chapterId);
+		return ResponseEntity.ok(response);
+	}
 
-    @ExceptionHandler(BooksException.class)
-    public ResponseEntity<ExceptionResponse> handleBooksException(BooksException e) {
-        log.info("Books Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e));
-    }
-} 
+	@Operation(summary = "책 데이터 import", description = "S3에 저장된 JSON 파일을 읽어서 새로운 책과 관련 챕터, 청크 데이터를 생성합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "500", description = "import 실패",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@SecurityRequirement(name = "adminApiKey")
+	@PreAuthorize("hasRole('ADMIN')")
+	@PostMapping("/import")
+	public ResponseEntity<BookImportResponse> importBook(@RequestBody BookImportRequest request) {
+
+		BookImportResponse response = bookService.importBook(request);
+		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+	}
+
+	@ExceptionHandler(BooksException.class)
+	public ResponseEntity<ExceptionResponse> handleBooksException(BooksException e) {
+		log.info("Books Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
+	}
+
+}

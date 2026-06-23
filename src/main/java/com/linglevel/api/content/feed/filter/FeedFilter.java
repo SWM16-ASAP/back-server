@@ -5,11 +5,12 @@ import com.linglevel.api.content.feed.entity.FeedSource;
 
 public interface FeedFilter {
 
-    FeedFilterResult filter(SyndEntry entry, FeedSource feedSource);
+	FeedFilterResult filter(SyndEntry entry, FeedSource feedSource);
 
-    String getName();
+	String getName();
 
-    default int getOrder() {
-        return 100;
-    }
+	default int getOrder() {
+		return 100;
+	}
+
 }

@@ -19,49 +19,51 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 public class VersionService {
-    
-    private final AppVersionRepository appVersionRepository;
 
-    public VersionResponse getVersion() {
-        AppVersion appVersion = appVersionRepository.findTopByOrderByUpdatedAtDesc()
-                .orElseThrow(() -> new VersionException(VersionErrorCode.VERSION_NOT_FOUND));
-        
-        return VersionResponse.builder()
-                .latestVersion(appVersion.getLatestVersion())
-                .minimumVersion(appVersion.getMinimumVersion())
-                .build();
-    }
+	private final AppVersionRepository appVersionRepository;
 
-    @Transactional
-    public VersionUpdateResponse updateVersion(VersionUpdateRequest request) {
-        if (request.getLatestVersion() == null && request.getMinimumVersion() == null) {
-            throw new VersionException(VersionErrorCode.VERSION_FIELD_REQUIRED);
-        }
+	public VersionResponse getVersion() {
+		AppVersion appVersion = appVersionRepository.findTopByOrderByUpdatedAtDesc()
+			.orElseThrow(() -> new VersionException(VersionErrorCode.VERSION_NOT_FOUND));
 
-        Optional<AppVersion> existingVersion = appVersionRepository.findTopByOrderByUpdatedAtDesc();
-        AppVersion appVersion;
+		return VersionResponse.builder()
+			.latestVersion(appVersion.getLatestVersion())
+			.minimumVersion(appVersion.getMinimumVersion())
+			.build();
+	}
 
-        if (existingVersion.isPresent()) {
-            appVersion = existingVersion.get();
-            if (request.getLatestVersion() != null) {
-                appVersion.setLatestVersion(request.getLatestVersion());
-            }
-            if (request.getMinimumVersion() != null) {
-                appVersion.setMinimumVersion(request.getMinimumVersion());
-            }
-        } else {
-            appVersion = new AppVersion();
-            appVersion.setLatestVersion(request.getLatestVersion() != null ? request.getLatestVersion() : "1.0.0");
-            appVersion.setMinimumVersion(request.getMinimumVersion() != null ? request.getMinimumVersion() : "1.0.0");
-        }
+	@Transactional
+	public VersionUpdateResponse updateVersion(VersionUpdateRequest request) {
+		if (request.getLatestVersion() == null && request.getMinimumVersion() == null) {
+			throw new VersionException(VersionErrorCode.VERSION_FIELD_REQUIRED);
+		}
 
-        appVersion.setUpdatedAt(LocalDateTime.now());
-        AppVersion savedVersion = appVersionRepository.save(appVersion);
+		Optional<AppVersion> existingVersion = appVersionRepository.findTopByOrderByUpdatedAtDesc();
+		AppVersion appVersion;
 
-        return VersionUpdateResponse.builder()
-                .latestVersion(savedVersion.getLatestVersion())
-                .minimumVersion(savedVersion.getMinimumVersion())
-                .updatedAt(savedVersion.getUpdatedAt())
-                .build();
-    }
+		if (existingVersion.isPresent()) {
+			appVersion = existingVersion.get();
+			if (request.getLatestVersion() != null) {
+				appVersion.setLatestVersion(request.getLatestVersion());
+			}
+			if (request.getMinimumVersion() != null) {
+				appVersion.setMinimumVersion(request.getMinimumVersion());
+			}
+		}
+		else {
+			appVersion = new AppVersion();
+			appVersion.setLatestVersion(request.getLatestVersion() != null ? request.getLatestVersion() : "1.0.0");
+			appVersion.setMinimumVersion(request.getMinimumVersion() != null ? request.getMinimumVersion() : "1.0.0");
+		}
+
+		appVersion.setUpdatedAt(LocalDateTime.now());
+		AppVersion savedVersion = appVersionRepository.save(appVersion);
+
+		return VersionUpdateResponse.builder()
+			.latestVersion(savedVersion.getLatestVersion())
+			.minimumVersion(savedVersion.getMinimumVersion())
+			.updatedAt(savedVersion.getUpdatedAt())
+			.build();
+	}
+
 }

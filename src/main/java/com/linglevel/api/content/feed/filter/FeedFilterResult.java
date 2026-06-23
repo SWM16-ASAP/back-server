@@ -12,23 +12,18 @@ import lombok.Getter;
 @AllArgsConstructor
 public class FeedFilterResult {
 
-    private final boolean passed;
+	private final boolean passed;
 
-    private final String reason;
+	private final String reason;
 
-    private final String filterName;
+	private final String filterName;
 
-    public static FeedFilterResult pass() {
-        return FeedFilterResult.builder()
-            .passed(true)
-            .build();
-    }
+	public static FeedFilterResult pass() {
+		return FeedFilterResult.builder().passed(true).build();
+	}
 
-    public static FeedFilterResult fail(String filterName, String reason) {
-        return FeedFilterResult.builder()
-            .passed(false)
-            .filterName(filterName)
-            .reason(reason)
-            .build();
-    }
+	public static FeedFilterResult fail(String filterName, String reason) {
+		return FeedFilterResult.builder().passed(false).filterName(filterName).reason(reason).build();
+	}
+
 }

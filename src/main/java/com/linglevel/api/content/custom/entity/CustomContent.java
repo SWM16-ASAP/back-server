@@ -19,55 +19,56 @@ import java.util.List;
 @AllArgsConstructor
 @Document(collection = "customContents")
 public class CustomContent {
-    
-    @Id
-    private String id;
 
-    @NotNull
-    @Indexed
-    private String userId;
+	@Id
+	private String id;
 
-    @NotNull
-    @Indexed
-    private String contentRequestId;
+	@NotNull
+	@Indexed
+	private String userId;
 
-    @Builder.Default
-    private Boolean isDeleted = false;
+	@NotNull
+	@Indexed
+	private String contentRequestId;
 
-    @NotNull
-    private String title;
+	@Builder.Default
+	private Boolean isDeleted = false;
 
-    private String author;
+	@NotNull
+	private String title;
 
-    private String coverImageUrl;
+	private String author;
 
-    @NotNull
-    private DifficultyLevel difficultyLevel;
+	private String coverImageUrl;
 
-    private List<DifficultyLevel> targetDifficultyLevels;
+	@NotNull
+	private DifficultyLevel difficultyLevel;
 
-    private Integer readingTime;
+	private List<DifficultyLevel> targetDifficultyLevels;
 
-    @Builder.Default
-    private Double averageRating = 0.0;
+	private Integer readingTime;
 
-    @Builder.Default
-    private Integer reviewCount = 0;
+	@Builder.Default
+	private Double averageRating = 0.0;
 
-    @Builder.Default
-    private Integer viewCount = 0;
+	@Builder.Default
+	private Integer reviewCount = 0;
 
-    private List<String> tags;
+	@Builder.Default
+	private Integer viewCount = 0;
 
-    private String originUrl;
+	private List<String> tags;
 
-    private String originDomain;
+	private String originUrl;
 
-    @CreatedDate
-    private Instant createdAt;
+	private String originDomain;
 
-    @LastModifiedDate
-    private Instant updatedAt;
+	@CreatedDate
+	private Instant createdAt;
 
-    private Instant deletedAt;
+	@LastModifiedDate
+	private Instant updatedAt;
+
+	private Instant deletedAt;
+
 }

@@ -23,41 +23,52 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DailyCompletion {
-    @Id
-    private String id;
 
-    @Indexed
-    private String userId;
+	@Id
+	private String id;
 
-    private LocalDate completionDate;
+	@Indexed
+	private String userId;
 
-    @Builder.Default
-    private Integer firstCompletionCount = 0;
+	private LocalDate completionDate;
 
-    @Builder.Default
-    private Integer totalCompletionCount = 0;
+	@Builder.Default
+	private Integer firstCompletionCount = 0;
 
-    private List<CompletedContent> completedContents;
+	@Builder.Default
+	private Integer totalCompletionCount = 0;
 
-    private Integer streakCount;
+	private List<CompletedContent> completedContents;
 
-    private StreakStatus streakStatus;
+	private Integer streakCount;
 
-    private Instant createdAt;
+	private StreakStatus streakStatus;
 
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class CompletedContent {
-        private ContentType type;
-        private String contentId;
-        private String chapterId;
-        private Instant completedAt;
-        private Integer readingTime;
-        private String category;
-        private String difficultyLevel;
-        private StreakStatus streakStatus;
-    }
+	private Instant createdAt;
+
+	@Getter
+	@Setter
+	@Builder
+	@NoArgsConstructor
+	@AllArgsConstructor
+	public static class CompletedContent {
+
+		private ContentType type;
+
+		private String contentId;
+
+		private String chapterId;
+
+		private Instant completedAt;
+
+		private Integer readingTime;
+
+		private String category;
+
+		private String difficultyLevel;
+
+		private StreakStatus streakStatus;
+
+	}
+
 }

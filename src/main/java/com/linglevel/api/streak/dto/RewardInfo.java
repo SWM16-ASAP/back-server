@@ -13,9 +13,10 @@ import lombok.NoArgsConstructor;
 @Schema(description = "보상 정보")
 public class RewardInfo {
 
-    @Schema(description = "획득한 티켓 개수", example = "1")
-    private Integer tickets;
+	@Schema(description = "획득한 티켓 개수", example = "1")
+	private Integer tickets;
 
-    @Schema(description = "획득한 프리즈 개수", example = "1")
-    private Integer freezes;
+	@Schema(description = "획득한 프리즈 개수", example = "1")
+	private Integer freezes;
+
 }

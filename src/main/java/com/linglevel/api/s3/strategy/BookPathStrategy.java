@@ -7,44 +7,46 @@ import java.util.List;
 @Component
 public class BookPathStrategy implements S3PathStrategy {
 
-    private static final String BASE_DIR = "literature";
-    private static final String IMAGES_DIR = "/images/";
-    private static final String COVER_FILENAME = "cover.jpg";
-    private static final String METADATA_FILENAME = "metadata.json";
+	private static final String BASE_DIR = "literature";
 
-    private String getBasePathWithId(String bookId) {
-        return BASE_DIR + "/" + bookId;
-    }
+	private static final String IMAGES_DIR = "/images/";
 
-    @Override
-    public String generateJsonFilePath(String bookId) {
-        return getBasePathWithId(bookId) + "/" + METADATA_FILENAME;
-    }
+	private static final String COVER_FILENAME = "cover.jpg";
 
-    @Override
-    public String generateImageFolderPath(String bookId) {
-        return getBasePathWithId(bookId) + IMAGES_DIR;
-    }
+	private static final String METADATA_FILENAME = "metadata.json";
 
-    @Override
-    public String generateCoverImagePath(String bookId) {
-        return getBasePathWithId(bookId) + IMAGES_DIR + COVER_FILENAME;
-    }
+	private String getBasePathWithId(String bookId) {
+		return BASE_DIR + "/" + bookId;
+	}
 
-    @Override
-    public String generateImagePath(String bookId, String imageFileName) {
-        return getBasePathWithId(bookId) + IMAGES_DIR + imageFileName;
-    }
+	@Override
+	public String generateJsonFilePath(String bookId) {
+		return getBasePathWithId(bookId) + "/" + METADATA_FILENAME;
+	}
 
-    @Override
-    public String generateBasePath(String bookId) {
-        return getBasePathWithId(bookId);
-    }
+	@Override
+	public String generateImageFolderPath(String bookId) {
+		return getBasePathWithId(bookId) + IMAGES_DIR;
+	}
 
-    @Override
-    public List<String> processImageKeys(List<String> rawKeys) {
-        return rawKeys.stream()
-                .filter(key -> !key.endsWith("/"))
-                .toList();
-    }
+	@Override
+	public String generateCoverImagePath(String bookId) {
+		return getBasePathWithId(bookId) + IMAGES_DIR + COVER_FILENAME;
+	}
+
+	@Override
+	public String generateImagePath(String bookId, String imageFileName) {
+		return getBasePathWithId(bookId) + IMAGES_DIR + imageFileName;
+	}
+
+	@Override
+	public String generateBasePath(String bookId) {
+		return getBasePathWithId(bookId);
+	}
+
+	@Override
+	public List<String> processImageKeys(List<String> rawKeys) {
+		return rawKeys.stream().filter(key -> !key.endsWith("/")).toList();
+	}
+
 }

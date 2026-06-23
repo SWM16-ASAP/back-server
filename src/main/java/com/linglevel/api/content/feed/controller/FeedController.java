@@ -28,46 +28,37 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Feeds", description = "피드 추천 관련 API")
 public class FeedController {
 
-    private final FeedService feedService;
+	private final FeedService feedService;
 
-    @Operation(
-            summary = "피드 목록 조회",
-            description = "필터링 및 정렬 조건에 따라 피드 목록을 조회합니다."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping
-    public ResponseEntity<PageResponse<FeedResponse>> getFeeds(
-            @ParameterObject @ModelAttribute GetFeedsRequest request,
-            @AuthenticationPrincipal JwtClaims claims) {
-        String userId = claims != null ? claims.getId() : null;
-        PageResponse<FeedResponse> response = feedService.getFeeds(request, userId);
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "피드 목록 조회", description = "필터링 및 정렬 조건에 따라 피드 목록을 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping
+	public ResponseEntity<PageResponse<FeedResponse>> getFeeds(@ParameterObject @ModelAttribute GetFeedsRequest request,
+			@AuthenticationPrincipal JwtClaims claims) {
+		String userId = claims != null ? claims.getId() : null;
+		PageResponse<FeedResponse> response = feedService.getFeeds(request, userId);
+		return ResponseEntity.ok(response);
+	}
 
-    @Operation(summary = "단일 피드 조회", description = "특정 피드의 상세 정보를 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "404", description = "피드를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ExceptionResponse.class)))
-    })
-    @GetMapping("/{feedId}")
-    public ResponseEntity<FeedResponse> getFeed(
-            @Parameter(description = "피드 ID", example = "60d0fe4f5311236168a109ca")
-            @PathVariable String feedId,
-            @AuthenticationPrincipal JwtClaims claims) {
-        String userId = claims != null ? claims.getId() : null;
-        FeedResponse response = feedService.getFeed(feedId, userId);
-        return ResponseEntity.ok(response);
-    }
+	@Operation(summary = "단일 피드 조회", description = "특정 피드의 상세 정보를 조회합니다.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+			@ApiResponse(responseCode = "404", description = "피드를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
+	@GetMapping("/{feedId}")
+	public ResponseEntity<FeedResponse> getFeed(
+			@Parameter(description = "피드 ID", example = "60d0fe4f5311236168a109ca") @PathVariable String feedId,
+			@AuthenticationPrincipal JwtClaims claims) {
+		String userId = claims != null ? claims.getId() : null;
+		FeedResponse response = feedService.getFeed(feedId, userId);
+		return ResponseEntity.ok(response);
+	}
 
-    @ExceptionHandler(FeedException.class)
-    public ResponseEntity<ExceptionResponse> handleFeedException(FeedException e) {
-        log.info("Feed Exception: {}", e.getMessage());
-        return ResponseEntity.status(e.getStatus())
-                .body(new ExceptionResponse(e));
-    }
+	@ExceptionHandler(FeedException.class)
+	public ResponseEntity<ExceptionResponse> handleFeedException(FeedException e) {
+		log.info("Feed Exception: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
+	}
+
 }

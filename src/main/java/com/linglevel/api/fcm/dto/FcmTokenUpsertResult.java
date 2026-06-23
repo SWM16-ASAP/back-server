@@ -6,6 +6,9 @@ import lombok.Data;
 @Data
 @Builder
 public class FcmTokenUpsertResult {
-    private String tokenId;
-    private boolean created;
+
+	private String tokenId;
+
+	private boolean created;
+
 }
