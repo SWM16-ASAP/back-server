@@ -29,6 +29,10 @@ public class WordAiService {
 
 	private static final String PROMPT_TEMPLATE_PATH = "prompts/word-analysis.md";
 
+	private static final double LLAMA4_SCOUT_INPUT_COST_PER_1K_TOKENS_USD = 0.00017;
+
+	private static final double LLAMA4_SCOUT_OUTPUT_COST_PER_1K_TOKENS_USD = 0.00066;
+
 	private final ChatModel chatModel;
 
 	private final Validator validator;
@@ -73,17 +77,14 @@ public class WordAiService {
 				long outputTokens = tokenCountOrZero(usage.getCompletionTokens());
 				long totalTokens = tokenCountOrDefault(usage.getTotalTokens(), inputTokens + outputTokens);
 
-				double inputCostUsd = (inputTokens / 1000.0) * 0.00017;
-				double outputCostUsd = (outputTokens / 1000.0) * 0.000085;
+				double inputCostUsd = (inputTokens / 1000.0) * LLAMA4_SCOUT_INPUT_COST_PER_1K_TOKENS_USD;
+				double outputCostUsd = (outputTokens / 1000.0) * LLAMA4_SCOUT_OUTPUT_COST_PER_1K_TOKENS_USD;
 				double totalCostUsd = inputCostUsd + outputCostUsd;
-
-				// 환율: 1 USD = 1430 KRW
-				double totalCostKrw = totalCostUsd * 1430;
 
 				log.info("📊 Token Usage for word '{}': Input={}, Output={}, Total={}", word, inputTokens, outputTokens,
 						totalTokens);
-				log.info("💰 Cost: ${} (₩{}) = Input: ${} + Output: ${}", String.format("%.6f", totalCostUsd),
-						String.format("%.2f", totalCostKrw), String.format("%.6f", inputCostUsd),
+				log.info("💰 Cost USD for word '{}': Total=${}, Input=${}, Output=${}", word,
+						String.format("%.6f", totalCostUsd), String.format("%.6f", inputCostUsd),
 						String.format("%.6f", outputCostUsd));
 			}
 
