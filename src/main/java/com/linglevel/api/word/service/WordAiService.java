@@ -75,30 +75,26 @@ public class WordAiService {
 
 			String response = chatResponse.getResult().getOutput().getText();
 
-			// 토큰 사용량 및 비용 로깅
+			boolean hasUsage = false;
+			long inputTokens = 0;
+			long outputTokens = 0;
+			long totalTokens = 0;
+			double inputCostUsd = 0;
+			double outputCostUsd = 0;
+			double totalCostUsd = 0;
 			if (chatResponse.getMetadata() != null && chatResponse.getMetadata().getUsage() != null) {
 				var usage = chatResponse.getMetadata().getUsage();
-				long inputTokens = tokenCountOrZero(usage.getPromptTokens());
-				long outputTokens = tokenCountOrZero(usage.getCompletionTokens());
-				long totalTokens = tokenCountOrDefault(usage.getTotalTokens(), inputTokens + outputTokens);
-
-				double inputCostUsd = (inputTokens / 1000.0) * INPUT_COST_PER_1K_TOKENS_USD;
-				double outputCostUsd = (outputTokens / 1000.0) * OUTPUT_COST_PER_1K_TOKENS_USD;
-				double totalCostUsd = inputCostUsd + outputCostUsd;
-
-				log.info("Token usage for word '{}': input={}, output={}, total={}", word, inputTokens, outputTokens,
-						totalTokens);
-				log.info("Cost USD for word '{}': total=${}, input=${}, output=${}", word,
-						String.format("%.6f", totalCostUsd), String.format("%.6f", inputCostUsd),
-						String.format("%.6f", outputCostUsd));
+				hasUsage = true;
+				inputTokens = tokenCountOrZero(usage.getPromptTokens());
+				outputTokens = tokenCountOrZero(usage.getCompletionTokens());
+				totalTokens = tokenCountOrDefault(usage.getTotalTokens(), inputTokens + outputTokens);
+				inputCostUsd = (inputTokens / 1000.0) * INPUT_COST_PER_1K_TOKENS_USD;
+				outputCostUsd = (outputTokens / 1000.0) * OUTPUT_COST_PER_1K_TOKENS_USD;
+				totalCostUsd = inputCostUsd + outputCostUsd;
 			}
-
-			// 전체 응답은 debug 레벨로만 출력 (응답이 길어서 info 레벨에서는 제외)
-			log.debug("AI Response for word '{}' (target: {}): {}", word, targetLanguage, response);
 
 			WordAnalysisResult[] results = outputConverter.convert(response);
 
-			// Validation 수행
 			for (WordAnalysisResult result : results) {
 				validateResult(result, word);
 			}
@@ -109,18 +105,24 @@ public class WordAiService {
 			// 같은 originalForm을 가진 결과를 병합 (AI가 잘못 분리한 경우 대비)
 			List<WordAnalysisResult> mergedResults = mergeDuplicateOriginalForms(results, word);
 
-			// 빈 결과 검증 - AI가 무의미한 단어라고 판단한 경우
 			if (mergedResults.isEmpty()) {
-				log.info("AI returned empty result for '{}' (meaningless/gibberish word)", word);
 				throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
 			}
 
-			// 요약 정보 로깅
 			String summary = mergedResults.stream()
 				.map(r -> r.getOriginalForm() + " ("
 						+ String.join(", ", r.getVariantTypes().stream().map(Enum::name).toArray(String[]::new)) + ")")
 				.collect(Collectors.joining(", "));
-			log.info("AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
+			if (hasUsage) {
+				log.info(
+						"AI analysis completed for '{}': {} result(s) - {}; tokens input={}, output={}, total={}; costUsd total={}, input={}, output={}",
+						word, mergedResults.size(), summary, inputTokens, outputTokens, totalTokens,
+						String.format("%.6f", totalCostUsd), String.format("%.6f", inputCostUsd),
+						String.format("%.6f", outputCostUsd));
+			}
+			else {
+				log.info("AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
+			}
 
 			return mergedResults;
 		}
@@ -141,9 +143,6 @@ public class WordAiService {
 		return tokenCount == null ? defaultValue : tokenCount;
 	}
 
-	/**
-	 * AI 응답 결과의 유효성을 검증
-	 */
 	private void validateResult(WordAnalysisResult result, String word) {
 		Set<ConstraintViolation<WordAnalysisResult>> violations = validator.validate(result);
 
@@ -152,11 +151,8 @@ public class WordAiService {
 				.map(v -> v.getPropertyPath() + ": " + v.getMessage())
 				.collect(Collectors.joining(", "));
 
-			log.error("AI response validation failed for word '{}': {}", word, errors);
 			throw new IllegalArgumentException("Invalid AI response for word '" + word + "': " + errors);
 		}
-
-		log.debug("AI response validation passed for word '{}'", word);
 	}
 
 	/**

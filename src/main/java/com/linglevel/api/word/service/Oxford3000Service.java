@@ -51,18 +51,12 @@ public class Oxford3000Service {
 	@Transactional
 	public Oxford3000InitResponse initializeOxford3000(LanguageCode targetLanguage) {
 		LocalDateTime startedAt = LocalDateTime.now();
-		log.info("============================================================");
-		log.info("Starting Oxford 3000 initialization");
-		log.info("Target Language: {}", targetLanguage);
-		log.info("============================================================");
 
 		// 1. CSV 파일에서 단어 읽기
 		List<String> csvWords = readOxford3000Words();
-		log.info("Step 1: Loaded {} words from Oxford 3000 CSV", csvWords.size());
 
 		// 2. 이미 등록된 essential 단어 목록 조회 (대소문자 무시)
 		List<String> existingEssentialWords = getEssentialWordsList(targetLanguage);
-		log.info("Step 2: Found {} already registered essential words", existingEssentialWords.size());
 
 		// 3. 차집합 계산 (등록이 필요한 단어만 필터링)
 		List<String> wordsToProcess = csvWords.stream()
@@ -70,11 +64,8 @@ public class Oxford3000Service {
 			.collect(Collectors.toList());
 
 		int skippedCount = csvWords.size() - wordsToProcess.size();
-		log.info("Step 3: {} words already registered, {} words to process", skippedCount, wordsToProcess.size());
-
-		log.info("============================================================");
-		log.info("Processing {} words...", wordsToProcess.size());
-		log.info("============================================================");
+		log.info("Starting Oxford 3000 initialization: targetLanguage={}, totalWords={}, skipped={}, toProcess={}",
+				targetLanguage, csvWords.size(), skippedCount, wordsToProcess.size());
 
 		// 4. 통계 정보
 		int successCount = 0;
@@ -130,19 +121,13 @@ public class Oxford3000Service {
 		LocalDateTime completedAt = LocalDateTime.now();
 		long durationSeconds = java.time.Duration.between(startedAt, completedAt).getSeconds();
 
-		log.info("============================================================");
-		log.info("Oxford 3000 initialization completed!");
-		log.info("Duration: {} seconds ({} minutes)", durationSeconds, durationSeconds / 60);
-		log.info("Total CSV words: {}", csvWords.size());
-		log.info("Already registered (skipped): {}", skippedCount);
-		log.info("Attempted to process: {}", wordsToProcess.size());
-		log.info("Successfully processed: {}", successCount);
-		log.info("Newly created: {}", newlyCreatedCount);
-		log.info("Failed: {}", failureCount);
+		log.info(
+				"Oxford 3000 initialization completed: durationSeconds={}, totalWords={}, skipped={}, attempted={}, succeeded={}, newlyCreated={}, failed={}",
+				durationSeconds, csvWords.size(), skippedCount, wordsToProcess.size(), successCount, newlyCreatedCount,
+				failureCount);
 		if (!failedWords.isEmpty()) {
-			log.error("Failed words: {}", String.join(", ", failedWords));
+			log.warn("Oxford 3000 failed words: {}", String.join(", ", failedWords));
 		}
-		log.info("============================================================");
 
 		return Oxford3000InitResponse.builder()
 			.startedAt(startedAt)
@@ -167,7 +152,6 @@ public class Oxford3000Service {
 	@Transactional
 	public boolean processWord(String word, LanguageCode targetLanguage) {
 		String validatedWord = wordValidator.validateAndPreprocess(word);
-		log.debug("Word validated and preprocessed: '{}' -> '{}'", word, validatedWord);
 
 		// 1. WordVariant에서 원형 찾기
 		List<WordVariant> variants = wordVariantRepository.findAllByWord(validatedWord);
@@ -175,7 +159,6 @@ public class Oxford3000Service {
 
 		if (!variants.isEmpty()) {
 			originalForm = variants.get(0).getOriginalForm();
-			log.info("Found variant '{}' -> original form '{}'", validatedWord, originalForm);
 		}
 		else {
 			originalForm = validatedWord;
@@ -190,7 +173,6 @@ public class Oxford3000Service {
 		if (existed) {
 			// 이미 존재하면 재사용
 			wordToUpdate = existingWord.get();
-			log.info("Word '{}' already exists for target language {}, reusing", originalForm, targetLanguage);
 		}
 		else {
 			// 없으면 AI로 생성
@@ -205,7 +187,6 @@ public class Oxford3000Service {
 		if (!Boolean.TRUE.equals(wordToUpdate.getIsEssential())) {
 			wordToUpdate.setIsEssential(true);
 			wordRepository.save(wordToUpdate);
-			log.info("Set isEssential=true for Oxford 3000 word: {}", wordToUpdate.getWord());
 		}
 
 		return existed;
@@ -268,11 +249,9 @@ public class Oxford3000Service {
 
 		if (targetLanguage != null) {
 			essentialWords = wordRepository.findAllByIsEssentialAndTargetLanguageCode(true, targetLanguage);
-			log.info("Found {} essential words for target language: {}", essentialWords.size(), targetLanguage);
 		}
 		else {
 			essentialWords = wordRepository.findAllByIsEssential(true);
-			log.info("Found {} total essential words (all languages)", essentialWords.size());
 		}
 
 		// 원형들 추출
@@ -295,8 +274,6 @@ public class Oxford3000Service {
 
 		List<String> result = allFormsIncludingVariants.stream().distinct().sorted().collect(Collectors.toList());
 
-		log.info("Returning {} unique essential word strings (including {} variants)", result.size(),
-				result.size() - originalForms.size());
 		return result;
 	}
 

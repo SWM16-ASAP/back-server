@@ -20,7 +20,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,7 +28,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/words")
 @RequiredArgsConstructor
-@Slf4j
 @Tag(name = "Words", description = "단어 관련 API")
 public class WordsController {
 
@@ -60,7 +58,6 @@ public class WordsController {
 
 	@ExceptionHandler(WordsException.class)
 	public ResponseEntity<ExceptionResponse> handleWordsException(WordsException e) {
-		log.info("Words Exception: {}", e.getMessage());
 		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
 	}
 
