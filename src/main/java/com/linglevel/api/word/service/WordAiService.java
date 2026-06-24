@@ -29,9 +29,9 @@ public class WordAiService {
 
 	private static final String PROMPT_TEMPLATE_PATH = "prompts/word-analysis.md";
 
-	private static final double LLAMA4_SCOUT_INPUT_COST_PER_1K_TOKENS_USD = 0.00017;
+	private static final double INPUT_COST_PER_1K_TOKENS_USD = 0.00017;
 
-	private static final double LLAMA4_SCOUT_OUTPUT_COST_PER_1K_TOKENS_USD = 0.00066;
+	private static final double OUTPUT_COST_PER_1K_TOKENS_USD = 0.00066;
 
 	private final ChatModel chatModel;
 
@@ -77,8 +77,8 @@ public class WordAiService {
 				long outputTokens = tokenCountOrZero(usage.getCompletionTokens());
 				long totalTokens = tokenCountOrDefault(usage.getTotalTokens(), inputTokens + outputTokens);
 
-				double inputCostUsd = (inputTokens / 1000.0) * LLAMA4_SCOUT_INPUT_COST_PER_1K_TOKENS_USD;
-				double outputCostUsd = (outputTokens / 1000.0) * LLAMA4_SCOUT_OUTPUT_COST_PER_1K_TOKENS_USD;
+				double inputCostUsd = (inputTokens / 1000.0) * INPUT_COST_PER_1K_TOKENS_USD;
+				double outputCostUsd = (outputTokens / 1000.0) * OUTPUT_COST_PER_1K_TOKENS_USD;
 				double totalCostUsd = inputCostUsd + outputCostUsd;
 
 				log.info("📊 Token Usage for word '{}': Input={}, Output={}, Total={}", word, inputTokens, outputTokens,
