@@ -55,16 +55,18 @@ public class WordSingleFlightRedisCoordinator {
 
 	private final ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableFuture<Void>>> channelWaiters = new ConcurrentHashMap<>();
 
+	private final PatternTopic doneTopic = new PatternTopic(DONE_PATTERN);
+
 	private final MessageListener doneListener = this::onDoneMessage;
 
 	@PostConstruct
 	void initialize() {
-		redisMessageListenerContainer.addMessageListener(doneListener, new PatternTopic(DONE_PATTERN));
+		redisMessageListenerContainer.addMessageListener(doneListener, doneTopic);
 	}
 
 	@PreDestroy
 	void shutdown() {
-
+		redisMessageListenerContainer.removeMessageListener(doneListener, doneTopic);
 	}
 
 	public <T> T execute(String word, LanguageCode targetLanguage, Supplier<T> leaderAction,
