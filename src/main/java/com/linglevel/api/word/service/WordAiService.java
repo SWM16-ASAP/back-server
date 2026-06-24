@@ -69,9 +69,9 @@ public class WordAiService {
 			// 토큰 사용량 및 비용 로깅
 			if (chatResponse.getMetadata() != null && chatResponse.getMetadata().getUsage() != null) {
 				var usage = chatResponse.getMetadata().getUsage();
-				long inputTokens = usage.getPromptTokens();
-				long outputTokens = usage.getGenerationTokens();
-				long totalTokens = usage.getTotalTokens();
+				long inputTokens = tokenCountOrZero(usage.getPromptTokens());
+				long outputTokens = tokenCountOrZero(usage.getCompletionTokens());
+				long totalTokens = tokenCountOrDefault(usage.getTotalTokens(), inputTokens + outputTokens);
 
 				double inputCostUsd = (inputTokens / 1000.0) * 0.00017;
 				double outputCostUsd = (outputTokens / 1000.0) * 0.000085;
@@ -125,6 +125,14 @@ public class WordAiService {
 			log.error("Failed to analyze word '{}' with AI (target: {})", word, targetLanguage, e);
 			throw new WordsException(WordsErrorCode.WORD_ANALYSIS_FAILED, e);
 		}
+	}
+
+	private long tokenCountOrZero(Integer tokenCount) {
+		return tokenCountOrDefault(tokenCount, 0);
+	}
+
+	private long tokenCountOrDefault(Integer tokenCount, long defaultValue) {
+		return tokenCount == null ? defaultValue : tokenCount;
 	}
 
 	/**
