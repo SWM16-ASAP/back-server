@@ -7,12 +7,32 @@ Ling Level API는 모바일 영어 학습 앱을 위한 Spring Boot 기반 백�
 
 ## 주요 기능
 
-- 책, 아티클, 커스텀 콘텐츠 기반 학습 흐름 제공
-- 단어 조회, 변형어 저장, Spring AI와 AWS Bedrock 기반 단어 분석
-- 학습 진행도와 일 단위 스트릭 계산
-- 추천, 배너, 북마크, FCM 푸시 알림
-- 관리자용 콘텐츠, 크롤링, 마이그레이션 API
+- CEFR 레벨별 영어 독해 콘텐츠 제공 (문학, 아티클, 웹 콘텐츠)
+- 단어 사전 검색 및 개인 단어장 저장
+- 사용자 정의 콘텐츠 레벨링 기능
+- 스트릭 기반 연속 학습 기록
 - Prometheus, Grafana, Sentry 기반 모니터링
+
+## 미리보기
+
+<details>
+<summary>앱 화면 미리보기</summary>
+
+| 콘텐츠 레벨링 | 단어 사전 |
+| --- | --- |
+| <img src="docs/assets/readme/leveling.png" alt="콘텐츠 레벨링 화면" width="420"> | <img src="docs/assets/readme/word.png" alt="단어 사전 검색 화면" width="420"> |
+
+| 사용자 정의 콘텐츠 | 연속 학습 기록 |
+| --- | --- |
+| <img src="docs/assets/readme/user_content.png" alt="사용자 정의 콘텐츠 화면" width="420"> | <img src="docs/assets/readme/streak.png" alt="스트릭 기반 연속 학습 기록 화면" width="320"> |
+
+</details>
+
+## 시스템 구조
+
+<p align="center">
+  <img src="docs/assets/readme/architecture.png" alt="Ling Level API 시스템 구조" width="720">
+</p>
 
 ## 기술 스택
 
