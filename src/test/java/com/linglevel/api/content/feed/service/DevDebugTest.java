@@ -7,11 +7,13 @@ import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import org.jdom2.Element;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 
 @DisplayName("Dev 환경 디버깅용 테스트")
+@Tag("external")
 class DevDebugTest {
 
 	@Test
