@@ -8,6 +8,8 @@ import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
 import com.linglevel.api.word.repository.WordRepository;
+import com.linglevel.api.word.repository.WordVariantRepository;
+import com.linglevel.api.word.validator.WordValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -33,9 +35,9 @@ public class Oxford3000Service {
 
 	private final WordService wordService;
 
-	private final com.linglevel.api.word.validator.WordValidator wordValidator;
+	private final WordValidator wordValidator;
 
-	private final com.linglevel.api.word.repository.WordVariantRepository wordVariantRepository;
+	private final WordVariantRepository wordVariantRepository;
 
 	private static final String OXFORD3000_CSV_PATH = "data/oxford3000_final_cleaned.csv";
 
