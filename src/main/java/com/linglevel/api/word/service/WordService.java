@@ -2,7 +2,9 @@ package com.linglevel.api.word.service;
 
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
 import com.linglevel.api.i18n.LanguageCode;
-import com.linglevel.api.word.dto.*;
+import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.dto.WordResponse;
+import com.linglevel.api.word.dto.WordSearchResponse;
 import com.linglevel.api.word.entity.InvalidWord;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;

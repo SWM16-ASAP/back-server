@@ -1,5 +1,6 @@
 package com.linglevel.api.word.service;
 
+import com.linglevel.api.word.dto.VariantType;
 import com.linglevel.api.word.dto.WordAnalysisResult;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
@@ -20,7 +21,11 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -81,9 +86,9 @@ public class WordAiService {
 				double outputCostUsd = (outputTokens / 1000.0) * OUTPUT_COST_PER_1K_TOKENS_USD;
 				double totalCostUsd = inputCostUsd + outputCostUsd;
 
-				log.info("📊 Token Usage for word '{}': Input={}, Output={}, Total={}", word, inputTokens, outputTokens,
+				log.info("Token usage for word '{}': input={}, output={}, total={}", word, inputTokens, outputTokens,
 						totalTokens);
-				log.info("💰 Cost USD for word '{}': Total=${}, Input=${}, Output=${}", word,
+				log.info("Cost USD for word '{}': total=${}, input=${}, output=${}", word,
 						String.format("%.6f", totalCostUsd), String.format("%.6f", inputCostUsd),
 						String.format("%.6f", outputCostUsd));
 			}
@@ -115,7 +120,7 @@ public class WordAiService {
 				.map(r -> r.getOriginalForm() + " ("
 						+ String.join(", ", r.getVariantTypes().stream().map(Enum::name).toArray(String[]::new)) + ")")
 				.collect(Collectors.joining(", "));
-			log.info("✅ AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
+			log.info("AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
 
 			return mergedResults;
 		}
@@ -199,7 +204,7 @@ public class WordAiService {
 		List<WordAnalysisResult> filteredResults = new ArrayList<>();
 
 		for (WordAnalysisResult result : results) {
-			List<com.linglevel.api.word.dto.VariantType> originalVariantTypes = result.getVariantTypes();
+			List<VariantType> originalVariantTypes = result.getVariantTypes();
 
 			if (originalVariantTypes == null || originalVariantTypes.isEmpty()) {
 				log.warn("Empty variantTypes for word '{}' (originalForm: '{}')", word, result.getOriginalForm());
@@ -207,7 +212,7 @@ public class WordAiService {
 			}
 
 			// 1. 유효한 VariantType만 필터링
-			List<com.linglevel.api.word.dto.VariantType> validVariantTypes = originalVariantTypes.stream()
+			List<VariantType> validVariantTypes = originalVariantTypes.stream()
 				.filter(vt -> vt != null)
 				.collect(Collectors.toList());
 
@@ -281,7 +286,7 @@ public class WordAiService {
 		WordAnalysisResult first = results.get(0);
 
 		// variantTypes 병합 (중복 제거)
-		List<com.linglevel.api.word.dto.VariantType> mergedVariantTypes = results.stream()
+		List<VariantType> mergedVariantTypes = results.stream()
 			.flatMap(r -> r.getVariantTypes().stream())
 			.distinct()
 			.collect(Collectors.toList());
