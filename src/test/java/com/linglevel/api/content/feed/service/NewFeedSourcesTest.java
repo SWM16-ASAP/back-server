@@ -5,6 +5,7 @@ import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
@@ -15,6 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("새로운 RSS Feed 소스 파싱 테스트 (Formula1, ESPN)")
+@Tag("external")
 @DisabledIfEnvironmentVariable(named = "CI", matches = "true",
 		disabledReason = "외부 RSS 의존 통합 테스트는 CI 환경에서 불안정하여 로컬에서만 실행")
 class NewFeedSourcesTest {

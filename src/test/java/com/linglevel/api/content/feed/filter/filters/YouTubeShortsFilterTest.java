@@ -8,6 +8,7 @@ import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.net.URL;
@@ -27,6 +28,7 @@ class YouTubeShortsFilterTest {
 	}
 
 	@Test
+	@Tag("external")
 	@DisplayName("실제 YouTube RSS 피드에서 duration 추출 및 Shorts 필터링 테스트")
 	void testRealYouTubeFeedWithDuration() throws Exception {
 		// given: Kurzgesagt YouTube 채널 RSS 피드
@@ -95,6 +97,24 @@ class YouTubeShortsFilterTest {
 		System.out.println("Passed entries: " + passedEntries);
 		System.out.println("Filtered entries (Shorts): " + filteredEntries);
 		System.out.println("===========================================");
+	}
+
+	@Test
+	@DisplayName("YouTube Shorts URL이면 필터링")
+	void testYouTubeShortsUrl() {
+		// given: YouTube Shorts URL
+		SyndEntry entry = mock(SyndEntry.class);
+		when(entry.getLink()).thenReturn("https://www.youtube.com/shorts/test123");
+
+		FeedSource feedSource = mock(FeedSource.class);
+
+		// when: 필터 실행
+		FeedFilterResult result = filter.filter(entry, feedSource);
+
+		// then: 필터링되어야 함
+		assertFalse(result.isPassed(), "YouTube Shorts URL은 필터링되어야 함");
+		assertEquals("YouTubeShortsFilter", result.getFilterName());
+		assertTrue(result.getReason().contains("YouTube Shorts"));
 	}
 
 	@Test
