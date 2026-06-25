@@ -74,24 +74,7 @@ public class WordAiService {
 			ChatResponse chatResponse = ChatClient.create(chatModel).prompt(prompt).call().chatResponse();
 
 			String response = chatResponse.getResult().getOutput().getText();
-
-			boolean hasUsage = false;
-			long inputTokens = 0;
-			long outputTokens = 0;
-			long totalTokens = 0;
-			double inputCostUsd = 0;
-			double outputCostUsd = 0;
-			double totalCostUsd = 0;
-			if (chatResponse.getMetadata() != null && chatResponse.getMetadata().getUsage() != null) {
-				var usage = chatResponse.getMetadata().getUsage();
-				hasUsage = true;
-				inputTokens = tokenCountOrZero(usage.getPromptTokens());
-				outputTokens = tokenCountOrZero(usage.getCompletionTokens());
-				totalTokens = tokenCountOrDefault(usage.getTotalTokens(), inputTokens + outputTokens);
-				inputCostUsd = (inputTokens / 1000.0) * INPUT_COST_PER_1K_TOKENS_USD;
-				outputCostUsd = (outputTokens / 1000.0) * OUTPUT_COST_PER_1K_TOKENS_USD;
-				totalCostUsd = inputCostUsd + outputCostUsd;
-			}
+			logAiUsage(word, chatResponse);
 
 			WordAnalysisResult[] results = outputConverter.convert(response);
 
@@ -113,16 +96,7 @@ public class WordAiService {
 				.map(r -> r.getOriginalForm() + " ("
 						+ String.join(", ", r.getVariantTypes().stream().map(Enum::name).toArray(String[]::new)) + ")")
 				.collect(Collectors.joining(", "));
-			if (hasUsage) {
-				log.info(
-						"AI analysis completed for '{}': {} result(s) - {}; tokens input={}, output={}, total={}; costUsd total={}, input={}, output={}",
-						word, mergedResults.size(), summary, inputTokens, outputTokens, totalTokens,
-						String.format("%.6f", totalCostUsd), String.format("%.6f", inputCostUsd),
-						String.format("%.6f", outputCostUsd));
-			}
-			else {
-				log.info("AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
-			}
+			log.info("AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
 
 			return mergedResults;
 		}
@@ -133,6 +107,24 @@ public class WordAiService {
 			log.error("Failed to analyze word '{}' with AI (target: {})", word, targetLanguage, e);
 			throw new WordsException(WordsErrorCode.WORD_ANALYSIS_FAILED, e);
 		}
+	}
+
+	private void logAiUsage(String word, ChatResponse chatResponse) {
+		if (chatResponse.getMetadata() == null || chatResponse.getMetadata().getUsage() == null) {
+			return;
+		}
+
+		var usage = chatResponse.getMetadata().getUsage();
+		long inputTokens = tokenCountOrZero(usage.getPromptTokens());
+		long outputTokens = tokenCountOrZero(usage.getCompletionTokens());
+		long totalTokens = tokenCountOrDefault(usage.getTotalTokens(), inputTokens + outputTokens);
+		double inputCostUsd = (inputTokens / 1000.0) * INPUT_COST_PER_1K_TOKENS_USD;
+		double outputCostUsd = (outputTokens / 1000.0) * OUTPUT_COST_PER_1K_TOKENS_USD;
+		double totalCostUsd = inputCostUsd + outputCostUsd;
+
+		log.info("AI usage for word '{}': tokens input={}, output={}, total={}; costUsd total={}, input={}, output={}",
+				word, inputTokens, outputTokens, totalTokens, String.format("%.6f", totalCostUsd),
+				String.format("%.6f", inputCostUsd), String.format("%.6f", outputCostUsd));
 	}
 
 	private long tokenCountOrZero(Integer tokenCount) {
