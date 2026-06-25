@@ -3,7 +3,6 @@ package com.linglevel.api.word.service;
 import com.linglevel.api.word.entity.WordVariant;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,7 +15,6 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class WordVariantService {
 
 	private final WordVariantRepository wordVariantRepository;

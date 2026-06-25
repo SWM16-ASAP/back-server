@@ -1,5 +1,6 @@
 package com.linglevel.api.word.service;
 
+import com.linglevel.api.word.dto.VariantType;
 import com.linglevel.api.word.dto.WordAnalysisResult;
 import com.linglevel.api.word.exception.WordsErrorCode;
 import com.linglevel.api.word.exception.WordsException;
@@ -15,141 +16,49 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class WordAiService {
 
+	private static final String PROMPT_TEMPLATE_PATH = "prompts/word-analysis.md";
+
+	private static final double INPUT_COST_PER_1K_TOKENS_USD = 0.00017;
+
+	private static final double OUTPUT_COST_PER_1K_TOKENS_USD = 0.00066;
+
 	private final ChatModel chatModel;
 
 	private final Validator validator;
+
+	private final String promptTemplate;
 
 	public WordAiService(ChatModel chatModel) {
 		this.chatModel = chatModel;
 		ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
 		this.validator = factory.getValidator();
+		this.promptTemplate = loadPromptTemplate();
 	}
 
-	private static final String PROMPT_TEMPLATE = """
-			Word: {word} | Target: {targetLanguage}
-
-			**CRITICAL: If '{word}' is nonsensical/gibberish/typo, return []**
-			**CRITICAL: ALL fields (summary, meaning, example, exampleTranslation) MUST have meaningful content. NEVER leave empty strings.**
-			**If you cannot provide meaningful content, return [] instead.**
-
-			HOMOGRAPH CHECK: Same spelling, multiple DISTINCT ORIGINS or DIFFERENT ORIGINAL FORMS?
-			(e.g., "saw"=past of "see" + noun "saw"톱, "left"=past of "leave" + adj "left"왼쪽, "rose"=past of "rise" + noun "rose"장미)
-			**CRITICAL**: If input word IS the original form (e.g., "run", "book"), return SINGLE entry with variantTypes=[ORIGINAL_FORM]
-			- "run" → Single entry: originalForm="run", variantTypes=[ORIGINAL_FORM] (DO NOT split into ORIGINAL_FORM and PAST_PARTICIPLE)
-			- "books" → Single entry: originalForm="book", variantTypes=[PLURAL, THIRD_PERSON]
-			→ YES (different origins): Return array with separate entries | NO: Single-element array
-
-			**CRITICAL MERGING RULE:**
-			- If input word has SAME originalForm but DIFFERENT variantTypes, MERGE into ONE ENTRY with multiple variantTypes
-			- Example "books":
-			  Single entry: originalForm="book", variantTypes=[PLURAL, THIRD_PERSON], meanings include BOTH noun meanings AND verb meanings
-			- Each meaning should specify its partOfSpeech clearly
-
-			STRUCTURE:
-			**CRITICAL: Only variantTypes describes the INPUT word. Everything else (summary, meanings, examples) describes the ORIGINAL FORM.**
-
-			1. sourceLanguageCode/targetLanguageCode: "EN", "KO", etc.
-			2. originalForm: Base form (verbs→infinitive, adj→positive, nouns→singular)
-			   **CRITICAL: For adverbs ending in "-ly":**
-			   - The adverb itself IS the original form
-			   - Do NOT remove "-ly" to get the base adjective
-			   - "carefully" → originalForm="carefully" (NOT "careful")
-			   - "absolutely" → originalForm="absolutely" (NOT "absolute")
-			3. variantTypes: **ARRAY** of relationships between INPUT word and originalForm
-			   variantTypes = ONLY morphological relationship (변형 관계만!)
-			   ✅ VALID VALUES: ORIGINAL_FORM, PAST_TENSE, PAST_PARTICIPLE, PRESENT_PARTICIPLE, THIRD_PERSON, COMPARATIVE, SUPERLATIVE, PLURAL, UNDEFINED
-
-			   **CRITICAL: Special cases**
-			   - Pronouns (them, him, whom, etc.): variantTypes=[ORIGINAL_FORM], partOfSpeech="pronoun"
-			   - Past participles used as adjectives (confused, interested, etc.): variantTypes=[PAST_PARTICIPLE], add BOTH verb and adjective meanings
-			   - Words without inflection (adverbs, prepositions, etc.): variantTypes=[ORIGINAL_FORM]
-
-			4. partOfSpeech = Grammatical category (품사)
-			   - Goes INSIDE meanings array (meanings 배열 안에!)
-			   ✅ VALID VALUES: verb, noun, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, article, numeral
-
-			   - If input="ran" and originalForm="run", then variantTypes=[PAST_TENSE]
-			   - If input="books" and originalForm="book", then variantTypes=[PLURAL, THIRD_PERSON] (both noun plural AND verb 3rd person)
-			5. summary: Max 3 common translations of the ORIGINAL FORM
-			   - Input "ran" → summary of "run": ["달리다","운영하다"]
-			   - Input "prettiest" → summary of "pretty": ["예쁜","아름다운"]
-			6. meanings: All meanings describe the ORIGINAL FORM (not the input word)
-			   - Max 15 objects (common→rare, omit obscure ones)
-			   - partOfSpeech: verb, noun, adjective, adverb, etc.
-			   - meaning: Detailed explanation in target language
-			   - example: **CRITICAL RULES:**
-			     1. ALWAYS use the ORIGINAL FORM in the example (NOT the input word!)
-			        - If originalForm="book" (input was "books"), use "book" in example
-			        - If originalForm="run" (input was "ran"), use "run" in example
-			     2. **PART OF SPEECH MUST MATCH**: The word in the example MUST be used as the specified partOfSpeech
-			        - If partOfSpeech="noun", the word must function as a noun in the example
-			        - If partOfSpeech="verb", the word must function as a verb in the example
-			        - WRONG: partOfSpeech="noun" but example has "I need to book a flight" (book is verb here)
-			        - CORRECT: partOfSpeech="noun" and example has "I love reading a book" (book is noun here)
-			     3. Grammar: Ensure grammatically correct sentences (e.g., "I/You/We/They run" ✓, "She runs" ✓)
-			     4. QUALITY: Natural, practical sentences used in real-life contexts
-			     5. CLARITY: Sentence must clearly demonstrate the word's meaning
-			     6. LENGTH: 5-12 words (not too short, not too long)
-			     7. AVOID: Generic phrases like "I need...", "This is...", "It is..." - be creative!
-			     GOOD: "I love reading a good book." (book as noun, matches partOfSpeech)
-			     GOOD: "We run a small bakery in downtown." (run as verb, matches partOfSpeech)
-			     BAD: "I need to book a flight." (if partOfSpeech is noun - book is verb here!)
-			   - exampleTranslation: Translation in target language
-			7. conjugations: (verbs only) present, past, pastParticiple, presentParticiple, thirdPerson
-			8. comparatives: (adj only) positive, comparative, superlative
-			9. plural: (nouns only) singular, plural
-
-			EXAMPLE - "saw" homograph:
-			[
-			  {{
-			    "originalForm": "see",
-			    "variantTypes": ["PAST_TENSE"],
-			    "sourceLanguageCode": "EN",
-			    "targetLanguageCode": "KO",
-			    "summary": ["보다", "알다"],
-			    "meanings": [
-			      {{
-			        "partOfSpeech": "verb",
-			        "meaning": "시각적으로 인지하다",
-			        "example": "We see the mountains clearly from our window.",
-			        "exampleTranslation": "우리는 창문에서 산이 선명하게 보입니다."
-			      }}
-			    ],
-			    "conjugations": {{"present": "see", "past": "saw", "pastParticiple": "seen", "presentParticiple": "seeing", "thirdPerson": "sees"}},
-			    "comparatives": null,
-			    "plural": null
-			  }},
-			  {{
-			    "originalForm": "saw",
-			    "variantTypes": ["ORIGINAL_FORM"],
-			    "sourceLanguageCode": "EN",
-			    "targetLanguageCode": "KO",
-			    "summary": ["톱"],
-			    "meanings": [
-			      {{
-			        "partOfSpeech": "noun",
-			        "meaning": "톱 (자르는 도구)",
-			        "example": "The carpenter used a saw to cut the wood.",
-			        "exampleTranslation": "목수는 톱을 사용하여 나무를 잘랐습니다."
-			      }}
-			    ],
-			    "conjugations": null,
-			    "comparatives": null,
-			    "plural": {{"singular": "saw", "plural": "saws"}}
-			  }}
-			]
-
-			{format}
-			""";
+	private String loadPromptTemplate() {
+		try {
+			return new ClassPathResource(PROMPT_TEMPLATE_PATH).getContentAsString(StandardCharsets.UTF_8);
+		}
+		catch (IOException e) {
+			throw new IllegalStateException("Failed to load word analysis prompt template: " + PROMPT_TEMPLATE_PATH, e);
+		}
+	}
 
 	public List<WordAnalysisResult> analyzeWord(String word, String targetLanguage) {
 		try {
@@ -158,41 +67,17 @@ public class WordAiService {
 
 			String format = outputConverter.getFormat();
 
-			PromptTemplate promptTemplate = new PromptTemplate(PROMPT_TEMPLATE);
+			PromptTemplate promptTemplate = new PromptTemplate(this.promptTemplate);
 			Prompt prompt = promptTemplate
 				.create(Map.of("word", word, "targetLanguage", targetLanguage, "format", format));
 
 			ChatResponse chatResponse = ChatClient.create(chatModel).prompt(prompt).call().chatResponse();
 
 			String response = chatResponse.getResult().getOutput().getText();
-
-			// 토큰 사용량 및 비용 로깅
-			if (chatResponse.getMetadata() != null && chatResponse.getMetadata().getUsage() != null) {
-				var usage = chatResponse.getMetadata().getUsage();
-				long inputTokens = usage.getPromptTokens();
-				long outputTokens = usage.getGenerationTokens();
-				long totalTokens = usage.getTotalTokens();
-
-				double inputCostUsd = (inputTokens / 1000.0) * 0.00017;
-				double outputCostUsd = (outputTokens / 1000.0) * 0.000085;
-				double totalCostUsd = inputCostUsd + outputCostUsd;
-
-				// 환율: 1 USD = 1430 KRW
-				double totalCostKrw = totalCostUsd * 1430;
-
-				log.info("📊 Token Usage for word '{}': Input={}, Output={}, Total={}", word, inputTokens, outputTokens,
-						totalTokens);
-				log.info("💰 Cost: ${} (₩{}) = Input: ${} + Output: ${}", String.format("%.6f", totalCostUsd),
-						String.format("%.2f", totalCostKrw), String.format("%.6f", inputCostUsd),
-						String.format("%.6f", outputCostUsd));
-			}
-
-			// 전체 응답은 debug 레벨로만 출력 (응답이 길어서 info 레벨에서는 제외)
-			log.debug("AI Response for word '{}' (target: {}): {}", word, targetLanguage, response);
+			logAiUsage(word, chatResponse);
 
 			WordAnalysisResult[] results = outputConverter.convert(response);
 
-			// Validation 수행
 			for (WordAnalysisResult result : results) {
 				validateResult(result, word);
 			}
@@ -203,18 +88,15 @@ public class WordAiService {
 			// 같은 originalForm을 가진 결과를 병합 (AI가 잘못 분리한 경우 대비)
 			List<WordAnalysisResult> mergedResults = mergeDuplicateOriginalForms(results, word);
 
-			// 빈 결과 검증 - AI가 무의미한 단어라고 판단한 경우
 			if (mergedResults.isEmpty()) {
-				log.info("AI returned empty result for '{}' (meaningless/gibberish word)", word);
 				throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
 			}
 
-			// 요약 정보 로깅
 			String summary = mergedResults.stream()
 				.map(r -> r.getOriginalForm() + " ("
 						+ String.join(", ", r.getVariantTypes().stream().map(Enum::name).toArray(String[]::new)) + ")")
 				.collect(Collectors.joining(", "));
-			log.info("✅ AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
+			log.info("AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
 
 			return mergedResults;
 		}
@@ -227,9 +109,32 @@ public class WordAiService {
 		}
 	}
 
-	/**
-	 * AI 응답 결과의 유효성을 검증
-	 */
+	private void logAiUsage(String word, ChatResponse chatResponse) {
+		if (chatResponse.getMetadata() == null || chatResponse.getMetadata().getUsage() == null) {
+			return;
+		}
+
+		var usage = chatResponse.getMetadata().getUsage();
+		long inputTokens = tokenCountOrZero(usage.getPromptTokens());
+		long outputTokens = tokenCountOrZero(usage.getCompletionTokens());
+		long totalTokens = tokenCountOrDefault(usage.getTotalTokens(), inputTokens + outputTokens);
+		double inputCostUsd = (inputTokens / 1000.0) * INPUT_COST_PER_1K_TOKENS_USD;
+		double outputCostUsd = (outputTokens / 1000.0) * OUTPUT_COST_PER_1K_TOKENS_USD;
+		double totalCostUsd = inputCostUsd + outputCostUsd;
+
+		log.info("AI usage for word '{}': tokens input={}, output={}, total={}; costUsd total={}, input={}, output={}",
+				word, inputTokens, outputTokens, totalTokens, String.format("%.6f", totalCostUsd),
+				String.format("%.6f", inputCostUsd), String.format("%.6f", outputCostUsd));
+	}
+
+	private long tokenCountOrZero(Integer tokenCount) {
+		return tokenCountOrDefault(tokenCount, 0);
+	}
+
+	private long tokenCountOrDefault(Integer tokenCount, long defaultValue) {
+		return tokenCount == null ? defaultValue : tokenCount;
+	}
+
 	private void validateResult(WordAnalysisResult result, String word) {
 		Set<ConstraintViolation<WordAnalysisResult>> violations = validator.validate(result);
 
@@ -238,11 +143,8 @@ public class WordAiService {
 				.map(v -> v.getPropertyPath() + ": " + v.getMessage())
 				.collect(Collectors.joining(", "));
 
-			log.error("AI response validation failed for word '{}': {}", word, errors);
 			throw new IllegalArgumentException("Invalid AI response for word '" + word + "': " + errors);
 		}
-
-		log.debug("AI response validation passed for word '{}'", word);
 	}
 
 	/**
@@ -290,7 +192,7 @@ public class WordAiService {
 		List<WordAnalysisResult> filteredResults = new ArrayList<>();
 
 		for (WordAnalysisResult result : results) {
-			List<com.linglevel.api.word.dto.VariantType> originalVariantTypes = result.getVariantTypes();
+			List<VariantType> originalVariantTypes = result.getVariantTypes();
 
 			if (originalVariantTypes == null || originalVariantTypes.isEmpty()) {
 				log.warn("Empty variantTypes for word '{}' (originalForm: '{}')", word, result.getOriginalForm());
@@ -298,7 +200,7 @@ public class WordAiService {
 			}
 
 			// 1. 유효한 VariantType만 필터링
-			List<com.linglevel.api.word.dto.VariantType> validVariantTypes = originalVariantTypes.stream()
+			List<VariantType> validVariantTypes = originalVariantTypes.stream()
 				.filter(vt -> vt != null)
 				.collect(Collectors.toList());
 
@@ -372,7 +274,7 @@ public class WordAiService {
 		WordAnalysisResult first = results.get(0);
 
 		// variantTypes 병합 (중복 제거)
-		List<com.linglevel.api.word.dto.VariantType> mergedVariantTypes = results.stream()
+		List<VariantType> mergedVariantTypes = results.stream()
 			.flatMap(r -> r.getVariantTypes().stream())
 			.distinct()
 			.collect(Collectors.toList());

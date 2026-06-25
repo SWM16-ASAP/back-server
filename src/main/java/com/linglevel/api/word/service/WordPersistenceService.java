@@ -82,8 +82,6 @@ public class WordPersistenceService {
 			.orElseGet(() -> {
 				Word newWord = convertAnalysisResultToWord(analysisResult);
 				Word savedWord = wordRepository.save(newWord);
-				log.info("Saved new word: {} ({} -> {})", originalForm, sourceLanguageCode, targetLanguageCode);
-
 				saveWordVariants(savedWord);
 
 				return savedWord;
@@ -91,7 +89,6 @@ public class WordPersistenceService {
 
 		Optional<WordVariant> existingVariant = wordVariantRepository.findByWordAndOriginalForm(word, originalForm);
 		if (existingVariant.isPresent()) {
-			log.info("Variant already exists: {} -> {}", word, originalForm);
 			return existingVariant.get();
 		}
 
@@ -101,7 +98,6 @@ public class WordPersistenceService {
 
 		WordVariant inputVariant = createVariant(word, originalForm, variantTypes);
 		wordVariantRepository.save(inputVariant);
-		log.info("Saved input variant: {} -> {} ({})", word, originalForm, variantTypes);
 
 		return inputVariant;
 	}
@@ -176,8 +172,6 @@ public class WordPersistenceService {
 
 			if (!newVariants.isEmpty()) {
 				wordVariantRepository.saveAll(newVariants);
-				newVariants.forEach(variant -> log.info("Saved variant: {} -> {} ({})", variant.getWord(),
-						variant.getOriginalForm(), variant.getVariantTypes()));
 			}
 		}
 	}
@@ -213,7 +207,6 @@ public class WordPersistenceService {
 			String originalForm = variant.getOriginalForm();
 			wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage).ifPresent(wordToDelete -> {
 				wordRepository.delete(wordToDelete);
-				log.info("Deleted Word: {} (targetLanguage={})", originalForm, targetLanguage);
 			});
 		}
 

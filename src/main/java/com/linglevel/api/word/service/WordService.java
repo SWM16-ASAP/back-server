@@ -2,7 +2,9 @@ package com.linglevel.api.word.service;
 
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
 import com.linglevel.api.i18n.LanguageCode;
-import com.linglevel.api.word.dto.*;
+import com.linglevel.api.word.dto.WordAnalysisResult;
+import com.linglevel.api.word.dto.WordResponse;
+import com.linglevel.api.word.dto.WordSearchResponse;
 import com.linglevel.api.word.entity.InvalidWord;
 import com.linglevel.api.word.entity.Word;
 import com.linglevel.api.word.entity.WordVariant;
@@ -13,7 +15,6 @@ import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -22,7 +23,6 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class WordService {
 
 	private final WordRepository wordRepository;
@@ -43,43 +43,48 @@ public class WordService {
 
 	public WordSearchResponse getOrCreateWords(String userId, String word, LanguageCode targetLanguage) {
 		List<WordVariant> wordVariants = getOrCreateWordEntities(word, targetLanguage);
+		List<WordResponse> responses = createResponses(userId, wordVariants, targetLanguage);
 
-		// 각 원형에 대한 WordResponse 생성
-		List<WordResponse> results = new ArrayList<>();
+		return wordResponseMapper.toWordSearchResponse(word, responses);
+	}
+
+	private List<WordResponse> createResponses(String userId, List<WordVariant> wordVariants,
+			LanguageCode targetLanguage) {
+		List<WordResponse> responses = new ArrayList<>();
 
 		for (WordVariant wordVariant : wordVariants) {
-			// 원형 단어를 targetLanguage로 번역된 것 가져오기
-			Word originalWord = wordRepository
-				.findByWordAndTargetLanguageCode(wordVariant.getOriginalForm(), targetLanguage)
-				.orElseGet(() -> {
-					// 해당 언어로 번역된 Word가 없으면 AI로 새로 생성
-					log.info("Word '{}' not found for targetLanguage {}, creating new one...",
-							wordVariant.getOriginalForm(), targetLanguage);
-
-					return singleFlightCoordinator.execute(wordVariant.getOriginalForm(), targetLanguage, () -> {
-						List<WordAnalysisResult> analysisResults = wordAiService
-							.analyzeWord(wordVariant.getOriginalForm(), targetLanguage.getCode());
-						return wordPersistenceService.saveWord(analysisResults.get(0));
-					}, () -> wordRepository.findByWordAndTargetLanguageCode(wordVariant.getOriginalForm(),
-							targetLanguage));
-				});
-
-			boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordVariant.getOriginalForm());
-
-			WordResponse response = wordResponseMapper.toWordResponse(originalWord, isBookmarked,
-					wordVariant.getVariantTypes(), wordVariant.getOriginalForm());
-
-			results.add(response);
+			responses.add(createResponse(userId, wordVariant, targetLanguage));
 		}
 
-		return wordResponseMapper.toWordSearchResponse(word, results);
+		return responses;
+	}
+
+	private WordResponse createResponse(String userId, WordVariant wordVariant, LanguageCode targetLanguage) {
+		String originalForm = wordVariant.getOriginalForm();
+		Word originalWord = getOrCreateOriginalWord(originalForm, targetLanguage);
+		boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm);
+
+		return wordResponseMapper.toWordResponse(originalWord, isBookmarked, wordVariant.getVariantTypes(),
+				originalForm);
+	}
+
+	private Word getOrCreateOriginalWord(String originalForm, LanguageCode targetLanguage) {
+		return wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage)
+			.orElseGet(() -> singleFlightCoordinator.execute(originalForm, targetLanguage,
+					() -> analyzeAndSaveOriginalWord(originalForm, targetLanguage),
+					() -> wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage)));
+	}
+
+	private Word analyzeAndSaveOriginalWord(String originalForm, LanguageCode targetLanguage) {
+		List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(originalForm, targetLanguage.getCode());
+
+		return wordPersistenceService.saveWord(analysisResults.get(0));
 	}
 
 	public List<WordVariant> getOrCreateWordEntities(String word, LanguageCode targetLanguage) {
 		// 1. WordVariant에서 검색 (변형 형태인지 확인)
 		List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
 		if (!existingVariants.isEmpty()) {
-			log.info("Found {} existing variants for word '{}'", existingVariants.size(), word);
 			return existingVariants;
 		}
 
@@ -89,15 +94,11 @@ public class WordService {
 		if (cachedInvalidWord.isPresent()) {
 			InvalidWord invalidWord = cachedInvalidWord.get();
 			if (invalidWord.getAttemptCount() >= 3) {
-				log.info("Word '{}' permanently blocked after {} failed attempts", word, invalidWord.getAttemptCount());
 				throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
 			}
-			log.info("Word '{}' found in cache with {} attempts. Allowing retry (attempt {}/3)", word,
-					invalidWord.getAttemptCount(), invalidWord.getAttemptCount() + 1);
 		}
 
 		// 3. DB에 없으면 AI 호출 (AI 분석 실패 시에만 InvalidWord로 캐싱)
-		log.info("Word '{}' not found in database. Calling AI to analyze...", word);
 		return singleFlightCoordinator.execute(word, targetLanguage, () -> {
 			List<WordAnalysisResult> analysisResults = analyzeWordAndUpdateInvalidCache(word, targetLanguage);
 			return wordPersistenceService.saveAnalysisResults(word, analysisResults, cachedInvalidWord);
@@ -125,7 +126,6 @@ public class WordService {
 
 	private void cacheInvalidWordIfMeaningless(String word, WordsException e) {
 		if (e.getErrorCode() == WordsErrorCode.WORD_IS_MEANINGLESS) {
-			log.warn("AI classified word '{}' as meaningless. Updating invalid-word cache.", word, e);
 			wordPersistenceService.saveInvalidWord(word);
 		}
 	}
@@ -160,19 +160,12 @@ public class WordService {
 	 */
 	public WordSearchResponse forceReanalyzeWord(String word, LanguageCode targetLanguage, boolean overwrite,
 			boolean deleteVariants) {
-		log.info("Force re-analyzing word '{}' with targetLanguage={}, overwrite={}, deleteVariants={}", word,
-				targetLanguage, overwrite, deleteVariants);
-
-		// AI로 재분석
-		log.info("Calling AI to re-analyze word '{}'...", word);
 		List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(word, targetLanguage.getCode());
 
 		// 분석 결과를 DB에 저장 (빈 결과는 WordAiService에서 예외 발생, overwrite=false면 중복 체크로 인해 새로운 것만
 		// 추가됨)
 		List<WordVariant> savedVariants = wordPersistenceService.forceSaveAnalysisResults(word, targetLanguage,
 				overwrite, deleteVariants, analysisResults);
-
-		log.info("Force re-analysis completed. Saved {} variants", savedVariants.size());
 
 		// 결과를 WordSearchResponse로 변환하여 반환
 		// userId는 null로 전달 (어드민 API이므로 북마크 체크 불필요)

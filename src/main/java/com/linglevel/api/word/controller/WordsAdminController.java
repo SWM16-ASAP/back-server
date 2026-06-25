@@ -108,8 +108,6 @@ public class WordsAdminController {
 	public ResponseEntity<Oxford3000InitResponse> initializeOxford3000(@Parameter(description = "번역 대상 언어",
 			example = "KO") @RequestParam(defaultValue = "KO") LanguageCode targetLanguage) {
 
-		log.info("Admin initialize-oxford3000: targetLanguage={}", targetLanguage);
-
 		Oxford3000InitResponse response = oxford3000Service.initializeOxford3000(targetLanguage);
 		return ResponseEntity.ok(response);
 	}
@@ -127,8 +125,6 @@ public class WordsAdminController {
 					content = @Content(schema = @Schema(implementation = ExceptionResponse.class))) })
 	@GetMapping("/essential/stats")
 	public ResponseEntity<EssentialWordsStatsResponse> getEssentialWordsStats() {
-		log.info("Admin get essential words stats");
-
 		EssentialWordsStatsResponse response = oxford3000Service.getEssentialWordsStats();
 		return ResponseEntity.ok(response);
 	}
@@ -151,8 +147,6 @@ public class WordsAdminController {
 	public ResponseEntity<List<String>> getEssentialWords(@Parameter(description = "번역 대상 언어 (선택)",
 			example = "KO") @RequestParam(required = false) LanguageCode targetLanguage) {
 
-		log.info("Admin get essential words: targetLanguage={}", targetLanguage);
-
 		List<String> words = oxford3000Service.getEssentialWordsList(targetLanguage);
 		return ResponseEntity.ok(words);
 	}
@@ -174,15 +168,12 @@ public class WordsAdminController {
 			@Parameter(description = "단어 ID", example = "507f1f77bcf86cd799439011") @PathVariable String wordId,
 			@Parameter(description = "필수 단어 여부", example = "true") @RequestParam boolean isEssential) {
 
-		log.info("Admin update essential status: wordId={}, isEssential={}", wordId, isEssential);
-
 		oxford3000Service.updateEssentialStatus(wordId, isEssential);
 		return ResponseEntity.ok().build();
 	}
 
 	@ExceptionHandler(WordsException.class)
 	public ResponseEntity<ExceptionResponse> handleWordsException(WordsException e) {
-		log.info("Words Admin Exception: {}", e.getMessage());
 		return ResponseEntity.status(e.getStatus()).body(new ExceptionResponse(e));
 	}
 
