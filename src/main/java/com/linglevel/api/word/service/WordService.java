@@ -43,32 +43,42 @@ public class WordService {
 
 	public WordSearchResponse getOrCreateWords(String userId, String word, LanguageCode targetLanguage) {
 		List<WordVariant> wordVariants = getOrCreateWordEntities(word, targetLanguage);
+		List<WordResponse> responses = createResponses(userId, wordVariants, targetLanguage);
 
-		// 각 원형에 대한 WordResponse 생성
-		List<WordResponse> results = new ArrayList<>();
+		return wordResponseMapper.toWordSearchResponse(word, responses);
+	}
+
+	private List<WordResponse> createResponses(String userId, List<WordVariant> wordVariants,
+			LanguageCode targetLanguage) {
+		List<WordResponse> responses = new ArrayList<>();
 
 		for (WordVariant wordVariant : wordVariants) {
-			// 원형 단어를 targetLanguage로 번역된 것 가져오기
-			Word originalWord = wordRepository
-				.findByWordAndTargetLanguageCode(wordVariant.getOriginalForm(), targetLanguage)
-				.orElseGet(() -> {
-					return singleFlightCoordinator.execute(wordVariant.getOriginalForm(), targetLanguage, () -> {
-						List<WordAnalysisResult> analysisResults = wordAiService
-							.analyzeWord(wordVariant.getOriginalForm(), targetLanguage.getCode());
-						return wordPersistenceService.saveWord(analysisResults.get(0));
-					}, () -> wordRepository.findByWordAndTargetLanguageCode(wordVariant.getOriginalForm(),
-							targetLanguage));
-				});
-
-			boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, wordVariant.getOriginalForm());
-
-			WordResponse response = wordResponseMapper.toWordResponse(originalWord, isBookmarked,
-					wordVariant.getVariantTypes(), wordVariant.getOriginalForm());
-
-			results.add(response);
+			responses.add(createResponse(userId, wordVariant, targetLanguage));
 		}
 
-		return wordResponseMapper.toWordSearchResponse(word, results);
+		return responses;
+	}
+
+	private WordResponse createResponse(String userId, WordVariant wordVariant, LanguageCode targetLanguage) {
+		String originalForm = wordVariant.getOriginalForm();
+		Word originalWord = getOrCreateOriginalWord(originalForm, targetLanguage);
+		boolean isBookmarked = wordBookmarkRepository.existsByUserIdAndWord(userId, originalForm);
+
+		return wordResponseMapper.toWordResponse(originalWord, isBookmarked, wordVariant.getVariantTypes(),
+				originalForm);
+	}
+
+	private Word getOrCreateOriginalWord(String originalForm, LanguageCode targetLanguage) {
+		return wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage)
+			.orElseGet(() -> singleFlightCoordinator.execute(originalForm, targetLanguage,
+					() -> analyzeAndSaveOriginalWord(originalForm, targetLanguage),
+					() -> wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage)));
+	}
+
+	private Word analyzeAndSaveOriginalWord(String originalForm, LanguageCode targetLanguage) {
+		List<WordAnalysisResult> analysisResults = wordAiService.analyzeWord(originalForm, targetLanguage.getCode());
+
+		return wordPersistenceService.saveWord(analysisResults.get(0));
 	}
 
 	public List<WordVariant> getOrCreateWordEntities(String word, LanguageCode targetLanguage) {
