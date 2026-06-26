@@ -18,7 +18,10 @@
 - `refactor`: 구조 개선 또는 리팩터링
 - `docs`: 문서 변경
 - `hotfix`: 긴급 수정
-- `codex`: AI 에이전트가 분리 작업을 수행하는 임시 작업 브랜치
+
+작성 원칙:
+
+- 작업 성격이 명확하면 `feat`, `fix`, `refactor`, `docs`, `hotfix` 중 하나를 우선 사용한다.
 
 예시:
 
@@ -26,7 +29,6 @@
 docs/readme-update
 refactor/optimize-books-domain
 fix/stabilize-failing-tests
-codex/readme-update
 ```
 
 ## 커밋 메시지
