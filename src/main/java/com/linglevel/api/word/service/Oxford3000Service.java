@@ -212,7 +212,7 @@ public class Oxford3000Service {
 		}
 		catch (Exception e) {
 			log.error("Failed to read Oxford 3000 CSV file: {}", e.getMessage(), e);
-			throw new WordsException(WordsErrorCode.WORD_NOT_FOUND);
+			throw new IllegalStateException("Failed to read Oxford 3000 CSV file: " + OXFORD3000_CSV_PATH, e);
 		}
 	}
 
