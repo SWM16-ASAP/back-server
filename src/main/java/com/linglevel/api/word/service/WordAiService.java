@@ -10,8 +10,6 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -38,14 +36,14 @@ public class WordAiService {
 
 	private static final double OUTPUT_COST_PER_1K_TOKENS_USD = 0.00066;
 
-	private final ChatModel chatModel;
+	private final WordBedrockClient wordBedrockClient;
 
 	private final Validator validator;
 
 	private final String promptTemplate;
 
-	public WordAiService(ChatModel chatModel) {
-		this.chatModel = chatModel;
+	public WordAiService(WordBedrockClient wordBedrockClient) {
+		this.wordBedrockClient = wordBedrockClient;
 		ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
 		this.validator = factory.getValidator();
 		this.promptTemplate = loadPromptTemplate();
@@ -71,7 +69,7 @@ public class WordAiService {
 			Prompt prompt = promptTemplate
 				.create(Map.of("word", word, "targetLanguage", targetLanguage, "format", format));
 
-			ChatResponse chatResponse = ChatClient.create(chatModel).prompt(prompt).call().chatResponse();
+			ChatResponse chatResponse = wordBedrockClient.call(prompt);
 
 			String response = chatResponse.getResult().getOutput().getText();
 			logAiUsage(word, chatResponse);
