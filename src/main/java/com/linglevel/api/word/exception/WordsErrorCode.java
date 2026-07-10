@@ -12,6 +12,8 @@ public enum WordsErrorCode {
 	WORD_IS_MEANINGLESS(HttpStatus.BAD_REQUEST, "The word is meaningless."),
 	WORD_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "Word already exists."),
 	WORD_NOT_FOUND_BY_ID(HttpStatus.NOT_FOUND, "Word not found with id."),
+	WORD_AI_TEMPORARILY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE,
+			"Word AI generation is temporarily unavailable. Please try again."),
 	WORD_ANALYSIS_TIMEOUT(HttpStatus.SERVICE_UNAVAILABLE, "Word analysis is temporarily delayed. Please try again."),
 	WORD_ANALYSIS_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "Word analysis failed. Please try again."),
 	INVALID_WORD_FORMAT(HttpStatus.BAD_REQUEST,
