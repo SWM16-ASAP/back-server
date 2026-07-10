@@ -32,6 +32,7 @@ repositories {
 dependencies {
 	implementation platform('org.springframework.ai:spring-ai-bom:1.0.0-M6')
 	implementation platform('io.github.resilience4j:resilience4j-bom:2.2.0')
+	implementation platform('software.amazon.awssdk:bom:2.31.78')
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -50,7 +51,8 @@ dependencies {
 	implementation('org.springframework.ai:spring-ai-bedrock-converse-spring-boot-starter') {
 		exclude group: 'io.swagger.core.v3', module: 'swagger-annotations'
 	}
-	implementation 'software.amazon.awssdk:s3:2.31.78'
+	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:bedrockruntime'
 	implementation 'com.google.firebase:firebase-admin:9.7.0'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	implementation 'com.sksamuel.scrimage:scrimage-core:4.3.5'
