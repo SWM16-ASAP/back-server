@@ -21,7 +21,7 @@ public class WordBedrockClient {
 		return ChatClient.create(chatModel).prompt(prompt).call().chatResponse();
 	}
 
-	private ChatResponse fallback(Prompt prompt, Throwable e) {
+	private ChatResponse fallback(Prompt prompt, Exception e) {
 		throw new WordsException(WordsErrorCode.WORD_AI_TEMPORARILY_UNAVAILABLE, e);
 	}
 
