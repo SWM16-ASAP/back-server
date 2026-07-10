@@ -6,6 +6,7 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.springboot3.circuitbreaker.autoconfigure.CircuitBreakerAutoConfiguration;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.model.ChatModel;
@@ -43,6 +44,12 @@ class WordBedrockClientCircuitBreakerTest {
 	@Autowired
 	private AtomicInteger bedrockAttempts;
 
+	@BeforeEach
+	void resetCircuitBreaker() {
+		applicationContext.getBean(CircuitBreakerRegistry.class).circuitBreaker("wordBedrock").reset();
+		bedrockAttempts.set(0);
+	}
+
 	@Test
 	@DisplayName("Bedrock 호출 실패가 반복되면 circuit을 열고 이후 호출은 Bedrock까지 보내지 않는다")
 	void call_opensCircuitAndSkipsBedrockAfterRepeatedFailures() {
@@ -63,6 +70,13 @@ class WordBedrockClientCircuitBreakerTest {
 		assertThat(bedrockAttempts).hasValue(2);
 	}
 
+	@Test
+	@DisplayName("JVM Error는 fallback으로 변환하지 않고 그대로 전파한다")
+	void call_propagatesErrorWithoutFallback() {
+		assertThatThrownBy(() -> client.call(new Prompt("Trigger error"))).isInstanceOf(AssertionError.class)
+			.hasMessage("fatal error");
+	}
+
 	private void assertTemporaryUnavailable(WordBedrockClient client, Prompt prompt) {
 		assertThatThrownBy(() -> client.call(prompt)).isInstanceOfSatisfying(WordsException.class,
 				e -> assertThat(e.getErrorCode()).isEqualTo(WordsErrorCode.WORD_AI_TEMPORARILY_UNAVAILABLE));
@@ -80,6 +94,9 @@ class WordBedrockClientCircuitBreakerTest {
 		ChatModel chatModel(AtomicInteger bedrockAttempts) {
 			return prompt -> {
 				bedrockAttempts.incrementAndGet();
+				if ("Trigger error".equals(prompt.getContents())) {
+					throw new AssertionError("fatal error");
+				}
 				throw new IllegalStateException("bedrock unavailable");
 			};
 		}
