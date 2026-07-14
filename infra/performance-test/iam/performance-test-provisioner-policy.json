@@ -23,6 +23,8 @@
         "ec2:DeleteSubnet",
         "ec2:DeleteVpc",
         "ec2:DescribeInternetGateways",
+        "ec2:DescribeTags",
+        "ec2:DescribeVpcAttribute",
         "ec2:DescribeRouteTables",
         "ec2:DescribeSecurityGroups",
         "ec2:DescribeSubnets",
@@ -31,6 +33,7 @@
         "ec2:DetachInternetGateway",
         "ec2:DisassociateRouteTable",
         "ec2:ModifySubnetAttribute",
+        "ec2:ModifyVpcAttribute",
         "ec2:RevokeSecurityGroupEgress",
         "ec2:RevokeSecurityGroupIngress"
       ],
@@ -51,6 +54,7 @@
         "elasticloadbalancing:DescribeListeners",
         "elasticloadbalancing:DescribeTargetGroups",
         "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:DescribeTags",
         "elasticloadbalancing:ModifyTargetGroup",
         "elasticloadbalancing:RemoveTags"
       ],
@@ -68,6 +72,7 @@
         "ecs:DescribeClusters",
         "ecs:DescribeServices",
         "ecs:DescribeTaskDefinition",
+        "ecs:ListTagsForResource",
         "ecs:ListTasks",
         "ecs:RegisterTaskDefinition",
         "ecs:TagResource",
@@ -86,6 +91,7 @@
         "iam:DetachRolePolicy",
         "iam:GetRole",
         "iam:ListAttachedRolePolicies",
+        "iam:ListRoleTags",
         "iam:PassRole",
         "iam:TagRole",
         "iam:UntagRole"
