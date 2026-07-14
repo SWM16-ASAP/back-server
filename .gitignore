@@ -57,3 +57,10 @@ monitoring/alertmanager.yml
 ### K6 data ###
 k6/reports/**
 !k6/reports/.gitkeep
+
+### Terraform ###
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+!**/*.tfvars.example

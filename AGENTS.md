@@ -9,7 +9,8 @@
 2. [Word 도메인 미니맵](docs/architecture/word.md)
 3. [Book 도메인 미니맵](docs/architecture/content-book.md)
 4. [Streak 도메인 미니맵](docs/architecture/streak.md)
-5. [기술 의사결정 기록](docs/decisions/)
+5. [재사용 가능한 부하 테스트 플랫폼 계획](docs/architecture/performance-test-infrastructure.md)
+6. [기술 의사결정 기록](docs/decisions/)
 
 ## 코드 작업 전 확인할 운영 포인트
 

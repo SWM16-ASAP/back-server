@@ -1,0 +1,13 @@
+# Copy this file to terraform.tfvars. terraform.tfvars is ignored by Git.
+aws_region  = "ap-northeast-2"
+test_run_id = "phase-one"
+availability_zones = [
+  "ap-northeast-2a",
+  "ap-northeast-2b",
+]
+
+# Phase one deliberately uses a public image. Replace it with the LLV API image
+# only after its health endpoint can start without Redis, MongoDB, and AWS credentials.
+app_image         = "public.ecr.aws/docker/library/nginx:1.27-alpine"
+container_port    = 80
+health_check_path = "/"
