@@ -1,7 +1,6 @@
 # Copy this file to terraform.tfvars. terraform.tfvars is ignored by Git.
 aws_region  = "ap-northeast-2"
 test_run_id = "phase-one"
-# deployment_role_arn = "arn:aws:iam::<account-id>:role/PerformanceTestProvisioner"
 availability_zones = [
   "ap-northeast-2a",
   "ap-northeast-2b",

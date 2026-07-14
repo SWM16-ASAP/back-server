@@ -14,7 +14,22 @@
 
 ## 실행
 
+먼저 로컬 AWS profile이 `PerformanceTestProvisioner` 역할을 assume하도록 설정한다. 이 설정은 저장소가 아닌 `~/.aws/config`에 둔다.
+
+```ini
+[profile llv-performance-test]
+role_arn = arn:aws:iam::<account-id>:role/PerformanceTestProvisioner
+source_profile = llv-sso
+region = ap-northeast-2
+```
+
 ```bash
+# 최초 1회
+aws configure sso --profile llv-sso
+
+aws sso login --profile llv-sso
+export AWS_PROFILE=llv-performance-test
+
 cd infra/performance-test/terraform/platform
 cp terraform.tfvars.example terraform.tfvars
 terraform init
@@ -29,4 +44,4 @@ terraform destroy
 
 `terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정한다. 로컬 PC에서는 Internal ALB에 직접 접근하지 않고, 검증 스크립트로 target health를 확인한다.
 
-Terraform은 애플리케이션 역할이 아닌 별도 `PerformanceTestProvisioner` 역할로 실행한다. 로컬 자격 증명이 이 역할을 assume할 수 있다면 `deployment_role_arn`을 `terraform.tfvars`에 설정한다.
+Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에서는 GitHub OIDC가 `PerformanceTestProvisioner`의 임시 credential을 제공한다.

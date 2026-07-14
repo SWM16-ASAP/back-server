@@ -3,13 +3,6 @@ variable "aws_region" {
   type        = string
 }
 
-variable "deployment_role_arn" {
-  description = "Optional IAM role Terraform assumes to provision the temporary test environment."
-  type        = string
-  default     = null
-  nullable    = true
-}
-
 variable "test_run_id" {
   description = "Lowercase identifier shared by all resources created for one test run."
   type        = string
