@@ -12,6 +12,15 @@
 - `run/verify-phase-one.sh`: ALB target health 확인
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
 
+## 관측 계획
+
+3단계에서 Prometheus가 아래 exporter의 `/metrics`를 수집하고 Grafana에서 API 지표와 함께 조회한다.
+
+- `mysqld_exporter`: connection, query rate, InnoDB, lock, I/O 지표
+- `redis_exporter`: memory, client, command rate, hit/miss, eviction 지표
+
+exporter는 Secrets Manager에서 읽기 전용 DB 계정을 주입받는다. 느린 쿼리 원문과 Redis command 인자는 metric label로 수집하지 않고 DB 로그와 profiler에서 확인한다.
+
 ## 실행
 
 먼저 로컬 AWS profile이 `PerformanceTestProvisioner` 역할을 assume하도록 설정한다. 이 설정은 저장소가 아닌 `~/.aws/config`에 둔다.
