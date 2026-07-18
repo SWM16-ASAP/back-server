@@ -23,6 +23,8 @@
 - 실행 스크립트가 `.env`를 업로드하며 테스트 종료 시 S3 객체와 로컬 파일을 모두 삭제한다.
 - 이 단계의 완료 기준은 k6가 ALB를 통해 API를 호출하고 API 또는 전용 probe가 각 의존성 연결을 확인하는 것이다.
 
+Redis, MySQL, WireMock은 각각 `redis`, `mysql`, `mock` 이름으로 Cloud Map에 등록된다. 전체 endpoint는 Terraform의 `dependency_endpoints` output에서 확인한다. MySQL은 비밀번호를 state에 남기지 않기 위해 임시 random root password로 시작하며, 이번 단계에서는 container health와 내부 DNS/TCP 연결만 검증한다.
+
 ## 관측 계획
 
 3단계에서 Prometheus가 아래 exporter의 `/metrics`를 수집하고 Grafana에서 API 지표와 함께 조회한다.

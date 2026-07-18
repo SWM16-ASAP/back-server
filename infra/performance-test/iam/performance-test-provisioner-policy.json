@@ -26,6 +26,7 @@
         "ec2:DescribeTags",
         "ec2:DescribeVpcAttribute",
         "ec2:DescribeRouteTables",
+        "ec2:DescribeRegions",
         "ec2:DescribeSecurityGroups",
         "ec2:DescribeSubnets",
         "ec2:DescribeVpcs",
@@ -158,6 +159,34 @@
         "logs:PutRetentionPolicy",
         "logs:TagResource",
         "logs:UntagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ServiceDiscoveryLifecycle",
+      "Effect": "Allow",
+      "Action": [
+        "servicediscovery:CreatePrivateDnsNamespace",
+        "servicediscovery:CreateService",
+        "servicediscovery:DeleteNamespace",
+        "servicediscovery:DeleteService",
+        "servicediscovery:GetNamespace",
+        "servicediscovery:GetOperation",
+        "servicediscovery:GetService",
+        "servicediscovery:ListTagsForResource",
+        "servicediscovery:TagResource",
+        "servicediscovery:UntagResource",
+        "servicediscovery:UpdateService"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ServiceDiscoveryPrivateDns",
+      "Effect": "Allow",
+      "Action": [
+        "route53:CreateHostedZone",
+        "route53:GetHostedZone",
+        "route53:ListHostedZonesByName"
       ],
       "Resource": "*"
     }

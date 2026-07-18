@@ -19,6 +19,24 @@ variable "app_image" {
   default     = "public.ecr.aws/docker/library/nginx:1.27-alpine"
 }
 
+variable "redis_image" {
+  description = "Redis image used by the temporary dependency service."
+  type        = string
+  default     = "redis:7.4.9-alpine"
+}
+
+variable "mysql_image" {
+  description = "MySQL image used by the temporary dependency service."
+  type        = string
+  default     = "mysql:8.4.10"
+}
+
+variable "mock_image" {
+  description = "WireMock image used to control external API responses."
+  type        = string
+  default     = "wiremock/wiremock:3.13.2"
+}
+
 variable "container_port" {
   description = "TCP port exposed by the phase-one container."
   type        = number

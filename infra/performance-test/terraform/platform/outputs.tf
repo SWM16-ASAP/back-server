@@ -17,3 +17,11 @@ output "app_environment_file_key" {
   description = "Object key reserved for the application environment file."
   value       = local.environment_file_key
 }
+
+output "dependency_endpoints" {
+  description = "Private DNS endpoints exposed by Cloud Map."
+  value = {
+    for name, service in local.dependency_services :
+    name => "${name}.${aws_service_discovery_private_dns_namespace.this.name}:${service.port}"
+  }
+}
