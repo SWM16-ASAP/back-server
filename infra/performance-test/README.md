@@ -19,6 +19,10 @@
 
 - ECS task는 public subnet과 public IP를 사용하며 NAT Gateway와 EIP는 두지 않는다.
 - Atlas는 사용자가 유지하는 테스트 전용 cluster를 사용한다. 테스트 직전에 IP allowlist를 `0.0.0.0/0`으로 열고 종료 직후 닫는다.
+- ALB, ECS, Atlas, Redis, MySQL, S3는 실제 환경과 유사하게 사용한다.
+- S3 AI input/output bucket은 Terraform이 생성·암호화하고 ECS task role에 최소 권한을 부여하며 테스트 종료 시 제거한다.
+- Bedrock과 Discord는 WireMock으로 대체하고 실제 Bedrock 지연 시간은 별도의 소규모 호출로 보정한다.
+- Firebase Auth는 테스트 JWT로 대체하고 FCM은 mock/no-op으로 실행한다. Sentry는 비활성화한다.
 - 비밀값은 서비스별 임시 `.env`를 S3 environment file로 전달한다. Terraform은 객체 내용이 아닌 bucket, object key, IAM만 관리한다.
 - 실행 스크립트가 `.env`를 업로드하며 테스트 종료 시 S3 객체와 로컬 파일을 모두 삭제한다.
 - 이 단계의 완료 기준은 k6가 ALB를 통해 API를 호출하고 API 또는 전용 probe가 각 의존성 연결을 확인하는 것이다.
@@ -71,6 +75,8 @@ Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에�
 ## 2단계 환경 파일
 
 ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
+
+사용자가 직접 입력할 값은 Atlas 테스트 계정의 `SPRING_DATA_MONGODB_URI`다. Redis와 WireMock 주소는 `test_run_id`로 결정하고 JWT와 import key는 테스트 전용 값으로 생성한다. S3 input/output bucket 값은 Terraform 리소스 추가 후 output으로 자동 반영한다.
 
 업로드 스크립트는 S3 bucket, public access block, 암호화 설정만 먼저 적용한 후 환경 파일을 업로드한다. 업로드가 끝나야 전체 인프라를 적용한다.
 
