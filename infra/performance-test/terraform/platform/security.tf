@@ -46,6 +46,14 @@ resource "aws_security_group" "app" {
   }
 
   egress {
+    description = "MongoDB Atlas database traffic"
+    from_port   = 27015
+    to_port     = 27017
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
     description = "DNS to the VPC resolver"
     from_port   = 53
     to_port     = 53

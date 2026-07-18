@@ -14,6 +14,7 @@ import com.linglevel.api.i18n.CountryCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +25,9 @@ import java.util.Optional;
 @Slf4j
 public class FcmTokenService {
 
+	@Value("${fcm.enabled:true}")
+	private boolean fcmEnabled;
+
 	private final FcmTokenRepository fcmTokenRepository;
 
 	private final FirebaseMessaging firebaseMessaging;
@@ -32,6 +36,10 @@ public class FcmTokenService {
 	 * FCM 토큰 유효성 검증
 	 */
 	private boolean validateFcmToken(String fcmToken) {
+		if (!fcmEnabled) {
+			return true;
+		}
+
 		try {
 			Message testMessage = Message.builder()
 				.setToken(fcmToken)

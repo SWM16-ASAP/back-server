@@ -11,6 +11,7 @@ import com.linglevel.api.fcm.repository.PushLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -24,6 +25,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class FcmMessagingService {
+
+	@Value("${fcm.enabled:true}")
+	private boolean fcmEnabled;
 
 	private final FirebaseMessaging firebaseMessaging;
 
@@ -39,9 +43,13 @@ public class FcmMessagingService {
 	 * 단일 사용자에게 알림 전송
 	 */
 	public String sendMessage(String fcmToken, FcmMessageRequest messageRequest) {
+		String pushId = UUID.randomUUID().toString();
+		if (!fcmEnabled) {
+			log.debug("FCM send skipped because FCM is disabled - pushId: {}", pushId);
+			return pushId;
+		}
 		String userId = getUserIdFromToken(fcmToken);
 		String campaignGroup = messageRequest.getCampaignId(); // 원래의 campaignId를 그룹으로 사용
-		String pushId = UUID.randomUUID().toString();
 
 		try {
 			Map<String, String> data = buildDataWithUserId(messageRequest, userId);
@@ -89,6 +97,11 @@ public class FcmMessagingService {
 	 */
 	public BatchResponse sendMulticastMessage(List<String> fcmTokens, FcmMessageRequest messageRequest) {
 		String campaignGroup = messageRequest.getCampaignId(); // 원래의 campaignId를 그룹으로 사용
+		if (!fcmEnabled) {
+			int messageCount = fcmTokens == null ? 0 : fcmTokens.size();
+			log.debug("FCM multicast skipped because FCM is disabled - messages: {}", messageCount);
+			return new DisabledBatchResponse(messageCount);
+		}
 
 		try {
 			if (fcmTokens == null || fcmTokens.isEmpty()) {
@@ -152,6 +165,25 @@ public class FcmMessagingService {
 
 			throw new FcmException(FcmErrorCode.MESSAGE_SEND_FAILED);
 		}
+	}
+
+	private record DisabledBatchResponse(int successCount) implements BatchResponse {
+
+		@Override
+		public List<SendResponse> getResponses() {
+			return List.of();
+		}
+
+		@Override
+		public int getSuccessCount() {
+			return successCount;
+		}
+
+		@Override
+		public int getFailureCount() {
+			return 0;
+		}
+
 	}
 
 	/**
