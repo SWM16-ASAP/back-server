@@ -12,6 +12,7 @@ flowchart LR
     APP --> MYSQL["MySQL"]
     APP --> ATLAS["MongoDB Atlas"]
     APP --> MOCK["External API mock"]
+    ENV["S3 environment file"] --> APP
 
     PROM["Prometheus"] --> APP
     GRAFANA["Grafana"] --> PROM
@@ -28,10 +29,10 @@ flowchart LR
 | VPC, Subnet, Security Group | 테스트 환경의 네트워크 격리와 통신 제어 |
 | Internal ALB | k6 요청을 API task로 라우팅 |
 | ECS Fargate | API, k6, Redis, MySQL, external API mock, Prometheus, Grafana 컨테이너 실행 |
-| MongoDB Atlas | 테스트 데이터 저장소. 테스트 네트워크의 egress IP만 allowlist에 등록 |
+| MongoDB Atlas | 사용자가 유지하는 테스트 데이터 저장소. 실행 중에만 IP allowlist를 임시로 전체 허용 |
 | External API mock | Bedrock, S3 등 외부 의존성의 응답·지연·오류를 통제 |
 | CloudWatch Logs/Metrics | ECS, ALB 로그와 인프라 메트릭 수집 |
-| S3 | Terraform state와 실행 결과 보관 |
+| S3 | 테스트용 environment file 전달, Terraform state와 실행 결과 보관 |
 | IAM Role | Terraform 프로비저닝 및 ECS task의 최소 권한 부여 |
 
 ## 단계별 범위
@@ -39,8 +40,16 @@ flowchart LR
 | 단계 | 목표 | 포함 구성 | 완료 기준 |
 | --- | --- | --- | --- |
 | 1단계 | Terraform으로 컨테이너를 생성하고 제거한다. | VPC, Internal ALB, ECS Fargate API, CloudWatch Logs | ALB health check 성공 후 `terraform destroy`로 런타임 리소스가 제거된다. |
-| 2단계 | 의존성이 연결된 API에 k6 부하를 전달한다. | 1단계 + k6, Redis, MySQL, MongoDB Atlas, external API mock | k6가 ALB를 통해 API를 호출하고 API가 Redis, MySQL, Atlas, mock 연결을 확인한다. |
+| 2단계 | 의존성이 연결된 API에 k6 부하를 전달한다. | 1단계 + k6, Redis, MySQL, MongoDB Atlas, external API mock | k6가 ALB를 통해 API를 호출하고 API 또는 전용 probe가 각 의존성의 연결을 확인한다. |
 | 3단계 | 부하 결과와 애플리케이션·인프라 상태를 Grafana에서 함께 분석한다. | 2단계 + Prometheus, Grafana, CloudWatch, 결과 S3 | 동일 실행 시간 범위의 지표와 원본 결과를 조회·보관한다. |
+
+## 2단계 운영 경계
+
+- 테스트 task는 public subnet에서 public IP를 사용한다. NAT Gateway와 고정 EIP는 구성하지 않고, inbound는 Security Group으로 제한한다.
+- Atlas는 테스트 전용 cluster와 최소 권한 계정을 사용한다. IP allowlist의 `0.0.0.0/0` 허용은 테스트 중에만 유지하고 종료 직후 제거한다.
+- 비밀값은 서비스별 임시 `.env`를 S3 environment file로 전달한다. Terraform은 bucket, object key, IAM만 관리하고 객체 내용은 관리하지 않아 비밀값이 state에 기록되지 않게 한다.
+- 실행 스크립트가 로컬 `.env`를 S3에 업로드하고, 테스트 종료 시 S3 객체와 로컬 파일을 모두 삭제한다.
+- 2단계는 의존성 연결과 k6 요청 전달까지만 검증한다. exporter, Prometheus, Grafana를 통한 메트릭 수집은 3단계에서 추가한다.
 
 ## 3단계 수집 지표
 

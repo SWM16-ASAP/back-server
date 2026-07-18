@@ -4,13 +4,21 @@
 
 ## 현재 단계
 
-1단계는 `ECS Fargate API 1대 -> Internal ALB` 배포와 제거만 검증한다. 기본 이미지는 Nginx이며, Redis, MySQL, Atlas, k6, Prometheus, Grafana는 다음 단계에서 추가한다. Word single-flight 실험에서는 API를 2대로 확장한다.
+1단계의 `ECS Fargate API 1대 -> Internal ALB` 배포와 제거 검증을 마쳤다. 2단계에서는 API를 2대로 확장하고 Redis, MySQL, Atlas, external API mock, k6를 연결한다. Prometheus와 Grafana는 3단계에서 추가한다.
 
 ## 구조
 
 - `terraform/platform`: AWS 리소스 정의
 - `run/verify-phase-one.sh`: ALB target health 확인
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
+
+## 2단계 계획
+
+- ECS task는 public subnet과 public IP를 사용하며 NAT Gateway와 EIP는 두지 않는다.
+- Atlas는 사용자가 유지하는 테스트 전용 cluster를 사용한다. 테스트 직전에 IP allowlist를 `0.0.0.0/0`으로 열고 종료 직후 닫는다.
+- 비밀값은 서비스별 임시 `.env`를 S3 environment file로 전달한다. Terraform은 객체 내용이 아닌 bucket, object key, IAM만 관리한다.
+- 실행 스크립트가 `.env`를 업로드하며 테스트 종료 시 S3 객체와 로컬 파일을 모두 삭제한다.
+- 이 단계의 완료 기준은 k6가 ALB를 통해 API를 호출하고 API 또는 전용 probe가 각 의존성 연결을 확인하는 것이다.
 
 ## 관측 계획
 
@@ -19,9 +27,9 @@
 - `mysqld_exporter`: connection, query rate, InnoDB, lock, I/O 지표
 - `redis_exporter`: memory, client, command rate, hit/miss, eviction 지표
 
-exporter는 Secrets Manager에서 읽기 전용 DB 계정을 주입받는다. 느린 쿼리 원문과 Redis command 인자는 metric label로 수집하지 않고 DB 로그와 profiler에서 확인한다.
+exporter의 읽기 전용 DB 계정도 서비스별 S3 environment file로 주입한다. 느린 쿼리 원문과 Redis command 인자는 metric label로 수집하지 않고 DB 로그와 profiler에서 확인한다.
 
-## 실행
+## 1단계 실행
 
 먼저 로컬 AWS profile이 `PerformanceTestProvisioner` 역할을 assume하도록 설정한다. 이 설정은 저장소가 아닌 `~/.aws/config`에 둔다.
 
