@@ -10,6 +10,7 @@
 
 - `terraform/platform`: AWS 리소스 정의
 - `run/verify-phase-one.sh`: ALB target health 확인
+- `run/.env.app.example`: 테스트 앱 환경 변수 양식
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
 - `run/cleanup-app-environment.sh`: S3 객체와 로컬 환경 파일 삭제
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
@@ -70,6 +71,7 @@ Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에�
 Terraform 적용 후 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
 
 ```bash
+cp infra/performance-test/run/.env.app.example infra/performance-test/run/.env.app
 chmod 600 infra/performance-test/run/.env.app
 ./infra/performance-test/run/upload-app-environment.sh
 ```
