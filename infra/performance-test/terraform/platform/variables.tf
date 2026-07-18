@@ -61,6 +61,17 @@ variable "task_memory" {
   default     = 512
 }
 
+variable "app_desired_count" {
+  description = "Number of application tasks behind the internal ALB."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.app_desired_count >= 1
+    error_message = "app_desired_count must be at least 1."
+  }
+}
+
 variable "vpc_cidr" {
   description = "CIDR block reserved for the temporary phase-one VPC."
   type        = string

@@ -76,7 +76,7 @@ Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에�
 
 ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
 
-사용자가 직접 입력할 값은 Atlas 테스트 계정의 `SPRING_DATA_MONGODB_URI`다. Redis와 WireMock 주소는 `test_run_id`로 결정하고 JWT와 import key는 테스트 전용 값으로 생성한다. S3 input/output bucket 값은 Terraform 리소스 추가 후 output으로 자동 반영한다.
+사용자가 직접 입력할 값은 Atlas 테스트 계정의 `SPRING_DATA_MONGODB_URI`다. JWT와 import key는 테스트 전용 값으로 생성한다. 업로드 스크립트는 Terraform output을 읽어 Redis와 WireMock 주소, S3 input/output bucket 값을 환경 파일에 자동 반영한다.
 
 업로드 스크립트는 S3 bucket, public access block, 암호화 설정만 먼저 적용한 후 환경 파일을 업로드한다. 업로드가 끝나야 전체 인프라를 적용한다.
 

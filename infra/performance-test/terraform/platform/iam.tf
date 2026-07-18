@@ -36,3 +36,36 @@ resource "aws_iam_role_policy" "task_execution_environment_file" {
   role   = aws_iam_role.task_execution.id
   policy = data.aws_iam_policy_document.task_execution_environment_file.json
 }
+
+resource "aws_iam_role" "app_task" {
+  name_prefix        = "${local.name_prefix}-app-"
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
+}
+
+data "aws_iam_policy_document" "app_task_ai_buckets" {
+  statement {
+    actions   = ["s3:GetBucketLocation"]
+    resources = [for bucket in aws_s3_bucket.ai : bucket.arn]
+  }
+
+  statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.ai["input"].arn}/*"]
+  }
+
+  statement {
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.ai["output"].arn]
+  }
+
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.ai["output"].arn}/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "app_task_ai_buckets" {
+  name   = "ai-bucket-access"
+  role   = aws_iam_role.app_task.id
+  policy = data.aws_iam_policy_document.app_task_ai_buckets.json
+}
