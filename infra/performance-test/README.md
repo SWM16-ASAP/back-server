@@ -10,6 +10,8 @@
 
 - `terraform/platform`: AWS 리소스 정의
 - `run/verify-phase-one.sh`: ALB target health 확인
+- `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
+- `run/cleanup-app-environment.sh`: S3 객체와 로컬 환경 파일 삭제
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
 
 ## 2단계 계획
@@ -62,3 +64,21 @@ terraform destroy
 `terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정한다. 로컬 PC에서는 Internal ALB에 직접 접근하지 않고, 검증 스크립트로 target health를 확인한다.
 
 Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에서는 GitHub OIDC가 `PerformanceTestProvisioner`의 임시 credential을 제공한다.
+
+## 2단계 환경 파일
+
+Terraform 적용 후 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
+
+```bash
+chmod 600 infra/performance-test/run/.env.app
+./infra/performance-test/run/upload-app-environment.sh
+```
+
+테스트 종료 후에는 인프라를 제거하기 전에 환경 파일을 먼저 정리한다. 원격 객체 삭제가 실패하더라도 로컬 `.env.app`은 삭제되며, 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다.
+
+```bash
+./infra/performance-test/run/cleanup-app-environment.sh
+
+cd infra/performance-test/terraform/platform
+terraform destroy
+```
