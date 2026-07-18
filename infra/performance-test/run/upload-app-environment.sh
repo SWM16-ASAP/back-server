@@ -10,6 +10,11 @@ if [[ ! -f "$environment_file" ]]; then
 	exit 1
 fi
 
+terraform -chdir="$platform_dir" apply \
+	-target=aws_s3_bucket.environment_files \
+	-target=aws_s3_bucket_public_access_block.environment_files \
+	-target=aws_s3_bucket_server_side_encryption_configuration.environment_files
+
 region="$(terraform -chdir="$platform_dir" output -raw aws_region)"
 bucket="$(terraform -chdir="$platform_dir" output -raw environment_file_bucket)"
 key="$(terraform -chdir="$platform_dir" output -raw app_environment_file_key)"

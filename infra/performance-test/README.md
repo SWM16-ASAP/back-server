@@ -68,12 +68,16 @@ Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에�
 
 ## 2단계 환경 파일
 
-Terraform 적용 후 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
+ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
+
+업로드 스크립트는 S3 bucket, public access block, 암호화 설정만 먼저 적용한 후 환경 파일을 업로드한다. 업로드가 끝나야 전체 인프라를 적용한다.
 
 ```bash
 cp infra/performance-test/run/.env.app.example infra/performance-test/run/.env.app
 chmod 600 infra/performance-test/run/.env.app
 ./infra/performance-test/run/upload-app-environment.sh
+
+terraform -chdir=infra/performance-test/terraform/platform apply
 ```
 
 테스트 종료 후에는 인프라를 제거하기 전에 환경 파일을 먼저 정리한다. 원격 객체 삭제가 실패하더라도 로컬 `.env.app`은 삭제되며, 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다.
