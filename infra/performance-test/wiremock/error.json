@@ -1,0 +1,34 @@
+{
+  "mappings": [
+    {
+      "name": "bedrock-converse-error",
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/model/.+/converse"
+      },
+      "response": {
+        "status": 503,
+        "headers": {
+          "Content-Type": "application/json",
+          "x-amzn-errortype": "ServiceUnavailableException"
+        },
+        "jsonBody": {
+          "message": "Bedrock is temporarily unavailable in the performance test scenario."
+        }
+      }
+    },
+    {
+      "name": "discord-error",
+      "request": {
+        "method": "POST",
+        "urlPath": "/discord/webhook"
+      },
+      "response": {
+        "status": 500,
+        "jsonBody": {
+          "message": "Discord webhook failure in the performance test scenario."
+        }
+      }
+    }
+  ]
+}

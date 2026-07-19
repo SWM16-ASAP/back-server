@@ -13,6 +13,7 @@
 - `run/.env.app.example`: 테스트 앱 환경 변수 양식
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
 - `run/cleanup-app-environment.sh`: S3 객체와 로컬 환경 파일 삭제
+- `wiremock`: Bedrock과 Discord의 성공·지연·오류 mapping
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
 
 ## 2단계 계획
@@ -29,6 +30,8 @@
 
 Redis, MySQL, WireMock은 각각 `redis`, `mysql`, `mock` 이름으로 Cloud Map에 등록된다. 전체 endpoint는 Terraform의 `dependency_endpoints` output에서 확인한다. MySQL은 비밀번호를 state에 남기지 않기 위해 임시 random root password로 시작하며, 이번 단계에서는 container health와 내부 DNS/TCP 연결만 검증한다.
 
+WireMock은 task 시작 시 초기화 sidecar가 Admin API로 mapping을 등록한다. `terraform.tfvars`의 `mock_scenario`를 `success`, `delay`, `error` 중 하나로 설정해 Bedrock과 Discord 응답을 통제한다. `success`의 기본 지연은 800ms이며 별도 Bedrock 실호출 결과에 맞춰 fixture를 보정한다.
+
 ## 관측 계획
 
 3단계에서 Prometheus가 아래 exporter의 `/metrics`를 수집하고 Grafana에서 API 지표와 함께 조회한다.
@@ -38,7 +41,7 @@ Redis, MySQL, WireMock은 각각 `redis`, `mysql`, `mock` 이름으로 Cloud Map
 
 exporter의 읽기 전용 DB 계정도 서비스별 S3 environment file로 주입한다. 느린 쿼리 원문과 Redis command 인자는 metric label로 수집하지 않고 DB 로그와 profiler에서 확인한다.
 
-## 1단계 실행
+## 실행 준비
 
 먼저 로컬 AWS profile이 `PerformanceTestProvisioner` 역할을 assume하도록 설정한다. 이 설정은 저장소가 아닌 `~/.aws/config`에 둔다.
 
@@ -56,19 +59,12 @@ aws configure sso --profile llv-sso
 aws sso login --profile llv-sso
 export AWS_PROFILE=llv-performance-test
 
-cd infra/performance-test/terraform/platform
-cp terraform.tfvars.example terraform.tfvars
-terraform init
-terraform apply
-
-cd ../../../..
-./infra/performance-test/run/verify-phase-one.sh
-
-cd infra/performance-test/terraform/platform
-terraform destroy
+cp infra/performance-test/terraform/platform/terraform.tfvars.example \
+	infra/performance-test/terraform/platform/terraform.tfvars
+terraform -chdir=infra/performance-test/terraform/platform init
 ```
 
-`terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정한다. 로컬 PC에서는 Internal ALB에 직접 접근하지 않고, 검증 스크립트로 target health를 확인한다.
+`terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정한다. 환경 파일을 업로드하기 전에는 전체 `terraform apply`를 실행하지 않는다.
 
 Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에서는 GitHub OIDC가 `PerformanceTestProvisioner`의 임시 credential을 제공한다.
 
@@ -93,6 +89,5 @@ terraform -chdir=infra/performance-test/terraform/platform apply
 ```bash
 ./infra/performance-test/run/cleanup-app-environment.sh
 
-cd infra/performance-test/terraform/platform
-terraform destroy
+terraform -chdir=infra/performance-test/terraform/platform destroy
 ```

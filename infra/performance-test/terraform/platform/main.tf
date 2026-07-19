@@ -6,6 +6,7 @@ locals {
     for index, availability_zone in local.availability_zones :
     availability_zone => cidrsubnet(var.vpc_cidr, 8, index)
   }
+  wiremock_mappings = file("${path.module}/../../wiremock/${var.mock_scenario}.json")
   dependency_services = {
     redis = {
       image       = var.redis_image

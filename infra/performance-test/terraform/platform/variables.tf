@@ -37,6 +37,23 @@ variable "mock_image" {
   default     = "wiremock/wiremock:3.13.2"
 }
 
+variable "mock_init_image" {
+  description = "Container image that registers WireMock mappings through the Admin API."
+  type        = string
+  default     = "curlimages/curl:8.12.1"
+}
+
+variable "mock_scenario" {
+  description = "WireMock response profile loaded when the mock service starts."
+  type        = string
+  default     = "success"
+
+  validation {
+    condition     = contains(["success", "delay", "error"], var.mock_scenario)
+    error_message = "mock_scenario must be one of success, delay, or error."
+  }
+}
+
 variable "container_port" {
   description = "TCP port exposed by the phase-one container."
   type        = number

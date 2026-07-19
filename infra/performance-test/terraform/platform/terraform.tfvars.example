@@ -12,3 +12,4 @@ app_image         = "public.ecr.aws/docker/library/nginx:1.27-alpine"
 container_port    = 80
 health_check_path = "/"
 app_desired_count = 2
+mock_scenario      = "success"
