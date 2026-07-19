@@ -72,6 +72,12 @@ variable "k6_task_memory" {
   default     = 512
 }
 
+variable "dependency_probe_image" {
+  description = "Alpine image used by the one-off dependency connectivity probe."
+  type        = string
+  default     = "public.ecr.aws/docker/library/alpine:3.22.2"
+}
+
 variable "container_port" {
   description = "TCP port exposed by the phase-one container."
   type        = number

@@ -14,6 +14,7 @@
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
 - `run/cleanup-app-environment.sh`: S3 객체와 로컬 환경 파일 삭제
 - `run/run-k6-smoke.sh`: VPC 내부에서 ALB health endpoint 호출
+- `run/verify-phase-two.sh`: ALB, 의존성, k6 연결을 순서대로 검증
 - `k6/smoke.js`: 인프라 연결 확인용 단일 요청 시나리오
 - `wiremock`: Bedrock과 Discord의 성공·지연·오류 mapping
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
@@ -67,6 +68,7 @@ terraform -chdir=infra/performance-test/terraform/platform init
 ```
 
 `terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정한다. 환경 파일을 업로드하기 전에는 전체 `terraform apply`를 실행하지 않는다.
+2단계 검증에서는 테스트할 commit으로 LLV API 이미지를 빌드·업로드하고 `app_image`를 해당 주소로 교체한다.
 
 Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에서는 GitHub OIDC가 `PerformanceTestProvisioner`의 임시 credential을 제공한다.
 
@@ -84,10 +86,10 @@ chmod 600 infra/performance-test/run/.env.app
 ./infra/performance-test/run/upload-app-environment.sh
 
 terraform -chdir=infra/performance-test/terraform/platform apply
-./infra/performance-test/run/run-k6-smoke.sh
+./infra/performance-test/run/verify-phase-two.sh
 ```
 
-smoke task는 상시 실행되는 ECS service가 아니다. 스크립트를 실행할 때 Fargate task 한 개를 생성하고, ALB 응답과 k6 threshold가 모두 성공한 경우에만 종료 코드 `0`을 반환한다. 실제 Word 부하 시나리오는 이 연결 확인 이후 별도 task 실행 설정으로 추가한다.
+검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, WireMock mapping 등록, k6의 ALB 요청을 순서대로 확인한다. probe와 smoke task는 상시 실행되는 ECS service가 아니며 검증할 때 각각 한 번 실행된다. 실제 Word 부하 시나리오는 이 연결 확인 이후 별도 task 실행 설정으로 추가한다.
 
 테스트 종료 후에는 인프라를 제거하기 전에 환경 파일을 먼저 정리한다. 원격 객체 삭제가 실패하더라도 로컬 `.env.app`은 삭제되며, 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다.
 

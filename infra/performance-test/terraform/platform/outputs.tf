@@ -60,3 +60,18 @@ output "k6_subnet_id" {
   description = "Public subnet used by the one-off k6 task."
   value       = values(aws_subnet.public)[0].id
 }
+
+output "app_desired_count" {
+  description = "Expected number of healthy application targets."
+  value       = var.app_desired_count
+}
+
+output "app_security_group_id" {
+  description = "Security group reused by the dependency probe."
+  value       = aws_security_group.app.id
+}
+
+output "dependency_probe_task_definition_arn" {
+  description = "Task definition that verifies private dependency connectivity."
+  value       = aws_ecs_task_definition.dependency_probe.arn
+}
