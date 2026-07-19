@@ -19,7 +19,7 @@ resource "aws_ecs_task_definition" "app" {
   container_definitions = jsonencode([
     {
       name      = "phase-one-app"
-      image     = var.app_image
+      image     = "${aws_ecr_repository.app.repository_url}:${var.app_image_tag}"
       essential = true
       environmentFiles = [
         {
@@ -57,7 +57,7 @@ resource "aws_ecs_service" "app" {
   task_definition                    = aws_ecs_task_definition.app.arn
   desired_count                      = var.app_desired_count
   launch_type                        = "FARGATE"
-  health_check_grace_period_seconds  = 30
+  health_check_grace_period_seconds  = var.health_check_grace_period_seconds
   wait_for_steady_state              = true
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200

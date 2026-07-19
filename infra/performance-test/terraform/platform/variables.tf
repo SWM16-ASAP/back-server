@@ -13,10 +13,14 @@ variable "test_run_id" {
   }
 }
 
-variable "app_image" {
-  description = "Container image used to verify the ECS and ALB deployment path."
+variable "app_image_tag" {
+  description = "Immutable ECR tag assigned to the LLV API image under test."
   type        = string
-  default     = "public.ecr.aws/docker/library/nginx:1.27-alpine"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$", var.app_image_tag))
+    error_message = "app_image_tag must be a valid non-empty container image tag."
+  }
 }
 
 variable "redis_image" {
@@ -88,6 +92,12 @@ variable "health_check_path" {
   description = "HTTP path used by the ALB target group health check."
   type        = string
   default     = "/"
+}
+
+variable "health_check_grace_period_seconds" {
+  description = "Time allowed for the Spring application to start before ALB health failures count."
+  type        = number
+  default     = 180
 }
 
 variable "task_cpu" {

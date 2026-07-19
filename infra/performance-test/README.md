@@ -11,6 +11,7 @@
 - `terraform/platform`: AWS 리소스 정의
 - `run/verify-phase-one.sh`: ALB target health 확인
 - `run/.env.app.example`: 테스트 앱 환경 변수 양식
+- `run/publish-app-image.sh`: 현재 commit의 LLV API 이미지를 임시 ECR에 업로드
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
 - `run/cleanup-app-environment.sh`: S3 객체와 로컬 환경 파일 삭제
 - `run/run-k6-smoke.sh`: VPC 내부에서 ALB health endpoint 호출
@@ -67,8 +68,7 @@ cp infra/performance-test/terraform/platform/terraform.tfvars.example \
 terraform -chdir=infra/performance-test/terraform/platform init
 ```
 
-`terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정한다. 환경 파일을 업로드하기 전에는 전체 `terraform apply`를 실행하지 않는다.
-2단계 검증에서는 테스트할 commit으로 LLV API 이미지를 빌드·업로드하고 `app_image`를 해당 주소로 교체한다.
+`terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정하고 `app_image_tag`에는 commit SHA 기반의 고유 태그를 사용한다. 환경 파일과 앱 이미지를 업로드하기 전에는 전체 `terraform apply`를 실행하지 않는다.
 
 Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에서는 GitHub OIDC가 `PerformanceTestProvisioner`의 임시 credential을 제공한다.
 
@@ -83,6 +83,7 @@ ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env
 ```bash
 cp infra/performance-test/run/.env.app.example infra/performance-test/run/.env.app
 chmod 600 infra/performance-test/run/.env.app
+TF_CLI_ARGS_apply=-auto-approve ./infra/performance-test/run/publish-app-image.sh
 ./infra/performance-test/run/upload-app-environment.sh
 
 terraform -chdir=infra/performance-test/terraform/platform apply

@@ -5,6 +5,15 @@ set -euo pipefail
 platform_dir="${1:-infra/performance-test/terraform/platform}"
 environment_file="infra/performance-test/run/.env.app"
 
+read_terraform_value() {
+	local expression="$1"
+	local value
+	value="$(printf '%s\n' "$expression" | terraform -chdir="$platform_dir" console)"
+	value="${value#\"}"
+	value="${value%\"}"
+	printf '%s' "$value"
+}
+
 if [[ ! -f "$environment_file" ]]; then
 	echo "Application environment file not found: ${environment_file}" >&2
 	exit 1
@@ -18,10 +27,10 @@ terraform -chdir="$platform_dir" apply \
 	-target=aws_s3_bucket_public_access_block.ai \
 	-target=aws_s3_bucket_server_side_encryption_configuration.ai
 
-region="$(terraform -chdir="$platform_dir" output -raw aws_region)"
-test_run_id="$(terraform -chdir="$platform_dir" output -raw test_run_id)"
+region="$(read_terraform_value 'var.aws_region')"
+test_run_id="$(read_terraform_value 'var.test_run_id')"
 bucket="$(terraform -chdir="$platform_dir" output -raw environment_file_bucket)"
-key="$(terraform -chdir="$platform_dir" output -raw app_environment_file_key)"
+key="$(read_terraform_value 'local.environment_file_key')"
 ai_input_bucket="$(terraform -chdir="$platform_dir" output -raw ai_input_bucket)"
 ai_output_bucket="$(terraform -chdir="$platform_dir" output -raw ai_output_bucket)"
 

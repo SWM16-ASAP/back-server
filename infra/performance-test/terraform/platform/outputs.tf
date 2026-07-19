@@ -23,6 +23,11 @@ output "app_environment_file_key" {
   value       = local.environment_file_key
 }
 
+output "app_ecr_repository_url" {
+  description = "Temporary ECR repository receiving the LLV API image under test."
+  value       = aws_ecr_repository.app.repository_url
+}
+
 output "ai_input_bucket" {
   description = "Temporary S3 bucket receiving AI input objects."
   value       = aws_s3_bucket.ai["input"].id

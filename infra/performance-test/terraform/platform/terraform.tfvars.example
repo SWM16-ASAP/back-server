@@ -6,9 +6,10 @@ availability_zones = [
   "ap-northeast-2b",
 ]
 
-# Build and push the LLV API image for the commit under test before applying.
-app_image         = "replace-with-llv-performance-test-image"
-container_port    = 8080
-health_check_path = "/actuator/health"
-app_desired_count = 2
-mock_scenario      = "success"
+# Use a unique immutable tag for the commit under test.
+app_image_tag                    = "replace-with-git-sha"
+container_port                   = 8080
+health_check_path                = "/actuator/health"
+health_check_grace_period_seconds = 180
+app_desired_count                = 2
+mock_scenario                     = "success"
