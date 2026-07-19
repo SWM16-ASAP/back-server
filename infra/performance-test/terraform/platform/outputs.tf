@@ -40,3 +40,23 @@ output "dependency_endpoints" {
     name => "${name}.${aws_service_discovery_private_dns_namespace.this.name}:${service.port}"
   }
 }
+
+output "ecs_cluster_arn" {
+  description = "ECS cluster used to run the one-off k6 task."
+  value       = aws_ecs_cluster.this.arn
+}
+
+output "k6_task_definition_arn" {
+  description = "Task definition used by the k6 smoke runner."
+  value       = aws_ecs_task_definition.k6.arn
+}
+
+output "k6_security_group_id" {
+  description = "Security group assigned to the one-off k6 task."
+  value       = aws_security_group.k6.id
+}
+
+output "k6_subnet_id" {
+  description = "Public subnet used by the one-off k6 task."
+  value       = values(aws_subnet.public)[0].id
+}

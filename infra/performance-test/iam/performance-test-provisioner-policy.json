@@ -76,10 +76,12 @@
         "ecs:DeregisterTaskDefinition",
         "ecs:DescribeClusters",
         "ecs:DescribeServices",
+        "ecs:DescribeTasks",
         "ecs:DescribeTaskDefinition",
         "ecs:ListTagsForResource",
         "ecs:ListTasks",
         "ecs:RegisterTaskDefinition",
+        "ecs:RunTask",
         "ecs:TagResource",
         "ecs:UntagResource",
         "ecs:UpdateService"

@@ -54,6 +54,24 @@ variable "mock_scenario" {
   }
 }
 
+variable "k6_image" {
+  description = "k6 image used by the one-off smoke task."
+  type        = string
+  default     = "grafana/k6:2.0.0"
+}
+
+variable "k6_task_cpu" {
+  description = "Fargate CPU units assigned to the one-off k6 task."
+  type        = number
+  default     = 256
+}
+
+variable "k6_task_memory" {
+  description = "Memory in MiB assigned to the one-off k6 task."
+  type        = number
+  default     = 512
+}
+
 variable "container_port" {
   description = "TCP port exposed by the phase-one container."
   type        = number
