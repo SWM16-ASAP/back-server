@@ -7,11 +7,12 @@ resource "aws_lb" "app" {
 }
 
 resource "aws_lb_target_group" "app" {
-  name        = "${local.name_prefix}-tg"
-  port        = var.container_port
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = aws_vpc.this.id
+  name                 = "${local.name_prefix}-tg"
+  port                 = var.container_port
+  protocol             = "HTTP"
+  target_type          = "ip"
+  vpc_id               = aws_vpc.this.id
+  deregistration_delay = 30
 
   health_check {
     enabled             = true

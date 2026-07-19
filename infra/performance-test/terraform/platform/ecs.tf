@@ -14,12 +14,19 @@ resource "aws_ecs_task_definition" "app" {
   cpu                      = var.task_cpu
   memory                   = var.task_memory
   execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.app_task.arn
 
   container_definitions = jsonencode([
     {
       name      = "phase-one-app"
-      image     = var.app_image
+      image     = "${aws_ecr_repository.app.repository_url}:${var.app_image_tag}"
       essential = true
+      environmentFiles = [
+        {
+          type  = "s3"
+          value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_key}"
+        }
+      ]
       portMappings = [
         {
           containerPort = var.container_port
@@ -38,16 +45,19 @@ resource "aws_ecs_task_definition" "app" {
     }
   ])
 
-  depends_on = [aws_iam_role_policy_attachment.task_execution]
+  depends_on = [
+    aws_iam_role_policy_attachment.task_execution,
+    aws_iam_role_policy.task_execution_environment_file,
+  ]
 }
 
 resource "aws_ecs_service" "app" {
   name                               = "${local.name_prefix}-app"
   cluster                            = aws_ecs_cluster.this.id
   task_definition                    = aws_ecs_task_definition.app.arn
-  desired_count                      = 1
+  desired_count                      = var.app_desired_count
   launch_type                        = "FARGATE"
-  health_check_grace_period_seconds  = 30
+  health_check_grace_period_seconds  = var.health_check_grace_period_seconds
   wait_for_steady_state              = true
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200

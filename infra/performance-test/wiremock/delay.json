@@ -1,0 +1,49 @@
+{
+  "mappings": [
+    {
+      "name": "bedrock-converse-delay",
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/model/.+/converse"
+      },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 6000,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "output": {
+            "message": {
+              "role": "assistant",
+              "content": [
+                {
+                  "text": "[{\"originalForm\":\"benchmark\",\"variantTypes\":[\"ORIGINAL_FORM\"],\"sourceLanguageCode\":\"EN\",\"targetLanguageCode\":\"KO\",\"summary\":[\"기준점\"],\"meanings\":[{\"partOfSpeech\":\"noun\",\"meaning\":\"성능이나 품질을 비교하기 위한 기준점\",\"example\":\"The benchmark helps us compare system performance.\",\"exampleTranslation\":\"그 기준점은 시스템 성능을 비교하는 데 도움이 됩니다.\"}],\"conjugations\":null,\"comparatives\":null,\"plural\":{\"singular\":\"benchmark\",\"plural\":\"benchmarks\"}}]"
+                }
+              ]
+            }
+          },
+          "stopReason": "end_turn",
+          "usage": {
+            "inputTokens": 500,
+            "outputTokens": 120,
+            "totalTokens": 620
+          },
+          "metrics": {
+            "latencyMs": 6000
+          }
+        }
+      }
+    },
+    {
+      "name": "discord-delay-profile-success",
+      "request": {
+        "method": "POST",
+        "urlPath": "/discord/webhook"
+      },
+      "response": {
+        "status": 204
+      }
+    }
+  ]
+}

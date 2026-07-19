@@ -1,13 +1,15 @@
 # Copy this file to terraform.tfvars. terraform.tfvars is ignored by Git.
 aws_region  = "ap-northeast-2"
-test_run_id = "phase-one"
+test_run_id = "phase-two"
 availability_zones = [
   "ap-northeast-2a",
   "ap-northeast-2b",
 ]
 
-# Phase one deliberately uses a public image. Replace it with the LLV API image
-# only after its health endpoint can start without Redis, MongoDB, and AWS credentials.
-app_image         = "public.ecr.aws/docker/library/nginx:1.27-alpine"
-container_port    = 80
-health_check_path = "/"
+# Use a unique immutable tag for the commit under test.
+app_image_tag                    = "replace-with-git-sha"
+container_port                   = 8080
+health_check_path                = "/actuator/health"
+health_check_grace_period_seconds = 180
+app_desired_count                = 2
+mock_scenario                     = "success"

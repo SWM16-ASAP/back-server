@@ -46,6 +46,72 @@ resource "aws_security_group" "app" {
   }
 
   egress {
+    description = "MongoDB Atlas database traffic"
+    from_port   = 27015
+    to_port     = 27017
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  dynamic "egress" {
+    for_each = local.dependency_services
+
+    content {
+      description = "${egress.key} dependency traffic"
+      from_port   = egress.value.port
+      to_port     = egress.value.port
+      protocol    = "tcp"
+      cidr_blocks = [var.vpc_cidr]
+    }
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-app"
+  }
+}
+
+resource "aws_security_group" "dependencies" {
+  name_prefix = "${local.name_prefix}-dependencies-"
+  description = "Allow only application tasks to reach temporary dependency services."
+  vpc_id      = aws_vpc.this.id
+
+  dynamic "ingress" {
+    for_each = local.dependency_services
+
+    content {
+      description     = "${ingress.key} from application tasks"
+      from_port       = ingress.value.port
+      to_port         = ingress.value.port
+      protocol        = "tcp"
+      security_groups = [aws_security_group.app.id]
+    }
+  }
+
+  egress {
+    description = "HTTPS for image pulls and AWS APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
     description = "DNS to the VPC resolver"
     from_port   = 53
     to_port     = 53
@@ -62,6 +128,48 @@ resource "aws_security_group" "app" {
   }
 
   tags = {
-    Name = "${local.name_prefix}-app"
+    Name = "${local.name_prefix}-dependencies"
+  }
+}
+
+resource "aws_security_group" "k6" {
+  name_prefix = "${local.name_prefix}-k6-"
+  description = "Allow the one-off k6 task to reach the internal ALB."
+  vpc_id      = aws_vpc.this.id
+
+  egress {
+    description = "HTTP to the internal ALB"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "HTTPS for image pulls and AWS APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-k6"
   }
 }

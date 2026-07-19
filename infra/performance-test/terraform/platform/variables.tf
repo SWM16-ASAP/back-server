@@ -13,10 +13,73 @@ variable "test_run_id" {
   }
 }
 
-variable "app_image" {
-  description = "Container image used to verify the ECS and ALB deployment path."
+variable "app_image_tag" {
+  description = "Immutable ECR tag assigned to the LLV API image under test."
   type        = string
-  default     = "public.ecr.aws/docker/library/nginx:1.27-alpine"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$", var.app_image_tag))
+    error_message = "app_image_tag must be a valid non-empty container image tag."
+  }
+}
+
+variable "redis_image" {
+  description = "Redis image used by the temporary dependency service."
+  type        = string
+  default     = "redis:7.4.9-alpine"
+}
+
+variable "mysql_image" {
+  description = "MySQL image used by the temporary dependency service."
+  type        = string
+  default     = "mysql:8.4.10"
+}
+
+variable "mock_image" {
+  description = "WireMock image used to control external API responses."
+  type        = string
+  default     = "wiremock/wiremock:3.13.2"
+}
+
+variable "mock_init_image" {
+  description = "Container image that registers WireMock mappings through the Admin API."
+  type        = string
+  default     = "curlimages/curl:8.12.1"
+}
+
+variable "mock_scenario" {
+  description = "WireMock response profile loaded when the mock service starts."
+  type        = string
+  default     = "success"
+
+  validation {
+    condition     = contains(["success", "delay", "error"], var.mock_scenario)
+    error_message = "mock_scenario must be one of success, delay, or error."
+  }
+}
+
+variable "k6_image" {
+  description = "k6 image used by the one-off smoke task."
+  type        = string
+  default     = "grafana/k6:2.0.0"
+}
+
+variable "k6_task_cpu" {
+  description = "Fargate CPU units assigned to the one-off k6 task."
+  type        = number
+  default     = 256
+}
+
+variable "k6_task_memory" {
+  description = "Memory in MiB assigned to the one-off k6 task."
+  type        = number
+  default     = 512
+}
+
+variable "dependency_probe_image" {
+  description = "Alpine image used by the one-off dependency connectivity probe."
+  type        = string
+  default     = "public.ecr.aws/docker/library/alpine:3.22.2"
 }
 
 variable "container_port" {
@@ -31,6 +94,12 @@ variable "health_check_path" {
   default     = "/"
 }
 
+variable "health_check_grace_period_seconds" {
+  description = "Time allowed for the Spring application to start before ALB health failures count."
+  type        = number
+  default     = 180
+}
+
 variable "task_cpu" {
   description = "Fargate CPU units for the phase-one task."
   type        = number
@@ -41,6 +110,17 @@ variable "task_memory" {
   description = "Fargate memory in MiB for the phase-one task."
   type        = number
   default     = 512
+}
+
+variable "app_desired_count" {
+  description = "Number of application tasks behind the internal ALB."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.app_desired_count >= 1
+    error_message = "app_desired_count must be at least 1."
+  }
 }
 
 variable "vpc_cidr" {
