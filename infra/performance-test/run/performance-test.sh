@@ -66,6 +66,29 @@ read_environment_value() {
 	printf '%s' "${line#*=}"
 }
 
+validate_jwt_secret() {
+	local secret="$1"
+	local unpadded_secret
+	local padding_length
+	local decoded_length
+
+	if [[ ! "$secret" =~ ^[A-Za-z0-9+/]+={0,2}$ ]]; then
+		fail "JWT_SECRET must be a Base64-encoded HMAC key."
+	fi
+
+	unpadded_secret="${secret%%=*}"
+	padding_length=$(( ${#secret} - ${#unpadded_secret} ))
+	if (( ${#unpadded_secret} % 4 == 1 )) || \
+		(( padding_length > 0 && ${#secret} % 4 != 0 )); then
+		fail "JWT_SECRET must be valid Base64."
+	fi
+
+	decoded_length=$(( ${#unpadded_secret} * 6 / 8 ))
+	if (( decoded_length < 32 )); then
+		fail "JWT_SECRET must decode to at least 32 bytes for HMAC-SHA."
+	fi
+}
+
 prepare_local_files() {
 	if [[ ! -f "$terraform_vars" ]]; then
 		cp "$terraform_vars_example" "$terraform_vars"
@@ -128,6 +151,8 @@ validate_local_files() {
 			fail "Set ${name} in ${environment_file#${repository_root}/}."
 		fi
 	done
+
+	validate_jwt_secret "$(read_environment_value JWT_SECRET)"
 }
 
 configure_aws_profile() {
@@ -165,9 +190,13 @@ preflight() {
 	verify_aws_identity
 
 	if [[ "$command" == "up" ]]; then
+		local gradle_output
 		require_command docker
 		require_command git
 		[[ -x "${repository_root}/gradlew" ]] || fail "Gradle wrapper is not executable."
+		if ! gradle_output="$("${repository_root}/gradlew" --version 2>&1)"; then
+			fail "Gradle wrapper cannot run: ${gradle_output}"
+		fi
 		if ! docker info >/dev/null 2>&1; then
 			fail "Docker is not running."
 		fi
