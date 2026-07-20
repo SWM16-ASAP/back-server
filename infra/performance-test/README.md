@@ -9,6 +9,7 @@
 ## 구조
 
 - `terraform/platform`: AWS 리소스 정의
+- `run/performance-test.sh`: 생성, 검증, 상태 확인, 제거를 담당하는 단일 실행 진입점
 - `run/verify-phase-one.sh`: ALB target health 확인
 - `run/.env.app.example`: 테스트 앱 환경 변수 양식
 - `run/publish-app-image.sh`: 현재 commit의 LLV API 이미지를 임시 ECR에 업로드
@@ -56,19 +57,19 @@ source_profile = llv-sso
 region = ap-northeast-2
 ```
 
+SSO를 source profile로 사용한다면 최초 한 번 설정하고, credential이 만료됐을 때 다시 로그인한다.
+
 ```bash
-# 최초 1회
+# 최초 한 번
 aws configure sso --profile llv-sso
 
+# SSO credential이 만료된 경우
 aws sso login --profile llv-sso
-export AWS_PROFILE=llv-performance-test
-
-cp infra/performance-test/terraform/platform/terraform.tfvars.example \
-	infra/performance-test/terraform/platform/terraform.tfvars
-terraform -chdir=infra/performance-test/terraform/platform init
 ```
 
-`terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정하고 `app_image_tag`에는 commit SHA 기반의 고유 태그를 사용한다. 환경 파일과 앱 이미지를 업로드하기 전에는 전체 `terraform apply`를 실행하지 않는다.
+runner에 `--profile`을 전달하면 별도로 `AWS_PROFILE`을 export할 필요가 없다. 이미 필요한 권한을 가진 다른 profile이 있다면 `llv-performance-test` 대신 해당 이름을 전달할 수 있다.
+
+`terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정한다. runner는 `app_image_tag`를 현재 commit SHA로 갱신한다. 환경 파일과 앱 이미지를 업로드하기 전에는 전체 `terraform apply`를 실행하지 않는다.
 
 Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에서는 GitHub OIDC가 `PerformanceTestProvisioner`의 임시 credential을 제공한다.
 
@@ -81,13 +82,16 @@ ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env
 업로드 스크립트는 S3 bucket, public access block, 암호화 설정만 먼저 적용한 후 환경 파일을 업로드한다. 업로드가 끝나야 전체 인프라를 적용한다.
 
 ```bash
-cp infra/performance-test/run/.env.app.example infra/performance-test/run/.env.app
-chmod 600 infra/performance-test/run/.env.app
-TF_CLI_ARGS_apply=-auto-approve ./infra/performance-test/run/publish-app-image.sh
-./infra/performance-test/run/upload-app-environment.sh
+./infra/performance-test/run/performance-test.sh up --profile llv-performance-test
+```
 
-terraform -chdir=infra/performance-test/terraform/platform apply
-./infra/performance-test/run/verify-phase-two.sh
+runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 입력할 값만 안내한 뒤 종료한다. 값을 작성하고 같은 명령을 다시 실행하면 Terraform 초기화, 이미지 게시, 환경 파일 업로드, 전체 apply와 연결 검증을 순서대로 수행한다. `--yes`를 추가한 경우에만 Terraform 승인 질문을 생략한다.
+
+실행 중인 환경은 다음 명령으로 다시 검증하거나 상태를 확인한다.
+
+```bash
+./infra/performance-test/run/performance-test.sh verify --profile llv-performance-test
+./infra/performance-test/run/performance-test.sh status --profile llv-performance-test
 ```
 
 검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, WireMock mapping 등록, k6의 ALB 요청을 순서대로 확인한다. probe와 smoke task는 상시 실행되는 ECS service가 아니며 검증할 때 각각 한 번 실행된다. 실제 Word 부하 시나리오는 이 연결 확인 이후 별도 task 실행 설정으로 추가한다.
@@ -95,7 +99,7 @@ terraform -chdir=infra/performance-test/terraform/platform apply
 테스트 종료 후에는 인프라를 제거하기 전에 환경 파일을 먼저 정리한다. 원격 객체 삭제가 실패하더라도 로컬 `.env.app`은 삭제되며, 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다.
 
 ```bash
-./infra/performance-test/run/cleanup-app-environment.sh
-
-terraform -chdir=infra/performance-test/terraform/platform destroy
+./infra/performance-test/run/performance-test.sh down --profile llv-performance-test
 ```
+
+`down`은 환경 파일 정리 후 Terraform 리소스를 제거하고 state가 비었는지 확인한다. `--yes`를 추가한 경우에만 destroy 승인 질문을 생략한다. Atlas IP allowlist는 runner가 관리하지 않으므로 테스트 직전에 열고 종료 후 직접 닫는다.
