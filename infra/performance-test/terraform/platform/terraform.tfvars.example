@@ -13,3 +13,4 @@ health_check_path                = "/actuator/health"
 health_check_grace_period_seconds = 180
 app_desired_count                = 2
 mock_scenario                     = "success"
+grafana_allowed_cidr              = "127.0.0.1/32" # Replace with the viewer's public IP, for example 203.0.113.10/32.

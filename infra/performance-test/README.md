@@ -77,7 +77,9 @@ Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에�
 
 ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
 
-사용자가 직접 입력할 값은 Atlas 테스트 계정의 `SPRING_DATA_MONGODB_URI`다. JWT, import key, MySQL root와 exporter 비밀번호는 테스트 전용 값으로 생성한다. `JWT_SECRET`은 `openssl rand -base64 32`처럼 32바이트 이상의 키를 Base64로 인코딩하고, MySQL 비밀번호는 `openssl rand -hex 24`로 생성할 수 있다. MySQL exporter 계정은 임시 DB가 시작될 때 조회 권한만 부여되며 비밀번호는 Terraform state에 기록되지 않는다. 업로드 스크립트는 Terraform output을 읽어 Redis와 WireMock 주소, S3 input/output bucket 값을 환경 파일에 자동 반영한다.
+사용자가 직접 입력할 값은 Atlas 테스트 계정의 `SPRING_DATA_MONGODB_URI`다. JWT, import key, MySQL root·exporter 비밀번호와 Grafana 관리자 비밀번호는 테스트 전용 값으로 생성한다. `JWT_SECRET`은 `openssl rand -base64 32`처럼 32바이트 이상의 키를 Base64로 인코딩하고, 나머지 비밀번호는 `openssl rand -hex 24`로 생성할 수 있다. MySQL exporter 계정은 임시 DB가 시작될 때 조회 권한만 부여되며 비밀번호는 Terraform state에 기록되지 않는다. 업로드 스크립트는 Terraform output을 읽어 Redis와 WireMock 주소, S3 input/output bucket 값을 환경 파일에 자동 반영한다.
+
+Grafana는 임시 public IP로 접근하되 `terraform.tfvars`의 `grafana_allowed_cidr`에 지정한 IPv4 CIDR만 허용한다. 기본값 `127.0.0.1/32`로는 외부에서 접근할 수 없으므로 테스트를 실행할 컴퓨터의 공인 IP를 `/32`로 설정한다. `0.0.0.0/0`은 사용하지 않는다.
 
 업로드 스크립트는 S3 bucket, public access block, 암호화 설정만 먼저 적용한 후 환경 파일을 업로드한다. 업로드가 끝나야 전체 인프라를 적용한다.
 
@@ -94,7 +96,9 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 ./infra/performance-test/run/performance-test.sh status --profile llv-performance-test
 ```
 
-검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, WireMock mapping 등록, k6의 ALB 요청을 순서대로 확인한다. probe와 smoke task는 상시 실행되는 ECS service가 아니며 검증할 때 각각 한 번 실행된다. 실제 Word 부하 시나리오는 이 연결 확인 이후 별도 task 실행 설정으로 추가한다.
+검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping, k6의 ALB 요청을 순서대로 확인한다. probe와 smoke task는 상시 실행되는 ECS service가 아니며 검증할 때 각각 한 번 실행된다. 실제 Word 부하 시나리오는 이 연결 확인 이후 별도 task 실행 설정으로 추가한다.
+
+`up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록되며 기본 대시보드에서 API RPS·p95/p99·5xx, JVM heap, Tomcat thread, Redis, MySQL, ECS와 ALB 지표를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
 테스트 종료 후에는 인프라를 제거하기 전에 환경 파일을 먼저 정리한다. 원격 객체 삭제가 실패하더라도 로컬 `.env.app`은 삭제되며, 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다.
 

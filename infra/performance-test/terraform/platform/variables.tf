@@ -65,6 +65,25 @@ variable "prometheus_retention_size" {
   default     = "1GB"
 }
 
+variable "grafana_image" {
+  description = "Grafana image used to visualize temporary test metrics."
+  type        = string
+  default     = "grafana/grafana:12.3.4"
+}
+
+variable "grafana_allowed_cidr" {
+  description = "Single public CIDR allowed to access the temporary Grafana task."
+  type        = string
+  default     = "127.0.0.1/32"
+
+  validation {
+    condition = can(cidrhost(var.grafana_allowed_cidr, 0)) && can(
+      regex("^[0-9.]+/[0-9]+$", var.grafana_allowed_cidr)
+    )
+    error_message = "grafana_allowed_cidr must be a valid IPv4 CIDR."
+  }
+}
+
 variable "mock_image" {
   description = "WireMock image used to control external API responses."
   type        = string

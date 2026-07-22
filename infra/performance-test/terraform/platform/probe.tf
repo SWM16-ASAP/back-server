@@ -78,6 +78,20 @@ resource "aws_ecs_task_definition" "dependency_probe" {
             sleep 2
           done
 
+          grafana_health_url="http://grafana.${aws_service_discovery_private_dns_namespace.this.name}:3000/api/health"
+          for attempt in $(seq 1 30); do
+            if wget -qO /tmp/grafana-health.json "$grafana_health_url" && \
+                grep -q '"database":"ok"' /tmp/grafana-health.json; then
+              echo "Grafana health passed: $grafana_health_url"
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Grafana health failed: $grafana_health_url" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
           mock_url="http://mock.${aws_service_discovery_private_dns_namespace.this.name}:8080/__admin/mappings"
           for attempt in $(seq 1 30); do
             if wget -qO /tmp/mappings.json "$mock_url" && \

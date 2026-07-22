@@ -18,8 +18,8 @@ usage() {
 Usage: performance-test.sh <command> [options]
 
 Commands:
-  up       Create the phase-two environment and verify connectivity.
-  verify   Verify an existing phase-two environment.
+  up       Create the performance-test environment and verify connectivity.
+  verify   Verify an existing performance-test environment.
   status   Show Terraform resources, outputs, and ALB target health.
   down     Remove the environment and confirm Terraform state is empty.
 
@@ -145,7 +145,7 @@ EOF
 validate_local_files() {
 	local name
 	local value
-	for name in SPRING_DATA_MONGODB_URI JWT_SECRET IMPORT_API_KEY MYSQL_ROOT_PASSWORD MYSQLD_EXPORTER_PASSWORD; do
+	for name in SPRING_DATA_MONGODB_URI JWT_SECRET IMPORT_API_KEY MYSQL_ROOT_PASSWORD MYSQLD_EXPORTER_PASSWORD GF_SECURITY_ADMIN_PASSWORD; do
 		value="$(read_environment_value "$name")"
 		if [[ -z "$value" || "$value" == *replace-me* || "$value" == replace-with-generated-* ]]; then
 			fail "Set ${name} in ${environment_file#${repository_root}/}."
@@ -220,6 +220,50 @@ terraform_state_exists() {
 	[[ -n "$state" ]]
 }
 
+show_grafana_url() {
+	local region
+	local cluster_arn
+	local service_name
+	local task_arn
+	local network_interface_id
+	local public_ip
+
+	region="$(terraform -chdir="$platform_dir" output -raw aws_region)"
+	cluster_arn="$(terraform -chdir="$platform_dir" output -raw ecs_cluster_arn)"
+	service_name="$(terraform -chdir="$platform_dir" output -raw grafana_service_name)"
+	task_arn="$(aws ecs list-tasks \
+		--region "$region" \
+		--cluster "$cluster_arn" \
+		--service-name "$service_name" \
+		--desired-status RUNNING \
+		--query 'taskArns[0]' \
+		--output text)"
+
+	if [[ -z "$task_arn" || "$task_arn" == "None" ]]; then
+		echo "Grafana task is not running."
+		return
+	fi
+
+	network_interface_id="$(aws ecs describe-tasks \
+		--region "$region" \
+		--cluster "$cluster_arn" \
+		--tasks "$task_arn" \
+		--query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value | [0]' \
+		--output text)"
+	public_ip="$(aws ec2 describe-network-interfaces \
+		--region "$region" \
+		--network-interface-ids "$network_interface_id" \
+		--query 'NetworkInterfaces[0].Association.PublicIp' \
+		--output text)"
+
+	if [[ -z "$public_ip" || "$public_ip" == "None" ]]; then
+		echo "Grafana public IP is not available yet."
+		return
+	fi
+
+	echo "Grafana URL: http://${public_ip}:3000/d/llv-performance-overview"
+}
+
 run_up() {
 	preflight up
 	echo
@@ -232,17 +276,18 @@ run_up() {
 
 	run_step "Publish application image" "${script_dir}/publish-app-image.sh" "$platform_dir"
 	run_step "Upload application environment" "${script_dir}/upload-app-environment.sh" "$platform_dir"
-	run_step "Create phase-two infrastructure" terraform -chdir="$platform_dir" apply
-	run_step "Verify phase-two connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+	run_step "Create performance-test infrastructure" terraform -chdir="$platform_dir" apply
+	run_step "Verify metrics and connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+	show_grafana_url
 
 	echo
-	echo "Phase-two environment is ready."
+	echo "Performance-test environment is ready."
 }
 
 run_verify() {
 	preflight verify
 	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
-	run_step "Verify phase-two connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+	run_step "Verify metrics and connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
 }
 
 run_status() {
@@ -277,6 +322,9 @@ run_status() {
 		echo
 		echo "ALB target group has not been created yet."
 	fi
+
+	echo
+	show_grafana_url
 }
 
 run_down() {
@@ -293,7 +341,7 @@ run_down() {
 		echo "Environment-file cleanup failed; Terraform destroy will continue." >&2
 	fi
 
-	current_step="Destroy phase-two infrastructure"
+	current_step="Destroy performance-test infrastructure"
 	if [[ "$auto_approve" == true ]]; then
 		terraform -chdir="$platform_dir" destroy -auto-approve
 	else
@@ -308,7 +356,7 @@ run_down() {
 	fi
 
 	echo
-	echo "Phase-two environment was removed. Close the temporary Atlas IP allowlist."
+	echo "Performance-test environment was removed. Close the temporary Atlas IP allowlist."
 }
 
 command_name="${1:-}"

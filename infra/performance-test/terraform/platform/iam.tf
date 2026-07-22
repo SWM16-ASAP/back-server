@@ -73,3 +73,28 @@ resource "aws_iam_role_policy" "app_task_ai_buckets" {
   role   = aws_iam_role.app_task.id
   policy = data.aws_iam_policy_document.app_task_ai_buckets.json
 }
+
+resource "aws_iam_role" "grafana_task" {
+  name_prefix        = "${local.name_prefix}-grafana-"
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
+}
+
+data "aws_iam_policy_document" "grafana_cloudwatch_read" {
+  statement {
+    actions = [
+      "cloudwatch:DescribeAlarms",
+      "cloudwatch:GetMetricData",
+      "cloudwatch:GetMetricStatistics",
+      "cloudwatch:ListMetrics",
+      "ec2:DescribeRegions",
+      "ec2:DescribeTags",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "grafana_cloudwatch_read" {
+  name   = "cloudwatch-metrics-read"
+  role   = aws_iam_role.grafana_task.id
+  policy = data.aws_iam_policy_document.grafana_cloudwatch_read.json
+}

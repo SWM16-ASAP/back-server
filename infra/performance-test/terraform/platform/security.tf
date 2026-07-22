@@ -206,6 +206,64 @@ resource "aws_security_group" "prometheus" {
   }
 }
 
+resource "aws_security_group" "grafana" {
+  name_prefix = "${local.name_prefix}-grafana-"
+  description = "Allow temporary Grafana access and datasource queries."
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description = "Grafana from the configured viewer CIDR"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = [var.grafana_allowed_cidr]
+  }
+
+  ingress {
+    description = "Grafana health check from the test VPC"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "Prometheus datasource"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "HTTPS for image pulls and CloudWatch APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-grafana"
+  }
+}
+
 resource "aws_security_group" "k6" {
   name_prefix = "${local.name_prefix}-k6-"
   description = "Allow the one-off k6 task to reach the internal ALB."

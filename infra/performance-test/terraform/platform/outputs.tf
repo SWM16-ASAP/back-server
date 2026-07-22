@@ -80,3 +80,8 @@ output "dependency_probe_task_definition_arn" {
   description = "Task definition that verifies private dependency connectivity."
   value       = aws_ecs_task_definition.dependency_probe.arn
 }
+
+output "grafana_service_name" {
+  description = "ECS service name used to discover the temporary Grafana public IP."
+  value       = aws_ecs_service.grafana.name
+}
