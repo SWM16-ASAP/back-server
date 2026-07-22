@@ -113,6 +113,12 @@ variable "k6_image" {
   default     = "grafana/k6:2.0.0"
 }
 
+variable "k6_volume_init_image" {
+  description = "Alpine image used to initialize the shared k6 results volume."
+  type        = string
+  default     = "public.ecr.aws/docker/library/alpine:3.22.2"
+}
+
 variable "aws_cli_image" {
   description = "Official AWS CLI image used to archive k6 result files."
   type        = string

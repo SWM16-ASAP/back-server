@@ -18,9 +18,38 @@ resource "aws_ecs_task_definition" "k6" {
 
   container_definitions = jsonencode([
     {
+      name      = "k6-results-init"
+      image     = var.k6_volume_init_image
+      essential = false
+      user      = "0"
+      mountPoints = [
+        {
+          sourceVolume  = "k6-results"
+          containerPath = "/results"
+          readOnly      = false
+        }
+      ]
+      entryPoint = ["/bin/sh", "-c"]
+      command    = ["chown 12345:12345 /results"]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.k6.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "results-init"
+        }
+      }
+    },
+    {
       name      = "k6"
       image     = var.k6_image
       essential = false
+      dependsOn = [
+        {
+          containerName = "k6-results-init"
+          condition     = "SUCCESS"
+        }
+      ]
       environment = [
         {
           name  = "BASE_URL"
