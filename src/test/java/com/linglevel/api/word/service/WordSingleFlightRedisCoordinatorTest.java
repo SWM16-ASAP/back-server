@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -59,6 +60,8 @@ class WordSingleFlightRedisCoordinatorTest {
 
 	private WordSingleFlightRedisCoordinator coordinator;
 
+	private SimpleMeterRegistry meterRegistry;
+
 	@BeforeEach
 	void setUp() {
 		properties = new WordSingleFlightProperties();
@@ -69,8 +72,9 @@ class WordSingleFlightRedisCoordinatorTest {
 		when(redissonClient.getLock(anyString())).thenReturn(redissonLock);
 		when(redissonLock.isHeldByCurrentThread()).thenReturn(true);
 
+		meterRegistry = new SimpleMeterRegistry();
 		coordinator = new WordSingleFlightRedisCoordinator(stringRedisTemplate, redisMessageListenerContainer,
-				redissonClient, properties);
+				redissonClient, properties, new WordGenerationMetrics(meterRegistry));
 		ReflectionTestUtils.invokeMethod(coordinator, "initialize");
 	}
 
@@ -116,6 +120,10 @@ class WordSingleFlightRedisCoordinatorTest {
 			assertThat(r1).hasSize(1);
 			assertThat(r2).hasSize(1);
 			assertThat(aiCalls.get()).isEqualTo(1);
+			assertThat(meterRegistry.counter("word.single.flight.requests", "role", "leader", "outcome", "success")
+				.count()).isEqualTo(1);
+			assertThat(meterRegistry.counter("word.single.flight.requests", "role", "follower", "outcome", "success")
+				.count()).isEqualTo(1);
 		}
 		finally {
 			executor.shutdownNow();
@@ -140,6 +148,7 @@ class WordSingleFlightRedisCoordinatorTest {
 		assertThat(result).hasSize(1);
 		assertThat(result.get(0).getOriginalForm()).isEqualTo("book");
 		assertThat(lookupCalls.get()).isEqualTo(1);
+		assertThat(meterRegistry.timer("word.single.flight.follower.wait", "outcome", "timeout").count()).isEqualTo(1);
 	}
 
 	@Test

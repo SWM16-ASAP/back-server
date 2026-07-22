@@ -6,6 +6,8 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.springboot3.circuitbreaker.autoconfigure.CircuitBreakerAutoConfiguration;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringJUnitConfig(classes = { WordBedrockClientCircuitBreakerTest.TestConfig.class, WordBedrockClient.class })
+@SpringJUnitConfig(classes = { WordBedrockClientCircuitBreakerTest.TestConfig.class, WordBedrockClient.class,
+		WordGenerationMetrics.class })
 @ImportAutoConfiguration({ AopAutoConfiguration.class, CircuitBreakerAutoConfiguration.class })
 @TestPropertySource(properties = { "resilience4j.circuitbreaker.instances.wordBedrock.sliding-window-type=COUNT_BASED",
 		"resilience4j.circuitbreaker.instances.wordBedrock.sliding-window-size=2",
@@ -44,6 +47,9 @@ class WordBedrockClientCircuitBreakerTest {
 	@Autowired
 	private AtomicInteger bedrockAttempts;
 
+	@Autowired
+	private MeterRegistry meterRegistry;
+
 	@BeforeEach
 	void resetCircuitBreaker() {
 		applicationContext.getBean(CircuitBreakerRegistry.class).circuitBreaker("wordBedrock").reset();
@@ -54,6 +60,8 @@ class WordBedrockClientCircuitBreakerTest {
 	@DisplayName("Bedrock 호출 실패가 반복되면 circuit을 열고 이후 호출은 Bedrock까지 보내지 않는다")
 	void call_opensCircuitAndSkipsBedrockAfterRepeatedFailures() {
 		Prompt prompt = new Prompt("Analyze word");
+		double errorsBefore = meterRegistry.counter("word.bedrock.calls", "outcome", "error").count();
+		double rejectionsBefore = meterRegistry.counter("word.bedrock.calls", "outcome", "rejected").count();
 
 		assertTemporaryUnavailable(client, prompt);
 		assertTemporaryUnavailable(client, prompt);
@@ -62,12 +70,16 @@ class WordBedrockClientCircuitBreakerTest {
 		CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("wordBedrock");
 		assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
 		assertThat(bedrockAttempts).hasValue(2);
+		assertThat(meterRegistry.counter("word.bedrock.calls", "outcome", "error").count() - errorsBefore).isEqualTo(2);
+		assertThat(meterRegistry.get("word.bedrock.in.flight").gauge().value()).isZero();
 
 		assertThatThrownBy(() -> client.call(prompt)).isInstanceOfSatisfying(WordsException.class, e -> {
 			assertThat(e.getErrorCode()).isEqualTo(WordsErrorCode.WORD_AI_TEMPORARILY_UNAVAILABLE);
 			assertThat(e.getCause()).isInstanceOf(CallNotPermittedException.class);
 		});
 		assertThat(bedrockAttempts).hasValue(2);
+		assertThat(meterRegistry.counter("word.bedrock.calls", "outcome", "rejected").count() - rejectionsBefore)
+			.isEqualTo(1);
 	}
 
 	@Test
@@ -88,6 +100,11 @@ class WordBedrockClientCircuitBreakerTest {
 		@Bean
 		AtomicInteger bedrockAttempts() {
 			return new AtomicInteger();
+		}
+
+		@Bean
+		MeterRegistry meterRegistry() {
+			return new SimpleMeterRegistry();
 		}
 
 		@Bean

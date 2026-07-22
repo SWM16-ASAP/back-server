@@ -22,6 +22,12 @@ class PerformanceTestObservabilityPropertiesTest {
 		assertThat(properties.getProperty("management.metrics.tags.application")).isEqualTo("llv-api");
 		assertThat(properties.getProperty("management.metrics.distribution.percentiles-histogram.http.server.requests"))
 			.isEqualTo("true");
+		assertThat(properties
+			.getProperty("management.metrics.distribution.percentiles-histogram.word.single.flight.follower.wait"))
+			.isEqualTo("true");
+		assertThat(
+				properties.getProperty("management.metrics.distribution.percentiles-histogram.word.bedrock.duration"))
+			.isEqualTo("true");
 		assertThat(properties.getProperty("server.tomcat.mbeanregistry.enabled")).isEqualTo("true");
 	}
 
