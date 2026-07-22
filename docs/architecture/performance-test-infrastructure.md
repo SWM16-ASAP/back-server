@@ -71,4 +71,4 @@ flowchart LR
 | Bedrock | 호출 시간, success/timeout/error, retry 수, in-flight 호출 수, circuit breaker 상태·차단 수 |
 | 실행 맥락 | test run ID, Git SHA, image digest, task size, VU, duration, 실행 시작·종료 시각 |
 
-Grafana는 사람이 보는 분석 화면으로 사용한다. AI 보고서와 재현을 위해서는 k6 결과, PromQL 결과, CloudWatch 조회 결과, 실행 맥락을 같은 `test_run_id`로 S3에 함께 보관한다. 사용자 ID, 단어, 요청 ID처럼 cardinality가 무한한 값은 metric label로 사용하지 않는다.
+Grafana는 사람이 보는 분석 화면으로 사용한다. AI 보고서와 재현을 위해서는 k6 결과와 실행 맥락을 같은 `test_run_id`로 임시 S3에 모으고, 인프라 제거 전에 로컬 결과 디렉터리로 내려받는다. PromQL과 CloudWatch 조회 결과를 보고서에 사용할 때도 같은 `test_run_id`와 시간 범위를 기록한다. 사용자 ID, 단어, 요청 ID처럼 cardinality가 무한한 값은 metric label로 사용하지 않는다.

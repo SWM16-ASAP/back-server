@@ -34,6 +34,13 @@ exit_code="$(aws ecs describe-tasks \
 	--query 'tasks[0].containers[?name==`k6`].exitCode | [0]' \
 	--output text)"
 
+uploader_exit_code="$(aws ecs describe-tasks \
+	--region "$region" \
+	--cluster "$cluster_arn" \
+	--tasks "$task_arn" \
+	--query 'tasks[0].containers[?name==`result-uploader`].exitCode | [0]' \
+	--output text)"
+
 if [[ "$exit_code" != "0" ]]; then
 	stop_reason="$(aws ecs describe-tasks \
 		--region "$region" \
@@ -45,4 +52,10 @@ if [[ "$exit_code" != "0" ]]; then
 	exit 1
 fi
 
-echo "k6 smoke task passed."
+if [[ "$uploader_exit_code" != "0" ]]; then
+	echo "k6 result upload failed with exit code ${uploader_exit_code}." >&2
+	exit 1
+fi
+
+results_bucket="$(terraform -chdir="$platform_dir" output -raw results_bucket)"
+echo "k6 smoke task passed. Results: s3://${results_bucket}/test-runs/"

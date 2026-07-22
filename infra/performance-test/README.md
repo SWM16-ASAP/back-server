@@ -100,6 +100,14 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 
 `up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록되며 기본 대시보드에서 API RPS·p95/p99·5xx, JVM heap, Tomcat thread, Redis, MySQL, ECS와 ALB 지표를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
+k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 임시 결과 S3 bucket에 업로드한다. 다음 명령으로 실행 중에도 결과를 내려받을 수 있다.
+
+```bash
+./infra/performance-test/run/performance-test.sh results --profile llv-performance-test
+```
+
+결과는 `build/performance-test-results/<test_run_id>`에 저장된다. `down`도 destroy 전에 같은 동기화를 수행하므로 임시 결과 bucket이 삭제된 뒤에도 로컬 결과가 남는다.
+
 테스트 종료 후에는 인프라를 제거하기 전에 환경 파일을 먼저 정리한다. 원격 객체 삭제가 실패하더라도 로컬 `.env.app`은 삭제되며, 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다.
 
 ```bash

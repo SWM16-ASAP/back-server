@@ -113,6 +113,12 @@ variable "k6_image" {
   default     = "grafana/k6:2.0.0"
 }
 
+variable "aws_cli_image" {
+  description = "Official AWS CLI image used to archive k6 result files."
+  type        = string
+  default     = "public.ecr.aws/aws-cli/aws-cli:2.36.3"
+}
+
 variable "k6_task_cpu" {
   description = "Fargate CPU units assigned to the one-off k6 task."
   type        = number

@@ -98,3 +98,26 @@ resource "aws_iam_role_policy" "grafana_cloudwatch_read" {
   role   = aws_iam_role.grafana_task.id
   policy = data.aws_iam_policy_document.grafana_cloudwatch_read.json
 }
+
+resource "aws_iam_role" "k6_task" {
+  name_prefix        = "${local.name_prefix}-k6-"
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
+}
+
+data "aws_iam_policy_document" "k6_results_write" {
+  statement {
+    actions   = ["s3:GetBucketLocation"]
+    resources = [aws_s3_bucket.results.arn]
+  }
+
+  statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.results.arn}/test-runs/${var.test_run_id}/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "k6_results_write" {
+  name   = "k6-results-write"
+  role   = aws_iam_role.k6_task.id
+  policy = data.aws_iam_policy_document.k6_results_write.json
+}

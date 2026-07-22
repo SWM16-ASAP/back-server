@@ -21,6 +21,7 @@ Commands:
   up       Create the performance-test environment and verify connectivity.
   verify   Verify an existing performance-test environment.
   status   Show Terraform resources, outputs, and ALB target health.
+  results  Download k6 result artifacts from an existing environment.
   down     Remove the environment and confirm Terraform state is empty.
 
 Options:
@@ -264,6 +265,19 @@ show_grafana_url() {
 	echo "Grafana URL: http://${public_ip}:3000/d/llv-performance-overview"
 }
 
+download_results() {
+	local bucket
+	local test_run_id
+	local destination
+
+	bucket="$(terraform -chdir="$platform_dir" output -raw results_bucket)"
+	test_run_id="$(terraform -chdir="$platform_dir" output -raw test_run_id)"
+	destination="${repository_root}/build/performance-test-results/${test_run_id}"
+	mkdir -p "$destination"
+	aws s3 sync "s3://${bucket}/test-runs/${test_run_id}/" "$destination" --only-show-errors
+	echo "Results downloaded to ${destination#${repository_root}/}."
+}
+
 run_up() {
 	preflight up
 	echo
@@ -327,6 +341,12 @@ run_status() {
 	show_grafana_url
 }
 
+run_results() {
+	preflight results
+	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
+	run_step "Download performance-test results" download_results
+}
+
 run_down() {
 	preflight down
 
@@ -335,6 +355,8 @@ run_down() {
 		echo "No Terraform-managed performance-test resources exist."
 		return
 	fi
+
+	run_step "Download performance-test results" download_results
 
 	current_step="Remove application environment file"
 	if ! "${script_dir}/cleanup-app-environment.sh" "$platform_dir"; then
@@ -399,6 +421,9 @@ case "$command_name" in
 		;;
 	status)
 		run_status
+		;;
+	results)
+		run_results
 		;;
 	down)
 		run_down

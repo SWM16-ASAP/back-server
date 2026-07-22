@@ -85,3 +85,8 @@ output "grafana_service_name" {
   description = "ECS service name used to discover the temporary Grafana public IP."
   value       = aws_ecs_service.grafana.name
 }
+
+output "results_bucket" {
+  description = "Temporary S3 bucket containing k6 result artifacts."
+  value       = aws_s3_bucket.results.id
+}
