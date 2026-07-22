@@ -38,6 +38,28 @@ resource "aws_ecs_task_definition" "dependency_probe" {
           probe_tcp "Redis" "redis.${aws_service_discovery_private_dns_namespace.this.name}" 6379
           probe_tcp "MySQL" "mysql.${aws_service_discovery_private_dns_namespace.this.name}" 3306
 
+          probe_metric() {
+            name="$1"
+            url="$2"
+            metric="$3"
+            for attempt in $(seq 1 30); do
+              if wget -qO /tmp/metrics "$url" && grep -q "^$metric 1" /tmp/metrics; then
+                echo "$name metrics passed: $url"
+                return 0
+              fi
+              sleep 2
+            done
+            echo "$name metrics failed: $url" >&2
+            return 1
+          }
+
+          probe_metric "Redis exporter" \
+            "http://redis.${aws_service_discovery_private_dns_namespace.this.name}:9121/metrics" \
+            "redis_up"
+          probe_metric "MySQL exporter" \
+            "http://mysql.${aws_service_discovery_private_dns_namespace.this.name}:9104/metrics" \
+            "mysql_up"
+
           mock_url="http://mock.${aws_service_discovery_private_dns_namespace.this.name}:8080/__admin/mappings"
           for attempt in $(seq 1 30); do
             if wget -qO /tmp/mappings.json "$mock_url" && \

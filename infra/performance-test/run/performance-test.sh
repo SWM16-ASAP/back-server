@@ -145,7 +145,7 @@ EOF
 validate_local_files() {
 	local name
 	local value
-	for name in SPRING_DATA_MONGODB_URI JWT_SECRET IMPORT_API_KEY; do
+	for name in SPRING_DATA_MONGODB_URI JWT_SECRET IMPORT_API_KEY MYSQL_ROOT_PASSWORD MYSQLD_EXPORTER_PASSWORD; do
 		value="$(read_environment_value "$name")"
 		if [[ -z "$value" || "$value" == *replace-me* || "$value" == replace-with-generated-* ]]; then
 			fail "Set ${name} in ${environment_file#${repository_root}/}."

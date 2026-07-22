@@ -103,6 +103,22 @@ resource "aws_security_group" "dependencies" {
     }
   }
 
+  ingress {
+    description     = "Redis metrics from verification and monitoring tasks"
+    from_port       = 9121
+    to_port         = 9121
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+  }
+
+  ingress {
+    description     = "MySQL metrics from verification and monitoring tasks"
+    from_port       = 9104
+    to_port         = 9104
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+  }
+
   egress {
     description = "HTTPS for image pulls and AWS APIs"
     from_port   = 443

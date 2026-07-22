@@ -30,10 +30,6 @@ locals {
       memory = 1024
       environment = [
         {
-          name  = "MYSQL_RANDOM_ROOT_PASSWORD"
-          value = "yes"
-        },
-        {
           name  = "MYSQL_DATABASE"
           value = "llv_performance_test"
         }

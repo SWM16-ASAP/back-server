@@ -29,10 +29,22 @@ variable "redis_image" {
   default     = "redis:7.4.9-alpine"
 }
 
+variable "redis_exporter_image" {
+  description = "Redis exporter image used to expose Redis metrics."
+  type        = string
+  default     = "oliver006/redis_exporter:v1.84.0"
+}
+
 variable "mysql_image" {
   description = "MySQL image used by the temporary dependency service."
   type        = string
   default     = "mysql:8.4.10"
+}
+
+variable "mysql_exporter_image" {
+  description = "Prometheus MySQL exporter image used to expose MySQL metrics."
+  type        = string
+  default     = "prom/mysqld-exporter:v0.18.0"
 }
 
 variable "mock_image" {
