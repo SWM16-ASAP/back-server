@@ -148,8 +148,12 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 32 },
       "id": 14,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum by (outcome) (rate(word_bedrock_calls_total[1m]))", "legendFormat": "{{outcome}}", "refId": "A" }],
-      "title": "Bedrock Calls",
+      "targets": [
+        { "expr": "sum by (outcome) (rate(word_bedrock_calls_total[1m]))", "legendFormat": "logical / {{outcome}}", "refId": "A" },
+        { "expr": "sum(rate(word_bedrock_sdk_attempts_total[1m]))", "legendFormat": "SDK attempts", "refId": "B" },
+        { "expr": "sum(rate(word_bedrock_sdk_retries_total[1m]))", "legendFormat": "SDK retries", "refId": "C" }
+      ],
+      "title": "Bedrock Calls and SDK Attempts",
       "type": "timeseries"
     },
     {

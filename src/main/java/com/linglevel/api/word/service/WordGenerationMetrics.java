@@ -20,6 +20,10 @@ public class WordGenerationMetrics {
 
 	private static final String BEDROCK_DURATION = "word.bedrock.duration";
 
+	private static final String BEDROCK_SDK_ATTEMPTS = "word.bedrock.sdk.attempts";
+
+	private static final String BEDROCK_SDK_RETRIES = "word.bedrock.sdk.retries";
+
 	private final MeterRegistry meterRegistry;
 
 	private final AtomicInteger bedrockInFlight = new AtomicInteger();
@@ -60,6 +64,11 @@ public class WordGenerationMetrics {
 
 	public void recordBedrockRejected() {
 		meterRegistry.counter(BEDROCK_CALLS, "outcome", "rejected").increment();
+	}
+
+	public void recordBedrockSdkExecution(int retryCount) {
+		meterRegistry.counter(BEDROCK_SDK_ATTEMPTS).increment(retryCount + 1L);
+		meterRegistry.counter(BEDROCK_SDK_RETRIES).increment(retryCount);
 	}
 
 }
