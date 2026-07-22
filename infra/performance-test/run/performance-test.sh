@@ -90,6 +90,14 @@ validate_jwt_secret() {
 	fi
 }
 
+validate_mysql_exporter_password() {
+	local password="$1"
+
+	if [[ ! "$password" =~ ^[A-Fa-f0-9]{48,}$ ]]; then
+		fail "MYSQLD_EXPORTER_PASSWORD must contain at least 24 bytes encoded as hexadecimal."
+	fi
+}
+
 prepare_local_files() {
 	if [[ ! -f "$terraform_vars" ]]; then
 		cp "$terraform_vars_example" "$terraform_vars"
@@ -154,6 +162,7 @@ validate_local_files() {
 	done
 
 	validate_jwt_secret "$(read_environment_value JWT_SECRET)"
+	validate_mysql_exporter_password "$(read_environment_value MYSQLD_EXPORTER_PASSWORD)"
 }
 
 configure_aws_profile() {

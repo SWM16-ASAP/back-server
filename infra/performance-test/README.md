@@ -77,7 +77,7 @@ Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에�
 
 ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
 
-사용자가 직접 입력할 값은 Atlas 테스트 계정의 `SPRING_DATA_MONGODB_URI`다. JWT, import key, MySQL root·exporter 비밀번호와 Grafana 관리자 비밀번호는 테스트 전용 값으로 생성한다. `JWT_SECRET`은 `openssl rand -base64 32`처럼 32바이트 이상의 키를 Base64로 인코딩하고, 나머지 비밀번호는 `openssl rand -hex 24`로 생성할 수 있다. MySQL exporter 계정은 임시 DB가 시작될 때 조회 권한만 부여되며 비밀번호는 Terraform state에 기록되지 않는다. 업로드 스크립트는 Terraform output을 읽어 Redis와 WireMock 주소, S3 input/output bucket 값을 환경 파일에 자동 반영한다.
+사용자가 직접 입력할 값은 Atlas 테스트 계정의 `SPRING_DATA_MONGODB_URI`다. JWT, import key, MySQL root·exporter 비밀번호와 Grafana 관리자 비밀번호는 테스트 전용 값으로 생성한다. `JWT_SECRET`은 `openssl rand -base64 32`처럼 32바이트 이상의 키를 Base64로 인코딩한다. `MYSQLD_EXPORTER_PASSWORD`는 초기화 SQL에 안전하게 전달하기 위해 `openssl rand -hex 24` 형식의 24바이트 이상 hex 값으로 설정하며, 나머지 비밀번호도 같은 방식으로 생성할 수 있다. MySQL exporter 계정은 임시 DB가 시작될 때 조회 권한만 부여되며 비밀번호는 Terraform state에 기록되지 않는다. 업로드 스크립트는 Terraform output을 읽어 Redis와 WireMock 주소, S3 input/output bucket 값을 환경 파일에 자동 반영한다.
 
 Grafana는 임시 public IP로 접근하되 `terraform.tfvars`의 `grafana_allowed_cidr`에 지정한 IPv4 CIDR만 허용한다. 기본값 `127.0.0.1/32`로는 외부에서 접근할 수 없으므로 테스트를 실행할 컴퓨터의 공인 IP를 `/32`로 설정한다. `0.0.0.0/0`은 사용하지 않는다.
 
