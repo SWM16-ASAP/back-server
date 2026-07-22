@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import software.amazon.awssdk.core.exception.ApiCallTimeoutException;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -89,6 +90,19 @@ class WordBedrockClientCircuitBreakerTest {
 			.hasMessage("fatal error");
 	}
 
+	@Test
+	@DisplayName("Bedrock timeout은 일반 오류와 구분해서 기록한다")
+	void call_recordsTimeoutOutcome() {
+		double timeoutsBefore = meterRegistry.counter("word.bedrock.calls", "outcome", "timeout").count();
+		double errorsBefore = meterRegistry.counter("word.bedrock.calls", "outcome", "error").count();
+
+		assertTemporaryUnavailable(client, new Prompt("Trigger timeout"));
+
+		assertThat(meterRegistry.counter("word.bedrock.calls", "outcome", "timeout").count() - timeoutsBefore)
+			.isEqualTo(1);
+		assertThat(meterRegistry.counter("word.bedrock.calls", "outcome", "error").count() - errorsBefore).isZero();
+	}
+
 	private void assertTemporaryUnavailable(WordBedrockClient client, Prompt prompt) {
 		assertThatThrownBy(() -> client.call(prompt)).isInstanceOfSatisfying(WordsException.class,
 				e -> assertThat(e.getErrorCode()).isEqualTo(WordsErrorCode.WORD_AI_TEMPORARILY_UNAVAILABLE));
@@ -111,6 +125,9 @@ class WordBedrockClientCircuitBreakerTest {
 		ChatModel chatModel(AtomicInteger bedrockAttempts) {
 			return prompt -> {
 				bedrockAttempts.incrementAndGet();
+				if ("Trigger timeout".equals(prompt.getContents())) {
+					throw new IllegalStateException("Bedrock call timed out", ApiCallTimeoutException.create(8000));
+				}
 				if ("Trigger error".equals(prompt.getContents())) {
 					throw new AssertionError("fatal error");
 				}

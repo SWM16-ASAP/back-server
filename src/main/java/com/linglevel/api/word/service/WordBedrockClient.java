@@ -11,6 +11,11 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
+import software.amazon.awssdk.core.exception.ApiCallTimeoutException;
+
+import java.net.SocketTimeoutException;
+import java.util.concurrent.TimeoutException;
 
 @Component
 @RequiredArgsConstructor
@@ -29,9 +34,19 @@ public class WordBedrockClient {
 			return response;
 		}
 		catch (RuntimeException | Error e) {
-			metrics.recordBedrockCall(sample, "error");
+			metrics.recordBedrockCall(sample, isTimeout(e) ? "timeout" : "error");
 			throw e;
 		}
+	}
+
+	private boolean isTimeout(Throwable throwable) {
+		for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
+			if (cause instanceof ApiCallTimeoutException || cause instanceof ApiCallAttemptTimeoutException
+					|| cause instanceof SocketTimeoutException || cause instanceof TimeoutException) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private ChatResponse fallback(Prompt prompt, Exception e) {
