@@ -8,7 +8,7 @@ region="$(terraform -chdir="$platform_dir" output -raw aws_region)"
 cluster_arn="$(terraform -chdir="$platform_dir" output -raw ecs_cluster_arn)"
 task_definition_arn="$(terraform -chdir="$platform_dir" output -raw dependency_probe_task_definition_arn)"
 subnet_id="$(terraform -chdir="$platform_dir" output -raw k6_subnet_id)"
-security_group_id="$(terraform -chdir="$platform_dir" output -raw app_security_group_id)"
+security_group_id="$(terraform -chdir="$platform_dir" output -raw dependency_probe_security_group_id)"
 
 "${script_dir}/verify-phase-one.sh" "$platform_dir"
 

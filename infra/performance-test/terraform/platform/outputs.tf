@@ -71,9 +71,9 @@ output "app_desired_count" {
   value       = var.app_desired_count
 }
 
-output "app_security_group_id" {
-  description = "Security group reused by the dependency probe."
-  value       = aws_security_group.app.id
+output "dependency_probe_security_group_id" {
+  description = "Security group assigned to the dependency probe."
+  value       = aws_security_group.probe.id
 }
 
 output "dependency_probe_task_definition_arn" {

@@ -1,3 +1,15 @@
+locals {
+  probe_internal_ports = merge(
+    { for name, service in local.dependency_services : name => service.port },
+    {
+      grafana        = 3000
+      mysql_exporter = 9104
+      prometheus     = 9090
+      redis_exporter = 9121
+    }
+  )
+}
+
 resource "aws_security_group" "alb" {
   name_prefix = "${local.name_prefix}-alb-"
   description = "Allow VPC-internal traffic to the phase-one internal ALB."
@@ -107,7 +119,7 @@ resource "aws_security_group" "dependencies" {
       from_port       = ingress.value.port
       to_port         = ingress.value.port
       protocol        = "tcp"
-      security_groups = [aws_security_group.app.id]
+      security_groups = [aws_security_group.app.id, aws_security_group.probe.id]
     }
   }
 
@@ -116,7 +128,7 @@ resource "aws_security_group" "dependencies" {
     from_port       = 9121
     to_port         = 9121
     protocol        = "tcp"
-    security_groups = [aws_security_group.app.id, aws_security_group.prometheus.id]
+    security_groups = [aws_security_group.probe.id, aws_security_group.prometheus.id]
   }
 
   ingress {
@@ -124,7 +136,7 @@ resource "aws_security_group" "dependencies" {
     from_port       = 9104
     to_port         = 9104
     protocol        = "tcp"
-    security_groups = [aws_security_group.app.id, aws_security_group.prometheus.id]
+    security_groups = [aws_security_group.probe.id, aws_security_group.prometheus.id]
   }
 
   egress {
@@ -261,6 +273,52 @@ resource "aws_security_group" "grafana" {
 
   tags = {
     Name = "${local.name_prefix}-grafana"
+  }
+}
+
+resource "aws_security_group" "probe" {
+  name_prefix = "${local.name_prefix}-probe-"
+  description = "Allow the dependency probe to reach test services and monitoring endpoints."
+  vpc_id      = aws_vpc.this.id
+
+  dynamic "egress" {
+    for_each = local.probe_internal_ports
+
+    content {
+      description = "${egress.key} probe traffic"
+      from_port   = egress.value
+      to_port     = egress.value
+      protocol    = "tcp"
+      cidr_blocks = [var.vpc_cidr]
+    }
+  }
+
+  egress {
+    description = "HTTPS for image pulls and AWS APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-probe"
   }
 }
 
