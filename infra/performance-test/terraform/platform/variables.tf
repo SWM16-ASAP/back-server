@@ -47,6 +47,24 @@ variable "mysql_exporter_image" {
   default     = "prom/mysqld-exporter:v0.18.0"
 }
 
+variable "prometheus_image" {
+  description = "Prometheus image used to collect temporary test metrics."
+  type        = string
+  default     = "prom/prometheus:v3.13.1"
+}
+
+variable "prometheus_retention_time" {
+  description = "Maximum time Prometheus retains metrics for one test environment."
+  type        = string
+  default     = "6h"
+}
+
+variable "prometheus_retention_size" {
+  description = "Maximum Prometheus TSDB size for one test environment."
+  type        = string
+  default     = "1GB"
+}
+
 variable "mock_image" {
   description = "WireMock image used to control external API responses."
   type        = string

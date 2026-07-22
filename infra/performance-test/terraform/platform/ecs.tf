@@ -7,6 +7,24 @@ resource "aws_ecs_cluster" "this" {
   name = "${local.name_prefix}-cluster"
 }
 
+resource "aws_service_discovery_service" "app" {
+  name = "app"
+
+  dns_config {
+    namespace_id   = aws_service_discovery_private_dns_namespace.this.id
+    routing_policy = "MULTIVALUE"
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
+}
+
 resource "aws_ecs_task_definition" "app" {
   family                   = "${local.name_prefix}-app"
   requires_compatibilities = ["FARGATE"]
@@ -72,6 +90,10 @@ resource "aws_ecs_service" "app" {
     target_group_arn = aws_lb_target_group.app.arn
     container_name   = "phase-one-app"
     container_port   = var.container_port
+  }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.app.arn
   }
 
   depends_on = [aws_lb_listener.http]

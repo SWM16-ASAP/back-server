@@ -60,6 +60,24 @@ resource "aws_ecs_task_definition" "dependency_probe" {
             "http://mysql.${aws_service_discovery_private_dns_namespace.this.name}:9104/metrics" \
             "mysql_up"
 
+          prometheus_targets_url="http://prometheus.${aws_service_discovery_private_dns_namespace.this.name}:9090/api/v1/targets"
+          for attempt in $(seq 1 30); do
+            if wget -qO /tmp/prometheus-targets.json "$prometheus_targets_url"; then
+              healthy_targets="$(grep -o '\"health\":\"up\"' /tmp/prometheus-targets.json | wc -l | tr -d ' ' || true)"
+              unhealthy_targets="$(grep -o '\"health\":\"down\"' /tmp/prometheus-targets.json | wc -l | tr -d ' ' || true)"
+              if [ "$healthy_targets" -ge 5 ] && [ "$unhealthy_targets" -eq 0 ]; then
+                echo "Prometheus targets passed: $healthy_targets healthy targets"
+                break
+              fi
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Prometheus targets failed: $prometheus_targets_url" >&2
+              cat /tmp/prometheus-targets.json >&2 || true
+              exit 1
+            fi
+            sleep 2
+          done
+
           mock_url="http://mock.${aws_service_discovery_private_dns_namespace.this.name}:8080/__admin/mappings"
           for attempt in $(seq 1 30); do
             if wget -qO /tmp/mappings.json "$mock_url" && \

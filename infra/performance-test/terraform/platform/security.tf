@@ -37,6 +37,14 @@ resource "aws_security_group" "app" {
     security_groups = [aws_security_group.alb.id]
   }
 
+  ingress {
+    description     = "Application metrics from Prometheus"
+    from_port       = var.container_port
+    to_port         = var.container_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.prometheus.id]
+  }
+
   egress {
     description = "HTTPS for public image retrieval"
     from_port   = 443
@@ -108,7 +116,7 @@ resource "aws_security_group" "dependencies" {
     from_port       = 9121
     to_port         = 9121
     protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
+    security_groups = [aws_security_group.app.id, aws_security_group.prometheus.id]
   }
 
   ingress {
@@ -116,7 +124,7 @@ resource "aws_security_group" "dependencies" {
     from_port       = 9104
     to_port         = 9104
     protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
+    security_groups = [aws_security_group.app.id, aws_security_group.prometheus.id]
   }
 
   egress {
@@ -145,6 +153,56 @@ resource "aws_security_group" "dependencies" {
 
   tags = {
     Name = "${local.name_prefix}-dependencies"
+  }
+}
+
+resource "aws_security_group" "prometheus" {
+  name_prefix = "${local.name_prefix}-prometheus-"
+  description = "Allow internal metric collection and verification."
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description = "Prometheus API from verification tasks in the test VPC"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "Application and exporter metrics"
+    from_port   = 1
+    to_port     = 65535
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "HTTPS for image pulls and AWS APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-prometheus"
   }
 }
 
