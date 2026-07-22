@@ -1,7 +1,14 @@
 locals {
-  name_prefix          = "llvpt-${var.test_run_id}"
-  environment_file_key = "environment/app.env"
-  availability_zones   = var.availability_zones
+  name_prefix = "llvpt-${var.test_run_id}"
+  environment_file_keys = {
+    app                 = "environment/app.env"
+    grafana             = "environment/grafana.env"
+    mysql               = "environment/mysql.env"
+    mysql_exporter      = "environment/mysql-exporter.env"
+    mysql_exporter_init = "environment/mysql-exporter-init.env"
+    prometheus          = "environment/prometheus.env"
+  }
+  availability_zones = var.availability_zones
   public_subnets = {
     for index, availability_zone in local.availability_zones :
     availability_zone => cidrsubnet(var.vpc_cidr, 8, index)

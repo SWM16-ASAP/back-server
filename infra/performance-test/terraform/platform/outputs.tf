@@ -20,7 +20,7 @@ output "environment_file_bucket" {
 
 output "app_environment_file_key" {
   description = "Object key reserved for the application environment file."
-  value       = local.environment_file_key
+  value       = local.environment_file_keys.app
 }
 
 output "app_ecr_repository_url" {

@@ -70,7 +70,7 @@ resource "aws_ecs_task_definition" "dependency" {
           environmentFiles = [
             {
               type  = "s3"
-              value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_key}"
+              value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.mysql}"
             }
           ]
         } : {}
@@ -124,7 +124,7 @@ resource "aws_ecs_task_definition" "dependency" {
         environmentFiles = [
           {
             type  = "s3"
-            value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_key}"
+            value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.mysql_exporter_init}"
           }
         ]
         entryPoint = ["/bin/sh", "-c"]
@@ -161,7 +161,7 @@ resource "aws_ecs_task_definition" "dependency" {
         environmentFiles = [
           {
             type  = "s3"
-            value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_key}"
+            value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.mysql_exporter}"
           }
         ]
         command = [

@@ -27,7 +27,7 @@ data "aws_iam_policy_document" "task_execution_environment_file" {
 
   statement {
     actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.environment_files.arn}/${local.environment_file_key}"]
+    resources = [for key in values(local.environment_file_keys) : "${aws_s3_bucket.environment_files.arn}/${key}"]
   }
 }
 
