@@ -144,6 +144,10 @@ public class WordSingleFlightRedisCoordinator {
 			Thread.currentThread().interrupt();
 			throw new RuntimeException("Interrupted while acquiring single-flight lock", e);
 		}
+		catch (RuntimeException e) {
+			metrics.recordLockFailure("acquire");
+			throw e;
+		}
 	}
 
 	private <T> T waitAsFollower(KeySet keys, RLock lock, Supplier<T> leaderAction,

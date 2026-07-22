@@ -65,7 +65,7 @@ resource "aws_ecs_task_definition" "dependency_probe" {
             if wget -qO /tmp/prometheus-targets.json "$prometheus_targets_url"; then
               healthy_targets="$(grep -o '\"health\":\"up\"' /tmp/prometheus-targets.json | wc -l | tr -d ' ' || true)"
               unhealthy_targets="$(grep -o '\"health\":\"down\"' /tmp/prometheus-targets.json | wc -l | tr -d ' ' || true)"
-              if [ "$healthy_targets" -ge 5 ] && [ "$unhealthy_targets" -eq 0 ]; then
+              if [ "$healthy_targets" -ge ${var.app_desired_count + 3} ] && [ "$unhealthy_targets" -eq 0 ]; then
                 echo "Prometheus targets passed: $healthy_targets healthy targets"
                 break
               fi

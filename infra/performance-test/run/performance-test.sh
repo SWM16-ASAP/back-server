@@ -279,11 +279,11 @@ download_results() {
 	local test_run_id
 	local destination
 
-	bucket="$(terraform -chdir="$platform_dir" output -raw results_bucket)"
-	test_run_id="$(terraform -chdir="$platform_dir" output -raw test_run_id)"
+	bucket="$(terraform -chdir="$platform_dir" output -raw results_bucket)" || return 1
+	test_run_id="$(terraform -chdir="$platform_dir" output -raw test_run_id)" || return 1
 	destination="${repository_root}/build/performance-test-results/${test_run_id}"
-	mkdir -p "$destination"
-	aws s3 sync "s3://${bucket}/test-runs/${test_run_id}/" "$destination" --only-show-errors
+	mkdir -p "$destination" || return 1
+	aws s3 sync "s3://${bucket}/test-runs/${test_run_id}/" "$destination" --only-show-errors || return 1
 	echo "Results downloaded to ${destination#${repository_root}/}."
 }
 
@@ -365,7 +365,12 @@ run_down() {
 		return
 	fi
 
-	run_step "Download performance-test results" download_results
+	current_step="Download performance-test results"
+	echo
+	echo "==> ${current_step}"
+	if ! download_results; then
+		echo "Result download failed; Terraform destroy will continue." >&2
+	fi
 
 	current_step="Remove application environment file"
 	if ! "${script_dir}/cleanup-app-environment.sh" "$platform_dir"; then

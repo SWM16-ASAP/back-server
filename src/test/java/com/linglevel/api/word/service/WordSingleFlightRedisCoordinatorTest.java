@@ -203,6 +203,19 @@ class WordSingleFlightRedisCoordinatorTest {
 	}
 
 	@Test
+	@DisplayName("Redis lock 획득 실패를 기록하고 원래 예외를 전파한다")
+	void execute_recordsRuntimeLockAcquisitionFailure() throws Exception {
+		RuntimeException failure = new RuntimeException("redis unavailable");
+		doThrow(failure).when(redissonLock).tryLock(0, TimeUnit.MILLISECONDS);
+
+		assertThatThrownBy(
+				() -> coordinator.execute("run", LanguageCode.KO, () -> List.of(sample("run")), Optional::empty))
+			.isSameAs(failure);
+		assertThat(meterRegistry.counter("word.single.flight.lock.failures", "operation", "acquire").count())
+			.isEqualTo(1);
+	}
+
+	@Test
 	@DisplayName("leader 완료 시 lock을 해제한 뒤 done을 발행한다")
 	void execute_releasesLeaderLockBeforePublishingDone() {
 		stubTryLock(true);
