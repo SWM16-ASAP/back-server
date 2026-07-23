@@ -14,7 +14,7 @@
 - `run/.env.app.example`: 테스트 앱 환경 변수 양식
 - `run/publish-app-image.sh`: 현재 commit의 LLV API 이미지를 임시 ECR에 업로드
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
-- `run/cleanup-app-environment.sh`: S3 객체와 로컬 환경 파일 삭제
+- `run/cleanup-app-environment.sh`: S3 environment file 객체 삭제
 - `run/run-k6-smoke.sh`: VPC 내부에서 ALB health endpoint 호출
 - `run/verify-phase-two.sh`: ALB, 의존성, k6 연결을 순서대로 검증
 - `k6/smoke.js`: 인프라 연결 확인용 단일 요청 시나리오
@@ -30,7 +30,7 @@
 - Bedrock과 Discord는 WireMock으로 대체하고 실제 Bedrock 지연 시간은 별도의 소규모 호출로 보정한다.
 - Firebase Auth는 테스트 JWT로 대체하고 FCM은 mock/no-op으로 실행한다. Sentry는 비활성화한다.
 - 비밀값은 서비스별 임시 `.env`를 S3 environment file로 전달한다. Terraform은 객체 내용이 아닌 bucket, object key, IAM만 관리한다.
-- 실행 스크립트가 `.env`를 업로드하며 테스트 종료 시 S3 객체와 로컬 파일을 모두 삭제한다.
+- 실행 스크립트가 `.env.app`에서 서비스별 임시 파일을 만들어 업로드하며 테스트 종료 시 S3 객체만 삭제한다.
 - 이 단계의 완료 기준은 k6가 ALB를 통해 API를 호출하고 API 또는 전용 probe가 각 의존성 연결을 확인하는 것이다.
 
 Redis, MySQL, WireMock은 각각 `redis`, `mysql`, `mock` 이름으로 Cloud Map에 등록된다. 전체 endpoint는 Terraform의 `dependency_endpoints` output에서 확인한다. MySQL은 비밀번호를 state에 남기지 않기 위해 임시 random root password로 시작하며, 이번 단계에서는 container health와 내부 DNS/TCP 연결만 검증한다.
@@ -108,7 +108,7 @@ k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 �
 
 결과는 `build/performance-test-results/<test_run_id>`에 저장된다. `down`도 destroy 전에 같은 동기화를 수행하므로 임시 결과 bucket이 삭제된 뒤에도 로컬 결과가 남는다.
 
-테스트 종료 후에는 인프라를 제거하기 전에 환경 파일을 먼저 정리한다. 원격 객체 삭제가 실패하더라도 로컬 `.env.app`은 삭제되며, 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다.
+테스트 종료 후에는 인프라를 제거하기 전에 S3 environment file 객체를 먼저 정리한다. 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다. 로컬 `.env.app`은 Git에서 제외하고 권한 `600`으로 유지해 다음 테스트에서 재사용한다.
 
 ```bash
 ./infra/performance-test/run/performance-test.sh down --profile llv-performance-test

@@ -360,7 +360,6 @@ run_down() {
 	preflight down
 
 	if ! terraform_state_exists; then
-		rm -f "$environment_file"
 		echo "No Terraform-managed performance-test resources exist."
 		return
 	fi
@@ -372,7 +371,7 @@ run_down() {
 		echo "Result download failed; Terraform destroy will continue." >&2
 	fi
 
-	current_step="Remove application environment file"
+	current_step="Remove uploaded environment files"
 	if ! "${script_dir}/cleanup-app-environment.sh" "$platform_dir"; then
 		echo "Environment-file cleanup failed; Terraform destroy will continue." >&2
 	fi

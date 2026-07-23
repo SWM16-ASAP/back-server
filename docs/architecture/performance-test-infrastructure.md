@@ -52,7 +52,7 @@ flowchart LR
 - S3 AI input/output bucket은 Terraform으로 생성한다. public access 차단, 암호화, ECS task role 최소 권한을 적용하고 테스트 종료 시 제거한다.
 - S3 변경 감지 기반 AI 처리는 현재 범위에서 제외하고, 추후 메시지 큐와 mock worker를 연결하는 방식으로 추가한다.
 - 비밀값은 서비스별 임시 `.env`를 S3 environment file로 전달한다. Terraform은 bucket, object key, IAM만 관리하고 객체 내용은 관리하지 않아 비밀값이 state에 기록되지 않게 한다.
-- 실행 스크립트가 로컬 `.env`를 S3에 업로드하고, 테스트 종료 시 S3 객체와 로컬 파일을 모두 삭제한다.
+- 실행 스크립트가 로컬 `.env.app`에서 서비스별 임시 파일을 만들어 S3에 업로드하고, 테스트 종료 시 S3 객체만 삭제한다. Git에서 제외된 로컬 파일은 권한 `600`으로 유지해 다음 실행에서 재사용한다.
 - Bedrock과 Discord는 WireMock Standalone으로 성공·지연·오류를 통제한다. mapping은 저장소에서 관리하고 테스트 전에 Admin API로 등록하며 request journal로 실제 호출 횟수를 확인한다.
 - Firebase Auth 호출 대신 테스트 JWT를 사용하고 FCM bean은 mock/no-op으로 대체한다. Sentry는 비활성화한다.
 - Bedrock 실제 지연 시간은 부하 테스트와 분리한 소규모 실호출로 측정해 mock 지연 값을 보정한다.
