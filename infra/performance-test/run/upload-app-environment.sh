@@ -72,7 +72,7 @@ upload_environment_file() {
 	awk -v allowed_names="$allowed_names" '
 		BEGIN {
 			split(allowed_names, names, " ")
-			for (index in names) allowed[names[index]] = 1
+			for (position in names) allowed[names[position]] = 1
 		}
 		/^[A-Za-z_][A-Za-z0-9_]*=/ {
 			name = $0
