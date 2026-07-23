@@ -52,7 +52,7 @@ output "ecs_cluster_arn" {
 }
 
 output "k6_task_definition_arn" {
-  description = "Task definition used by the k6 smoke runner."
+  description = "Task definition used by the one-off k6 runner."
   value       = aws_ecs_task_definition.k6.arn
 }
 

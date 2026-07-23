@@ -10,14 +10,13 @@ API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana�
 
 - `terraform/platform`: AWS 리소스 정의
 - `run/performance-test.sh`: 생성, 검증, 상태 확인, 제거를 담당하는 단일 실행 진입점
-- `run/verify-phase-one.sh`: ALB target health 확인
 - `run/.env.app.example`: 테스트 앱 환경 변수 양식
 - `run/publish-app-image.sh`: 현재 commit의 LLV API 이미지를 임시 ECR에 업로드
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
 - `run/cleanup-app-environment.sh`: S3 environment file 객체 삭제
-- `run/run-k6-smoke.sh`: VPC 내부에서 ALB health endpoint를 호출하는 k6 task 실행
+- `run/run-k6.sh`: VPC 내부에서 기본 k6 연결 시나리오를 실행
 - `run/reset-test-state.sh`: MongoDB, Redis, MySQL, WireMock 상태를 초기화
-- `run/verify-phase-two.sh`: ALB, 의존성, 모니터링 연결을 순서대로 검증
+- `run/verify-environment.sh`: ALB, 의존성, 모니터링 연결을 순서대로 검증
 - `seed/`: 향후 도메인 시나리오별 최소 fixture를 관리할 위치
 - `k6/smoke.js`: 인프라 연결 확인용 단일 요청 시나리오
 - `wiremock`: Bedrock과 Discord의 성공·지연·오류 mapping
@@ -102,7 +101,7 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 
 `up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록되며 기본 대시보드에서 API RPS·p95/p99·5xx, JVM heap, Tomcat thread, Redis, MySQL, ECS와 ALB 지표를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
-k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 임시 결과 S3 bucket에 업로드한다. `run`은 인프라를 다시 적용하지 않고 k6 task만 실행한다. 실행 ID를 생략하면 UTC timestamp 기반 ID를 생성하며, 직접 지정할 수도 있다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
+k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 세션 전용 S3 bucket에 업로드한다. `run`은 인프라를 다시 적용하지 않고 k6 task만 실행한다. 실행 ID를 생략하면 UTC timestamp 기반 ID를 생성하며, 직접 지정할 수도 있다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
 
 ```bash
 ./infra/performance-test/run/performance-test.sh run --profile llv-performance-test
@@ -112,13 +111,7 @@ k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 �
 
 `reset`은 실행 중인 k6 task가 없을 때만 MongoDB, Redis, MySQL을 비우고 WireMock request journal과 mapping을 기준 시나리오로 되돌린다. 현재 구체적인 Word 시나리오는 범위 밖이므로 seed fixture는 아직 적용하지 않는다.
 
-다음 명령으로 실행 중에도 결과를 내려받을 수 있다.
-
-```bash
-./infra/performance-test/run/performance-test.sh results --profile llv-performance-test
-```
-
-결과는 `build/performance-test-results/<test_run_id>/runs/<k6-run-id>`에 저장된다. `down`도 destroy 전에 같은 동기화를 수행하므로 임시 결과 bucket이 삭제된 뒤에도 로컬 결과가 남는다.
+결과는 `test-sessions/<test_run_id>/runs/<k6-run-id>` 경로에 세션 동안만 유지되며, `down`에서 결과 bucket과 함께 삭제된다. 수치 분석은 세션이 유지되는 동안 Grafana에서 수행한다.
 
 테스트 종료 후에는 인프라를 제거하기 전에 S3 environment file 객체를 먼저 정리한다. 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다. 로컬 `.env.app`은 Git에서 제외하고 권한 `600`으로 유지해 다음 테스트에서 재사용한다.
 

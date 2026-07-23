@@ -50,11 +50,11 @@ task_arn="$(aws ecs run-task \
 	--output text)"
 
 if [[ -z "$task_arn" || "$task_arn" == "None" ]]; then
-	echo "Failed to start the k6 smoke task." >&2
+	echo "Failed to start the k6 task." >&2
 	exit 1
 fi
 
-echo "Waiting for k6 smoke task: ${task_arn}"
+echo "Waiting for k6 task: ${task_arn}"
 aws ecs wait tasks-stopped --region "$region" --cluster "$cluster_arn" --tasks "$task_arn"
 
 exit_code="$(aws ecs describe-tasks \
@@ -78,7 +78,7 @@ if [[ "$exit_code" != "0" ]]; then
 		--tasks "$task_arn" \
 		--query 'tasks[0].stoppedReason' \
 		--output text)"
-	echo "k6 smoke task failed with exit code ${exit_code}: ${stop_reason}" >&2
+	echo "k6 task failed with exit code ${exit_code}: ${stop_reason}" >&2
 	exit 1
 fi
 
@@ -89,4 +89,4 @@ fi
 
 results_bucket="$(terraform -chdir="$platform_dir" output -raw results_bucket)"
 session_id="$(terraform -chdir="$platform_dir" output -raw test_run_id)"
-echo "k6 smoke task passed. Results: s3://${results_bucket}/test-sessions/${session_id}/runs/${test_run_id}/"
+echo "k6 task passed. Results: s3://${results_bucket}/test-sessions/${session_id}/runs/${test_run_id}/"

@@ -19,11 +19,10 @@ Usage: performance-test.sh <command> [options]
 
 Commands:
   up       Create the performance-test environment, verify connectivity, and reset state.
-  run      Run the k6 smoke task in an existing environment.
+  run      Run the k6 task in an existing environment.
   reset    Reset test data and WireMock state in an existing environment.
   verify   Verify an existing performance-test environment.
   status   Show Terraform resources, outputs, and ALB target health.
-  results  Download k6 result artifacts from an existing environment.
   down     Remove the environment and confirm Terraform state is empty.
 
 Options:
@@ -311,19 +310,6 @@ show_k6_status() {
 	fi
 }
 
-download_results() {
-	local bucket
-	local test_run_id
-	local destination
-
-	bucket="$(terraform -chdir="$platform_dir" output -raw results_bucket)" || return 1
-	test_run_id="$(terraform -chdir="$platform_dir" output -raw test_run_id)" || return 1
-	destination="${repository_root}/build/performance-test-results/${test_run_id}"
-	mkdir -p "$destination" || return 1
-	aws s3 sync "s3://${bucket}/test-sessions/${test_run_id}/" "$destination" --only-show-errors || return 1
-	echo "Results downloaded to ${destination#${repository_root}/}."
-}
-
 run_up() {
 	preflight up
 	echo
@@ -337,7 +323,7 @@ run_up() {
 	run_step "Publish application image" "${script_dir}/publish-app-image.sh" "$platform_dir"
 	run_step "Upload application environment" "${script_dir}/upload-app-environment.sh" "$platform_dir"
 	run_step "Create performance-test infrastructure" terraform -chdir="$platform_dir" apply
-	run_step "Verify metrics and connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+	run_step "Verify metrics and connectivity" "${script_dir}/verify-environment.sh" "$platform_dir"
 	run_step "Reset test state" "${script_dir}/reset-test-state.sh" "$platform_dir"
 	show_grafana_url
 
@@ -348,7 +334,7 @@ run_up() {
 run_verify() {
 	preflight verify
 	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
-	run_step "Verify metrics and connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+	run_step "Verify metrics and connectivity" "${script_dir}/verify-environment.sh" "$platform_dir"
 }
 
 run_k6() {
@@ -359,7 +345,7 @@ run_k6() {
 	if [[ -z "$effective_run_id" ]]; then
 		effective_run_id="$(generate_run_id)"
 	fi
-	run_step "Run k6 smoke task (${effective_run_id})" "${script_dir}/run-k6-smoke.sh" "$platform_dir" "$effective_run_id"
+	run_step "Run k6 task (${effective_run_id})" "${script_dir}/run-k6.sh" "$platform_dir" "$effective_run_id"
 }
 
 run_reset() {
@@ -406,25 +392,12 @@ run_status() {
 	show_k6_status
 }
 
-run_results() {
-	preflight results
-	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
-	run_step "Download performance-test results" download_results
-}
-
 run_down() {
 	preflight down
 
 	if ! terraform_state_exists; then
 		echo "No Terraform-managed performance-test resources exist."
 		return
-	fi
-
-	current_step="Download performance-test results"
-	echo
-	echo "==> ${current_step}"
-	if ! download_results; then
-		echo "Result download failed; Terraform destroy will continue." >&2
 	fi
 
 	current_step="Remove uploaded environment files"
@@ -502,9 +475,6 @@ case "$command_name" in
 		;;
 	status)
 		run_status
-		;;
-	results)
-		run_results
 		;;
 	down)
 		run_down
