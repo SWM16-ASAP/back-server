@@ -42,5 +42,4 @@ if [[ "$exit_code" != "0" ]]; then
 	exit 1
 fi
 
-"${script_dir}/run-k6-smoke.sh" "$platform_dir"
 echo "Phase two verification passed."

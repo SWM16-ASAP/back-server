@@ -112,7 +112,7 @@ data "aws_iam_policy_document" "k6_results_write" {
 
   statement {
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.results.arn}/test-runs/${var.test_run_id}/*"]
+    resources = ["${aws_s3_bucket.results.arn}/test-sessions/${var.test_run_id}/runs/*"]
   }
 }
 

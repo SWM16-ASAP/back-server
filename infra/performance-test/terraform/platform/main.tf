@@ -7,6 +7,7 @@ locals {
     mysql_exporter      = "environment/mysql-exporter.env"
     mysql_exporter_init = "environment/mysql-exporter-init.env"
     prometheus          = "environment/prometheus.env"
+    reset_mongo         = "environment/reset-mongo.env"
   }
   availability_zones = var.availability_zones
   public_subnets = {

@@ -294,6 +294,14 @@ resource "aws_security_group" "probe" {
   }
 
   egress {
+    description = "MongoDB Atlas database traffic"
+    from_port   = 27015
+    to_port     = 27017
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
     description = "HTTPS for image pulls and AWS APIs"
     from_port   = 443
     to_port     = 443

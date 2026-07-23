@@ -96,6 +96,8 @@ upload_environment_file mysql 'local.environment_file_keys.mysql' MYSQL_ROOT_PAS
 upload_environment_file mysql-exporter-init 'local.environment_file_keys.mysql_exporter_init' \
 	MYSQL_ROOT_PASSWORD MYSQLD_EXPORTER_PASSWORD
 upload_environment_file mysql-exporter 'local.environment_file_keys.mysql_exporter' MYSQLD_EXPORTER_PASSWORD
+upload_environment_file reset-mongo 'local.environment_file_keys.reset_mongo' \
+	SPRING_DATA_MONGODB_URI SPRING_DATA_MONGODB_DATABASE
 upload_environment_file prometheus 'local.environment_file_keys.prometheus' IMPORT_API_KEY
 upload_environment_file grafana 'local.environment_file_keys.grafana' \
 	GF_SECURITY_ADMIN_USER GF_SECURITY_ADMIN_PASSWORD

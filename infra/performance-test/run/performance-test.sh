@@ -18,7 +18,9 @@ usage() {
 Usage: performance-test.sh <command> [options]
 
 Commands:
-  up       Create the performance-test environment and verify connectivity.
+  up       Create the performance-test environment, verify connectivity, and reset state.
+  run      Run the k6 smoke task in an existing environment.
+  reset    Reset test data and WireMock state in an existing environment.
   verify   Verify an existing performance-test environment.
   status   Show Terraform resources, outputs, and ALB target health.
   results  Download k6 result artifacts from an existing environment.
@@ -26,6 +28,7 @@ Commands:
 
 Options:
   --profile <name>  Use the named AWS CLI profile.
+  --run-id <id>     Set the identifier for one k6 execution; generated when omitted.
   --yes             Skip Terraform approval prompts for up or down.
   -h, --help        Show this help message.
 EOF
@@ -178,6 +181,10 @@ configure_aws_profile() {
 	fi
 }
 
+generate_run_id() {
+	printf 'run-%s' "$(date -u +%Y%m%d%H%M%S)"
+}
+
 verify_aws_identity() {
 	local identity
 	if ! identity="$(aws sts get-caller-identity --query '[Account,Arn]' --output text 2>&1)"; then
@@ -274,6 +281,36 @@ show_grafana_url() {
 	echo "Grafana URL: http://${public_ip}:3000/d/llv-performance-overview"
 }
 
+show_k6_status() {
+	local region
+	local cluster_arn
+	local task_definition_arn
+	local family
+	local running_tasks
+
+	region="$(terraform -chdir="$platform_dir" output -raw aws_region)"
+	cluster_arn="$(terraform -chdir="$platform_dir" output -raw ecs_cluster_arn)"
+	task_definition_arn="$(terraform -chdir="$platform_dir" output -raw k6_task_definition_arn)"
+	family="$(aws ecs describe-task-definition \
+		--region "$region" \
+		--task-definition "$task_definition_arn" \
+		--query 'taskDefinition.family' \
+		--output text)"
+	running_tasks="$(aws ecs list-tasks \
+		--region "$region" \
+		--cluster "$cluster_arn" \
+		--family "$family" \
+		--desired-status RUNNING \
+		--query 'taskArns' \
+		--output text)"
+
+	if [[ -z "$running_tasks" || "$running_tasks" == "None" ]]; then
+		echo "k6 status: idle"
+	else
+		echo "k6 status: running (${running_tasks})"
+	fi
+}
+
 download_results() {
 	local bucket
 	local test_run_id
@@ -283,7 +320,7 @@ download_results() {
 	test_run_id="$(terraform -chdir="$platform_dir" output -raw test_run_id)" || return 1
 	destination="${repository_root}/build/performance-test-results/${test_run_id}"
 	mkdir -p "$destination" || return 1
-	aws s3 sync "s3://${bucket}/test-runs/${test_run_id}/" "$destination" --only-show-errors || return 1
+	aws s3 sync "s3://${bucket}/test-sessions/${test_run_id}/" "$destination" --only-show-errors || return 1
 	echo "Results downloaded to ${destination#${repository_root}/}."
 }
 
@@ -301,6 +338,7 @@ run_up() {
 	run_step "Upload application environment" "${script_dir}/upload-app-environment.sh" "$platform_dir"
 	run_step "Create performance-test infrastructure" terraform -chdir="$platform_dir" apply
 	run_step "Verify metrics and connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+	run_step "Reset test state" "${script_dir}/reset-test-state.sh" "$platform_dir"
 	show_grafana_url
 
 	echo
@@ -311,6 +349,23 @@ run_verify() {
 	preflight verify
 	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
 	run_step "Verify metrics and connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+}
+
+run_k6() {
+	preflight run
+	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
+
+	local effective_run_id="${run_id:-}"
+	if [[ -z "$effective_run_id" ]]; then
+		effective_run_id="$(generate_run_id)"
+	fi
+	run_step "Run k6 smoke task (${effective_run_id})" "${script_dir}/run-k6-smoke.sh" "$platform_dir" "$effective_run_id"
+}
+
+run_reset() {
+	preflight reset
+	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
+	run_step "Reset test state" "${script_dir}/reset-test-state.sh" "$platform_dir"
 }
 
 run_status() {
@@ -348,6 +403,7 @@ run_status() {
 
 	echo
 	show_grafana_url
+	show_k6_status
 }
 
 run_results() {
@@ -402,6 +458,7 @@ fi
 shift
 
 profile=""
+run_id=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--profile)
@@ -412,6 +469,11 @@ while [[ $# -gt 0 ]]; do
 		--yes)
 			auto_approve=true
 			shift
+			;;
+		--run-id)
+			[[ $# -ge 2 ]] || fail "--run-id requires a value."
+			run_id="$2"
+			shift 2
 			;;
 		-h | --help)
 			usage
@@ -428,6 +490,12 @@ cd "$repository_root"
 case "$command_name" in
 	up)
 		run_up
+		;;
+	run)
+		run_k6
+		;;
+	reset)
+		run_reset
 		;;
 	verify)
 		run_verify

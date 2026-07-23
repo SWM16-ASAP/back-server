@@ -41,6 +41,12 @@ variable "mysql_image" {
   default     = "mysql:8.4.10"
 }
 
+variable "mongo_reset_image" {
+  description = "MongoDB shell image used to reset the Atlas test database."
+  type        = string
+  default     = "mongo:8.0.13"
+}
+
 variable "mysql_exporter_image" {
   description = "Prometheus MySQL exporter image used to expose MySQL metrics."
   type        = string

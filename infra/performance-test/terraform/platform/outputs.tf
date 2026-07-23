@@ -66,6 +66,26 @@ output "k6_subnet_id" {
   value       = values(aws_subnet.public)[0].id
 }
 
+output "reset_mongo_task_definition_arn" {
+  description = "One-off task definition that resets the Atlas test database."
+  value       = aws_ecs_task_definition.reset_mongo.arn
+}
+
+output "reset_redis_task_definition_arn" {
+  description = "One-off task definition that clears Redis test state."
+  value       = aws_ecs_task_definition.reset_redis.arn
+}
+
+output "reset_mysql_task_definition_arn" {
+  description = "One-off task definition that resets the MySQL test database."
+  value       = aws_ecs_task_definition.reset_mysql.arn
+}
+
+output "reset_mock_task_definition_arn" {
+  description = "One-off task definition that resets WireMock state."
+  value       = aws_ecs_task_definition.reset_mock.arn
+}
+
 output "app_desired_count" {
   description = "Expected number of healthy application targets."
   value       = var.app_desired_count

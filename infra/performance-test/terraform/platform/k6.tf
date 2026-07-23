@@ -65,7 +65,7 @@ resource "aws_ecs_task_definition" "k6" {
         },
         {
           name  = "TEST_RUN_ID"
-          value = var.test_run_id
+          value = "replace-at-runtime"
         },
         {
           name  = "GIT_SHA"
@@ -131,7 +131,7 @@ resource "aws_ecs_task_definition" "k6" {
         },
         {
           name  = "TEST_RUN_ID"
-          value = var.test_run_id
+          value = "replace-at-runtime"
         }
       ]
       mountPoints = [
@@ -147,7 +147,7 @@ resource "aws_ecs_task_definition" "k6" {
           set -eu
           execution_time="$(date -u +%Y%m%dT%H%M%SZ)"
           aws s3 cp /results \
-            "s3://$RESULT_BUCKET/test-runs/$TEST_RUN_ID/k6/$execution_time/" \
+            "s3://$RESULT_BUCKET/test-sessions/${var.test_run_id}/runs/$TEST_RUN_ID/k6/$execution_time/" \
             --recursive \
             --only-show-errors
         EOT

@@ -1,10 +1,10 @@
 # 부하 테스트 인프라
 
-반복 가능한 부하 테스트 환경을 Terraform으로 생성하고 제거한다. 전체 계획은 [아키텍처 문서](../../docs/architecture/performance-test-infrastructure.md)를 참고한다.
+반복 가능한 부하 테스트 환경을 Terraform으로 한 번 생성하고, 상태 초기화와 k6 실행을 반복한 뒤 제거한다. 전체 계획은 [아키텍처 문서](../../docs/architecture/performance-test-infrastructure.md)를 참고한다.
 
 ## 현재 단계
 
-1단계의 `ECS Fargate API 1대 -> Internal ALB` 배포와 제거 검증을 마쳤다. 2단계에서는 API를 2대로 확장하고 Redis, MySQL, Atlas, external API mock, k6를 연결한다. Prometheus와 Grafana는 3단계에서 추가한다.
+API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana를 연결했다. 인프라 세션이 유지되는 동안 `reset`과 `run`을 반복하고, 분석이 끝난 뒤 `down`으로 제거한다.
 
 ## 구조
 
@@ -15,8 +15,10 @@
 - `run/publish-app-image.sh`: 현재 commit의 LLV API 이미지를 임시 ECR에 업로드
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
 - `run/cleanup-app-environment.sh`: S3 environment file 객체 삭제
-- `run/run-k6-smoke.sh`: VPC 내부에서 ALB health endpoint 호출
-- `run/verify-phase-two.sh`: ALB, 의존성, k6 연결을 순서대로 검증
+- `run/run-k6-smoke.sh`: VPC 내부에서 ALB health endpoint를 호출하는 k6 task 실행
+- `run/reset-test-state.sh`: MongoDB, Redis, MySQL, WireMock 상태를 초기화
+- `run/verify-phase-two.sh`: ALB, 의존성, 모니터링 연결을 순서대로 검증
+- `seed/`: 향후 도메인 시나리오별 최소 fixture를 관리할 위치
 - `k6/smoke.js`: 인프라 연결 확인용 단일 요청 시나리오
 - `wiremock`: Bedrock과 Discord의 성공·지연·오류 mapping
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
@@ -69,7 +71,7 @@ aws sso login --profile llv-sso
 
 runner에 `--profile`을 전달하면 별도로 `AWS_PROFILE`을 export할 필요가 없다. 이미 필요한 권한을 가진 다른 profile이 있다면 `llv-performance-test` 대신 해당 이름을 전달할 수 있다.
 
-`terraform.tfvars`의 `test_run_id`는 실행마다 고유하게 설정한다. runner는 `app_image_tag`를 현재 commit SHA로 갱신한다. 환경 파일과 앱 이미지를 업로드하기 전에는 전체 `terraform apply`를 실행하지 않는다.
+`terraform.tfvars`의 `test_run_id`는 인프라 세션마다 고유하게 설정한다. runner는 `app_image_tag`를 현재 commit SHA로 갱신한다. 환경 파일과 앱 이미지를 업로드하기 전에는 전체 `terraform apply`를 실행하지 않는다.
 
 Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에서는 GitHub OIDC가 `PerformanceTestProvisioner`의 임시 credential을 제공한다.
 
@@ -87,7 +89,7 @@ Grafana는 임시 public IP로 접근하되 `terraform.tfvars`의 `grafana_allow
 ./infra/performance-test/run/performance-test.sh up --profile llv-performance-test
 ```
 
-runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 입력할 값만 안내한 뒤 종료한다. 값을 작성하고 같은 명령을 다시 실행하면 Terraform 초기화, 이미지 게시, 환경 파일 업로드, 전체 apply와 연결 검증을 순서대로 수행한다. `--yes`를 추가한 경우에만 Terraform 승인 질문을 생략한다.
+runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 입력할 값만 안내한 뒤 종료한다. 값을 작성하고 같은 명령을 다시 실행하면 Terraform 초기화, 이미지 게시, 환경 파일 업로드, 전체 apply, 연결 검증, 최초 상태 초기화를 순서대로 수행한다. `--yes`를 추가한 경우에만 Terraform 승인 질문을 생략한다.
 
 실행 중인 환경은 다음 명령으로 다시 검증하거나 상태를 확인한다.
 
@@ -96,17 +98,27 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 ./infra/performance-test/run/performance-test.sh status --profile llv-performance-test
 ```
 
-검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping, k6의 ALB 요청을 순서대로 확인한다. probe와 smoke task는 상시 실행되는 ECS service가 아니며 검증할 때 각각 한 번 실행된다. 실제 Word 부하 시나리오는 이 연결 확인 이후 별도 task 실행 설정으로 추가한다.
+검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. 실제 Word 부하 시나리오는 이 연결 확인 이후 별도 task 실행 설정으로 추가한다.
 
 `up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록되며 기본 대시보드에서 API RPS·p95/p99·5xx, JVM heap, Tomcat thread, Redis, MySQL, ECS와 ALB 지표를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
-k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 임시 결과 S3 bucket에 업로드한다. 다음 명령으로 실행 중에도 결과를 내려받을 수 있다.
+k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 임시 결과 S3 bucket에 업로드한다. `run`은 인프라를 다시 적용하지 않고 k6 task만 실행한다. 실행 ID를 생략하면 UTC timestamp 기반 ID를 생성하며, 직접 지정할 수도 있다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
+
+```bash
+./infra/performance-test/run/performance-test.sh run --profile llv-performance-test
+./infra/performance-test/run/performance-test.sh run --run-id word-single-flight-a --profile llv-performance-test
+./infra/performance-test/run/performance-test.sh reset --profile llv-performance-test
+```
+
+`reset`은 실행 중인 k6 task가 없을 때만 MongoDB, Redis, MySQL을 비우고 WireMock request journal과 mapping을 기준 시나리오로 되돌린다. 현재 구체적인 Word 시나리오는 범위 밖이므로 seed fixture는 아직 적용하지 않는다.
+
+다음 명령으로 실행 중에도 결과를 내려받을 수 있다.
 
 ```bash
 ./infra/performance-test/run/performance-test.sh results --profile llv-performance-test
 ```
 
-결과는 `build/performance-test-results/<test_run_id>`에 저장된다. `down`도 destroy 전에 같은 동기화를 수행하므로 임시 결과 bucket이 삭제된 뒤에도 로컬 결과가 남는다.
+결과는 `build/performance-test-results/<test_run_id>/runs/<k6-run-id>`에 저장된다. `down`도 destroy 전에 같은 동기화를 수행하므로 임시 결과 bucket이 삭제된 뒤에도 로컬 결과가 남는다.
 
 테스트 종료 후에는 인프라를 제거하기 전에 S3 environment file 객체를 먼저 정리한다. 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다. 로컬 `.env.app`은 Git에서 제외하고 권한 `600`으로 유지해 다음 테스트에서 재사용한다.
 
