@@ -40,6 +40,10 @@ locals {
         {
           name  = "MYSQL_DATABASE"
           value = "llv_performance_test"
+        },
+        {
+          name  = "MYSQL_ROOT_HOST"
+          value = "%"
         }
       ]
       health_check = {

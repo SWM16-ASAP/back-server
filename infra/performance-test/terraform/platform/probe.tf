@@ -81,7 +81,7 @@ resource "aws_ecs_task_definition" "dependency_probe" {
           grafana_health_url="http://grafana.${aws_service_discovery_private_dns_namespace.this.name}:3000/api/health"
           for attempt in $(seq 1 30); do
             if wget -qO /tmp/grafana-health.json "$grafana_health_url" && \
-                grep -q '"database":"ok"' /tmp/grafana-health.json; then
+                grep -Eq '"database"[[:space:]]*:[[:space:]]*"ok"' /tmp/grafana-health.json; then
               echo "Grafana health passed: $grafana_health_url"
               break
             fi
