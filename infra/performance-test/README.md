@@ -82,6 +82,12 @@ ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env
 
 Grafana는 임시 public IP로 접근하되 `terraform.tfvars`의 `grafana_allowed_cidr`에 지정한 IPv4 CIDR만 허용한다. runner는 `up` 실행 시 AWS checkip으로 현재 공인 IPv4를 조회해 `<IP>/32`로 자동 갱신한다. 기본값 `127.0.0.1/32`은 runner를 거치지 않고 Terraform을 직접 실행할 때만 남는 안전한 기본값이다. `0.0.0.0/0`은 사용하지 않는다.
 
+### Atlas Prometheus 연동
+
+Atlas 지표는 선택 사항이다. Atlas M10+ 클러스터에서 Prometheus integration을 생성한 뒤 `.env.app`에 `ATLAS_PROMETHEUS_ENABLED=true`, Atlas Project ID, integration username/password를 입력하면 Prometheus가 HTTP service discovery로 scrape한다. 이 자격 증명은 Prometheus environment file에만 전달된다.
+
+Atlas access list에는 Prometheus task의 public IP만 허용하고 `0.0.0.0/0` 항목은 제거해야 한다. Atlas는 `/0` allowlist가 있으면 Prometheus integration을 비활성화한다. task IP가 바뀌는 테스트 세션마다 allowlist를 갱신한 후 Grafana의 MongoDB 패널과 Prometheus target 상태를 확인한다.
+
 업로드 스크립트는 S3 bucket, public access block, 암호화 설정만 먼저 적용한 후 환경 파일을 업로드한다. 업로드가 끝나야 전체 인프라를 적용한다.
 
 ```bash

@@ -98,7 +98,9 @@ upload_environment_file mysql-exporter-init 'local.environment_file_keys.mysql_e
 upload_environment_file mysql-exporter 'local.environment_file_keys.mysql_exporter' MYSQLD_EXPORTER_PASSWORD
 upload_environment_file reset-mongo 'local.environment_file_keys.reset_mongo' \
 	SPRING_DATA_MONGODB_URI SPRING_DATA_MONGODB_DATABASE
-upload_environment_file prometheus 'local.environment_file_keys.prometheus' IMPORT_API_KEY
+upload_environment_file prometheus 'local.environment_file_keys.prometheus' \
+	IMPORT_API_KEY ATLAS_PROMETHEUS_ENABLED ATLAS_PROMETHEUS_GROUP_ID \
+	ATLAS_PROMETHEUS_USERNAME ATLAS_PROMETHEUS_PASSWORD
 upload_environment_file grafana 'local.environment_file_keys.grafana' \
 	GF_SECURITY_ADMIN_USER GF_SECURITY_ADMIN_PASSWORD
 

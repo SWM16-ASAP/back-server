@@ -58,7 +58,7 @@ up -> reset -> run -> reset -> run -> down
 
 - API 요청량, 응답 시간, 오류율
 - JVM, GC, thread와 connection 상태
-- Redis와 MySQL exporter 지표
+- Redis와 MySQL exporter 지표, 선택적 Atlas Prometheus 지표
 - ECS와 ALB의 CPU, memory, target 상태
 - single-flight, Bedrock, circuit breaker 애플리케이션 지표
 
