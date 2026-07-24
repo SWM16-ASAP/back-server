@@ -9,7 +9,7 @@ output "test_run_id" {
 }
 
 output "target_group_arn" {
-  description = "Target group inspected by the phase-one verification script."
+  description = "Target group inspected by the environment verification script."
   value       = aws_lb_target_group.app.arn
 }
 

@@ -1,6 +1,6 @@
 # Copy this file to terraform.tfvars. terraform.tfvars is ignored by Git.
 aws_region  = "ap-northeast-2"
-test_run_id = "phase-two"
+test_run_id = "performance-test"
 availability_zones = [
   "ap-northeast-2a",
   "ap-northeast-2b",

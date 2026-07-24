@@ -1,5 +1,5 @@
 resource "aws_cloudwatch_log_group" "app" {
-  name              = "/llv/performance-test/${var.test_run_id}/phase-one-app"
+  name              = "/llv/performance-test/${var.test_run_id}/app"
   retention_in_days = var.log_retention_days
 }
 
@@ -36,7 +36,7 @@ resource "aws_ecs_task_definition" "app" {
 
   container_definitions = jsonencode([
     {
-      name      = "phase-one-app"
+      name      = "app"
       image     = "${aws_ecr_repository.app.repository_url}:${var.app_image_tag}"
       essential = true
       environmentFiles = [
@@ -88,7 +88,7 @@ resource "aws_ecs_service" "app" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.app.arn
-    container_name   = "phase-one-app"
+    container_name   = "app"
     container_port   = var.container_port
   }
 

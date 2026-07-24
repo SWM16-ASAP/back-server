@@ -2,7 +2,7 @@
 
 반복 가능한 부하 테스트 환경을 Terraform으로 한 번 생성하고, 상태 초기화와 k6 실행을 반복한 뒤 제거한다. 전체 계획은 [아키텍처 문서](../../docs/architecture/performance-test-infrastructure.md)를 참고한다.
 
-## 현재 단계
+## 현재 구성
 
 API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana를 연결했다. 인프라 세션이 유지되는 동안 `reset`과 `run`을 반복하고, 분석이 끝난 뒤 `down`으로 제거한다.
 
@@ -22,7 +22,7 @@ API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana�
 - `wiremock`: Bedrock과 Discord의 성공·지연·오류 mapping
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
 
-## 2단계 계획
+## 테스트 환경 구성
 
 - ECS task는 public subnet과 public IP를 사용하며 NAT Gateway와 EIP는 두지 않는다.
 - Atlas는 사용자가 유지하는 테스트 전용 cluster를 사용한다. 테스트 직전에 IP allowlist를 `0.0.0.0/0`으로 열고 종료 직후 닫는다.
@@ -40,7 +40,7 @@ WireMock은 task 시작 시 초기화 sidecar가 Admin API로 mapping을 등록�
 
 ## 관측 계획
 
-3단계에서 Prometheus가 아래 exporter의 `/metrics`를 수집하고 Grafana에서 API 지표와 함께 조회한다.
+Prometheus는 아래 exporter의 `/metrics`를 수집하고 Grafana에서 API 지표와 함께 조회한다.
 
 - `mysqld_exporter`: connection, query rate, InnoDB, lock, I/O 지표
 - `redis_exporter`: memory, client, command rate, hit/miss, eviction 지표
@@ -74,7 +74,7 @@ runner에 `--profile`을 전달하면 별도로 `AWS_PROFILE`을 export할 필�
 
 Terraform과 검증 스크립트는 같은 `AWS_PROFILE`을 사용한다. CI에서는 GitHub OIDC가 `PerformanceTestProvisioner`의 임시 credential을 제공한다.
 
-## 2단계 환경 파일
+## 환경 파일
 
 ECS를 포함한 전체 Terraform 적용 전에 `infra/performance-test/run/.env.app`에 테스트 전용 환경 변수를 작성하고 업로드한다. 이 파일은 Git에서 제외되며 객체 내용도 Terraform state에 기록되지 않는다.
 

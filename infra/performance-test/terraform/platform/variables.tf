@@ -150,7 +150,7 @@ variable "dependency_probe_image" {
 }
 
 variable "container_port" {
-  description = "TCP port exposed by the phase-one container."
+  description = "TCP port exposed by the application container."
   type        = number
   default     = 80
 }
@@ -168,13 +168,13 @@ variable "health_check_grace_period_seconds" {
 }
 
 variable "task_cpu" {
-  description = "Fargate CPU units for the phase-one task."
+  description = "Fargate CPU units for one application task."
   type        = number
   default     = 256
 }
 
 variable "task_memory" {
-  description = "Fargate memory in MiB for the phase-one task."
+  description = "Fargate memory in MiB for one application task."
   type        = number
   default     = 512
 }
@@ -191,7 +191,7 @@ variable "app_desired_count" {
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block reserved for the temporary phase-one VPC."
+  description = "CIDR block reserved for the temporary performance-test VPC."
   type        = string
   default     = "10.240.0.0/16"
 }

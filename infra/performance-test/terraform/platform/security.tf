@@ -12,7 +12,7 @@ locals {
 
 resource "aws_security_group" "alb" {
   name_prefix = "${local.name_prefix}-alb-"
-  description = "Allow VPC-internal traffic to the phase-one internal ALB."
+  description = "Allow VPC-internal traffic to the internal ALB."
   vpc_id      = aws_vpc.this.id
 
   ingress {
@@ -24,7 +24,7 @@ resource "aws_security_group" "alb" {
   }
 
   egress {
-    description = "HTTP to phase-one tasks"
+    description = "HTTP to application tasks"
     from_port   = var.container_port
     to_port     = var.container_port
     protocol    = "tcp"
@@ -38,7 +38,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_security_group" "app" {
   name_prefix = "${local.name_prefix}-app-"
-  description = "Allow the phase-one ALB to reach the Fargate task."
+  description = "Allow the internal ALB to reach application tasks."
   vpc_id      = aws_vpc.this.id
 
   ingress {
