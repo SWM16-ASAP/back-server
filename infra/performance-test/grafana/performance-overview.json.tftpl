@@ -270,8 +270,8 @@
       "id": 10,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "CPUUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "A", "region": "${aws_region}", "statistics": ["Average"] },
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "MemoryUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "B", "region": "${aws_region}", "statistics": ["Average"] }
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "CPUUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "MemoryUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
       ],
       "title": "ECS Application Utilization",
       "type": "timeseries"
@@ -282,7 +282,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 52 },
       "id": 11,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "TargetResponseTime", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistics": ["Average"] }],
+      "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "TargetResponseTime", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Average" }],
       "title": "ALB Target Response Time",
       "type": "timeseries"
     },
@@ -293,8 +293,8 @@
       "id": 19,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "RequestCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistics": ["Sum"] },
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}", "TargetGroup": "${target_group_dimension}" }, "matchExact": true, "metricName": "HealthyHostCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "B", "region": "${aws_region}", "statistics": ["Average"] }
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "RequestCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Sum" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}", "TargetGroup": "${target_group_dimension}" }, "matchExact": true, "metricName": "HealthyHostCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
       ],
       "title": "ALB Traffic and Healthy Targets",
       "type": "timeseries"
@@ -306,8 +306,8 @@
       "id": 20,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "HTTPCode_Target_5XX_Count", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistics": ["Sum"] },
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "TargetConnectionErrorCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "B", "region": "${aws_region}", "statistics": ["Sum"] }
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "HTTPCode_Target_5XX_Count", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Sum" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "TargetConnectionErrorCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "B", "region": "${aws_region}", "statistic": "Sum" }
       ],
       "title": "ALB Target Errors",
       "type": "timeseries"
