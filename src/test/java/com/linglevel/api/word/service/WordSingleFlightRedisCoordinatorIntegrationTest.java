@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
@@ -163,7 +164,7 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
 		properties.setResultSchemaVersion("v2");
 
 		WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(template, listenerContainer,
-				redissonClient, properties);
+				redissonClient, properties, new WordGenerationMetrics(new SimpleMeterRegistry()));
 		ReflectionTestUtils.invokeMethod(coordinator, "initialize");
 
 		return new CoordinatorFixture(connectionFactory, template, listenerContainer, redissonClient, coordinator);

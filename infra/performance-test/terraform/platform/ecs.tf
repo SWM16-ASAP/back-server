@@ -1,10 +1,28 @@
 resource "aws_cloudwatch_log_group" "app" {
-  name              = "/llv/performance-test/${var.test_run_id}/phase-one-app"
+  name              = "/llv/performance-test/${var.test_run_id}/app"
   retention_in_days = var.log_retention_days
 }
 
 resource "aws_ecs_cluster" "this" {
   name = "${local.name_prefix}-cluster"
+}
+
+resource "aws_service_discovery_service" "app" {
+  name = "app"
+
+  dns_config {
+    namespace_id   = aws_service_discovery_private_dns_namespace.this.id
+    routing_policy = "MULTIVALUE"
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
 }
 
 resource "aws_ecs_task_definition" "app" {
@@ -18,13 +36,13 @@ resource "aws_ecs_task_definition" "app" {
 
   container_definitions = jsonencode([
     {
-      name      = "phase-one-app"
+      name      = "app"
       image     = "${aws_ecr_repository.app.repository_url}:${var.app_image_tag}"
       essential = true
       environmentFiles = [
         {
           type  = "s3"
-          value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_key}"
+          value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.app}"
         }
       ]
       portMappings = [
@@ -70,8 +88,12 @@ resource "aws_ecs_service" "app" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.app.arn
-    container_name   = "phase-one-app"
+    container_name   = "app"
     container_port   = var.container_port
+  }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.app.arn
   }
 
   depends_on = [aws_lb_listener.http]

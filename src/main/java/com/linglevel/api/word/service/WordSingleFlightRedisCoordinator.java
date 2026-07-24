@@ -34,6 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
+import io.micrometer.core.instrument.Timer;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -52,6 +54,8 @@ public class WordSingleFlightRedisCoordinator {
 	private final RedissonClient redissonClient;
 
 	private final WordSingleFlightProperties properties;
+
+	private final WordGenerationMetrics metrics;
 
 	private final ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableFuture<Void>>> channelWaiters = new ConcurrentHashMap<>();
 
@@ -72,7 +76,15 @@ public class WordSingleFlightRedisCoordinator {
 	public <T> T execute(String word, LanguageCode targetLanguage, Supplier<T> leaderAction,
 			Supplier<Optional<T>> followerResultLookup) {
 		if (!properties.isEnabled()) {
-			return leaderAction.get();
+			try {
+				T result = leaderAction.get();
+				metrics.recordSingleFlightRequest("bypass", "success");
+				return result;
+			}
+			catch (RuntimeException | Error e) {
+				metrics.recordSingleFlightRequest("bypass", "error");
+				throw e;
+			}
 		}
 
 		KeySet keys = buildKeySet(word, targetLanguage);
@@ -97,6 +109,7 @@ public class WordSingleFlightRedisCoordinator {
 		}
 
 		if (existing.isPresent()) {
+			metrics.recordSingleFlightRequest("lookup", "existing");
 			releaseThenPublishDone(keys, lock);
 			return existing.get();
 		}
@@ -108,8 +121,10 @@ public class WordSingleFlightRedisCoordinator {
 		T result;
 		try {
 			result = leaderAction.get();
+			metrics.recordSingleFlightRequest("leader", "success");
 		}
 		catch (RuntimeException | Error e) {
+			metrics.recordSingleFlightRequest("leader", "error");
 			completeLeaderAfterCompletion(keys, lock);
 			throw e;
 		}
@@ -125,43 +140,63 @@ public class WordSingleFlightRedisCoordinator {
 			return lock.tryLock(0, TimeUnit.MILLISECONDS);
 		}
 		catch (InterruptedException e) {
+			metrics.recordLockFailure("acquire");
 			Thread.currentThread().interrupt();
 			throw new RuntimeException("Interrupted while acquiring single-flight lock", e);
+		}
+		catch (RuntimeException e) {
+			metrics.recordLockFailure("acquire");
+			throw e;
 		}
 	}
 
 	private <T> T waitAsFollower(KeySet keys, RLock lock, Supplier<T> leaderAction,
 			Supplier<Optional<T>> followerResultLookup) {
 		CompletableFuture<Void> signal = new CompletableFuture<>();
+		Timer.Sample waitSample = metrics.startFollowerWait();
 		registerWaiter(keys.channel(), signal);
 
 		try {
 			boolean lockAcquiredAfterRegister = tryAcquireLeaderLock(lock);
 			if (lockAcquiredAfterRegister) {
+				metrics.recordFollowerWait(waitSample, "promoted");
 				return executeWithLeaderLock(keys, lock, leaderAction, followerResultLookup);
 			}
 
 			signal.get(properties.getWaitTimeoutMs(), TimeUnit.MILLISECONDS);
+			metrics.recordFollowerWait(waitSample, "signaled");
 		}
 		catch (TimeoutException e) {
+			metrics.recordFollowerWait(waitSample, "timeout");
 			log.warn("Single-flight wait timed out for key digest={}", keys.digest());
 		}
 		catch (InterruptedException e) {
+			metrics.recordFollowerWait(waitSample, "interrupted");
 			Thread.currentThread().interrupt();
 			throw new RuntimeException("Single-flight wait interrupted for key digest=" + keys.digest(), e);
 		}
 		catch (ExecutionException e) {
+			metrics.recordFollowerWait(waitSample, "error");
 			throw new RuntimeException("Single-flight wait failed for key digest=" + keys.digest(), e);
 		}
 		finally {
 			unregisterWaiter(keys.channel(), signal);
 		}
 
-		Optional<T> finalResult = followerResultLookup.get();
+		Optional<T> finalResult;
+		try {
+			finalResult = followerResultLookup.get();
+		}
+		catch (RuntimeException | Error e) {
+			metrics.recordSingleFlightRequest("follower", "error");
+			throw e;
+		}
 		if (finalResult.isPresent()) {
+			metrics.recordSingleFlightRequest("follower", "success");
 			return finalResult.get();
 		}
 
+		metrics.recordSingleFlightRequest("follower", "timeout");
 		throw new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT);
 	}
 
@@ -214,9 +249,11 @@ public class WordSingleFlightRedisCoordinator {
 			lock.unlock();
 		}
 		catch (IllegalMonitorStateException e) {
+			metrics.recordLockFailure("release");
 			log.warn("Single-flight lock was not held at release time key={}", lockKey, e);
 		}
 		catch (Exception e) {
+			metrics.recordLockFailure("release");
 			log.warn("Failed to release single-flight lock key={}", lockKey, e);
 		}
 	}

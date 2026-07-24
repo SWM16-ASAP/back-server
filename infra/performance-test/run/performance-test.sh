@@ -18,13 +18,16 @@ usage() {
 Usage: performance-test.sh <command> [options]
 
 Commands:
-  up       Create the phase-two environment and verify connectivity.
-  verify   Verify an existing phase-two environment.
+  up       Create the performance-test environment, verify connectivity, and reset state.
+  run      Run the k6 task in an existing environment.
+  reset    Reset test data and WireMock state in an existing environment.
+  verify   Verify an existing performance-test environment.
   status   Show Terraform resources, outputs, and ALB target health.
   down     Remove the environment and confirm Terraform state is empty.
 
 Options:
   --profile <name>  Use the named AWS CLI profile.
+  --run-id <id>     Set the identifier for one k6 execution; generated when omitted.
   --yes             Skip Terraform approval prompts for up or down.
   -h, --help        Show this help message.
 EOF
@@ -89,6 +92,14 @@ validate_jwt_secret() {
 	fi
 }
 
+validate_mysql_exporter_password() {
+	local password="$1"
+
+	if [[ ! "$password" =~ ^[A-Fa-f0-9]{48,}$ ]]; then
+		fail "MYSQLD_EXPORTER_PASSWORD must contain at least 24 bytes encoded as hexadecimal."
+	fi
+}
+
 prepare_local_files() {
 	if [[ ! -f "$terraform_vars" ]]; then
 		cp "$terraform_vars_example" "$terraform_vars"
@@ -130,6 +141,37 @@ set_application_image_tag() {
 	echo "Application image tag: ${image_tag}"
 }
 
+refresh_grafana_allowed_cidr() {
+	local public_ip
+	local temporary_file
+
+	if ! public_ip="$(curl -4fsS --connect-timeout 5 --max-time 10 https://checkip.amazonaws.com)"; then
+		fail "Unable to detect the current public IPv4 address for Grafana access."
+	fi
+
+	if [[ ! "$public_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+		fail "Public IPv4 lookup returned an invalid value: ${public_ip}"
+	fi
+
+	temporary_file="$(mktemp)"
+	awk -v grafana_allowed_cidr="${public_ip}/32" '
+		/^grafana_allowed_cidr[[:space:]]*=/ {
+			print "grafana_allowed_cidr = \"" grafana_allowed_cidr "\""
+			found = 1
+			next
+		}
+		{ print }
+		END {
+			if (!found) {
+				print "grafana_allowed_cidr = \"" grafana_allowed_cidr "\""
+			}
+		}
+	' "$terraform_vars" >"$temporary_file"
+
+	mv "$temporary_file" "$terraform_vars"
+	echo "Grafana access CIDR: ${public_ip}/32"
+}
+
 
 explain_created_local_files() {
 	if [[ "$created_local_files" == true ]]; then
@@ -145,7 +187,7 @@ EOF
 validate_local_files() {
 	local name
 	local value
-	for name in SPRING_DATA_MONGODB_URI JWT_SECRET IMPORT_API_KEY; do
+	for name in SPRING_DATA_MONGODB_URI JWT_SECRET IMPORT_API_KEY MYSQL_ROOT_PASSWORD MYSQLD_EXPORTER_PASSWORD GF_SECURITY_ADMIN_PASSWORD; do
 		value="$(read_environment_value "$name")"
 		if [[ -z "$value" || "$value" == *replace-me* || "$value" == replace-with-generated-* ]]; then
 			fail "Set ${name} in ${environment_file#${repository_root}/}."
@@ -153,6 +195,7 @@ validate_local_files() {
 	done
 
 	validate_jwt_secret "$(read_environment_value JWT_SECRET)"
+	validate_mysql_exporter_password "$(read_environment_value MYSQLD_EXPORTER_PASSWORD)"
 }
 
 configure_aws_profile() {
@@ -166,6 +209,10 @@ configure_aws_profile() {
 		fi
 		export AWS_PROFILE="$requested_profile"
 	fi
+}
+
+generate_run_id() {
+	printf 'run-%s' "$(date -u +%Y%m%d%H%M%S)"
 }
 
 verify_aws_identity() {
@@ -191,6 +238,7 @@ preflight() {
 
 	if [[ "$command" == "up" ]]; then
 		local gradle_output
+		require_command curl
 		require_command docker
 		require_command git
 		[[ -x "${repository_root}/gradlew" ]] || fail "Gradle wrapper is not executable."
@@ -204,6 +252,7 @@ preflight() {
 		prepare_local_files
 		set_application_image_tag
 		explain_created_local_files
+		refresh_grafana_allowed_cidr
 		validate_local_files
 	elif [[ "$command" == "down" && ! -f "$terraform_vars" ]]; then
 		fail "Terraform variables not found: ${terraform_vars#${repository_root}/}"
@@ -220,6 +269,80 @@ terraform_state_exists() {
 	[[ -n "$state" ]]
 }
 
+show_grafana_url() {
+	local region
+	local cluster_arn
+	local service_name
+	local task_arn
+	local network_interface_id
+	local public_ip
+
+	region="$(terraform -chdir="$platform_dir" output -raw aws_region)"
+	cluster_arn="$(terraform -chdir="$platform_dir" output -raw ecs_cluster_arn)"
+	service_name="$(terraform -chdir="$platform_dir" output -raw grafana_service_name)"
+	task_arn="$(aws ecs list-tasks \
+		--region "$region" \
+		--cluster "$cluster_arn" \
+		--service-name "$service_name" \
+		--desired-status RUNNING \
+		--query 'taskArns[0]' \
+		--output text)"
+
+	if [[ -z "$task_arn" || "$task_arn" == "None" ]]; then
+		echo "Grafana task is not running."
+		return
+	fi
+
+	network_interface_id="$(aws ecs describe-tasks \
+		--region "$region" \
+		--cluster "$cluster_arn" \
+		--tasks "$task_arn" \
+		--query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value | [0]' \
+		--output text)"
+	public_ip="$(aws ec2 describe-network-interfaces \
+		--region "$region" \
+		--network-interface-ids "$network_interface_id" \
+		--query 'NetworkInterfaces[0].Association.PublicIp' \
+		--output text)"
+
+	if [[ -z "$public_ip" || "$public_ip" == "None" ]]; then
+		echo "Grafana public IP is not available yet."
+		return
+	fi
+
+	echo "Grafana URL: http://${public_ip}:3000/d/llv-performance-overview"
+}
+
+show_k6_status() {
+	local region
+	local cluster_arn
+	local task_definition_arn
+	local family
+	local running_tasks
+
+	region="$(terraform -chdir="$platform_dir" output -raw aws_region)"
+	cluster_arn="$(terraform -chdir="$platform_dir" output -raw ecs_cluster_arn)"
+	task_definition_arn="$(terraform -chdir="$platform_dir" output -raw k6_task_definition_arn)"
+	family="$(aws ecs describe-task-definition \
+		--region "$region" \
+		--task-definition "$task_definition_arn" \
+		--query 'taskDefinition.family' \
+		--output text)"
+	running_tasks="$(aws ecs list-tasks \
+		--region "$region" \
+		--cluster "$cluster_arn" \
+		--family "$family" \
+		--desired-status RUNNING \
+		--query 'taskArns' \
+		--output text)"
+
+	if [[ -z "$running_tasks" || "$running_tasks" == "None" ]]; then
+		echo "k6 status: idle"
+	else
+		echo "k6 status: running (${running_tasks})"
+	fi
+}
+
 run_up() {
 	preflight up
 	echo
@@ -232,17 +355,36 @@ run_up() {
 
 	run_step "Publish application image" "${script_dir}/publish-app-image.sh" "$platform_dir"
 	run_step "Upload application environment" "${script_dir}/upload-app-environment.sh" "$platform_dir"
-	run_step "Create phase-two infrastructure" terraform -chdir="$platform_dir" apply
-	run_step "Verify phase-two connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+	run_step "Create performance-test infrastructure" terraform -chdir="$platform_dir" apply
+	run_step "Verify metrics and connectivity" "${script_dir}/verify-environment.sh" "$platform_dir"
+	run_step "Reset test state" "${script_dir}/reset-test-state.sh" "$platform_dir"
+	show_grafana_url
 
 	echo
-	echo "Phase-two environment is ready."
+	echo "Performance-test environment is ready."
 }
 
 run_verify() {
 	preflight verify
 	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
-	run_step "Verify phase-two connectivity" "${script_dir}/verify-phase-two.sh" "$platform_dir"
+	run_step "Verify metrics and connectivity" "${script_dir}/verify-environment.sh" "$platform_dir"
+}
+
+run_k6() {
+	preflight run
+	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
+
+	local effective_run_id="${run_id:-}"
+	if [[ -z "$effective_run_id" ]]; then
+		effective_run_id="$(generate_run_id)"
+	fi
+	run_step "Run k6 task (${effective_run_id})" "${script_dir}/run-k6.sh" "$platform_dir" "$effective_run_id"
+}
+
+run_reset() {
+	preflight reset
+	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
+	run_step "Reset test state" "${script_dir}/reset-test-state.sh" "$platform_dir"
 }
 
 run_status() {
@@ -277,23 +419,26 @@ run_status() {
 		echo
 		echo "ALB target group has not been created yet."
 	fi
+
+	echo
+	show_grafana_url
+	show_k6_status
 }
 
 run_down() {
 	preflight down
 
 	if ! terraform_state_exists; then
-		rm -f "$environment_file"
 		echo "No Terraform-managed performance-test resources exist."
 		return
 	fi
 
-	current_step="Remove application environment file"
+	current_step="Remove uploaded environment files"
 	if ! "${script_dir}/cleanup-app-environment.sh" "$platform_dir"; then
 		echo "Environment-file cleanup failed; Terraform destroy will continue." >&2
 	fi
 
-	current_step="Destroy phase-two infrastructure"
+	current_step="Destroy performance-test infrastructure"
 	if [[ "$auto_approve" == true ]]; then
 		terraform -chdir="$platform_dir" destroy -auto-approve
 	else
@@ -308,7 +453,7 @@ run_down() {
 	fi
 
 	echo
-	echo "Phase-two environment was removed. Close the temporary Atlas IP allowlist."
+	echo "Performance-test environment was removed. Close the temporary Atlas IP allowlist."
 }
 
 command_name="${1:-}"
@@ -319,6 +464,7 @@ fi
 shift
 
 profile=""
+run_id=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--profile)
@@ -329,6 +475,11 @@ while [[ $# -gt 0 ]]; do
 		--yes)
 			auto_approve=true
 			shift
+			;;
+		--run-id)
+			[[ $# -ge 2 ]] || fail "--run-id requires a value."
+			run_id="$2"
+			shift 2
 			;;
 		-h | --help)
 			usage
@@ -345,6 +496,12 @@ cd "$repository_root"
 case "$command_name" in
 	up)
 		run_up
+		;;
+	run)
+		run_k6
+		;;
+	reset)
+		run_reset
 		;;
 	verify)
 		run_verify

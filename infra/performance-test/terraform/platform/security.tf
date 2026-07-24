@@ -1,6 +1,18 @@
+locals {
+  probe_internal_ports = merge(
+    { for name, service in local.dependency_services : name => service.port },
+    {
+      grafana        = 3000
+      mysql_exporter = 9104
+      prometheus     = 9090
+      redis_exporter = 9121
+    }
+  )
+}
+
 resource "aws_security_group" "alb" {
   name_prefix = "${local.name_prefix}-alb-"
-  description = "Allow VPC-internal traffic to the phase-one internal ALB."
+  description = "Allow VPC-internal traffic to the internal ALB."
   vpc_id      = aws_vpc.this.id
 
   ingress {
@@ -12,7 +24,7 @@ resource "aws_security_group" "alb" {
   }
 
   egress {
-    description = "HTTP to phase-one tasks"
+    description = "HTTP to application tasks"
     from_port   = var.container_port
     to_port     = var.container_port
     protocol    = "tcp"
@@ -26,7 +38,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_security_group" "app" {
   name_prefix = "${local.name_prefix}-app-"
-  description = "Allow the phase-one ALB to reach the Fargate task."
+  description = "Allow the internal ALB to reach application tasks."
   vpc_id      = aws_vpc.this.id
 
   ingress {
@@ -35,6 +47,14 @@ resource "aws_security_group" "app" {
     to_port         = var.container_port
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
+  }
+
+  ingress {
+    description     = "Application metrics from Prometheus"
+    from_port       = var.container_port
+    to_port         = var.container_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.prometheus.id]
   }
 
   egress {
@@ -99,8 +119,24 @@ resource "aws_security_group" "dependencies" {
       from_port       = ingress.value.port
       to_port         = ingress.value.port
       protocol        = "tcp"
-      security_groups = [aws_security_group.app.id]
+      security_groups = [aws_security_group.app.id, aws_security_group.probe.id]
     }
+  }
+
+  ingress {
+    description     = "Redis metrics from verification and monitoring tasks"
+    from_port       = 9121
+    to_port         = 9121
+    protocol        = "tcp"
+    security_groups = [aws_security_group.probe.id, aws_security_group.prometheus.id]
+  }
+
+  ingress {
+    description     = "MySQL metrics from verification and monitoring tasks"
+    from_port       = 9104
+    to_port         = 9104
+    protocol        = "tcp"
+    security_groups = [aws_security_group.probe.id, aws_security_group.prometheus.id]
   }
 
   egress {
@@ -129,6 +165,168 @@ resource "aws_security_group" "dependencies" {
 
   tags = {
     Name = "${local.name_prefix}-dependencies"
+  }
+}
+
+resource "aws_security_group" "prometheus" {
+  name_prefix = "${local.name_prefix}-prometheus-"
+  description = "Allow internal metric collection and verification."
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description = "Prometheus API from verification tasks in the test VPC"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "Application and exporter metrics"
+    from_port   = 1
+    to_port     = 65535
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "HTTPS for image pulls and AWS APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-prometheus"
+  }
+}
+
+resource "aws_security_group" "grafana" {
+  name_prefix = "${local.name_prefix}-grafana-"
+  description = "Allow temporary Grafana access and datasource queries."
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description = "Grafana from the configured viewer CIDR"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = [var.grafana_allowed_cidr]
+  }
+
+  ingress {
+    description = "Grafana health check from the test VPC"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "Prometheus datasource"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "HTTPS for image pulls and CloudWatch APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-grafana"
+  }
+}
+
+resource "aws_security_group" "probe" {
+  name_prefix = "${local.name_prefix}-probe-"
+  description = "Allow the dependency probe to reach test services and monitoring endpoints."
+  vpc_id      = aws_vpc.this.id
+
+  dynamic "egress" {
+    for_each = local.probe_internal_ports
+
+    content {
+      description = "${egress.key} probe traffic"
+      from_port   = egress.value
+      to_port     = egress.value
+      protocol    = "tcp"
+      cidr_blocks = [var.vpc_cidr]
+    }
+  }
+
+  egress {
+    description = "MongoDB Atlas database traffic"
+    from_port   = 27015
+    to_port     = 27017
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "HTTPS for image pulls and AWS APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-probe"
   }
 }
 

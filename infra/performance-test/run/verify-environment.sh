@@ -3,14 +3,34 @@
 set -euo pipefail
 
 platform_dir="${1:-infra/performance-test/terraform/platform}"
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 region="$(terraform -chdir="$platform_dir" output -raw aws_region)"
+target_group_arn="$(terraform -chdir="$platform_dir" output -raw target_group_arn)"
+expected_target_count="$(terraform -chdir="$platform_dir" output -raw app_desired_count)"
 cluster_arn="$(terraform -chdir="$platform_dir" output -raw ecs_cluster_arn)"
 task_definition_arn="$(terraform -chdir="$platform_dir" output -raw dependency_probe_task_definition_arn)"
 subnet_id="$(terraform -chdir="$platform_dir" output -raw k6_subnet_id)"
-security_group_id="$(terraform -chdir="$platform_dir" output -raw app_security_group_id)"
+security_group_id="$(terraform -chdir="$platform_dir" output -raw dependency_probe_security_group_id)"
 
-"${script_dir}/verify-phase-one.sh" "$platform_dir"
+for attempt in $(seq 1 30); do
+	healthy_target_count="$(aws elbv2 describe-target-health \
+		--region "$region" \
+		--target-group-arn "$target_group_arn" \
+		--query "length(TargetHealthDescriptions[?TargetHealth.State=='healthy'])" \
+		--output text)"
+
+	if [[ "$healthy_target_count" == "$expected_target_count" ]]; then
+		echo "ALB verification passed: ${healthy_target_count}/${expected_target_count} targets are healthy."
+		break
+	fi
+
+	if [[ "$attempt" == "30" ]]; then
+		echo "ALB verification failed: expected ${expected_target_count} healthy targets." >&2
+		exit 1
+	fi
+
+	echo "Waiting for healthy ALB targets (attempt ${attempt}/30, healthy: ${healthy_target_count}/${expected_target_count})..."
+	sleep 10
+done
 
 task_arn="$(aws ecs run-task \
 	--region "$region" \
@@ -42,5 +62,4 @@ if [[ "$exit_code" != "0" ]]; then
 	exit 1
 fi
 
-"${script_dir}/run-k6-smoke.sh" "$platform_dir"
-echo "Phase two verification passed."
+echo "Environment verification passed."

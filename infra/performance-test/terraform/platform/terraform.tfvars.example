@@ -1,6 +1,6 @@
 # Copy this file to terraform.tfvars. terraform.tfvars is ignored by Git.
 aws_region  = "ap-northeast-2"
-test_run_id = "phase-two"
+test_run_id = "performance-test"
 availability_zones = [
   "ap-northeast-2a",
   "ap-northeast-2b",
@@ -13,3 +13,5 @@ health_check_path                = "/actuator/health"
 health_check_grace_period_seconds = 180
 app_desired_count                = 2
 mock_scenario                     = "success"
+# The runner refreshes this value with the current public IPv4 /32 during `up`.
+grafana_allowed_cidr              = "127.0.0.1/32"

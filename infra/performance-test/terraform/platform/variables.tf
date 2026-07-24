@@ -29,10 +29,65 @@ variable "redis_image" {
   default     = "redis:7.4.9-alpine"
 }
 
+variable "redis_exporter_image" {
+  description = "Redis exporter image used to expose Redis metrics."
+  type        = string
+  default     = "oliver006/redis_exporter:v1.84.0"
+}
+
 variable "mysql_image" {
   description = "MySQL image used by the temporary dependency service."
   type        = string
   default     = "mysql:8.4.10"
+}
+
+variable "mongo_reset_image" {
+  description = "MongoDB shell image used to reset the Atlas test database."
+  type        = string
+  default     = "mongo:8.0.13"
+}
+
+variable "mysql_exporter_image" {
+  description = "Prometheus MySQL exporter image used to expose MySQL metrics."
+  type        = string
+  default     = "prom/mysqld-exporter:v0.18.0"
+}
+
+variable "prometheus_image" {
+  description = "Prometheus image used to collect temporary test metrics."
+  type        = string
+  default     = "prom/prometheus:v3.13.1"
+}
+
+variable "prometheus_retention_time" {
+  description = "Maximum time Prometheus retains metrics for one test environment."
+  type        = string
+  default     = "6h"
+}
+
+variable "prometheus_retention_size" {
+  description = "Maximum Prometheus TSDB size for one test environment."
+  type        = string
+  default     = "1GB"
+}
+
+variable "grafana_image" {
+  description = "Grafana image used to visualize temporary test metrics."
+  type        = string
+  default     = "grafana/grafana:12.3.4"
+}
+
+variable "grafana_allowed_cidr" {
+  description = "Single public CIDR allowed to access the temporary Grafana task."
+  type        = string
+  default     = "127.0.0.1/32"
+
+  validation {
+    condition = can(cidrhost(var.grafana_allowed_cidr, 0)) && can(
+      regex("^[0-9.]+/[0-9]+$", var.grafana_allowed_cidr)
+    )
+    error_message = "grafana_allowed_cidr must be a valid IPv4 CIDR."
+  }
 }
 
 variable "mock_image" {
@@ -64,6 +119,18 @@ variable "k6_image" {
   default     = "grafana/k6:2.0.0"
 }
 
+variable "k6_volume_init_image" {
+  description = "Alpine image used to initialize the shared k6 results volume."
+  type        = string
+  default     = "public.ecr.aws/docker/library/alpine:3.22.2"
+}
+
+variable "aws_cli_image" {
+  description = "Official AWS CLI image used to archive k6 result files."
+  type        = string
+  default     = "public.ecr.aws/aws-cli/aws-cli:2.36.3"
+}
+
 variable "k6_task_cpu" {
   description = "Fargate CPU units assigned to the one-off k6 task."
   type        = number
@@ -83,7 +150,7 @@ variable "dependency_probe_image" {
 }
 
 variable "container_port" {
-  description = "TCP port exposed by the phase-one container."
+  description = "TCP port exposed by the application container."
   type        = number
   default     = 80
 }
@@ -101,13 +168,13 @@ variable "health_check_grace_period_seconds" {
 }
 
 variable "task_cpu" {
-  description = "Fargate CPU units for the phase-one task."
+  description = "Fargate CPU units for one application task."
   type        = number
   default     = 256
 }
 
 variable "task_memory" {
-  description = "Fargate memory in MiB for the phase-one task."
+  description = "Fargate memory in MiB for one application task."
   type        = number
   default     = 512
 }
@@ -124,7 +191,7 @@ variable "app_desired_count" {
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block reserved for the temporary phase-one VPC."
+  description = "CIDR block reserved for the temporary performance-test VPC."
   type        = string
   default     = "10.240.0.0/16"
 }

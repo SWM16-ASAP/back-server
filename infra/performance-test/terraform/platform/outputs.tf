@@ -9,7 +9,7 @@ output "test_run_id" {
 }
 
 output "target_group_arn" {
-  description = "Target group inspected by the phase-one verification script."
+  description = "Target group inspected by the environment verification script."
   value       = aws_lb_target_group.app.arn
 }
 
@@ -20,7 +20,7 @@ output "environment_file_bucket" {
 
 output "app_environment_file_key" {
   description = "Object key reserved for the application environment file."
-  value       = local.environment_file_key
+  value       = local.environment_file_keys.app
 }
 
 output "app_ecr_repository_url" {
@@ -52,7 +52,7 @@ output "ecs_cluster_arn" {
 }
 
 output "k6_task_definition_arn" {
-  description = "Task definition used by the k6 smoke runner."
+  description = "Task definition used by the one-off k6 runner."
   value       = aws_ecs_task_definition.k6.arn
 }
 
@@ -66,17 +66,47 @@ output "k6_subnet_id" {
   value       = values(aws_subnet.public)[0].id
 }
 
+output "reset_mongo_task_definition_arn" {
+  description = "One-off task definition that resets the Atlas test database."
+  value       = aws_ecs_task_definition.reset_mongo.arn
+}
+
+output "reset_redis_task_definition_arn" {
+  description = "One-off task definition that clears Redis test state."
+  value       = aws_ecs_task_definition.reset_redis.arn
+}
+
+output "reset_mysql_task_definition_arn" {
+  description = "One-off task definition that resets the MySQL test database."
+  value       = aws_ecs_task_definition.reset_mysql.arn
+}
+
+output "reset_mock_task_definition_arn" {
+  description = "One-off task definition that resets WireMock state."
+  value       = aws_ecs_task_definition.reset_mock.arn
+}
+
 output "app_desired_count" {
   description = "Expected number of healthy application targets."
   value       = var.app_desired_count
 }
 
-output "app_security_group_id" {
-  description = "Security group reused by the dependency probe."
-  value       = aws_security_group.app.id
+output "dependency_probe_security_group_id" {
+  description = "Security group assigned to the dependency probe."
+  value       = aws_security_group.probe.id
 }
 
 output "dependency_probe_task_definition_arn" {
   description = "Task definition that verifies private dependency connectivity."
   value       = aws_ecs_task_definition.dependency_probe.arn
+}
+
+output "grafana_service_name" {
+  description = "ECS service name used to discover the temporary Grafana public IP."
+  value       = aws_ecs_service.grafana.name
+}
+
+output "results_bucket" {
+  description = "Temporary S3 bucket containing k6 result artifacts."
+  value       = aws_s3_bucket.results.id
 }

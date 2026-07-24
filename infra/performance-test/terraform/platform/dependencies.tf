@@ -65,9 +65,126 @@ resource "aws_ecs_task_definition" "dependency" {
             }
           }
         },
-        each.value.health_check == null ? {} : { healthCheck = each.value.health_check }
+        each.value.health_check == null ? {} : { healthCheck = each.value.health_check },
+        each.key == "mysql" ? {
+          environmentFiles = [
+            {
+              type  = "s3"
+              value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.mysql}"
+            }
+          ]
+        } : {}
       )
     ],
+    each.key == "redis" ? [
+      {
+        name      = "redis-exporter"
+        image     = var.redis_exporter_image
+        essential = true
+        dependsOn = [
+          {
+            containerName = "redis"
+            condition     = "HEALTHY"
+          }
+        ]
+        environment = [
+          {
+            name  = "REDIS_ADDR"
+            value = "redis://127.0.0.1:6379"
+          }
+        ]
+        portMappings = [
+          {
+            containerPort = 9121
+            hostPort      = 9121
+            protocol      = "tcp"
+          }
+        ]
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            awslogs-group         = aws_cloudwatch_log_group.dependency[each.key].name
+            awslogs-region        = var.aws_region
+            awslogs-stream-prefix = "redis-exporter"
+          }
+        }
+      }
+    ] : [],
+    each.key == "mysql" ? [
+      {
+        name      = "mysql-exporter-init"
+        image     = var.mysql_image
+        essential = false
+        dependsOn = [
+          {
+            containerName = "mysql"
+            condition     = "HEALTHY"
+          }
+        ]
+        environmentFiles = [
+          {
+            type  = "s3"
+            value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.mysql_exporter_init}"
+          }
+        ]
+        entryPoint = ["/bin/sh", "-c"]
+        command = [
+          <<-EOT
+            set -eu
+            mysql --host=127.0.0.1 --user=root --password="$MYSQL_ROOT_PASSWORD" <<SQL
+            CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '$MYSQLD_EXPORTER_PASSWORD';
+            GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%';
+            SQL
+          EOT
+        ]
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            awslogs-group         = aws_cloudwatch_log_group.dependency[each.key].name
+            awslogs-region        = var.aws_region
+            awslogs-stream-prefix = "mysql-exporter-init"
+          }
+        }
+      }
+    ] : [],
+    each.key == "mysql" ? [
+      {
+        name      = "mysql-exporter"
+        image     = var.mysql_exporter_image
+        essential = true
+        dependsOn = [
+          {
+            containerName = "mysql-exporter-init"
+            condition     = "SUCCESS"
+          }
+        ]
+        environmentFiles = [
+          {
+            type  = "s3"
+            value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.mysql_exporter}"
+          }
+        ]
+        command = [
+          "--mysqld.address=127.0.0.1:3306",
+          "--mysqld.username=exporter"
+        ]
+        portMappings = [
+          {
+            containerPort = 9104
+            hostPort      = 9104
+            protocol      = "tcp"
+          }
+        ]
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            awslogs-group         = aws_cloudwatch_log_group.dependency[each.key].name
+            awslogs-region        = var.aws_region
+            awslogs-stream-prefix = "mysql-exporter"
+          }
+        }
+      }
+    ] : [],
     each.key == "mock" ? [
       {
         name      = "mock-init"
@@ -101,7 +218,10 @@ resource "aws_ecs_task_definition" "dependency" {
     ] : []
   ))
 
-  depends_on = [aws_iam_role_policy_attachment.task_execution]
+  depends_on = [
+    aws_iam_role_policy_attachment.task_execution,
+    aws_iam_role_policy.task_execution_environment_file,
+  ]
 }
 
 resource "aws_ecs_service" "dependency" {

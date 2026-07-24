@@ -1,5 +1,8 @@
 package com.linglevel.api.word.config;
 
+import com.linglevel.api.word.service.WordBedrockSdkMetricPublisher;
+import com.linglevel.api.word.service.WordGenerationMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.autoconfigure.bedrock.BedrockAwsConnectionProperties;
@@ -23,15 +26,17 @@ class WordBedrockClientConfigTest {
 		connectionProperties.setTimeout(Duration.ofSeconds(8));
 
 		WordBedrockClientConfig config = new WordBedrockClientConfig();
+		WordBedrockSdkMetricPublisher metricPublisher = metricPublisher();
 		try (BedrockRuntimeClient client = config.wordBedrockRuntimeClient(
 				StaticCredentialsProvider.create(AwsBasicCredentials.create("access-key", "secret-key")),
-				() -> Region.US_EAST_1, connectionProperties, "")) {
+				() -> Region.US_EAST_1, connectionProperties, metricPublisher, "")) {
 			ClientOverrideConfiguration overrideConfiguration = client.serviceClientConfiguration()
 				.overrideConfiguration();
 
 			assertThat(overrideConfiguration.apiCallTimeout()).contains(Duration.ofSeconds(8));
 			assertThat(overrideConfiguration.retryStrategy())
 				.hasValueSatisfying(retryStrategy -> assertThat(retryStrategy.maxAttempts()).isEqualTo(2));
+			assertThat(overrideConfiguration.metricPublishers()).containsExactly(metricPublisher);
 		}
 	}
 
@@ -45,9 +50,13 @@ class WordBedrockClientConfigTest {
 		WordBedrockClientConfig config = new WordBedrockClientConfig();
 		try (BedrockRuntimeClient client = config.wordBedrockRuntimeClient(
 				StaticCredentialsProvider.create(AwsBasicCredentials.create("access-key", "secret-key")),
-				() -> Region.US_EAST_1, connectionProperties, mockEndpoint.toString())) {
+				() -> Region.US_EAST_1, connectionProperties, metricPublisher(), mockEndpoint.toString())) {
 			assertThat(client.serviceClientConfiguration().endpointOverride()).contains(mockEndpoint);
 		}
+	}
+
+	private WordBedrockSdkMetricPublisher metricPublisher() {
+		return new WordBedrockSdkMetricPublisher(new WordGenerationMetrics(new SimpleMeterRegistry()));
 	}
 
 }
