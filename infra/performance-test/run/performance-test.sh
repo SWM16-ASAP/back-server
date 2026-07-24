@@ -141,6 +141,37 @@ set_application_image_tag() {
 	echo "Application image tag: ${image_tag}"
 }
 
+refresh_grafana_allowed_cidr() {
+	local public_ip
+	local temporary_file
+
+	if ! public_ip="$(curl -4fsS --connect-timeout 5 --max-time 10 https://checkip.amazonaws.com)"; then
+		fail "Unable to detect the current public IPv4 address for Grafana access."
+	fi
+
+	if [[ ! "$public_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+		fail "Public IPv4 lookup returned an invalid value: ${public_ip}"
+	fi
+
+	temporary_file="$(mktemp)"
+	awk -v grafana_allowed_cidr="${public_ip}/32" '
+		/^grafana_allowed_cidr[[:space:]]*=/ {
+			print "grafana_allowed_cidr = \"" grafana_allowed_cidr "\""
+			found = 1
+			next
+		}
+		{ print }
+		END {
+			if (!found) {
+				print "grafana_allowed_cidr = \"" grafana_allowed_cidr "\""
+			}
+		}
+	' "$terraform_vars" >"$temporary_file"
+
+	mv "$temporary_file" "$terraform_vars"
+	echo "Grafana access CIDR: ${public_ip}/32"
+}
+
 
 explain_created_local_files() {
 	if [[ "$created_local_files" == true ]]; then
@@ -207,6 +238,7 @@ preflight() {
 
 	if [[ "$command" == "up" ]]; then
 		local gradle_output
+		require_command curl
 		require_command docker
 		require_command git
 		[[ -x "${repository_root}/gradlew" ]] || fail "Gradle wrapper is not executable."
@@ -220,6 +252,7 @@ preflight() {
 		prepare_local_files
 		set_application_image_tag
 		explain_created_local_files
+		refresh_grafana_allowed_cidr
 		validate_local_files
 	elif [[ "$command" == "down" && ! -f "$terraform_vars" ]]; then
 		fail "Terraform variables not found: ${terraform_vars#${repository_root}/}"
