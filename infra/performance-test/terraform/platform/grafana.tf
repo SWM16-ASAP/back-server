@@ -37,6 +37,7 @@ locals {
     aws_region              = var.aws_region
     cluster_name            = aws_ecs_cluster.this.name
     load_balancer_dimension = aws_lb.app.arn_suffix
+    target_group_dimension  = aws_lb_target_group.app.arn_suffix
     test_run_id             = var.test_run_id
   })
 }
