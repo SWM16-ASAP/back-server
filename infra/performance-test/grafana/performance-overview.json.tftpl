@@ -121,63 +121,6 @@
       "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "TargetResponseTime", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistics": ["Average"] }],
       "title": "ALB Target Response Time",
       "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 32 },
-      "id": 12,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum by (role, outcome) (rate(word_single_flight_requests_total[1m]))", "legendFormat": "{{role}} / {{outcome}}", "refId": "A" }],
-      "title": "Word Single-flight Requests",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 32 },
-      "id": 13,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, outcome) (rate(word_single_flight_follower_wait_seconds_bucket[1m])))", "legendFormat": "p95 {{outcome}}", "refId": "A" }],
-      "title": "Follower Wait",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 32 },
-      "id": 14,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "sum by (outcome) (rate(word_bedrock_calls_total[1m]))", "legendFormat": "logical / {{outcome}}", "refId": "A" },
-        { "expr": "sum(rate(word_bedrock_sdk_attempts_total[1m]))", "legendFormat": "SDK attempts", "refId": "B" },
-        { "expr": "sum(rate(word_bedrock_sdk_retries_total[1m]))", "legendFormat": "SDK retries", "refId": "C" }
-      ],
-      "title": "Bedrock Calls and SDK Attempts",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
-      "id": 15,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "sum(word_bedrock_in_flight)", "legendFormat": "in flight", "refId": "A" },
-        { "expr": "sum(rate(resilience4j_circuitbreaker_not_permitted_calls_total{name=\"wordBedrock\"}[1m]))", "legendFormat": "circuit rejected/s", "refId": "B" }
-      ],
-      "title": "Bedrock Saturation and Rejections",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
-      "id": 16,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, outcome) (rate(word_bedrock_duration_seconds_bucket[1m])))", "legendFormat": "p95 {{outcome}}", "refId": "A" }],
-      "title": "Bedrock Duration",
-      "type": "timeseries"
     }
   ],
   "refresh": "10s",
