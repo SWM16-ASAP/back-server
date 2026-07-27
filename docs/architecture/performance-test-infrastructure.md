@@ -58,11 +58,11 @@ up -> reset -> run -> reset -> run -> down
 
 - API 요청량, 응답 시간, 오류율
 - JVM, GC, thread와 connection 상태
-- Redis와 MySQL exporter 지표
+- Redis와 MySQL exporter 지표, 선택적 Atlas Prometheus 지표
 - ECS와 ALB의 CPU, memory, target 상태
 - single-flight, Bedrock, circuit breaker 애플리케이션 지표
 
-기본 대시보드는 여러 API 인스턴스의 지표를 합산한다. 인스턴스별 분석이 필요하면 `instance` 라벨로 구분한다. Prometheus 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
+기본 대시보드는 요청량, p50/p95/p99 지연, HTTP 결과, ECS CPU/memory, JVM heap, GC pause p99, allocation rate, thread state, HTTP worker를 여러 API 인스턴스 기준으로 합산한다. Redis, MySQL, MongoDB와 ALB 세부 지표는 별도 의존성·플랫폼 대시보드에서 본다. 인스턴스별 분석이 필요하면 `instance` 라벨로 구분한다. Prometheus 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
 
 ## 운영 경계
 

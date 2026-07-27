@@ -86,6 +86,28 @@ resource "aws_ecs_task_definition" "prometheus" {
           set -eu
           printf '%s' "$PROMETHEUS_CONFIG_BASE64" | base64 -d > /tmp/prometheus.yml
           printf '%s' "$IMPORT_API_KEY" > /tmp/import-api-key
+          if [ "$${ATLAS_PROMETHEUS_ENABLED:-false}" = "true" ]; then
+            : "$${ATLAS_PROMETHEUS_GROUP_ID:?ATLAS_PROMETHEUS_GROUP_ID is required when Atlas Prometheus is enabled}"
+            : "$${ATLAS_PROMETHEUS_USERNAME:?ATLAS_PROMETHEUS_USERNAME is required when Atlas Prometheus is enabled}"
+            : "$${ATLAS_PROMETHEUS_PASSWORD:?ATLAS_PROMETHEUS_PASSWORD is required when Atlas Prometheus is enabled}"
+            printf '%s' "$ATLAS_PROMETHEUS_USERNAME" > /tmp/atlas-prometheus-username
+            printf '%s' "$ATLAS_PROMETHEUS_PASSWORD" > /tmp/atlas-prometheus-password
+            {
+              printf '%s\n' '      - job_name: atlas'
+              printf '%s\n' '        scrape_interval: 15s'
+              printf '%s\n' '        metrics_path: /metrics'
+              printf '%s\n' '        scheme: https'
+              printf '%s\n' '        basic_auth:'
+              printf '%s\n' '          username_file: /tmp/atlas-prometheus-username'
+              printf '%s\n' '          password_file: /tmp/atlas-prometheus-password'
+              printf '%s\n' '        http_sd_configs:'
+              printf '%s\n' "          - url: https://cloud.mongodb.com/prometheus/v1.0/groups/$${ATLAS_PROMETHEUS_GROUP_ID}/discovery"
+              printf '%s\n' '            refresh_interval: 60s'
+              printf '%s\n' '            basic_auth:'
+              printf '%s\n' '              username_file: /tmp/atlas-prometheus-username'
+              printf '%s\n' '              password_file: /tmp/atlas-prometheus-password'
+            } >> /tmp/prometheus.yml
+          fi
           exec /bin/prometheus \
             --config.file=/tmp/prometheus.yml \
             --storage.tsdb.path=/tmp/prometheus-data \

@@ -7,24 +7,33 @@
   "links": [],
   "panels": [
     {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "panels": [],
+      "title": "Request and Load",
+      "type": "row"
+    },
+    {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 1 },
       "id": 1,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count[1m]))", "legendFormat": "requests/s", "refId": "A" }],
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[1m]))", "legendFormat": "requests/s", "refId": "A" }],
       "title": "API RPS",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 1 },
       "id": 2,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[1m])))", "legendFormat": "p95", "refId": "A" },
-        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[1m])))", "legendFormat": "p99", "refId": "B" }
+        { "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[1m])))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[1m])))", "legendFormat": "p95", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[1m])))", "legendFormat": "p99", "refId": "C" }
       ],
       "title": "API Latency",
       "type": "timeseries"
@@ -32,17 +41,29 @@
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 1 },
       "id": 3,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[1m]))", "legendFormat": "5xx/s", "refId": "A" }],
-      "title": "API 5xx",
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"2..\",uri!~\"/actuator.*\"}[1m]))", "legendFormat": "2xx", "refId": "A" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"4..\",uri!~\"/actuator.*\"}[1m]))", "legendFormat": "4xx", "refId": "B" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\",uri!~\"/actuator.*\"}[1m]))", "legendFormat": "5xx", "refId": "C" }
+      ],
+      "title": "HTTP Outcomes",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 101,
+      "panels": [],
+      "title": "Application Runtime",
+      "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "max": 1, "min": 0, "unit": "percentunit" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
       "id": 4,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [{ "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) / sum(jvm_memory_max_bytes{area=\"heap\"})", "legendFormat": "heap", "refId": "A" }],
@@ -51,132 +72,72 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+      "id": 13,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "sum by (state) (jvm_threads_states_threads)", "legendFormat": "{{state}}", "refId": "A" }],
+      "title": "JVM Thread States",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
       "id": 5,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum(tomcat_threads_busy_threads)", "legendFormat": "busy threads", "refId": "A" }],
-      "title": "Tomcat Busy Threads",
+      "targets": [
+        { "expr": "sum(tomcat_threads_busy_threads)", "legendFormat": "busy", "refId": "A" },
+        { "expr": "sum(tomcat_threads_current_threads)", "legendFormat": "current", "refId": "B" },
+        { "expr": "sum(tomcat_threads_config_max_threads)", "legendFormat": "max", "refId": "C" }
+      ],
+      "title": "HTTP Server Threads",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
-      "id": 6,
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "id": 14,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "redis_memory_used_bytes", "legendFormat": "Redis memory", "refId": "A" }],
-      "title": "Redis Memory",
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(jvm_gc_pause_seconds_bucket[1m])))", "legendFormat": "p99", "refId": "A" }
+      ],
+      "title": "GC Pause p99",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
-      "id": 7,
+      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "id": 15,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "rate(redis_commands_processed_total[1m])", "legendFormat": "commands/s", "refId": "A" }],
-      "title": "Redis Operations",
+      "targets": [
+        { "expr": "sum(rate(jvm_gc_memory_allocated_bytes_total[1m]))", "legendFormat": "allocated", "refId": "A" },
+        { "expr": "sum(rate(jvm_gc_memory_promoted_bytes_total[1m]))", "legendFormat": "promoted", "refId": "B" }
+      ],
+      "title": "JVM Allocation and Promotion",
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
-      "id": 8,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "mysql_global_status_threads_connected", "legendFormat": "connections", "refId": "A" }],
-      "title": "MySQL Connections",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "qps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
-      "id": 9,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "rate(mysql_global_status_queries[1m])", "legendFormat": "queries/s", "refId": "A" }],
-      "title": "MySQL Queries",
-      "type": "timeseries"
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 103,
+      "panels": [],
+      "title": "Platform",
+      "type": "row"
     },
     {
       "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
       "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 27 },
       "id": 10,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "CPUUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "A", "region": "${aws_region}", "statistics": ["Average"] },
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "MemoryUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "B", "region": "${aws_region}", "statistics": ["Average"] }
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "CPUUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "MemoryUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
       ],
       "title": "ECS Application Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
-      "id": 11,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "TargetResponseTime", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistics": ["Average"] }],
-      "title": "ALB Target Response Time",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 32 },
-      "id": 12,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum by (role, outcome) (rate(word_single_flight_requests_total[1m]))", "legendFormat": "{{role}} / {{outcome}}", "refId": "A" }],
-      "title": "Word Single-flight Requests",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 32 },
-      "id": 13,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, outcome) (rate(word_single_flight_follower_wait_seconds_bucket[1m])))", "legendFormat": "p95 {{outcome}}", "refId": "A" }],
-      "title": "Follower Wait",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 32 },
-      "id": 14,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "sum by (outcome) (rate(word_bedrock_calls_total[1m]))", "legendFormat": "logical / {{outcome}}", "refId": "A" },
-        { "expr": "sum(rate(word_bedrock_sdk_attempts_total[1m]))", "legendFormat": "SDK attempts", "refId": "B" },
-        { "expr": "sum(rate(word_bedrock_sdk_retries_total[1m]))", "legendFormat": "SDK retries", "refId": "C" }
-      ],
-      "title": "Bedrock Calls and SDK Attempts",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
-      "id": 15,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "sum(word_bedrock_in_flight)", "legendFormat": "in flight", "refId": "A" },
-        { "expr": "sum(rate(resilience4j_circuitbreaker_not_permitted_calls_total{name=\"wordBedrock\"}[1m]))", "legendFormat": "circuit rejected/s", "refId": "B" }
-      ],
-      "title": "Bedrock Saturation and Rejections",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
-      "id": 16,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, outcome) (rate(word_bedrock_duration_seconds_bucket[1m])))", "legendFormat": "p95 {{outcome}}", "refId": "A" }],
-      "title": "Bedrock Duration",
       "type": "timeseries"
     }
   ],
