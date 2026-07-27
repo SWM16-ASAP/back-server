@@ -26,18 +26,8 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 1 },
-      "id": 12,
-      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[1m]))", "legendFormat": "{{method}} {{uri}}", "refId": "A" }],
-      "title": "Endpoint RPS",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 1 },
       "id": 2,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -51,7 +41,7 @@
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 1 },
       "id": 3,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -82,7 +72,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
       "id": 13,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
@@ -106,15 +96,14 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
       "id": 14,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "expr": "sum(rate(jvm_gc_pause_seconds_count[1m]))", "legendFormat": "pauses/s", "refId": "A" },
-        { "expr": "sum(rate(jvm_gc_pause_seconds_sum[1m]))", "legendFormat": "pause seconds/s", "refId": "B" }
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(jvm_gc_pause_seconds_bucket[1m])))", "legendFormat": "p99", "refId": "A" }
       ],
-      "title": "GC Pause",
+      "title": "GC Pause p99",
       "type": "timeseries"
     },
     {
@@ -133,131 +122,6 @@
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
-      "id": 102,
-      "panels": [],
-      "title": "Dependencies",
-      "type": "row"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 27 },
-      "id": 6,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "redis_memory_used_bytes", "legendFormat": "used", "refId": "A" }],
-      "title": "Redis Memory",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 27 },
-      "id": 7,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "rate(redis_commands_processed_total[1m])", "legendFormat": "commands/s", "refId": "A" }],
-      "title": "Redis Operations",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 27 },
-      "id": 16,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "redis_connected_clients", "legendFormat": "connected", "refId": "A" },
-        { "expr": "rate(redis_rejected_connections_total[1m])", "legendFormat": "rejected/s", "refId": "B" }
-      ],
-      "title": "Redis Clients",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 27 },
-      "id": 17,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "rate(redis_evicted_keys_total[1m])", "legendFormat": "evicted/s", "refId": "A" },
-        { "expr": "rate(redis_expired_keys_total[1m])", "legendFormat": "expired/s", "refId": "B" }
-      ],
-      "title": "Redis Key Events",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 35 },
-      "id": 8,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "mysql_global_status_threads_connected", "legendFormat": "connected", "refId": "A" },
-        { "expr": "mysql_global_status_threads_running", "legendFormat": "running", "refId": "B" }
-      ],
-      "title": "MySQL Connections",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "qps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 35 },
-      "id": 9,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "rate(mysql_global_status_queries[1m])", "legendFormat": "queries/s", "refId": "A" }],
-      "title": "MySQL Queries",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 35 },
-      "id": 18,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "rate(mysql_global_status_aborted_connects[1m])", "legendFormat": "aborted connects/s", "refId": "A" },
-        { "expr": "rate(mysql_global_status_slow_queries[1m])", "legendFormat": "slow queries/s", "refId": "B" }
-      ],
-      "title": "MySQL Errors and Slow Queries",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 43 },
-      "id": 21,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum(mongodb_connections_current)", "legendFormat": "current", "refId": "A" }],
-      "title": "MongoDB Connections",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 43 },
-      "id": 22,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "sum(rate(mongodb_opcounters_command[1m]))", "legendFormat": "commands/s", "refId": "A" },
-        { "expr": "sum(rate(mongodb_opcounters_query[1m]))", "legendFormat": "queries/s", "refId": "B" }
-      ],
-      "title": "MongoDB Operations",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 43 },
-      "id": 23,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "sum(mongodb_globalLock_currentQueue_readers)", "legendFormat": "readers waiting", "refId": "A" },
-        { "expr": "sum(mongodb_globalLock_currentQueue_writers)", "legendFormat": "writers waiting", "refId": "B" }
-      ],
-      "title": "MongoDB Operation Queue",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
       "id": 103,
       "panels": [],
       "title": "Platform",
@@ -266,7 +130,7 @@
     {
       "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
       "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 52 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 27 },
       "id": 10,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -274,42 +138,6 @@
         { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "MemoryUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
       ],
       "title": "ECS Application Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 52 },
-      "id": 11,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "TargetResponseTime", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Average" }],
-      "title": "ALB Target Response Time",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 52 },
-      "id": 19,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "RequestCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Sum" },
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}", "TargetGroup": "${target_group_dimension}" }, "matchExact": true, "metricName": "HealthyHostCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
-      ],
-      "title": "ALB Traffic and Healthy Targets",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 60 },
-      "id": 20,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "HTTPCode_Target_5XX_Count", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Sum" },
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "matchExact": true, "metricName": "TargetConnectionErrorCount", "namespace": "AWS/ApplicationELB", "period": "60", "refId": "B", "region": "${aws_region}", "statistic": "Sum" }
-      ],
-      "title": "ALB Target Errors",
       "type": "timeseries"
     }
   ],

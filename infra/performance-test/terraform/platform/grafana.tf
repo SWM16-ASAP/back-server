@@ -33,9 +33,14 @@ locals {
   YAML
 
   grafana_performance_dashboard = templatefile("${path.module}/../../grafana/performance-overview.json.tftpl", {
-    app_service_name        = aws_ecs_service.app.name
+    app_service_name = aws_ecs_service.app.name
+    aws_region       = var.aws_region
+    cluster_name     = aws_ecs_cluster.this.name
+    test_run_id      = var.test_run_id
+  })
+
+  grafana_dependency_platform_dashboard = templatefile("${path.module}/../../grafana/dependency-platform-overview.json.tftpl", {
     aws_region              = var.aws_region
-    cluster_name            = aws_ecs_cluster.this.name
     load_balancer_dimension = aws_lb.app.arn_suffix
     target_group_dimension  = aws_lb_target_group.app.arn_suffix
     test_run_id             = var.test_run_id
@@ -107,6 +112,10 @@ resource "aws_ecs_task_definition" "grafana" {
           value = base64encode(local.grafana_performance_dashboard)
         },
         {
+          name  = "GRAFANA_DEPENDENCY_PLATFORM_DASHBOARD_BASE64"
+          value = base64encode(local.grafana_dependency_platform_dashboard)
+        },
+        {
           name  = "GRAFANA_DASHBOARD_PROVIDER_BASE64"
           value = base64encode(local.grafana_dashboard_provider)
         },
@@ -123,6 +132,7 @@ resource "aws_ecs_task_definition" "grafana" {
           printf '%s' "$GRAFANA_DATASOURCES_BASE64" | base64 -d > /tmp/provisioning/datasources/default.yml
           printf '%s' "$GRAFANA_DASHBOARD_PROVIDER_BASE64" | base64 -d > /tmp/provisioning/dashboards/default.yml
           printf '%s' "$GRAFANA_DASHBOARD_BASE64" | base64 -d > /tmp/dashboards/performance-overview.json
+          printf '%s' "$GRAFANA_DEPENDENCY_PLATFORM_DASHBOARD_BASE64" | base64 -d > /tmp/dashboards/dependency-platform-overview.json
           exec /run.sh
         EOT
       ]
