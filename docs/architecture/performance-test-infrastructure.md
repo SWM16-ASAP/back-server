@@ -62,7 +62,7 @@ up -> reset -> run -> reset -> run -> down
 - ECS와 ALB의 CPU, memory, target 상태
 - single-flight, Bedrock, circuit breaker 애플리케이션 지표
 
-기본 대시보드는 요청량, p50/p95/p99 지연, HTTP 결과, ECS CPU/memory, JVM heap, GC pause p99, allocation rate, thread state, HTTP worker를 여러 API 인스턴스 기준으로 합산한다. Redis, MySQL, MongoDB와 ALB 세부 지표는 별도 의존성·플랫폼 대시보드에서 본다. 인스턴스별 분석이 필요하면 `instance` 라벨로 구분한다. Prometheus 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
+기본 대시보드는 요청량, p50/p95/p99 지연, HTTP 결과, ECS CPU/memory, JVM heap·process CPU·GC pause p99·allocation rate·thread state·HTTP worker, MongoDB driver pool을 제공한다. k6는 실행 ID를 `testid` 라벨로 Prometheus에 전송해 클라이언트 요청률·지연·실패·timeout을 앱 지표와 같은 시간축에서 비교한다. 합산 지표를 기본으로 두되 `instance` 변수로 특정 API 인스턴스를 선택해 비교할 수 있다. Redis, MySQL, MongoDB와 ALB 세부 지표는 별도 의존성·플랫폼 대시보드에서 본다. Redis `GET` 계열 cache hit rate는 이 대시보드에서 확인하며, MongoDB에 저장된 Word 결과 재사용은 Word 전용 지표로 구분한다. Prometheus 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
 
 ## 운영 경계
 

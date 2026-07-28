@@ -41,6 +41,8 @@ public class WordService {
 
 	private final WordResponseMapper wordResponseMapper;
 
+	private final WordGenerationMetrics wordGenerationMetrics;
+
 	public WordSearchResponse getOrCreateWords(String userId, String word, LanguageCode targetLanguage) {
 		List<WordVariant> wordVariants = getOrCreateWordEntities(word, targetLanguage);
 		List<WordResponse> responses = createResponses(userId, wordVariants, targetLanguage);
@@ -84,6 +86,7 @@ public class WordService {
 	public List<WordVariant> getOrCreateWordEntities(String word, LanguageCode targetLanguage) {
 		// 1. WordVariant에서 검색 (변형 형태인지 확인)
 		List<WordVariant> existingVariants = wordVariantRepository.findAllByWord(word);
+		wordGenerationMetrics.recordLookupResult(!existingVariants.isEmpty());
 		if (!existingVariants.isEmpty()) {
 			return existingVariants;
 		}

@@ -1,6 +1,7 @@
 import crypto from 'k6/crypto';
 import encoding from 'k6/encoding';
 import http from 'k6/http';
+import { Rate } from 'k6/metrics';
 import { check } from 'k6';
 
 const baseUrl = (__ENV.BASE_URL || '').replace(/\/$/, '');
@@ -8,14 +9,16 @@ const word = __ENV.WORD || 'rabbit';
 const targetLanguage = __ENV.WORD_TARGET_LANGUAGE || 'KO';
 const jwtSecret = __ENV.JWT_SECRET || '';
 const vus = Number(__ENV.WORD_VUS || 10);
+const duration = __ENV.WORD_DURATION || '1m';
+const clientTimeout = new Rate('client_timeout');
 
 export const options = {
   scenarios: {
     word_single_flight: {
-      executor: 'per-vu-iterations',
+      executor: 'constant-vus',
       vus,
-      iterations: 1,
-      maxDuration: '20s',
+      duration,
+      gracefulStop: '10s',
     },
   },
   thresholds: {
@@ -54,6 +57,8 @@ export default function () {
     headers: { Authorization: `Bearer ${createTestJwt()}` },
     tags: { endpoint: 'word-single-flight' },
   });
+
+  clientTimeout.add(response.error_code === 1050);
 
   check(response, {
     'Word generation succeeds': (result) => result.status === 200,

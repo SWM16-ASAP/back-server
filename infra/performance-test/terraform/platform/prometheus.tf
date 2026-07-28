@@ -110,6 +110,7 @@ resource "aws_ecs_task_definition" "prometheus" {
           fi
           exec /bin/prometheus \
             --config.file=/tmp/prometheus.yml \
+            --web.enable-remote-write-receiver \
             --storage.tsdb.path=/tmp/prometheus-data \
             --storage.tsdb.retention.time=${var.prometheus_retention_time} \
             --storage.tsdb.retention.size=${var.prometheus_retention_size}

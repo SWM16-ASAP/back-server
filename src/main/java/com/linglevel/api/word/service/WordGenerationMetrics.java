@@ -16,6 +16,8 @@ public class WordGenerationMetrics {
 
 	private static final String SINGLE_FLIGHT_LOCK_FAILURES = "word.single.flight.lock.failures";
 
+	private static final String WORD_LOOKUP_RESULTS = "word.lookup.results";
+
 	private static final String BEDROCK_CALLS = "word.bedrock.calls";
 
 	private static final String BEDROCK_DURATION = "word.bedrock.duration";
@@ -49,6 +51,10 @@ public class WordGenerationMetrics {
 
 	public void recordLockFailure(String operation) {
 		meterRegistry.counter(SINGLE_FLIGHT_LOCK_FAILURES, "operation", operation).increment();
+	}
+
+	public void recordLookupResult(boolean hit) {
+		meterRegistry.counter(WORD_LOOKUP_RESULTS, "outcome", hit ? "hit" : "miss").increment();
 	}
 
 	public Timer.Sample startBedrockCall() {

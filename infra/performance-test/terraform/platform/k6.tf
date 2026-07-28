@@ -70,6 +70,14 @@ resource "aws_ecs_task_definition" "k6" {
           value = base64encode(local.k6_scenario_script)
         },
         {
+          name  = "K6_PROMETHEUS_RW_SERVER_URL"
+          value = "http://prometheus.${aws_service_discovery_private_dns_namespace.this.name}:9090/api/v1/write"
+        },
+        {
+          name  = "K6_PROMETHEUS_RW_TREND_STATS"
+          value = "p(50),p(95),p(99)"
+        },
+        {
           name  = "TEST_RUN_ID"
           value = "replace-at-runtime"
         },
@@ -104,6 +112,8 @@ resource "aws_ecs_task_definition" "k6" {
           exec k6 run \
             --summary-export=/results/summary.json \
             --out json=/results/metrics.json \
+            --out experimental-prometheus-rw \
+            --tag testid="$TEST_RUN_ID" \
             /tmp/smoke.js
         EOT
       ]
