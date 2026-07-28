@@ -45,6 +45,10 @@ locals {
     target_group_dimension  = aws_lb_target_group.app.arn_suffix
     test_run_id             = var.test_run_id
   })
+
+  grafana_word_single_flight_dashboard = templatefile("${path.module}/../../grafana/word-single-flight-overview.json.tftpl", {
+    test_run_id = var.test_run_id
+  })
 }
 
 resource "aws_service_discovery_service" "grafana" {
@@ -116,6 +120,10 @@ resource "aws_ecs_task_definition" "grafana" {
           value = base64encode(local.grafana_dependency_platform_dashboard)
         },
         {
+          name  = "GRAFANA_WORD_SINGLE_FLIGHT_DASHBOARD_BASE64"
+          value = base64encode(local.grafana_word_single_flight_dashboard)
+        },
+        {
           name  = "GRAFANA_DASHBOARD_PROVIDER_BASE64"
           value = base64encode(local.grafana_dashboard_provider)
         },
@@ -133,6 +141,7 @@ resource "aws_ecs_task_definition" "grafana" {
           printf '%s' "$GRAFANA_DASHBOARD_PROVIDER_BASE64" | base64 -d > /tmp/provisioning/dashboards/default.yml
           printf '%s' "$GRAFANA_DASHBOARD_BASE64" | base64 -d > /tmp/dashboards/performance-overview.json
           printf '%s' "$GRAFANA_DEPENDENCY_PLATFORM_DASHBOARD_BASE64" | base64 -d > /tmp/dashboards/dependency-platform-overview.json
+          printf '%s' "$GRAFANA_WORD_SINGLE_FLIGHT_DASHBOARD_BASE64" | base64 -d > /tmp/dashboards/word-single-flight-overview.json
           exec /run.sh
         EOT
       ]

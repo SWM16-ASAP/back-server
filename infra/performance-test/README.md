@@ -105,7 +105,7 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 
 검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. k6 기본 시나리오는 동일한 신규 `rabbit` 조회를 10개 VU가 한 번씩 동시에 호출해 single-flight를 검증한다.
 
-`up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록된다. 기본 대시보드에서는 API RPS·p50/p95/p99·HTTP 결과, JVM heap·GC·thread, ECS CPU·memory를 조회하고, Redis·MySQL·MongoDB·ALB 세부 지표는 `Dependency and Platform` 대시보드에서 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
+`up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록된다. 기본 대시보드에서는 API RPS·p50/p95/p99·HTTP 결과, JVM heap·GC·thread, ECS CPU·memory를 조회하고, Redis·MySQL·MongoDB·ALB 세부 지표는 `Dependency and Platform` 대시보드에서 조회한다. `Word Single-flight` 대시보드는 Word API, leader/follower, follower 대기, lock 실패, Bedrock 호출·지연·SDK 재시도를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
 k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 세션 전용 S3 bucket에 업로드한다. `run`은 인프라를 다시 적용하지 않고 k6 task만 실행한다. 실행 ID를 생략하면 UTC timestamp 기반 ID를 생성하며, 직접 지정할 수도 있다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
 
