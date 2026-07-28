@@ -8,7 +8,7 @@
       },
       "response": {
         "status": 200,
-        "fixedDelayMilliseconds": 800,
+        "fixedDelayMilliseconds": 2520,
         "headers": {
           "Content-Type": "application/json"
         },
@@ -18,20 +18,30 @@
               "role": "assistant",
               "content": [
                 {
-                  "text": "[{\"originalForm\":\"benchmark\",\"variantTypes\":[\"ORIGINAL_FORM\"],\"sourceLanguageCode\":\"EN\",\"targetLanguageCode\":\"KO\",\"summary\":[\"기준점\"],\"meanings\":[{\"partOfSpeech\":\"noun\",\"meaning\":\"성능이나 품질을 비교하기 위한 기준점\",\"example\":\"The benchmark helps us compare system performance.\",\"exampleTranslation\":\"그 기준점은 시스템 성능을 비교하는 데 도움이 됩니다.\"}],\"conjugations\":null,\"comparatives\":null,\"plural\":{\"singular\":\"benchmark\",\"plural\":\"benchmarks\"}}]"
+                  "text": "[\n  {\n    \"sourceLanguageCode\": \"EN\",\n    \"targetLanguageCode\": \"KO\",\n    \"originalForm\": \"rabbit\",\n    \"variantTypes\": [\n      \"ORIGINAL_FORM\"\n    ],\n    \"summary\": [\n      \"토끼\",\n      \"토끼고기\",\n      \"토끼 관련\"\n    ],\n    \"meanings\": [\n      {\n        \"partOfSpeech\": \"noun\",\n        \"meaning\": \"작고 귀여운 동물\",\n        \"example\": \"The rabbit hopped across the garden.\",\n        \"exampleTranslation\": \"토끼가 정원을 가로질러 뛰어갔다.\"\n      },\n      {\n        \"partOfSpeech\": \"noun\",\n        \"meaning\": \"토끼고기 (음식)\",\n        \"example\": \"We had rabbit for dinner last night.\",\n        \"exampleTranslation\": \"우리는 지난밤 저녁으로 토끼고기를 먹었다.\"\n      }\n    ],\n    \"conjugations\": null,\n    \"comparatives\": null,\n    \"plural\": {\n      \"singular\": \"rabbit\",\n      \"plural\": \"rabbits\"\n    }\n  }\n]"
                 }
               ]
             }
           },
           "stopReason": "end_turn",
           "usage": {
-            "inputTokens": 500,
-            "outputTokens": 120,
-            "totalTokens": 620
+            "inputTokens": 2423,
+            "outputTokens": 227,
+            "totalTokens": 2650
           },
           "metrics": {
-            "latencyMs": 800
+            "latencyMs": 1371
           }
+        }
+      },
+      "metadata": {
+        "recordingId": 26,
+        "outcome": "semantic_success",
+        "responseBytes": 1359,
+        "usage": {
+          "inputTokens": 2423,
+          "outputTokens": 227,
+          "totalTokens": 2650
         }
       }
     },

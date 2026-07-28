@@ -36,7 +36,7 @@ API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana�
 
 Redis, MySQL, WireMock은 각각 `redis`, `mysql`, `mock` 이름으로 Cloud Map에 등록된다. 전체 endpoint는 Terraform의 `dependency_endpoints` output에서 확인한다. MySQL은 비밀번호를 state에 남기지 않기 위해 임시 random root password로 시작하며, 이번 단계에서는 container health와 내부 DNS/TCP 연결만 검증한다.
 
-WireMock은 task 시작 시 초기화 sidecar가 Admin API로 mapping을 등록한다. `terraform.tfvars`의 `mock_scenario`를 `success`, `delay`, `error`, `recorded` 중 하나로 설정해 Bedrock과 Discord 응답을 통제한다. `success`의 기본 지연은 800ms이며 별도 Bedrock 실호출 결과에 맞춰 fixture를 보정한다. `recorded`는 `wiremock/bedrock-recordings.json`의 100개 응답을 기록된 지연시간과 함께 순차 재생하고, 마지막 표본 뒤에는 첫 표본부터 다시 재생한다. `reset`은 재생 순서를 초기화한다.
+WireMock은 task 시작 시 초기화 sidecar가 Admin API로 mapping을 등록한다. `terraform.tfvars`의 `mock_scenario`를 `success`, `delay`, `error`, `recorded` 중 하나로 설정해 Bedrock과 Discord 응답을 통제한다. `success`는 `rabbit` 단어의 유효한 실호출 표본을 2,520ms 지연으로 반복 반환한다. `recorded`는 `wiremock/bedrock-recordings.json`의 100개 응답을 기록된 지연시간과 함께 순차 재생하고, 마지막 표본 뒤에는 첫 표본부터 다시 재생한다. `reset`은 재생 순서를 초기화한다.
 
 ## 관측 계획
 
@@ -103,7 +103,7 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 ./infra/performance-test/run/performance-test.sh status --profile llv-performance-test
 ```
 
-검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. 실제 Word 부하 시나리오는 이 연결 확인 이후 별도 task 실행 설정으로 추가한다.
+검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. k6 기본 시나리오는 동일한 신규 `rabbit` 조회를 10개 VU가 한 번씩 동시에 호출해 single-flight를 검증한다.
 
 `up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록된다. 기본 대시보드에서는 API RPS·p50/p95/p99·HTTP 결과, JVM heap·GC·thread, ECS CPU·memory를 조회하고, Redis·MySQL·MongoDB·ALB 세부 지표는 `Dependency and Platform` 대시보드에서 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
@@ -115,7 +115,7 @@ k6 task는 실행 맥락, 집계 summary, timestamp가 포함된 raw metric을 �
 ./infra/performance-test/run/performance-test.sh reset --profile llv-performance-test
 ```
 
-`reset`은 실행 중인 k6 task가 없을 때만 MongoDB, Redis, MySQL을 비우고 WireMock request journal과 mapping을 기준 시나리오로 되돌린다. 현재 구체적인 Word 시나리오는 범위 밖이므로 seed fixture는 아직 적용하지 않는다.
+`reset`은 실행 중인 k6 task가 없을 때만 MongoDB, Redis, MySQL을 비우고 WireMock request journal과 mapping을 기준 시나리오로 되돌린다. Word single-flight 실행 전에는 기본 `success` profile로 적용한 뒤 `reset`을 실행해 빈 저장소 상태에서 시작한다.
 
 결과는 `test-sessions/<test_run_id>/runs/<k6-run-id>` 경로에 세션 동안만 유지되며, `down`에서 결과 bucket과 함께 삭제된다. 수치 분석은 세션이 유지되는 동안 Grafana에서 수행한다.
 

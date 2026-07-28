@@ -103,5 +103,6 @@ upload_environment_file prometheus 'local.environment_file_keys.prometheus' \
 	ATLAS_PROMETHEUS_USERNAME ATLAS_PROMETHEUS_PASSWORD
 upload_environment_file grafana 'local.environment_file_keys.grafana' \
 	GF_SECURITY_ADMIN_USER GF_SECURITY_ADMIN_PASSWORD
+upload_environment_file k6 'local.environment_file_keys.k6' JWT_SECRET
 
 echo "Service-specific environment files uploaded to s3://${bucket}/environment/."

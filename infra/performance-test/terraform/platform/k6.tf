@@ -50,6 +50,12 @@ resource "aws_ecs_task_definition" "k6" {
           condition     = "SUCCESS"
         }
       ]
+      environmentFiles = [
+        {
+          type  = "s3"
+          value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.k6}"
+        }
+      ]
       environment = [
         {
           name  = "BASE_URL"
@@ -61,7 +67,7 @@ resource "aws_ecs_task_definition" "k6" {
         },
         {
           name  = "K6_SCRIPT_BASE64"
-          value = base64encode(local.k6_smoke_script)
+          value = base64encode(local.k6_scenario_script)
         },
         {
           name  = "TEST_RUN_ID"
@@ -166,5 +172,6 @@ resource "aws_ecs_task_definition" "k6" {
   depends_on = [
     aws_iam_role_policy.k6_results_write,
     aws_iam_role_policy_attachment.task_execution,
+    aws_iam_role_policy.task_execution_environment_file,
   ]
 }
