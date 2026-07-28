@@ -108,8 +108,8 @@ variable "mock_scenario" {
   default     = "success"
 
   validation {
-    condition     = contains(["success", "delay", "error"], var.mock_scenario)
-    error_message = "mock_scenario must be one of success, delay, or error."
+    condition     = contains(["success", "delay", "error", "recorded"], var.mock_scenario)
+    error_message = "mock_scenario must be one of success, delay, error, or recorded."
   }
 }
 

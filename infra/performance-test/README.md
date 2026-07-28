@@ -36,7 +36,7 @@ API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana�
 
 Redis, MySQL, WireMock은 각각 `redis`, `mysql`, `mock` 이름으로 Cloud Map에 등록된다. 전체 endpoint는 Terraform의 `dependency_endpoints` output에서 확인한다. MySQL은 비밀번호를 state에 남기지 않기 위해 임시 random root password로 시작하며, 이번 단계에서는 container health와 내부 DNS/TCP 연결만 검증한다.
 
-WireMock은 task 시작 시 초기화 sidecar가 Admin API로 mapping을 등록한다. `terraform.tfvars`의 `mock_scenario`를 `success`, `delay`, `error` 중 하나로 설정해 Bedrock과 Discord 응답을 통제한다. `success`의 기본 지연은 800ms이며 별도 Bedrock 실호출 결과에 맞춰 fixture를 보정한다.
+WireMock은 task 시작 시 초기화 sidecar가 Admin API로 mapping을 등록한다. `terraform.tfvars`의 `mock_scenario`를 `success`, `delay`, `error`, `recorded` 중 하나로 설정해 Bedrock과 Discord 응답을 통제한다. `success`의 기본 지연은 800ms이며 별도 Bedrock 실호출 결과에 맞춰 fixture를 보정한다. `recorded`는 `wiremock/bedrock-recordings.json`의 100개 응답을 기록된 지연시간과 함께 순차 재생하고, 마지막 표본 뒤에는 첫 표본부터 다시 재생한다. `reset`은 재생 순서를 초기화한다.
 
 ## 관측 계획
 
