@@ -234,8 +234,8 @@
       "id": 10,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "CPUUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "A", "region": "${aws_region}", "statistic": "Average" },
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "matchExact": true, "metricName": "MemoryUtilization", "namespace": "AWS/ECS", "period": "60", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "CPUUtilization", "metricQueryType": 0, "namespace": "AWS/ECS", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "${aws_region}", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "MemoryUtilization", "metricQueryType": 0, "namespace": "AWS/ECS", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
       ],
       "title": "ECS Application Utilization",
       "type": "timeseries"
