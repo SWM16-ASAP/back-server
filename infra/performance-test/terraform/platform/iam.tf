@@ -74,6 +74,24 @@ resource "aws_iam_role_policy" "app_task_ai_buckets" {
   policy = data.aws_iam_policy_document.app_task_ai_buckets.json
 }
 
+data "aws_iam_policy_document" "app_task_heap_dump_write" {
+  statement {
+    actions   = ["s3:GetBucketLocation"]
+    resources = [aws_s3_bucket.results.arn]
+  }
+
+  statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.results.arn}/test-sessions/${var.test_run_id}/heap-dumps/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "app_task_heap_dump_write" {
+  name   = "heap-dump-results-write"
+  role   = aws_iam_role.app_task.id
+  policy = data.aws_iam_policy_document.app_task_heap_dump_write.json
+}
+
 resource "aws_iam_role" "grafana_task" {
   name_prefix        = "${local.name_prefix}-grafana-"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
