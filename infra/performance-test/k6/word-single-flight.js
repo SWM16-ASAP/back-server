@@ -1,31 +1,39 @@
 import crypto from 'k6/crypto';
 import encoding from 'k6/encoding';
 import http from 'k6/http';
-import { Rate } from 'k6/metrics';
+import { Counter, Rate, Trend } from 'k6/metrics';
 import { check } from 'k6';
+import { sleep } from 'k6';
 
 const baseUrl = (__ENV.BASE_URL || '').replace(/\/$/, '');
 const word = __ENV.WORD || 'rabbit';
 const targetLanguage = __ENV.WORD_TARGET_LANGUAGE || 'KO';
 const jwtSecret = __ENV.JWT_SECRET || '';
-const vus = Number(__ENV.WORD_VUS || 10);
-const duration = __ENV.WORD_DURATION || '1m';
+const burstVus = Number(__ENV.WORD_BURST_VUS || 100);
 const clientTimeout = new Rate('client_timeout');
+const burstArrivalOffset = new Trend('burst_arrival_offset');
+const responseFingerprint = new Counter('word_response_fingerprint');
 
 export const options = {
   scenarios: {
     word_single_flight: {
-      executor: 'constant-vus',
-      vus,
-      duration,
+      executor: 'per-vu-iterations',
+      vus: burstVus,
+      iterations: 1,
+      maxDuration: '30s',
       gracefulStop: '10s',
     },
   },
   thresholds: {
+    burst_arrival_offset: ['p(99)<1000'],
     checks: ['rate==1'],
     http_req_failed: ['rate==0'],
   },
 };
+
+export function setup() {
+  return { burstStartAt: Date.now() + 1000 };
+}
 
 function createTestJwt() {
   if (!jwtSecret) {
@@ -51,14 +59,27 @@ function createTestJwt() {
   return `${signingInput}.${signature}`;
 }
 
-export default function () {
+export default function ({ burstStartAt }) {
   const path = `/api/v1/words/${encodeURIComponent(word)}?targetLanguage=${encodeURIComponent(targetLanguage)}`;
+  const authorization = `Bearer ${createTestJwt()}`;
+  const remainingWaitSeconds = (burstStartAt - Date.now()) / 1000;
+
+  if (remainingWaitSeconds > 0) {
+    sleep(remainingWaitSeconds);
+  }
+
+  burstArrivalOffset.add(Date.now() - burstStartAt);
+
   const response = http.get(`${baseUrl}${path}`, {
-    headers: { Authorization: `Bearer ${createTestJwt()}` },
+    headers: { Authorization: authorization },
     tags: { endpoint: 'word-single-flight' },
   });
 
   clientTimeout.add(response.error_code === 1050);
+
+  if (response.status === 200) {
+    responseFingerprint.add(1, { hash: crypto.sha256(response.body, 'hex') });
+  }
 
   check(response, {
     'Word generation succeeds': (result) => result.status === 200,
