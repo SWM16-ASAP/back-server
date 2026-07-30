@@ -123,7 +123,7 @@ k6 task는 실행 ID를 `testid` 라벨로 Prometheus remote write에 전송해 
 ./infra/performance-test/run/performance-test.sh reset --profile llv-performance-test
 ```
 
-`reset`은 실행 중인 k6 task가 없을 때만 MongoDB, Redis, MySQL을 비우고 WireMock request journal과 mapping을 기준 시나리오로 되돌린다. Word single-flight 실행 전에는 기본 `success` profile로 적용한 뒤 `reset`을 실행해 빈 저장소 상태에서 시작한다.
+`reset`은 실행 중인 k6 task가 없을 때만 MongoDB, Redis, MySQL을 비우고 WireMock request journal과 mapping을 기준 시나리오로 되돌린다. MongoDB는 컬렉션 문서만 삭제해 애플리케이션이 만든 유니크 인덱스를 유지한다. Word single-flight 실행 전에는 기본 `success` profile로 적용한 뒤 `reset`을 실행해 빈 저장소 상태에서 시작한다.
 
 single-flight 비교 실험은 `terraform.tfvars`의 `word_single_flight_enabled`만 변경한다. `false`로 적용하면 앱 ECS service가 rolling deployment되고 coordinator는 Redis lock과 Pub/Sub 대기 없이 생성 작업을 바로 실행한다. 각 조건에서 `reset` 후 동일한 k6 시나리오를 실행하고, 실험이 끝나면 값을 `true`로 되돌려 다시 apply한다.
 

@@ -50,7 +50,7 @@ Word single-flight 비교에서는 `word_single_flight_enabled`를 변경해 앱
 - seed 데이터는 `infra/performance-test/seed/`에서 관리한다.
 - 현재 구체적인 도메인 시나리오는 범위 밖이므로 초기화는 저장소를 비우는 데까지 수행하고, fixture 적용은 시나리오와 함께 추가한다.
 - 초기화 작업은 반복 실행해도 같은 결과가 나오는 멱등 구조로 만든다.
-- MongoDB와 MySQL은 테스트 전용 데이터베이스만 초기화한다.
+- MongoDB와 MySQL은 테스트 전용 데이터베이스만 초기화한다. MongoDB는 문서만 삭제해 인덱스를 유지한다.
 - Redis는 테스트 전용 인스턴스의 상태를 제거한다.
 - WireMock은 요청 기록과 mapping을 초기화한 뒤 선택한 시나리오를 다시 등록한다.
 - 테스트 실행 중에는 초기화를 허용하지 않는다.
