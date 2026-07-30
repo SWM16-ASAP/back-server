@@ -36,7 +36,7 @@ up -> update-app? -> reset -> run -> reset -> run -> down
 | --- | --- |
 | `up` | 전체 인프라를 생성하고 연결을 검증한 뒤 최초 상태 초기화를 실행한다. |
 | `update-app` | 현재 커밋의 앱 이미지만 게시하고 ECS rolling deployment 및 연결 검증을 수행한다. 테스트 상태는 유지한다. |
-| `run` | 기존 인프라에서 일회성 k6 Task만 실행한다. |
+| `run` | 기존 인프라에서 일회성 k6 Task를 실행하고 WireMock request journal의 Bedrock HTTP 시도 횟수를 검증한다. |
 | `reset` | MongoDB, Redis, MySQL, WireMock을 기준 상태로 되돌린다. |
 | `status` | 인프라 상태와 Grafana 주소를 확인한다. |
 | `down` | 분석 완료 후 전체 인프라를 제거한다. |

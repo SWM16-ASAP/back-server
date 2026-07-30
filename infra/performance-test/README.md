@@ -15,6 +15,7 @@ API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana�
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
 - `run/cleanup-app-environment.sh`: S3 environment file 객체 삭제
 - `run/run-k6.sh`: VPC 내부에서 기본 k6 연결 시나리오를 실행
+- `run/verify-wiremock-journal.sh`: WireMock request journal로 Bedrock mock HTTP 시도 횟수를 검증
 - `run/reset-test-state.sh`: MongoDB, Redis, MySQL, WireMock 상태를 초기화
 - `run/verify-environment.sh`: ALB, 의존성, 모니터링 연결을 순서대로 검증
 - `seed/`: 향후 도메인 시나리오별 최소 fixture를 관리할 위치
@@ -113,11 +114,12 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 
 `up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록된다. 기본 대시보드에서는 API RPS·p50/p95/p99·HTTP 결과, k6 클라이언트 결과, JVM heap·process CPU·GC·thread, MongoDB driver pool, ECS CPU·memory를 조회한다. `Application instance`와 `k6 run` 변수로 개별 task와 실행을 선택할 수 있다. Redis·MySQL·MongoDB·ALB 세부 지표는 `Dependency and Platform` 대시보드에서 조회하며, Redis `GET` 계열 cache hit rate도 이 대시보드에서 확인한다. `Word Single-flight` 대시보드는 Word 조회 결과 재사용, leader/follower, follower 대기, lock 실패, Bedrock 호출·지연·SDK 재시도를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
-k6 task는 실행 ID를 `testid` 라벨로 Prometheus remote write에 전송해 Grafana에서 앱 지표와 같은 시간축으로 조회할 수 있게 한다. 실행 맥락, 집계 summary, timestamp가 포함된 raw metric은 세션 전용 S3 bucket에도 업로드한다. 앱이 OOM으로 종료되면 JVM heap dump도 같은 bucket의 `test-sessions/<test_run_id>/heap-dumps/`에 업로드한다. heap dump에는 요청 데이터와 자격 증명이 포함될 수 있으므로 테스트 세션 안에서만 접근하고 공유하지 않는다. `run`은 인프라를 다시 적용하지 않고 k6 task만 실행한다. 실행 ID를 생략하면 UTC timestamp 기반 ID를 생성하며, 직접 지정할 수도 있다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
+k6 task는 실행 ID를 `testid` 라벨로 Prometheus remote write에 전송해 Grafana에서 앱 지표와 같은 시간축으로 조회할 수 있게 한다. 실행 맥락, 집계 summary, timestamp가 포함된 raw metric은 세션 전용 S3 bucket에도 업로드한다. 앱이 OOM으로 종료되면 JVM heap dump도 같은 bucket의 `test-sessions/<test_run_id>/heap-dumps/`에 업로드한다. heap dump에는 요청 데이터와 자격 증명이 포함될 수 있으므로 테스트 세션 안에서만 접근하고 공유하지 않는다. `run`은 인프라를 다시 적용하지 않고 k6 task를 실행한 뒤 WireMock request journal에서 Bedrock mock HTTP 시도 횟수를 검증한다. 성공 단어 시나리오의 기본 기대값은 1회이며, 재시도 시나리오에서는 `--expected-bedrock-attempts`로 변경한다. 실행 ID를 생략하면 UTC timestamp 기반 ID를 생성하며, 직접 지정할 수도 있다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
 
 ```bash
 ./infra/performance-test/run/performance-test.sh run --profile llv-performance-test
 ./infra/performance-test/run/performance-test.sh run --run-id word-single-flight-a --profile llv-performance-test
+./infra/performance-test/run/performance-test.sh run --run-id word-retry-a --expected-bedrock-attempts 2 --profile llv-performance-test
 ./infra/performance-test/run/performance-test.sh reset --profile llv-performance-test
 ```
 

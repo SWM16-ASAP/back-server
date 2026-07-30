@@ -56,6 +56,11 @@ output "k6_task_definition_arn" {
   value       = aws_ecs_task_definition.k6.arn
 }
 
+output "wiremock_journal_task_definition_arn" {
+  description = "Task definition that verifies Bedrock mock HTTP attempts from the WireMock request journal."
+  value       = aws_ecs_task_definition.wiremock_journal.arn
+}
+
 output "k6_security_group_id" {
   description = "Security group assigned to the one-off k6 task."
   value       = aws_security_group.k6.id

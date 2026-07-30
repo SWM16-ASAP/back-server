@@ -29,6 +29,8 @@ Commands:
 Options:
   --profile <name>  Use the named AWS CLI profile.
   --run-id <id>     Set the identifier for one k6 execution; generated when omitted.
+  --expected-bedrock-attempts <count>
+                    Verify this many Bedrock mock HTTP attempts after a k6 run (default: 1).
   --yes             Skip Terraform approval prompts for up, update-app, or down.
   -h, --help        Show this help message.
 EOF
@@ -401,6 +403,8 @@ run_k6() {
 		effective_run_id="$(generate_run_id)"
 	fi
 	run_step "Run k6 task (${effective_run_id})" "${script_dir}/run-k6.sh" "$platform_dir" "$effective_run_id"
+	run_step "Verify Bedrock mock attempts (${expected_bedrock_attempts})" \
+		"${script_dir}/verify-wiremock-journal.sh" "$platform_dir" "$expected_bedrock_attempts"
 }
 
 run_reset() {
@@ -487,6 +491,7 @@ shift
 
 profile=""
 run_id=""
+expected_bedrock_attempts="1"
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--profile)
@@ -503,6 +508,11 @@ while [[ $# -gt 0 ]]; do
 			run_id="$2"
 			shift 2
 			;;
+		--expected-bedrock-attempts)
+			[[ $# -ge 2 ]] || fail "--expected-bedrock-attempts requires a value."
+			expected_bedrock_attempts="$2"
+			shift 2
+			;;
 		-h | --help)
 			usage
 			exit 0
@@ -512,6 +522,10 @@ while [[ $# -gt 0 ]]; do
 			;;
 	esac
 done
+
+if [[ ! "$expected_bedrock_attempts" =~ ^[1-9][0-9]*$ ]]; then
+	fail "--expected-bedrock-attempts must be a positive integer."
+fi
 
 cd "$repository_root"
 
