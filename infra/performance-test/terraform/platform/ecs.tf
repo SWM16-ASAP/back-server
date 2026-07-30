@@ -57,6 +57,10 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "HEAP_DUMP_EXIT_MARKER_PATH"
           value = "/heap-dumps/.application-exited"
+        },
+        {
+          name  = "WORD_SINGLE_FLIGHT_ENABLED"
+          value = tostring(var.word_single_flight_enabled)
         }
       ]
       mountPoints = [

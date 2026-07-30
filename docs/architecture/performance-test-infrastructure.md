@@ -43,6 +43,8 @@ up -> update-app? -> reset -> run -> reset -> run -> down
 
 인프라를 식별하는 세션 ID와 개별 k6 실행 ID를 분리한다. 하나의 세션에서 여러 실행을 수행하되 각 실행 결과는 별도 ID로 구분한다.
 
+Word single-flight 비교에서는 `word_single_flight_enabled`를 변경해 앱 태스크만 rolling deployment한다. `false`는 Redis coordination을 우회하고, 실험 후 `true`를 다시 적용해 기본 동작으로 복구한다.
+
 ## 상태 초기화
 
 - seed 데이터는 `infra/performance-test/seed/`에서 관리한다.

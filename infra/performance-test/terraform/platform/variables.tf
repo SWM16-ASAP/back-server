@@ -23,6 +23,12 @@ variable "app_image_tag" {
   }
 }
 
+variable "word_single_flight_enabled" {
+  description = "Whether the performance-test app enables Redis-backed Word single-flight coordination."
+  type        = bool
+  default     = true
+}
+
 variable "redis_image" {
   description = "Redis image used by the temporary dependency service."
   type        = string
