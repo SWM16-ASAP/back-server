@@ -29,12 +29,13 @@ Bedrock과 Discord는 WireMock으로 성공, 지연, 오류 응답을 통제한�
 ## 목표 실행 주기
 
 ```text
-up -> reset -> run -> reset -> run -> down
+up -> update-app? -> reset -> run -> reset -> run -> down
 ```
 
 | 명령 | 역할 |
 | --- | --- |
 | `up` | 전체 인프라를 생성하고 연결을 검증한 뒤 최초 상태 초기화를 실행한다. |
+| `update-app` | 현재 커밋의 앱 이미지만 게시하고 ECS rolling deployment 및 연결 검증을 수행한다. 테스트 상태는 유지한다. |
 | `run` | 기존 인프라에서 일회성 k6 Task만 실행한다. |
 | `reset` | MongoDB, Redis, MySQL, WireMock을 기준 상태로 되돌린다. |
 | `status` | 인프라 상태와 Grafana 주소를 확인한다. |

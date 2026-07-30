@@ -4,7 +4,7 @@
 
 ## 현재 구성
 
-API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana를 연결했다. 인프라 세션이 유지되는 동안 `reset`과 `run`을 반복하고, 분석이 끝난 뒤 `down`으로 제거한다.
+API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana를 연결했다. 인프라 세션이 유지되는 동안 `update-app`, `reset`, `run`을 반복하고, 분석이 끝난 뒤 `down`으로 제거한다.
 
 ## 구조
 
@@ -101,6 +101,12 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 ```bash
 ./infra/performance-test/run/performance-test.sh verify --profile llv-performance-test
 ./infra/performance-test/run/performance-test.sh status --profile llv-performance-test
+```
+
+현재 커밋의 애플리케이션 코드만 반영하려면 `update-app`을 사용한다. 새 이미지를 ECR에 게시하고 ECS app service를 rolling deployment한 뒤 target health와 의존성 연결을 검증한다. Redis, MySQL, WireMock, Prometheus, Grafana와 테스트 데이터는 유지하며, 상태 초기화는 필요할 때 별도로 실행한다.
+
+```bash
+./infra/performance-test/run/performance-test.sh update-app --profile llv-performance-test
 ```
 
 검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. k6 기본 시나리오는 생성 결과가 없는 동일한 `rabbit` 조회를 100 VU가 각 1회 실행하도록 구성한다. 공통 시작 시각으로부터 요청 도착 p99가 1초 이내인지 확인하고, 성공 응답의 hash를 남겨 동일한 결과 여부를 검증할 수 있게 한다.

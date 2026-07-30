@@ -18,17 +18,18 @@ usage() {
 Usage: performance-test.sh <command> [options]
 
 Commands:
-  up       Create the performance-test environment, verify connectivity, and reset state.
-  run      Run the k6 task in an existing environment.
-  reset    Reset test data and WireMock state in an existing environment.
-  verify   Verify an existing performance-test environment.
-  status   Show Terraform resources, outputs, and ALB target health.
-  down     Remove the environment and confirm Terraform state is empty.
+  up          Create the performance-test environment, verify connectivity, and reset state.
+  update-app  Publish the current app image and roll it out without resetting test state.
+  run         Run the k6 task in an existing environment.
+  reset       Reset test data and WireMock state in an existing environment.
+  verify      Verify an existing performance-test environment.
+  status      Show Terraform resources, outputs, and ALB target health.
+  down        Remove the environment and confirm Terraform state is empty.
 
 Options:
   --profile <name>  Use the named AWS CLI profile.
   --run-id <id>     Set the identifier for one k6 execution; generated when omitted.
-  --yes             Skip Terraform approval prompts for up or down.
+  --yes             Skip Terraform approval prompts for up, update-app, or down.
   -h, --help        Show this help message.
 EOF
 }
@@ -236,9 +237,8 @@ preflight() {
 	configure_aws_profile "$profile"
 	verify_aws_identity
 
-	if [[ "$command" == "up" ]]; then
+	if [[ "$command" == "up" || "$command" == "update-app" ]]; then
 		local gradle_output
-		require_command curl
 		require_command docker
 		require_command git
 		[[ -x "${repository_root}/gradlew" ]] || fail "Gradle wrapper is not executable."
@@ -249,11 +249,16 @@ preflight() {
 			fail "Docker is not running."
 		fi
 		verify_clean_worktree
-		prepare_local_files
+		if [[ "$command" == "up" ]]; then
+			require_command curl
+			prepare_local_files
+			explain_created_local_files
+			refresh_grafana_allowed_cidr
+			validate_local_files
+		elif [[ ! -f "$terraform_vars" ]]; then
+			fail "Terraform variables not found: ${terraform_vars#${repository_root}/}"
+		fi
 		set_application_image_tag
-		explain_created_local_files
-		refresh_grafana_allowed_cidr
-		validate_local_files
 	elif [[ "$command" == "down" && ! -f "$terraform_vars" ]]; then
 		fail "Terraform variables not found: ${terraform_vars#${repository_root}/}"
 	fi
@@ -362,6 +367,23 @@ run_up() {
 
 	echo
 	echo "Performance-test environment is ready."
+}
+
+run_update_app() {
+	preflight update-app
+	terraform_state_exists || fail "No Terraform-managed performance-test environment exists. Run up first."
+
+	if [[ "$auto_approve" == true ]]; then
+		export TF_CLI_ARGS_apply="${TF_CLI_ARGS_apply:+${TF_CLI_ARGS_apply} }-auto-approve"
+	fi
+
+	run_step "Publish application image" "${script_dir}/publish-app-image.sh" "$platform_dir"
+	run_step "Roll out application update" terraform -chdir="$platform_dir" apply
+	run_step "Verify application deployment" "${script_dir}/verify-environment.sh" "$platform_dir"
+	show_grafana_url
+
+	echo
+	echo "Application update is ready. Test state was not reset."
 }
 
 run_verify() {
@@ -496,6 +518,9 @@ cd "$repository_root"
 case "$command_name" in
 	up)
 		run_up
+		;;
+	update-app)
+		run_update_app
 		;;
 	run)
 		run_k6
