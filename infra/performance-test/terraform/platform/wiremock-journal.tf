@@ -29,7 +29,7 @@ resource "aws_ecs_task_definition" "wiremock_journal" {
           mock_url="http://mock.${aws_service_discovery_private_dns_namespace.this.name}:8080/__admin/requests/count"
           response="$(curl --fail --silent --show-error --header 'Content-Type: application/json' \
             --data '{"method":"POST","urlPathPattern":"/model/.+/converse"}' "$mock_url")"
-          count="$(printf '%s' "$response" | sed -n 's/.*"count":[[:space:]]*\([0-9][0-9]*\).*/\1/p')"
+          count="$(printf '%s' "$response" | sed -n 's/.*"count"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p')"
           if [ -z "$count" ]; then
             echo "WireMock request count response did not contain a count: $response" >&2
             exit 1
