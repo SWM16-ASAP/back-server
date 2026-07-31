@@ -40,10 +40,9 @@
       "id": 3,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "expr": "redis_connected_clients", "legendFormat": "connected", "refId": "A" },
-        { "expr": "rate(redis_rejected_connections_total[1m])", "legendFormat": "rejected/s", "refId": "B" }
+        { "expr": "redis_connected_clients", "legendFormat": "connected", "refId": "A" }
       ],
-      "title": "Redis Clients",
+      "title": "Redis Connected Clients",
       "type": "timeseries"
     },
     {
@@ -62,11 +61,21 @@
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "max": 1, "min": 0, "unit": "percentunit" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 9 },
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 9 },
       "id": 14,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [{ "expr": "sum(rate(redis_keyspace_hits_total[$__rate_interval])) / (sum(rate(redis_keyspace_hits_total[$__rate_interval])) + sum(rate(redis_keyspace_misses_total[$__rate_interval])))", "legendFormat": "hit rate", "refId": "A" }],
       "title": "Redis Cache Hit Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 9 },
+      "id": 15,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "rate(redis_rejected_connections_total[1m])", "legendFormat": "rejected/s", "refId": "A" }],
+      "title": "Redis Rejected Connections",
       "type": "timeseries"
     },
     {
@@ -152,7 +161,7 @@
     {
       "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 34 },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 34 },
       "id": 11,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "TargetResponseTime", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "${aws_region}", "statistic": "Average" }],
@@ -162,20 +171,17 @@
     {
       "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 34 },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 34 },
       "id": 12,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "RequestCount", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "${aws_region}", "statistic": "Sum" },
-        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}", "TargetGroup": "${target_group_dimension}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "HealthyHostCount", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
-      ],
-      "title": "ALB Traffic and Healthy Targets",
+      "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "RequestCount", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "${aws_region}", "statistic": "Sum" }],
+      "title": "ALB Request Count",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 34 },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 34 },
       "id": 13,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -183,6 +189,16 @@
         { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "TargetConnectionErrorCount", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "${aws_region}", "statistic": "Sum" }
       ],
       "title": "ALB Target Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 34 },
+      "id": 16,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "${load_balancer_dimension}", "TargetGroup": "${target_group_dimension}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "HealthyHostCount", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "${aws_region}", "statistic": "Average" }],
+      "title": "ALB Healthy Targets",
       "type": "timeseries"
     }
   ],
