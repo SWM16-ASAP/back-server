@@ -28,9 +28,7 @@ Commands:
 
 Options:
   --profile <name>  Use the named AWS CLI profile.
-  --run-id <id>     Set the identifier for one k6 execution; generated when omitted.
-  --expected-bedrock-attempts <count>
-                    Verify this many Bedrock mock HTTP attempts after a k6 run (default: 1).
+  --scenario <file> Select a JavaScript file under infra/performance-test/k6 for run.
   --yes             Skip Terraform approval prompts for up, update-app, or down.
   -h, --help        Show this help message.
 EOF
@@ -398,13 +396,10 @@ run_k6() {
 	preflight run
 	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
 
-	local effective_run_id="${run_id:-}"
-	if [[ -z "$effective_run_id" ]]; then
-		effective_run_id="$(generate_run_id)"
-	fi
-	run_step "Run k6 task (${effective_run_id})" "${script_dir}/run-k6.sh" "$platform_dir" "$effective_run_id"
-	run_step "Verify Bedrock mock attempts (${expected_bedrock_attempts})" \
-		"${script_dir}/verify-wiremock-journal.sh" "$platform_dir" "$expected_bedrock_attempts"
+	local effective_run_id
+	effective_run_id="$(generate_run_id)"
+	run_step "Run k6 task (${scenario}, ${effective_run_id})" \
+		"${script_dir}/run-k6.sh" "$platform_dir" "$effective_run_id" "$scenario"
 }
 
 run_reset() {
@@ -490,8 +485,7 @@ fi
 shift
 
 profile=""
-run_id=""
-expected_bedrock_attempts="1"
+scenario=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--profile)
@@ -503,14 +497,9 @@ while [[ $# -gt 0 ]]; do
 			auto_approve=true
 			shift
 			;;
-		--run-id)
-			[[ $# -ge 2 ]] || fail "--run-id requires a value."
-			run_id="$2"
-			shift 2
-			;;
-		--expected-bedrock-attempts)
-			[[ $# -ge 2 ]] || fail "--expected-bedrock-attempts requires a value."
-			expected_bedrock_attempts="$2"
+		--scenario)
+			[[ $# -ge 2 ]] || fail "--scenario requires a file name."
+			scenario="$2"
 			shift 2
 			;;
 		-h | --help)
@@ -523,8 +512,15 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-if [[ ! "$expected_bedrock_attempts" =~ ^[1-9][0-9]*$ ]]; then
-	fail "--expected-bedrock-attempts must be a positive integer."
+if [[ "$command_name" == "run" ]]; then
+	if [[ ! "$scenario" =~ ^[a-z0-9][a-z0-9._-]*\.js$ ]]; then
+		fail "--scenario must be a JavaScript file name under infra/performance-test/k6."
+	fi
+	if [[ ! -f "${repository_root}/infra/performance-test/k6/${scenario}" ]]; then
+		fail "k6 scenario not found: infra/performance-test/k6/${scenario}"
+	fi
+elif [[ -n "$scenario" ]]; then
+	fail "--scenario is only valid with the run command."
 fi
 
 cd "$repository_root"

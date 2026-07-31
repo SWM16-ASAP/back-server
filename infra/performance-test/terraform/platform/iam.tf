@@ -139,3 +139,16 @@ resource "aws_iam_role_policy" "k6_results_write" {
   role   = aws_iam_role.k6_task.id
   policy = data.aws_iam_policy_document.k6_results_write.json
 }
+
+data "aws_iam_policy_document" "k6_scenario_read" {
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.environment_files.arn}/${local.k6_scenario_key}"]
+  }
+}
+
+resource "aws_iam_role_policy" "k6_scenario_read" {
+  name   = "k6-scenario-read"
+  role   = aws_iam_role.k6_task.id
+  policy = data.aws_iam_policy_document.k6_scenario_read.json
+}

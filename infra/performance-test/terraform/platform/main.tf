@@ -11,12 +11,12 @@ locals {
     reset_mongo         = "environment/reset-mongo.env"
   }
   availability_zones = var.availability_zones
+  k6_scenario_key    = "scenarios/current.js"
   public_subnets = {
     for index, availability_zone in local.availability_zones :
     availability_zone => cidrsubnet(var.vpc_cidr, 8, index)
   }
-  wiremock_mappings  = file("${path.module}/../../wiremock/${var.mock_scenario}.json")
-  k6_scenario_script = file("${path.module}/../../k6/word-single-flight.js")
+  wiremock_mappings = file("${path.module}/../../wiremock/${var.mock_scenario}.json")
   dependency_services = {
     redis = {
       image       = var.redis_image

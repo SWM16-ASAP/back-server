@@ -14,12 +14,12 @@ API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana�
 - `run/publish-app-image.sh`: 현재 commit의 LLV API 이미지를 임시 ECR에 업로드
 - `run/upload-app-environment.sh`: 앱 환경 파일을 임시 S3 객체로 업로드
 - `run/cleanup-app-environment.sh`: S3 environment file 객체 삭제
-- `run/run-k6.sh`: VPC 내부에서 기본 k6 연결 시나리오를 실행
-- `run/verify-wiremock-journal.sh`: WireMock request journal로 Bedrock mock HTTP 시도 횟수를 검증
+- `run/run-k6.sh`: 선택한 k6 시나리오를 VPC 내부에서 실행
 - `run/reset-test-state.sh`: MongoDB, Redis, MySQL, WireMock 상태를 초기화
 - `run/verify-environment.sh`: ALB, 의존성, 모니터링 연결을 순서대로 검증
 - `seed/`: 향후 도메인 시나리오별 최소 fixture를 관리할 위치
 - `k6/smoke.js`: 인프라 연결 확인용 단일 요청 시나리오
+- `k6/word-single-flight.js`: 동일 신규 단어의 single-flight 검증 시나리오
 - `wiremock`: Bedrock과 Discord의 성공·지연·오류 mapping
 - `iam/performance-test-provisioner-policy.json`: Terraform 실행 역할의 초기 권한 정책
 
@@ -110,22 +110,19 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 ./infra/performance-test/run/performance-test.sh update-app --profile llv-performance-test
 ```
 
-검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. k6 기본 시나리오는 생성 결과가 없는 동일한 `rabbit` 조회를 100 VU가 각 1회 실행하도록 구성한다. 공통 시작 시각으로부터 요청 도착 p99가 1초 이내인지 확인하고, 성공 응답의 hash를 남겨 동일한 결과 여부를 검증할 수 있게 한다.
+검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. `word-single-flight.js`는 생성 결과가 없는 동일한 `rabbit` 조회를 100 VU가 각 1회 실행한다. 공통 시작 시각으로부터 요청 도착 p99가 1초 이내인지 확인하고, 성공 응답의 hash를 남겨 동일한 결과 여부를 검증할 수 있게 한다.
 
 `up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록된다. 기본 대시보드에서는 API RPS·p50/p95/p99·HTTP 결과, k6 클라이언트 결과, JVM heap·process CPU·GC·thread, MongoDB driver pool, ECS CPU·memory를 조회한다. `Application instance`와 `k6 run` 변수로 개별 task와 실행을 선택할 수 있다. Redis·MySQL·MongoDB·ALB 세부 지표는 `Dependency and Platform` 대시보드에서 조회하며, Redis `GET` 계열 cache hit rate도 이 대시보드에서 확인한다. `Word Single-flight` 대시보드는 Word 조회 결과 재사용, leader/follower, follower 대기, lock 실패, Bedrock 호출·지연·SDK 재시도를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
-k6 task는 실행 ID를 `testid` 라벨로 Prometheus remote write에 전송해 Grafana에서 앱 지표와 같은 시간축으로 조회할 수 있게 한다. 실행 맥락, 집계 summary, timestamp가 포함된 raw metric은 세션 전용 S3 bucket에도 업로드한다. 앱이 OOM으로 종료되면 JVM heap dump도 같은 bucket의 `test-sessions/<test_run_id>/heap-dumps/`에 업로드한다. heap dump에는 요청 데이터와 자격 증명이 포함될 수 있으므로 테스트 세션 안에서만 접근하고 공유하지 않는다. `run`은 인프라를 다시 적용하지 않고 k6 task를 실행한 뒤 WireMock request journal에서 Bedrock mock HTTP 시도 횟수를 검증한다. 성공 단어 시나리오의 기본 기대값은 1회이며, 재시도 시나리오에서는 `--expected-bedrock-attempts`로 변경한다. 실행 ID를 생략하면 UTC timestamp 기반 ID를 생성하며, 직접 지정할 수도 있다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
+k6 task는 자동 생성된 실행 ID를 `testid` 라벨로 Prometheus remote write에 전송해 Grafana에서 앱 지표와 같은 시간축으로 조회할 수 있게 한다. 실행 맥락, 집계 summary, timestamp가 포함된 raw metric은 세션 전용 S3 bucket에도 업로드한다. 앱이 OOM으로 종료되면 JVM heap dump도 같은 bucket의 `test-sessions/<test_run_id>/heap-dumps/`에 업로드한다. heap dump에는 요청 데이터와 자격 증명이 포함될 수 있으므로 테스트 세션 안에서만 접근하고 공유하지 않는다. `run`은 `k6` 디렉터리에서 선택한 파일을 임시 S3 객체에 덮어쓴 뒤 인프라 재적용 없이 실행한다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
 
 ```bash
-./infra/performance-test/run/performance-test.sh run --profile llv-performance-test
-./infra/performance-test/run/performance-test.sh run --run-id word-single-flight-a --profile llv-performance-test
-./infra/performance-test/run/performance-test.sh run --run-id word-retry-a --expected-bedrock-attempts 2 --profile llv-performance-test
+./infra/performance-test/run/performance-test.sh run --scenario smoke.js --profile llv-performance-test
+./infra/performance-test/run/performance-test.sh run --scenario word-single-flight.js --profile llv-performance-test
 ./infra/performance-test/run/performance-test.sh reset --profile llv-performance-test
 ```
 
 `reset`은 실행 중인 k6 task가 없을 때만 MongoDB, Redis, MySQL을 비우고 WireMock request journal과 mapping을 기준 시나리오로 되돌린다. MongoDB는 컬렉션 문서만 삭제해 애플리케이션이 만든 유니크 인덱스를 유지한다. Word single-flight 실행 전에는 기본 `success` profile로 적용한 뒤 `reset`을 실행해 빈 저장소 상태에서 시작한다.
-
-single-flight 비교 실험은 `terraform.tfvars`의 `word_single_flight_enabled`만 변경한다. `false`로 적용하면 앱 ECS service가 rolling deployment되고 coordinator는 Redis lock과 Pub/Sub 대기 없이 생성 작업을 바로 실행한다. 각 조건에서 `reset` 후 동일한 k6 시나리오를 실행하고, 실험이 끝나면 값을 `true`로 되돌려 다시 apply한다.
 
 결과는 `test-sessions/<test_run_id>/runs/<k6-run-id>`와 `test-sessions/<test_run_id>/heap-dumps/` 경로에 세션 동안만 유지되며, `down`에서 results bucket과 함께 삭제된다. 수치 분석은 세션이 유지되는 동안 Grafana에서 수행한다.
 

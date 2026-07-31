@@ -56,9 +56,9 @@ output "k6_task_definition_arn" {
   value       = aws_ecs_task_definition.k6.arn
 }
 
-output "wiremock_journal_task_definition_arn" {
-  description = "Task definition that verifies Bedrock mock HTTP attempts from the WireMock request journal."
-  value       = aws_ecs_task_definition.wiremock_journal.arn
+output "k6_scenario_key" {
+  description = "S3 object key overwritten with the selected k6 scenario before each run."
+  value       = local.k6_scenario_key
 }
 
 output "k6_security_group_id" {

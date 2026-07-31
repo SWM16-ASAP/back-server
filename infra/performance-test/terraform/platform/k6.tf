@@ -16,6 +16,10 @@ resource "aws_ecs_task_definition" "k6" {
     name = "k6-results"
   }
 
+  volume {
+    name = "k6-scenario"
+  }
+
   container_definitions = jsonencode([
     {
       name      = "k6-results-init"
@@ -48,6 +52,10 @@ resource "aws_ecs_task_definition" "k6" {
         {
           containerName = "k6-results-init"
           condition     = "SUCCESS"
+        },
+        {
+          containerName = "k6-scenario-download"
+          condition     = "SUCCESS"
         }
       ]
       environmentFiles = [
@@ -66,10 +74,6 @@ resource "aws_ecs_task_definition" "k6" {
           value = var.health_check_path
         },
         {
-          name  = "K6_SCRIPT_BASE64"
-          value = base64encode(local.k6_scenario_script)
-        },
-        {
           name  = "K6_PROMETHEUS_RW_SERVER_URL"
           value = "http://prometheus.${aws_service_discovery_private_dns_namespace.this.name}:9090/api/v1/write"
         },
@@ -80,6 +84,18 @@ resource "aws_ecs_task_definition" "k6" {
         {
           name  = "TEST_RUN_ID"
           value = "replace-at-runtime"
+        },
+        {
+          name  = "K6_SCENARIO_NAME"
+          value = "replace-at-runtime"
+        },
+        {
+          name  = "K6_SCRIPT_SHA256"
+          value = "replace-at-runtime"
+        },
+        {
+          name  = "K6_SCENARIO_KEY"
+          value = local.k6_scenario_key
         },
         {
           name  = "GIT_SHA"
@@ -99,22 +115,26 @@ resource "aws_ecs_task_definition" "k6" {
           sourceVolume  = "k6-results"
           containerPath = "/results"
           readOnly      = false
+        },
+        {
+          sourceVolume  = "k6-scenario"
+          containerPath = "/scenario"
+          readOnly      = true
         }
       ]
       entryPoint = ["/bin/sh", "-c"]
       command = [
         <<-EOT
           set -eu
-          printf '%s' "$K6_SCRIPT_BASE64" | base64 -d > /tmp/smoke.js
-          printf '{"test_run_id":"%s","git_sha":"%s","app_task_cpu":%s,"app_task_memory_mib":%s,"started_at":"%s"}\n' \
-            "$TEST_RUN_ID" "$GIT_SHA" "$APP_TASK_CPU" "$APP_TASK_MEMORY" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          printf '{"test_run_id":"%s","scenario":"%s","script_key":"%s","script_sha256":"%s","git_sha":"%s","app_task_cpu":%s,"app_task_memory_mib":%s,"started_at":"%s"}\n' \
+            "$TEST_RUN_ID" "$K6_SCENARIO_NAME" "$K6_SCENARIO_KEY" "$K6_SCRIPT_SHA256" "$GIT_SHA" "$APP_TASK_CPU" "$APP_TASK_MEMORY" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             > /results/context.json
           exec k6 run \
             --summary-export=/results/summary.json \
             --out json=/results/metrics.json \
             --out experimental-prometheus-rw \
             --tag testid="$TEST_RUN_ID" \
-            /tmp/smoke.js
+            /scenario/scenario.js
         EOT
       ]
       logConfiguration = {
@@ -123,6 +143,44 @@ resource "aws_ecs_task_definition" "k6" {
           awslogs-group         = aws_cloudwatch_log_group.k6.name
           awslogs-region        = var.aws_region
           awslogs-stream-prefix = "ecs"
+        }
+      }
+    },
+    {
+      name      = "k6-scenario-download"
+      image     = var.aws_cli_image
+      essential = false
+      environment = [
+        {
+          name  = "AWS_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "K6_SCENARIO_BUCKET"
+          value = aws_s3_bucket.environment_files.id
+        },
+        {
+          name  = "K6_SCENARIO_KEY"
+          value = local.k6_scenario_key
+        }
+      ]
+      mountPoints = [
+        {
+          sourceVolume  = "k6-scenario"
+          containerPath = "/scenario"
+          readOnly      = false
+        }
+      ]
+      entryPoint = ["/bin/sh", "-c"]
+      command = [
+        "set -eu; aws s3 cp \"s3://$K6_SCENARIO_BUCKET/$K6_SCENARIO_KEY\" /scenario/scenario.js --only-show-errors"
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.k6.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "scenario-download"
         }
       }
     },
@@ -181,6 +239,7 @@ resource "aws_ecs_task_definition" "k6" {
 
   depends_on = [
     aws_iam_role_policy.k6_results_write,
+    aws_iam_role_policy.k6_scenario_read,
     aws_iam_role_policy_attachment.task_execution,
     aws_iam_role_policy.task_execution_environment_file,
   ]
