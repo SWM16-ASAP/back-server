@@ -114,7 +114,7 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 
 `up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록된다. 기본 대시보드에서는 API RPS·p50/p95/p99·HTTP 결과, k6 클라이언트 결과, JVM heap·process CPU·GC·thread, MongoDB driver pool, ECS CPU·memory를 조회한다. `Application instance`와 `k6 run` 변수로 개별 task와 실행을 선택할 수 있다. Redis·MySQL·MongoDB·ALB 세부 지표는 `Dependency and Platform` 대시보드에서 조회하며, Redis `GET` 계열 cache hit rate도 이 대시보드에서 확인한다. `Word Single-flight` 대시보드는 Word 조회 결과 재사용, leader/follower, follower 대기, lock 실패, Bedrock 호출·지연·SDK 재시도를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
 
-k6 task는 자동 생성된 실행 ID를 `testid` 라벨로 Prometheus remote write에 전송해 Grafana에서 앱 지표와 같은 시간축으로 조회할 수 있게 한다. 실행 맥락, 집계 summary, timestamp가 포함된 raw metric은 세션 전용 S3 bucket에도 업로드한다. 앱이 OOM으로 종료되면 JVM heap dump도 같은 bucket의 `test-sessions/<test_run_id>/heap-dumps/`에 업로드한다. heap dump에는 요청 데이터와 자격 증명이 포함될 수 있으므로 테스트 세션 안에서만 접근하고 공유하지 않는다. `run`은 `k6` 디렉터리에서 선택한 파일을 임시 S3 객체에 덮어쓴 뒤 인프라 재적용 없이 실행한다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
+k6 task는 자동 생성된 실행 ID를 `testid` 라벨로 Prometheus remote write에 전송해 Grafana에서 앱 지표와 같은 시간축으로 조회할 수 있게 한다. 실행 맥락, 집계 summary, timestamp가 포함된 raw metric은 세션 전용 S3 bucket에도 업로드한다. `run`은 `k6` 디렉터리에서 선택한 파일을 임시 S3 객체에 덮어쓴 뒤 인프라 재적용 없이 실행한다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
 
 ```bash
 ./infra/performance-test/run/performance-test.sh run --scenario smoke.js --profile llv-performance-test
@@ -124,7 +124,7 @@ k6 task는 자동 생성된 실행 ID를 `testid` 라벨로 Prometheus remote wr
 
 `reset`은 실행 중인 k6 task가 없을 때만 MongoDB, Redis, MySQL을 비우고 WireMock request journal과 mapping을 기준 시나리오로 되돌린다. MongoDB는 컬렉션 문서만 삭제해 애플리케이션이 만든 유니크 인덱스를 유지한다. Word single-flight 실행 전에는 기본 `success` profile로 적용한 뒤 `reset`을 실행해 빈 저장소 상태에서 시작한다.
 
-결과는 `test-sessions/<test_run_id>/runs/<k6-run-id>`와 `test-sessions/<test_run_id>/heap-dumps/` 경로에 세션 동안만 유지되며, `down`에서 results bucket과 함께 삭제된다. 수치 분석은 세션이 유지되는 동안 Grafana에서 수행한다.
+결과는 `test-sessions/<test_run_id>/runs/<k6-run-id>` 경로에 세션 동안만 유지되며, `down`에서 results bucket과 함께 삭제된다. 수치 분석은 세션이 유지되는 동안 Grafana에서 수행한다.
 
 테스트 종료 후에는 인프라를 제거하기 전에 S3 environment file 객체를 먼저 정리한다. 실패한 S3 객체는 `terraform destroy`의 `force_destroy`로 다시 정리한다. 로컬 `.env.app`은 Git에서 제외하고 권한 `600`으로 유지해 다음 테스트에서 재사용한다.
 

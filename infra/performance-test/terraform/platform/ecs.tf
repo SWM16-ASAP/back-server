@@ -34,36 +34,15 @@ resource "aws_ecs_task_definition" "app" {
   execution_role_arn       = aws_iam_role.task_execution.arn
   task_role_arn            = aws_iam_role.app_task.arn
 
-  volume {
-    name = "heap-dumps"
-  }
-
   container_definitions = jsonencode([
     {
       name      = "app"
       image     = "${aws_ecr_repository.app.repository_url}:${var.app_image_tag}"
-      essential = false
+      essential = true
       environmentFiles = [
         {
           type  = "s3"
           value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.app}"
-        }
-      ]
-      environment = [
-        {
-          name  = "JAVA_TOOL_OPTIONS"
-          value = "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps -XX:+ExitOnOutOfMemoryError"
-        },
-        {
-          name  = "HEAP_DUMP_EXIT_MARKER_PATH"
-          value = "/heap-dumps/.application-exited"
-        }
-      ]
-      mountPoints = [
-        {
-          sourceVolume  = "heap-dumps"
-          containerPath = "/heap-dumps"
-          readOnly      = false
         }
       ]
       portMappings = [
@@ -81,67 +60,12 @@ resource "aws_ecs_task_definition" "app" {
           awslogs-stream-prefix = "ecs"
         }
       }
-    },
-    {
-      name      = "heap-dump-uploader"
-      image     = var.aws_cli_image
-      essential = true
-      environment = [
-        {
-          name  = "AWS_REGION"
-          value = var.aws_region
-        },
-        {
-          name  = "RESULT_BUCKET"
-          value = aws_s3_bucket.results.id
-        },
-        {
-          name  = "TEST_RUN_ID"
-          value = var.test_run_id
-        }
-      ]
-      mountPoints = [
-        {
-          sourceVolume  = "heap-dumps"
-          containerPath = "/heap-dumps"
-          readOnly      = true
-        }
-      ]
-      entryPoint = ["/bin/sh", "-c"]
-      command = [
-        <<-EOT
-          set -eu
-          marker=/heap-dumps/.application-exited
-          while [ ! -f "$marker" ]; do
-            sleep 2
-          done
-
-          heap_dump="$(find /heap-dumps -maxdepth 1 -type f -name '*.hprof' -print -quit)"
-          if [ -n "$heap_dump" ]; then
-            uploaded_at="$(date -u +%Y%m%dT%H%M%SZ)"
-            aws s3 cp "$heap_dump" \
-              "s3://$RESULT_BUCKET/test-sessions/$TEST_RUN_ID/heap-dumps/$uploaded_at/$(basename "$heap_dump")" \
-              --only-show-errors
-          fi
-
-          exit "$(cat "$marker")"
-        EOT
-      ]
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.app.name
-          awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "heap-dump-uploader"
-        }
-      }
     }
   ])
 
   depends_on = [
     aws_iam_role_policy_attachment.task_execution,
     aws_iam_role_policy.task_execution_environment_file,
-    aws_iam_role_policy.app_task_heap_dump_write,
   ]
 }
 
