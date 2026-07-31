@@ -344,6 +344,14 @@ resource "aws_security_group" "k6" {
   }
 
   egress {
+    description = "Prometheus remote write in the test VPC"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
     description = "HTTPS for image pulls and AWS APIs"
     from_port   = 443
     to_port     = 443

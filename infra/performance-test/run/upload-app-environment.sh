@@ -89,7 +89,7 @@ upload_environment_file() {
 
 upload_environment_file app 'local.environment_file_keys.app' \
 	SPRING_DATA_MONGODB_URI SPRING_PROFILES_ACTIVE SPRING_DATA_MONGODB_DATABASE \
-	SPRING_DATA_REDIS_HOST SPRING_DATA_REDIS_PORT RATE_LIMIT_ENABLED WORD_SINGLE_FLIGHT_ENABLED \
+	SPRING_DATA_REDIS_HOST SPRING_DATA_REDIS_PORT RATE_LIMIT_ENABLED \
 	JWT_SECRET IMPORT_API_KEY S3_REGION S3_AI_INPUT_NAME S3_AI_OUTPUT_NAME BEDROCK_ENDPOINT \
 	DISCORD_SUGGESTION_WEBHOOK FCM_ENABLED SENTRY_ENABLED SENTRY_DSN
 upload_environment_file mysql 'local.environment_file_keys.mysql' MYSQL_ROOT_PASSWORD
@@ -103,5 +103,6 @@ upload_environment_file prometheus 'local.environment_file_keys.prometheus' \
 	ATLAS_PROMETHEUS_USERNAME ATLAS_PROMETHEUS_PASSWORD
 upload_environment_file grafana 'local.environment_file_keys.grafana' \
 	GF_SECURITY_ADMIN_USER GF_SECURITY_ADMIN_PASSWORD
+upload_environment_file k6 'local.environment_file_keys.k6' JWT_SECRET
 
 echo "Service-specific environment files uploaded to s3://${bucket}/environment/."

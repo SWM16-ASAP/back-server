@@ -56,6 +56,9 @@ class WordServiceTest {
 	@Mock
 	private WordSingleFlightRedisCoordinator singleFlightCoordinator;
 
+	@Mock
+	private WordGenerationMetrics wordGenerationMetrics;
+
 	private WordService wordService;
 
 	private WordPersistenceService wordPersistenceService;
@@ -73,7 +76,7 @@ class WordServiceTest {
 		wordResponseMapper = new WordResponseMapper();
 		wordService = new WordService(wordRepository, wordBookmarkRepository, wordVariantRepository,
 				invalidWordRepository, wordAiService, singleFlightCoordinator, wordPersistenceService,
-				wordResponseMapper);
+				wordResponseMapper, wordGenerationMetrics);
 
 		lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any(), any()))
 			.thenAnswer(invocation -> {
@@ -146,6 +149,7 @@ class WordServiceTest {
 
 		// AI 호출 없이 DB에서만 조회되었는지 확인
 		verify(wordVariantRepository).findAllByWord("run");
+		verify(wordGenerationMetrics).recordLookupResult(true);
 		verify(wordRepository).findByWordAndTargetLanguageCode("run", LanguageCode.KO);
 		verify(wordAiService, never()).analyzeWord(anyString(), anyString());
 	}
@@ -208,6 +212,7 @@ class WordServiceTest {
 		verify(wordAiService, atLeastOnce()).analyzeWord(newWord, LanguageCode.KO.getCode());
 		verify(wordRepository).save(any(Word.class));
 		verify(wordVariantRepository).save(any(WordVariant.class));
+		verify(wordGenerationMetrics).recordLookupResult(false);
 	}
 
 	@Test

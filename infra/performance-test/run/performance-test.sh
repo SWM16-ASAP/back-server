@@ -18,17 +18,18 @@ usage() {
 Usage: performance-test.sh <command> [options]
 
 Commands:
-  up       Create the performance-test environment, verify connectivity, and reset state.
-  run      Run the k6 task in an existing environment.
-  reset    Reset test data and WireMock state in an existing environment.
-  verify   Verify an existing performance-test environment.
-  status   Show Terraform resources, outputs, and ALB target health.
-  down     Remove the environment and confirm Terraform state is empty.
+  up          Create the performance-test environment, verify connectivity, and reset state.
+  update-app  Publish the current app image and roll it out without resetting test state.
+  run         Run the k6 task in an existing environment.
+  reset       Reset test data and WireMock state in an existing environment.
+  verify      Verify an existing performance-test environment.
+  status      Show Terraform resources, outputs, and ALB target health.
+  down        Remove the environment and confirm Terraform state is empty.
 
 Options:
   --profile <name>  Use the named AWS CLI profile.
-  --run-id <id>     Set the identifier for one k6 execution; generated when omitted.
-  --yes             Skip Terraform approval prompts for up or down.
+  --scenario <file> Select a JavaScript file under infra/performance-test/k6 for run.
+  --yes             Skip Terraform approval prompts for up, update-app, or down.
   -h, --help        Show this help message.
 EOF
 }
@@ -236,9 +237,8 @@ preflight() {
 	configure_aws_profile "$profile"
 	verify_aws_identity
 
-	if [[ "$command" == "up" ]]; then
+	if [[ "$command" == "up" || "$command" == "update-app" ]]; then
 		local gradle_output
-		require_command curl
 		require_command docker
 		require_command git
 		[[ -x "${repository_root}/gradlew" ]] || fail "Gradle wrapper is not executable."
@@ -249,11 +249,16 @@ preflight() {
 			fail "Docker is not running."
 		fi
 		verify_clean_worktree
-		prepare_local_files
+		if [[ "$command" == "up" ]]; then
+			require_command curl
+			prepare_local_files
+			explain_created_local_files
+			refresh_grafana_allowed_cidr
+			validate_local_files
+		elif [[ ! -f "$terraform_vars" ]]; then
+			fail "Terraform variables not found: ${terraform_vars#${repository_root}/}"
+		fi
 		set_application_image_tag
-		explain_created_local_files
-		refresh_grafana_allowed_cidr
-		validate_local_files
 	elif [[ "$command" == "down" && ! -f "$terraform_vars" ]]; then
 		fail "Terraform variables not found: ${terraform_vars#${repository_root}/}"
 	fi
@@ -364,6 +369,23 @@ run_up() {
 	echo "Performance-test environment is ready."
 }
 
+run_update_app() {
+	preflight update-app
+	terraform_state_exists || fail "No Terraform-managed performance-test environment exists. Run up first."
+
+	if [[ "$auto_approve" == true ]]; then
+		export TF_CLI_ARGS_apply="${TF_CLI_ARGS_apply:+${TF_CLI_ARGS_apply} }-auto-approve"
+	fi
+
+	run_step "Publish application image" "${script_dir}/publish-app-image.sh" "$platform_dir"
+	run_step "Roll out application update" terraform -chdir="$platform_dir" apply
+	run_step "Verify application deployment" "${script_dir}/verify-environment.sh" "$platform_dir"
+	show_grafana_url
+
+	echo
+	echo "Application update is ready. Test state was not reset."
+}
+
 run_verify() {
 	preflight verify
 	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
@@ -374,11 +396,10 @@ run_k6() {
 	preflight run
 	terraform_state_exists || fail "No Terraform-managed performance-test environment exists."
 
-	local effective_run_id="${run_id:-}"
-	if [[ -z "$effective_run_id" ]]; then
-		effective_run_id="$(generate_run_id)"
-	fi
-	run_step "Run k6 task (${effective_run_id})" "${script_dir}/run-k6.sh" "$platform_dir" "$effective_run_id"
+	local effective_run_id
+	effective_run_id="$(generate_run_id)"
+	run_step "Run k6 task (${scenario}, ${effective_run_id})" \
+		"${script_dir}/run-k6.sh" "$platform_dir" "$effective_run_id" "$scenario"
 }
 
 run_reset() {
@@ -464,7 +485,7 @@ fi
 shift
 
 profile=""
-run_id=""
+scenario=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--profile)
@@ -476,9 +497,9 @@ while [[ $# -gt 0 ]]; do
 			auto_approve=true
 			shift
 			;;
-		--run-id)
-			[[ $# -ge 2 ]] || fail "--run-id requires a value."
-			run_id="$2"
+		--scenario)
+			[[ $# -ge 2 ]] || fail "--scenario requires a file name."
+			scenario="$2"
 			shift 2
 			;;
 		-h | --help)
@@ -491,11 +512,25 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+if [[ "$command_name" == "run" ]]; then
+	if [[ ! "$scenario" =~ ^[a-z0-9][a-z0-9._-]*\.js$ ]]; then
+		fail "--scenario must be a JavaScript file name under infra/performance-test/k6."
+	fi
+	if [[ ! -f "${repository_root}/infra/performance-test/k6/${scenario}" ]]; then
+		fail "k6 scenario not found: infra/performance-test/k6/${scenario}"
+	fi
+elif [[ -n "$scenario" ]]; then
+	fail "--scenario is only valid with the run command."
+fi
+
 cd "$repository_root"
 
 case "$command_name" in
 	up)
 		run_up
+		;;
+	update-app)
+		run_update_app
 		;;
 	run)
 		run_k6

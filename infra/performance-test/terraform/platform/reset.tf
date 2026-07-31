@@ -33,7 +33,7 @@ resource "aws_ecs_task_definition" "reset_mongo" {
             exit 1
           fi
           mongosh "$SPRING_DATA_MONGODB_URI" --quiet \
-            --eval "db.getSiblingDB('$SPRING_DATA_MONGODB_DATABASE').dropDatabase()"
+            --eval "const database = db.getSiblingDB('$SPRING_DATA_MONGODB_DATABASE'); database.getCollectionNames().filter(name => !name.startsWith('system.')).forEach(name => database.getCollection(name).deleteMany({}));"
         EOT
       ]
       logConfiguration = {

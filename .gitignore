@@ -59,6 +59,9 @@ monitoring/alertmanager.yml
 k6/reports/**
 !k6/reports/.gitkeep
 
+### Performance test recordings ###
+infra/performance-test/recordings/
+
 ### Terraform ###
 **/.terraform/
 **/*.tfstate

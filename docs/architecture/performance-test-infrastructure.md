@@ -29,13 +29,14 @@ Bedrock과 Discord는 WireMock으로 성공, 지연, 오류 응답을 통제한�
 ## 목표 실행 주기
 
 ```text
-up -> reset -> run -> reset -> run -> down
+up -> update-app? -> reset -> run -> reset -> run -> down
 ```
 
 | 명령 | 역할 |
 | --- | --- |
 | `up` | 전체 인프라를 생성하고 연결을 검증한 뒤 최초 상태 초기화를 실행한다. |
-| `run` | 기존 인프라에서 일회성 k6 Task만 실행한다. |
+| `update-app` | 현재 커밋의 앱 이미지만 게시하고 ECS rolling deployment 및 연결 검증을 수행한다. 테스트 상태는 유지한다. |
+| `run` | 기존 인프라에서 선택한 시나리오의 일회성 k6 Task를 실행한다. |
 | `reset` | MongoDB, Redis, MySQL, WireMock을 기준 상태로 되돌린다. |
 | `status` | 인프라 상태와 Grafana 주소를 확인한다. |
 | `down` | 분석 완료 후 전체 인프라를 제거한다. |
@@ -47,7 +48,7 @@ up -> reset -> run -> reset -> run -> down
 - seed 데이터는 `infra/performance-test/seed/`에서 관리한다.
 - 현재 구체적인 도메인 시나리오는 범위 밖이므로 초기화는 저장소를 비우는 데까지 수행하고, fixture 적용은 시나리오와 함께 추가한다.
 - 초기화 작업은 반복 실행해도 같은 결과가 나오는 멱등 구조로 만든다.
-- MongoDB와 MySQL은 테스트 전용 데이터베이스만 초기화한다.
+- MongoDB와 MySQL은 테스트 전용 데이터베이스만 초기화한다. MongoDB는 문서만 삭제해 인덱스를 유지한다.
 - Redis는 테스트 전용 인스턴스의 상태를 제거한다.
 - WireMock은 요청 기록과 mapping을 초기화한 뒤 선택한 시나리오를 다시 등록한다.
 - 테스트 실행 중에는 초기화를 허용하지 않는다.
@@ -62,7 +63,7 @@ up -> reset -> run -> reset -> run -> down
 - ECS와 ALB의 CPU, memory, target 상태
 - single-flight, Bedrock, circuit breaker 애플리케이션 지표
 
-기본 대시보드는 요청량, p50/p95/p99 지연, HTTP 결과, ECS CPU/memory, JVM heap, GC pause p99, allocation rate, thread state, HTTP worker를 여러 API 인스턴스 기준으로 합산한다. Redis, MySQL, MongoDB와 ALB 세부 지표는 별도 의존성·플랫폼 대시보드에서 본다. 인스턴스별 분석이 필요하면 `instance` 라벨로 구분한다. Prometheus 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
+기본 대시보드는 요청량, p50/p95/p99 지연, HTTP 결과, ECS CPU/memory, JVM heap·process CPU·GC pause p99·allocation rate·thread state·HTTP worker, MongoDB driver pool을 제공한다. k6는 실행 ID를 `testid` 라벨로 Prometheus에 전송해 클라이언트 요청률·지연·실패·timeout을 앱 지표와 같은 시간축에서 비교한다. 합산 지표를 기본으로 두되 `instance` 변수로 특정 API 인스턴스를 선택해 비교할 수 있다. Redis, MySQL, MongoDB와 ALB 세부 지표는 별도 의존성·플랫폼 대시보드에서 본다. Redis `GET` 계열 cache hit rate는 이 대시보드에서 확인하며, MongoDB에 저장된 Word 결과 재사용은 Word 전용 지표로 구분한다. Prometheus 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
 
 ## 운영 경계
 
@@ -74,7 +75,6 @@ up -> reset -> run -> reset -> run -> down
 
 ## 현재 범위 제외
 
-- 구체적인 도메인 부하 시나리오
 - 워밍업과 측정 구간 자동화
 - 성능 한계와 성공 기준
 - 반복 측정과 통계 분석

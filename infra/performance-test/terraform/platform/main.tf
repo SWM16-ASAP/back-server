@@ -3,6 +3,7 @@ locals {
   environment_file_keys = {
     app                 = "environment/app.env"
     grafana             = "environment/grafana.env"
+    k6                  = "environment/k6.env"
     mysql               = "environment/mysql.env"
     mysql_exporter      = "environment/mysql-exporter.env"
     mysql_exporter_init = "environment/mysql-exporter-init.env"
@@ -10,12 +11,12 @@ locals {
     reset_mongo         = "environment/reset-mongo.env"
   }
   availability_zones = var.availability_zones
+  k6_scenario_key    = "scenarios/current.js"
   public_subnets = {
     for index, availability_zone in local.availability_zones :
     availability_zone => cidrsubnet(var.vpc_cidr, 8, index)
   }
   wiremock_mappings = file("${path.module}/../../wiremock/${var.mock_scenario}.json")
-  k6_smoke_script   = file("${path.module}/../../k6/smoke.js")
   dependency_services = {
     redis = {
       image       = var.redis_image

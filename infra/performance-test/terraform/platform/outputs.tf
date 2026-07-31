@@ -56,6 +56,11 @@ output "k6_task_definition_arn" {
   value       = aws_ecs_task_definition.k6.arn
 }
 
+output "k6_scenario_key" {
+  description = "S3 object key overwritten with the selected k6 scenario before each run."
+  value       = local.k6_scenario_key
+}
+
 output "k6_security_group_id" {
   description = "Security group assigned to the one-off k6 task."
   value       = aws_security_group.k6.id
