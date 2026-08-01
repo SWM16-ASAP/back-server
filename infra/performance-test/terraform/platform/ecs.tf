@@ -5,6 +5,11 @@ resource "aws_cloudwatch_log_group" "app" {
 
 resource "aws_ecs_cluster" "this" {
   name = "${local.name_prefix}-cluster"
+
+  setting {
+    name  = "containerInsights"
+    value = "enhanced"
+  }
 }
 
 resource "aws_service_discovery_service" "app" {

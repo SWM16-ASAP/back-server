@@ -36,6 +36,7 @@ locals {
     app_service_name = aws_ecs_service.app.name
     aws_region       = var.aws_region
     cluster_name     = aws_ecs_cluster.this.name
+    k6_task_family   = aws_ecs_task_definition.k6.family
     test_run_id      = var.test_run_id
   })
 

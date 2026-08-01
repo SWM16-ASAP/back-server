@@ -11,7 +11,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
       "panels": [],
-      "title": "Request and Load",
+      "title": "Application Overview",
       "type": "row"
     },
     {
@@ -20,8 +20,11 @@
       "gridPos": { "h": 8, "w": 6, "x": 0, "y": 1 },
       "id": 1,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[1m]))", "legendFormat": "requests/s", "refId": "A" }],
-      "title": "API RPS",
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[$__rate_interval]))", "legendFormat": "RPS", "refId": "A" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\",uri!~\"/actuator.*\"}[$__rate_interval]))", "legendFormat": "failures/s (5xx)", "refId": "B" }
+      ],
+      "title": "Total Requests per Second",
       "type": "timeseries"
     },
     {
@@ -31,11 +34,11 @@
       "id": 2,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[1m])))", "legendFormat": "p50", "refId": "A" },
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[1m])))", "legendFormat": "p95", "refId": "B" },
-        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[1m])))", "legendFormat": "p99", "refId": "C" }
+        { "expr": "sum(rate(http_server_requests_seconds_sum{uri!~\"/actuator.*\"}[$__rate_interval])) / sum(rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[$__rate_interval]))", "legendFormat": "avg", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[$__rate_interval])))", "legendFormat": "p95", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[$__rate_interval])))", "legendFormat": "p99", "refId": "C" }
       ],
-      "title": "API Latency",
+      "title": "Response Times",
       "type": "timeseries"
     },
     {
@@ -45,9 +48,9 @@
       "id": 3,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"2..\",uri!~\"/actuator.*\"}[1m]))", "legendFormat": "2xx", "refId": "A" },
-        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"4..\",uri!~\"/actuator.*\"}[1m]))", "legendFormat": "4xx", "refId": "B" },
-        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\",uri!~\"/actuator.*\"}[1m]))", "legendFormat": "5xx", "refId": "C" }
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"2..\",uri!~\"/actuator.*\"}[$__rate_interval]))", "legendFormat": "2xx", "refId": "A" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"4..\",uri!~\"/actuator.*\"}[$__rate_interval]))", "legendFormat": "4xx", "refId": "B" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\",uri!~\"/actuator.*\"}[$__rate_interval]))", "legendFormat": "5xx", "refId": "C" }
       ],
       "title": "HTTP Outcomes",
       "type": "timeseries"
@@ -62,22 +65,28 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "max": 1, "min": 0, "unit": "percentunit" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
       "id": 4,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) / sum(jvm_memory_max_bytes{area=\"heap\"})", "legendFormat": "heap", "refId": "A" }],
-      "title": "JVM Heap Usage",
+      "targets": [
+        { "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})", "legendFormat": "heap", "refId": "A" },
+        { "expr": "sum(jvm_memory_used_bytes{area=\"nonheap\"})", "legendFormat": "non-heap", "refId": "B" },
+        { "expr": "sum(jvm_memory_used_bytes)", "legendFormat": "total", "refId": "C" },
+        { "expr": "sum(jvm_memory_used_bytes{area=\"heap\",id=~\".*Old Gen.*\"})", "legendFormat": "old gen", "refId": "D" },
+        { "expr": "sum(jvm_gc_live_data_size_bytes)", "legendFormat": "live after GC", "refId": "E" }
+      ],
+      "title": "JVM Memory Usage",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "max": 1, "min": 0, "unit": "percentunit" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
       "id": 13,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum by (state) (jvm_threads_states_threads)", "legendFormat": "{{state}}", "refId": "A" }],
-      "title": "JVM Thread States",
+      "targets": [{ "expr": "avg(process_cpu_usage)", "legendFormat": "average process CPU", "refId": "A" }],
+      "title": "JVM Process CPU",
       "type": "timeseries"
     },
     {
@@ -86,37 +95,45 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
       "id": 5,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "sum(tomcat_threads_busy_threads)", "legendFormat": "busy", "refId": "A" },
-        { "expr": "sum(tomcat_threads_current_threads)", "legendFormat": "current", "refId": "B" },
-        { "expr": "sum(tomcat_threads_config_max_threads)", "legendFormat": "max", "refId": "C" }
-      ],
-      "title": "HTTP Server Threads",
+      "targets": [{ "expr": "sum by (state) (jvm_threads_states_threads)", "legendFormat": "{{state}}", "refId": "A" }],
+      "title": "JVM Thread States",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
       "id": 14,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "expr": "histogram_quantile(0.99, sum by (le) (rate(jvm_gc_pause_seconds_bucket[1m])))", "legendFormat": "p99", "refId": "A" }
+        { "expr": "sum(rate(jvm_gc_pause_seconds_sum[$__rate_interval])) / sum(rate(jvm_gc_pause_seconds_count[$__rate_interval]))", "legendFormat": "avg", "refId": "A" },
+        { "expr": "max_over_time(jvm_gc_pause_seconds_max[$__rate_interval])", "legendFormat": "max", "refId": "B" }
       ],
-      "title": "GC Pause p99",
+      "title": "GC Pause Time",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
       "id": 15,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "expr": "sum(rate(jvm_gc_memory_allocated_bytes_total[1m]))", "legendFormat": "allocated", "refId": "A" },
-        { "expr": "sum(rate(jvm_gc_memory_promoted_bytes_total[1m]))", "legendFormat": "promoted", "refId": "B" }
+        { "expr": "sum(executor_queued_tasks)", "legendFormat": "queued", "refId": "A" },
+        { "expr": "sum(executor_active_threads)", "legendFormat": "active", "refId": "B" },
+        { "expr": "sum(executor_pool_max_threads)", "legendFormat": "max", "refId": "C" }
       ],
-      "title": "JVM Allocation and Promotion",
+      "title": "Executor Queue and Threads",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+      "id": 23,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "sum(rate(jvm_gc_pause_seconds_count[$__rate_interval])) * 60", "legendFormat": "count/min", "refId": "A" }],
+      "title": "GC Count / min",
       "type": "timeseries"
     },
     {
@@ -124,7 +141,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
       "id": 104,
       "panels": [],
-      "title": "k6 Client Results",
+      "title": "k6 Load Generator",
       "type": "row"
     },
     {
@@ -144,24 +161,21 @@
       "id": 17,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "expr": "max(k6_http_req_duration_p50{testid=~\"$k6_run\"})", "legendFormat": "p50", "refId": "A" },
-        { "expr": "max(k6_http_req_duration_p95{testid=~\"$k6_run\"})", "legendFormat": "p95", "refId": "B" },
-        { "expr": "max(k6_http_req_duration_p99{testid=~\"$k6_run\"})", "legendFormat": "p99", "refId": "C" }
+        { "expr": "histogram_avg(sum(rate(k6_http_req_duration_seconds{testid=~\"$k6_run\"}[$__rate_interval])))", "legendFormat": "avg", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum(rate(k6_http_req_duration_seconds{testid=~\"$k6_run\"}[$__rate_interval])))", "legendFormat": "p95", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum(rate(k6_http_req_duration_seconds{testid=~\"$k6_run\"}[$__rate_interval])))", "legendFormat": "p99", "refId": "C" }
       ],
-      "title": "k6 Request Duration",
+      "title": "k6 Response Times",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "max": 1, "min": 0, "unit": "percentunit" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 27 },
       "id": 18,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        { "expr": "max(k6_http_req_failed_rate{testid=~\"$k6_run\"})", "legendFormat": "failed", "refId": "A" },
-        { "expr": "max(k6_client_timeout_rate{testid=~\"$k6_run\"})", "legendFormat": "timeout", "refId": "B" }
-      ],
-      "title": "k6 Failure and Timeout Rate",
+      "targets": [{ "expr": "max(k6_vus{testid=~\"$k6_run\"})", "legendFormat": "users", "refId": "A" }],
+      "title": "Number of Users",
       "type": "timeseries"
     },
     {
@@ -169,7 +183,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
       "id": 105,
       "panels": [],
-      "title": "Instance and Storage Pools",
+      "title": "Instance Comparison",
       "type": "row"
     },
     {
@@ -184,12 +198,16 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "max": 1, "min": 0, "unit": "percentunit" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 6, "x": 6, "y": 36 },
       "id": 20,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [{ "expr": "sum by (instance) (jvm_memory_used_bytes{area=\"heap\",instance=~\"$instance\"}) / sum by (instance) (jvm_memory_max_bytes{area=\"heap\",instance=~\"$instance\"})", "legendFormat": "{{instance}}", "refId": "A" }],
-      "title": "JVM Heap by Instance",
+      "targets": [
+        { "expr": "sum by (instance) (jvm_memory_used_bytes{area=\"heap\",instance=~\"$instance\"})", "legendFormat": "heap {{instance}}", "refId": "A" },
+        { "expr": "sum by (instance) (jvm_memory_used_bytes{area=\"nonheap\",instance=~\"$instance\"})", "legendFormat": "non-heap {{instance}}", "refId": "B" },
+        { "expr": "sum by (instance) (jvm_memory_used_bytes{instance=~\"$instance\"})", "legendFormat": "total {{instance}}", "refId": "C" }
+      ],
+      "title": "JVM Memory by Instance",
       "type": "timeseries"
     },
     {
@@ -220,8 +238,42 @@
       "type": "timeseries"
     },
     {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 44 },
+      "id": 24,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "sum by (instance, state) (jvm_threads_states_threads{instance=~\"$instance\"})", "legendFormat": "{{instance}} {{state}}", "refId": "A" }],
+      "title": "JVM Thread States by Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 44 },
+      "id": 25,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "expr": "sum by (instance) (executor_queued_tasks{instance=~\"$instance\"})", "legendFormat": "queued {{instance}}", "refId": "A" },
+        { "expr": "sum by (instance) (executor_active_threads{instance=~\"$instance\"})", "legendFormat": "active {{instance}}", "refId": "B" },
+        { "expr": "sum by (instance) (executor_pool_max_threads{instance=~\"$instance\"})", "legendFormat": "max {{instance}}", "refId": "C" }
+      ],
+      "title": "Executor Queue by Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 44 },
+      "id": 26,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "sum by (instance) (jvm_memory_used_bytes{area=\"heap\",id=~\".*Old Gen.*\",instance=~\"$instance\"})", "legendFormat": "{{instance}}", "refId": "A" }],
+      "title": "Old Gen by Instance",
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 52 },
       "id": 103,
       "panels": [],
       "title": "Platform",
@@ -230,7 +282,7 @@
     {
       "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
       "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 45 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 53 },
       "id": 10,
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -238,6 +290,26 @@
         { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ServiceName": "${app_service_name}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "MemoryUtilization", "metricQueryType": 0, "namespace": "AWS/ECS", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "${aws_region}", "statistic": "Average" }
       ],
       "title": "ECS Application Utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": { "defaults": { "max": 100, "min": 0, "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 53 },
+      "id": 27,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ContainerName": "k6", "TaskDefinitionFamily": "${k6_task_family}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "ContainerCpuUtilization", "metricQueryType": 0, "namespace": "ECS/ContainerInsights", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "${aws_region}", "statistic": "Average" }],
+      "title": "k6 Task CPU Utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": { "defaults": { "min": 0, "unit": "mbytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 53 },
+      "id": 28,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ContainerName": "k6", "TaskDefinitionFamily": "${k6_task_family}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "ContainerMemoryUtilized", "metricQueryType": 0, "namespace": "ECS/ContainerInsights", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "${aws_region}", "statistic": "Average" }],
+      "title": "k6 Task Memory Utilized",
       "type": "timeseries"
     }
   ],
