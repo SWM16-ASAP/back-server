@@ -78,8 +78,8 @@ resource "aws_ecs_task_definition" "k6" {
           value = "http://prometheus.${aws_service_discovery_private_dns_namespace.this.name}:9090/api/v1/write"
         },
         {
-          name  = "K6_PROMETHEUS_RW_TREND_STATS"
-          value = "p(50),p(95),p(99)"
+          name  = "K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM"
+          value = "true"
         },
         {
           name  = "TEST_RUN_ID"
