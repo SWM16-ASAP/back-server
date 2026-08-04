@@ -1,5 +1,6 @@
 package com.linglevel.api.word.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.WordAnalysisResult;
@@ -24,6 +25,12 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class WordService {
+
+	private static final TypeReference<Word> WORD_RESULT_TYPE = new TypeReference<>() {
+	};
+
+	private static final TypeReference<List<WordVariant>> WORD_VARIANT_RESULT_TYPE = new TypeReference<>() {
+	};
 
 	private final WordRepository wordRepository;
 
@@ -74,7 +81,8 @@ public class WordService {
 		return wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage)
 			.orElseGet(() -> singleFlightCoordinator.execute(originalForm, targetLanguage,
 					() -> analyzeAndSaveOriginalWord(originalForm, targetLanguage),
-					() -> wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage)));
+					() -> wordRepository.findByWordAndTargetLanguageCode(originalForm, targetLanguage),
+					WORD_RESULT_TYPE));
 	}
 
 	private Word analyzeAndSaveOriginalWord(String originalForm, LanguageCode targetLanguage) {
@@ -105,7 +113,8 @@ public class WordService {
 		return singleFlightCoordinator.execute(word, targetLanguage, () -> {
 			List<WordAnalysisResult> analysisResults = analyzeWordAndUpdateInvalidCache(word, targetLanguage);
 			return wordPersistenceService.saveAnalysisResults(word, analysisResults, cachedInvalidWord);
-		}, () -> findWordVariantsAfterSingleFlight(word, invalidAttemptCountBeforeSingleFlight));
+		}, () -> findWordVariantsAfterSingleFlight(word, invalidAttemptCountBeforeSingleFlight),
+				WORD_VARIANT_RESULT_TYPE);
 	}
 
 	private Optional<List<WordVariant>> findWordVariantsAfterSingleFlight(String word,

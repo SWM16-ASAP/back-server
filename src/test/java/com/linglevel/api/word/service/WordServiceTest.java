@@ -1,5 +1,6 @@
 package com.linglevel.api.word.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.linglevel.api.bookmark.repository.WordBookmarkRepository;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.dto.*;
@@ -78,7 +79,9 @@ class WordServiceTest {
 				invalidWordRepository, wordAiService, singleFlightCoordinator, wordPersistenceService,
 				wordResponseMapper, wordGenerationMetrics);
 
-		lenient().when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any(), any()))
+		lenient()
+			.when(singleFlightCoordinator.execute(anyString(), any(LanguageCode.class), any(), any(),
+					any(TypeReference.class)))
 			.thenAnswer(invocation -> {
 				Supplier<Optional<?>> lookup = invocation.getArgument(3);
 				Optional<?> existing = lookup.get();
@@ -305,7 +308,7 @@ class WordServiceTest {
 
 		when(wordVariantRepository.findAllByWord(word)).thenReturn(List.of());
 		when(invalidWordRepository.findByWord(word)).thenReturn(Optional.empty());
-		when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any(), any()))
+		when(singleFlightCoordinator.execute(eq(word), eq(LanguageCode.KO), any(), any(), any(TypeReference.class)))
 			.thenThrow(new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT));
 
 		assertThatThrownBy(() -> wordService.getOrCreateWords(userId, word, LanguageCode.KO))
@@ -330,7 +333,8 @@ class WordServiceTest {
 		when(wordVariantRepository.findAllByWord(inputWord)).thenReturn(List.of(wordVariant));
 		when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
 			.thenReturn(Optional.empty());
-		when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any(), any()))
+		when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any(), any(),
+				any(TypeReference.class)))
 			.thenThrow(new WordsException(WordsErrorCode.WORD_ANALYSIS_TIMEOUT));
 
 		assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))
@@ -455,7 +459,8 @@ class WordServiceTest {
 		when(wordVariantRepository.findAllByWord(inputWord)).thenReturn(List.of(wordVariant));
 		when(wordRepository.findByWordAndTargetLanguageCode(originalForm, LanguageCode.KO))
 			.thenReturn(Optional.empty());
-		when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any(), any()))
+		when(singleFlightCoordinator.execute(eq(originalForm), eq(LanguageCode.KO), any(), any(),
+				any(TypeReference.class)))
 			.thenThrow(new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS));
 
 		assertThatThrownBy(() -> wordService.getOrCreateWords(userId, inputWord, LanguageCode.KO))

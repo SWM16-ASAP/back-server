@@ -1,5 +1,7 @@
 package com.linglevel.api.word.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.config.WordSingleFlightProperties;
 import com.linglevel.api.word.dto.WordAnalysisResult;
@@ -16,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.connection.Message;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -24,6 +27,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -73,8 +78,8 @@ class WordSingleFlightRedisCoordinatorTest {
 		when(redissonLock.isHeldByCurrentThread()).thenReturn(true);
 
 		meterRegistry = new SimpleMeterRegistry();
-		coordinator = new WordSingleFlightRedisCoordinator(stringRedisTemplate, redisMessageListenerContainer,
-				redissonClient, properties, new WordGenerationMetrics(meterRegistry));
+		coordinator = new WordSingleFlightRedisCoordinator(stringRedisTemplate, new ObjectMapper(),
+				redisMessageListenerContainer, redissonClient, properties, new WordGenerationMetrics(meterRegistry));
 		ReflectionTestUtils.invokeMethod(coordinator, "initialize");
 	}
 
@@ -124,6 +129,67 @@ class WordSingleFlightRedisCoordinatorTest {
 				.count()).isEqualTo(1);
 			assertThat(meterRegistry.counter("word.single.flight.requests", "role", "follower", "outcome", "success")
 				.count()).isEqualTo(1);
+		}
+		finally {
+			executor.shutdownNow();
+		}
+	}
+
+	@Test
+	@DisplayName("결과 payload를 수신한 follower는 DB 조회 없이 leader 결과를 반환한다")
+	void execute_returnsSharedResultWithoutFollowerLookup() throws Exception {
+		AtomicInteger lockAttempts = new AtomicInteger();
+		CountDownLatch leaderActionEntered = new CountDownLatch(1);
+		CountDownLatch followerWaiting = new CountDownLatch(1);
+		CountDownLatch allowLeaderCompletion = new CountDownLatch(1);
+		AtomicInteger lookupCalls = new AtomicInteger();
+
+		when(redissonLock.tryLock(0, TimeUnit.MILLISECONDS)).thenAnswer(invocation -> {
+			int attempt = lockAttempts.getAndIncrement();
+			if (attempt == 0) {
+				return true;
+			}
+			if (attempt == 2) {
+				followerWaiting.countDown();
+			}
+			return false;
+		});
+		doAnswer(invocation -> {
+			Message message = org.mockito.Mockito.mock(Message.class);
+			when(message.getChannel())
+				.thenReturn(invocation.getArgument(0, String.class).getBytes(StandardCharsets.UTF_8));
+			when(message.getBody())
+				.thenReturn(invocation.getArgument(1, String.class).getBytes(StandardCharsets.UTF_8));
+			ReflectionTestUtils.invokeMethod(coordinator, "onDoneMessage", message, null);
+			return 1L;
+		}).when(stringRedisTemplate).convertAndSend(anyString(), anyString());
+
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		try {
+			Future<String> leader = executor.submit(() -> coordinator.execute("rabbit", LanguageCode.KO, () -> {
+				leaderActionEntered.countDown();
+				await(allowLeaderCompletion);
+				return "shared-result";
+			}, () -> {
+				lookupCalls.incrementAndGet();
+				return Optional.empty();
+			}, new TypeReference<>() {
+			}));
+
+			assertThat(leaderActionEntered.await(1, TimeUnit.SECONDS)).isTrue();
+			Future<String> follower = executor
+				.submit(() -> coordinator.execute("rabbit", LanguageCode.KO, () -> "unexpected-leader-result", () -> {
+					lookupCalls.incrementAndGet();
+					return Optional.empty();
+				}, new TypeReference<>() {
+				}));
+			assertThat(followerWaiting.await(1, TimeUnit.SECONDS)).isTrue();
+
+			allowLeaderCompletion.countDown();
+
+			assertThat(leader.get(1, TimeUnit.SECONDS)).isEqualTo("shared-result");
+			assertThat(follower.get(1, TimeUnit.SECONDS)).isEqualTo("shared-result");
+			assertThat(lookupCalls.get()).isEqualTo(1);
 		}
 		finally {
 			executor.shutdownNow();
@@ -274,6 +340,16 @@ class WordSingleFlightRedisCoordinatorTest {
 	private void sleep(long millis) {
 		try {
 			Thread.sleep(millis);
+		}
+		catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void await(CountDownLatch latch) {
+		try {
+			latch.await(1, TimeUnit.SECONDS);
 		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
