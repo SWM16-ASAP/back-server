@@ -21,6 +21,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.connection.Message;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -39,6 +40,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
@@ -51,6 +55,9 @@ class WordSingleFlightRedisCoordinatorTest {
 
 	@Mock
 	private StringRedisTemplate stringRedisTemplate;
+
+	@Mock
+	private ValueOperations<String, String> valueOperations;
 
 	@Mock
 	private RedisMessageListenerContainer redisMessageListenerContainer;
@@ -72,7 +79,9 @@ class WordSingleFlightRedisCoordinatorTest {
 		properties = new WordSingleFlightProperties();
 		properties.setEnabled(true);
 		properties.setWaitTimeoutMs(120);
+		properties.setResultCacheTtlMs(30_000);
 		properties.setResultSchemaVersion("v2");
+		when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
 
 		when(redissonClient.getLock(anyString())).thenReturn(redissonLock);
 		when(redissonLock.isHeldByCurrentThread()).thenReturn(true);
@@ -136,13 +145,19 @@ class WordSingleFlightRedisCoordinatorTest {
 	}
 
 	@Test
-	@DisplayName("결과 payload를 수신한 follower는 DB 조회 없이 leader 결과를 반환한다")
-	void execute_returnsSharedResultWithoutFollowerLookup() throws Exception {
+	@DisplayName("완료 신호를 수신한 follower는 결과 cache에서 leader 결과를 반환한다")
+	void execute_returnsCachedResultWithoutFollowerLookup() throws Exception {
 		AtomicInteger lockAttempts = new AtomicInteger();
 		CountDownLatch leaderActionEntered = new CountDownLatch(1);
 		CountDownLatch followerWaiting = new CountDownLatch(1);
 		CountDownLatch allowLeaderCompletion = new CountDownLatch(1);
 		AtomicInteger lookupCalls = new AtomicInteger();
+		AtomicReference<String> cachedResult = new AtomicReference<>();
+		when(valueOperations.get(anyString())).thenAnswer(invocation -> cachedResult.get());
+		doAnswer(invocation -> {
+			cachedResult.set(invocation.getArgument(1, String.class));
+			return null;
+		}).when(valueOperations).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
 
 		when(redissonLock.tryLock(0, TimeUnit.MILLISECONDS)).thenAnswer(invocation -> {
 			int attempt = lockAttempts.getAndIncrement();
@@ -282,22 +297,23 @@ class WordSingleFlightRedisCoordinatorTest {
 	}
 
 	@Test
-	@DisplayName("leader 완료 시 lock을 해제한 뒤 done을 발행한다")
-	void execute_releasesLeaderLockBeforePublishingDone() {
+	@DisplayName("leader 완료 시 결과를 cache에 저장하고 done을 발행한 뒤 lock을 해제한다")
+	void execute_cachesResultAndPublishesDoneBeforeReleasingLeaderLock() {
 		stubTryLock(true);
 
 		List<WordAnalysisResult> result = coordinator.execute("run", LanguageCode.KO, () -> List.of(sample("run")),
 				Optional::empty);
 
 		assertThat(result).hasSize(1);
-		InOrder inOrder = inOrder(redissonLock, stringRedisTemplate);
-		inOrder.verify(redissonLock).unlock();
+		InOrder inOrder = inOrder(valueOperations, stringRedisTemplate, redissonLock);
+		inOrder.verify(valueOperations).set(anyString(), anyString(), eq(30_000L), eq(TimeUnit.MILLISECONDS));
 		inOrder.verify(stringRedisTemplate).convertAndSend(anyString(), anyString());
+		inOrder.verify(redissonLock).unlock();
 	}
 
 	@Test
-	@DisplayName("done publish가 실패해도 leader lock은 먼저 해제되어 있다")
-	void execute_releasesLeaderLockBeforePublishFailure() {
+	@DisplayName("done publish가 실패해도 leader lock은 해제된다")
+	void execute_releasesLeaderLockWhenPublishFails() {
 		stubTryLock(true);
 
 		RuntimeException publishFailure = new RuntimeException("redis publish failed");
@@ -307,9 +323,10 @@ class WordSingleFlightRedisCoordinatorTest {
 				() -> coordinator.execute("run", LanguageCode.KO, () -> List.of(sample("run")), Optional::empty))
 			.isSameAs(publishFailure);
 
-		InOrder inOrder = inOrder(redissonLock, stringRedisTemplate);
-		inOrder.verify(redissonLock).unlock();
+		InOrder inOrder = inOrder(valueOperations, stringRedisTemplate, redissonLock);
+		inOrder.verify(valueOperations).set(anyString(), anyString(), eq(30_000L), eq(TimeUnit.MILLISECONDS));
 		inOrder.verify(stringRedisTemplate).convertAndSend(anyString(), anyString());
+		inOrder.verify(redissonLock).unlock();
 	}
 
 	@Test
@@ -324,9 +341,10 @@ class WordSingleFlightRedisCoordinatorTest {
 		}, () -> Optional.of(List.of(sample)));
 
 		assertThat(result).hasSize(1);
-		InOrder inOrder = inOrder(redissonLock, stringRedisTemplate);
-		inOrder.verify(redissonLock).unlock();
+		InOrder inOrder = inOrder(valueOperations, stringRedisTemplate, redissonLock);
+		inOrder.verify(valueOperations).set(anyString(), anyString(), eq(30_000L), eq(TimeUnit.MILLISECONDS));
 		inOrder.verify(stringRedisTemplate).convertAndSend(anyString(), anyString());
+		inOrder.verify(redissonLock).unlock();
 	}
 
 	private WordAnalysisResult sample(String originalForm) {

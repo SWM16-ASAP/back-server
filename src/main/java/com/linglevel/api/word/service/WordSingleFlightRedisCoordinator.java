@@ -2,7 +2,6 @@ package com.linglevel.api.word.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.config.WordSingleFlightProperties;
@@ -29,7 +28,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +48,8 @@ public class WordSingleFlightRedisCoordinator {
 
 	private static final String DONE_PREFIX = "sf:word:done";
 
+	private static final String RESULT_PREFIX = "sf:word:result";
+
 	private static final String DONE_PATTERN = DONE_PREFIX + ":*";
 
 	private final StringRedisTemplate stringRedisTemplate;
@@ -64,7 +64,7 @@ public class WordSingleFlightRedisCoordinator {
 
 	private final WordGenerationMetrics metrics;
 
-	private final ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableFuture<CompletionSignal>>> channelWaiters = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<String, CopyOnWriteArrayList<CompletableFuture<Void>>> channelWaiters = new ConcurrentHashMap<>();
 
 	private final PatternTopic doneTopic = new PatternTopic(DONE_PATTERN);
 
@@ -122,7 +122,7 @@ public class WordSingleFlightRedisCoordinator {
 
 		if (existing.isPresent()) {
 			metrics.recordSingleFlightRequest("lookup", "existing");
-			releaseThenPublishDone(keys, lock, existing.get());
+			cacheThenPublishDoneAndRelease(keys, lock, existing.get());
 			return existing.get();
 		}
 
@@ -164,23 +164,29 @@ public class WordSingleFlightRedisCoordinator {
 
 	private <T> T waitAsFollower(KeySet keys, RLock lock, Supplier<T> leaderAction,
 			Supplier<Optional<T>> followerResultLookup, TypeReference<T> resultType) {
-		CompletableFuture<CompletionSignal> signal = new CompletableFuture<>();
+		CompletableFuture<Void> signal = new CompletableFuture<>();
 		Timer.Sample waitSample = metrics.startFollowerWait();
 		registerWaiter(keys.channel(), signal);
 
 		try {
+			T cachedResult = findCachedResult(keys, resultType);
+			if (cachedResult != null) {
+				metrics.recordSingleFlightRequest("follower", "success");
+				return cachedResult;
+			}
+
 			boolean lockAcquiredAfterRegister = tryAcquireLeaderLock(lock);
 			if (lockAcquiredAfterRegister) {
 				metrics.recordFollowerWait(waitSample, "promoted");
 				return executeWithLeaderLock(keys, lock, leaderAction, followerResultLookup, resultType);
 			}
 
-			CompletionSignal completionSignal = signal.get(properties.getWaitTimeoutMs(), TimeUnit.MILLISECONDS);
+			signal.get(properties.getWaitTimeoutMs(), TimeUnit.MILLISECONDS);
 			metrics.recordFollowerWait(waitSample, "signaled");
-			T sharedResult = deserializeSharedResult(completionSignal, resultType);
-			if (sharedResult != null) {
+			T cachedResultAfterSignal = findCachedResult(keys, resultType);
+			if (cachedResultAfterSignal != null) {
 				metrics.recordSingleFlightRequest("follower", "success");
-				return sharedResult;
+				return cachedResultAfterSignal;
 			}
 		}
 		catch (TimeoutException e) {
@@ -219,14 +225,14 @@ public class WordSingleFlightRedisCoordinator {
 
 	private void completeLeaderAfterCommit(KeySet keys, RLock lock, Object result) {
 		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-			releaseThenPublishDone(keys, lock, result);
+			cacheThenPublishDoneAndRelease(keys, lock, result);
 			return;
 		}
 
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
 			public void afterCommit() {
-				releaseThenPublishDone(keys, lock, result);
+				cacheThenPublishDoneAndRelease(keys, lock, result);
 			}
 
 			@Override
@@ -240,25 +246,37 @@ public class WordSingleFlightRedisCoordinator {
 
 	private void completeLeaderAfterCompletion(KeySet keys, RLock lock) {
 		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-			releaseThenPublishDone(keys, lock, null);
+			publishDoneAndRelease(keys, lock);
 			return;
 		}
 
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
 			public void afterCompletion(int status) {
-				releaseThenPublishDone(keys, lock, null);
+				publishDoneAndRelease(keys, lock);
 			}
 		});
 	}
 
-	private void releaseThenPublishDone(KeySet keys, RLock lock, Object result) {
-		releaseLock(lock, keys.lockKey());
-		publishDone(keys.channel(), result);
+	private void cacheThenPublishDoneAndRelease(KeySet keys, RLock lock, Object result) {
+		try {
+			cacheResult(keys.resultKey(), result);
+		}
+		catch (RuntimeException e) {
+			log.warn("Failed to cache single-flight result key={}. Followers will fall back to DB lookup.",
+					keys.resultKey(), e);
+		}
+
+		publishDoneAndRelease(keys, lock);
 	}
 
-	private void publishDone(String channel, Object result) {
-		stringRedisTemplate.convertAndSend(channel, createCompletionMessage(result));
+	private void publishDoneAndRelease(KeySet keys, RLock lock) {
+		try {
+			stringRedisTemplate.convertAndSend(keys.channel(), "{\"status\":\"done\"}");
+		}
+		finally {
+			releaseLock(lock, keys.lockKey());
+		}
 	}
 
 	private void releaseLock(RLock lock, String lockKey) {
@@ -279,16 +297,16 @@ public class WordSingleFlightRedisCoordinator {
 		return redissonClient.getLock(lockKey);
 	}
 
-	private void registerWaiter(String channel, CompletableFuture<CompletionSignal> signal) {
+	private void registerWaiter(String channel, CompletableFuture<Void> signal) {
 		channelWaiters.compute(channel, (key, waiters) -> {
-			CopyOnWriteArrayList<CompletableFuture<CompletionSignal>> values = waiters == null
-					? new CopyOnWriteArrayList<>() : waiters;
+			CopyOnWriteArrayList<CompletableFuture<Void>> values = waiters == null ? new CopyOnWriteArrayList<>()
+					: waiters;
 			values.add(signal);
 			return values;
 		});
 	}
 
-	private void unregisterWaiter(String channel, CompletableFuture<CompletionSignal> signal) {
+	private void unregisterWaiter(String channel, CompletableFuture<Void> signal) {
 		channelWaiters.computeIfPresent(channel, (key, waiters) -> {
 			waiters.remove(signal);
 			return waiters.isEmpty() ? null : waiters;
@@ -297,54 +315,39 @@ public class WordSingleFlightRedisCoordinator {
 
 	private void onDoneMessage(Message message, byte[] pattern) {
 		String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
-		List<CompletableFuture<CompletionSignal>> waiters = channelWaiters.remove(channel);
+		List<CompletableFuture<Void>> waiters = channelWaiters.remove(channel);
 		if (waiters == null || waiters.isEmpty()) {
 			return;
 		}
 
-		CompletionSignal completionSignal = parseCompletionSignal(message);
-		for (CompletableFuture<CompletionSignal> waiter : waiters) {
-			waiter.complete(completionSignal);
+		for (CompletableFuture<Void> waiter : waiters) {
+			waiter.complete(null);
 		}
 	}
 
-	private String createCompletionMessage(Object result) {
-		if (result == null) {
-			return "{\"status\":\"done\"}";
-		}
-
+	private void cacheResult(String resultKey, Object result) {
 		try {
-			return objectMapper.writeValueAsString(Map.of("status", "success", "result", result));
+			String serializedResult = objectMapper.writeValueAsString(result);
+			stringRedisTemplate.opsForValue()
+				.set(resultKey, serializedResult, properties.getResultCacheTtlMs(), TimeUnit.MILLISECONDS);
 		}
 		catch (JsonProcessingException e) {
-			log.warn("Failed to serialize single-flight completion result. Falling back to DB lookup.", e);
-			return "{\"status\":\"done\"}";
+			throw new IllegalStateException("Failed to serialize single-flight result", e);
 		}
 	}
 
-	private CompletionSignal parseCompletionSignal(Message message) {
-		try {
-			JsonNode root = objectMapper.readTree(new String(message.getBody(), StandardCharsets.UTF_8));
-			JsonNode result = root.path("result");
-			return result.isMissingNode() || result.isNull() ? CompletionSignal.withoutResult()
-					: CompletionSignal.withResult(result);
-		}
-		catch (JsonProcessingException e) {
-			log.warn("Failed to parse single-flight completion message. Falling back to DB lookup.", e);
-			return CompletionSignal.withoutResult();
-		}
-	}
-
-	private <T> T deserializeSharedResult(CompletionSignal completionSignal, TypeReference<T> resultType) {
-		if (!completionSignal.hasResult() || resultType == null) {
+	private <T> T findCachedResult(KeySet keys, TypeReference<T> resultType) {
+		if (resultType == null) {
 			return null;
 		}
 
 		try {
-			return objectMapper.convertValue(completionSignal.result(), resultType);
+			String serializedResult = stringRedisTemplate.opsForValue().get(keys.resultKey());
+			return serializedResult == null ? null : objectMapper.readValue(serializedResult, resultType);
 		}
-		catch (IllegalArgumentException e) {
-			log.warn("Failed to deserialize single-flight completion result. Falling back to DB lookup.", e);
+		catch (RuntimeException | JsonProcessingException e) {
+			log.warn("Failed to read single-flight result cache key={}. Falling back to DB lookup.", keys.resultKey(),
+					e);
 			return null;
 		}
 	}
@@ -357,7 +360,7 @@ public class WordSingleFlightRedisCoordinator {
 		String digest = sha256(canonicalKey);
 		String suffix = properties.getResultSchemaVersion() + ":" + digest;
 
-		return new KeySet(LOCK_PREFIX + ":" + suffix, DONE_PREFIX + ":" + suffix, digest);
+		return new KeySet(LOCK_PREFIX + ":" + suffix, DONE_PREFIX + ":" + suffix, RESULT_PREFIX + ":" + suffix, digest);
 	}
 
 	private String sha256(String value) {
@@ -371,22 +374,7 @@ public class WordSingleFlightRedisCoordinator {
 		}
 	}
 
-	private record KeySet(String lockKey, String channel, String digest) {
-	}
-
-	private record CompletionSignal(JsonNode result) {
-
-		static CompletionSignal withResult(JsonNode result) {
-			return new CompletionSignal(result);
-		}
-
-		static CompletionSignal withoutResult() {
-			return new CompletionSignal(null);
-		}
-
-		boolean hasResult() {
-			return result != null;
-		}
+	private record KeySet(String lockKey, String channel, String resultKey, String digest) {
 	}
 
 }
