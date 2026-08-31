@@ -7,7 +7,7 @@
 
 ## 선택
 
-single-flight 조정 경로를 Redisson 기반으로 전환하고, 운영 표준은 `RLock + watchdog`으로 확정했다.
+single-flight 조정 경로를 Redisson 기반으로 전환하고, 운영 표준은 `RLock + 12초 고정 lease TTL`로 확정했다.
 또한 follower 에러 처리와 락 만료 시맨틱을 보정해 단기 장애 증폭 가능성을 낮췄다.
 
 ## 이유
@@ -16,11 +16,12 @@ single-flight 조정 경로를 Redisson 기반으로 전환하고, 운영 표준
 AWS Bedrock 동기 추론 API(Converse/InvokeModel)에는 멱등키가 없어 호출 단계 중복 제거를 플랫폼에 위임하기 어려웠다.
 `fencing token` 기반 모델은 저장소/다운스트림 검증 지점 추가와 토큰 단조성 보장 설계가 필요해 즉시 적용 범위에서 제외했다.
 또한 본 건의 핵심 목표가 AI 요청 수 절감인데, fencing token은 stale write 방지에는 유효해도 AI 중복 호출 자체를 차단하지는 못한다.
-이에 따라 1차 조치는 `RLock + watchdog + 결과 캐시/idempotency key` 조합으로 duplicate-call 완화에 집중하고, 엄격 정합성 요구는 후속 과제로 분리했다.
+Bedrock 호출 제한 8초에 저장·완료 전파 여유를 더한 12초 lease를 사용한다. TTL 만료 후 중복 호출은 허용하되, DB unique 제약으로 저장 경합을 흡수한다. 무한 갱신에 따른 orphan lock 장기 점유를 피하기 위해 watchdog은 사용하지 않는다.
 
 ## 검증
 
 - [WordSingleFlightRedisCoordinator.java](../../src/main/java/com/linglevel/api/word/service/WordSingleFlightRedisCoordinator.java) 기준으로 락 경로가 Redisson `RLock` 기반으로 표준화된 것을 확인했다.
+- lock 획득 시 명시적 lease TTL을 전달해 watchdog을 비활성화한 것을 코드와 단위 테스트로 확인했다.
 - follower timeout 및 leader 실패 전파 시맨틱 보정 사항을 코드 단위로 확인했다.
 - 두 인스턴스 동시 요청에서 single-flight 1회 실행, leader 실패 전파, timeout fallback을 테스트로 검증했다.
 - 변경 사항은 PR 단위로 분리해 검증했다: `#328`(분산 안정화), `#330`(만료/에러 시맨틱 보정), `#331`(Redlock + 폴백 검증).
