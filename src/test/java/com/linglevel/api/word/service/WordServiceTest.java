@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.util.List;
 import java.util.Optional;
@@ -74,6 +75,8 @@ class WordServiceTest {
 	void setUp() {
 		wordPersistenceService = new WordPersistenceService(wordRepository, wordVariantRepository,
 				invalidWordRepository);
+		lenient().when(wordVariantRepository.save(any(WordVariant.class)))
+			.thenAnswer(invocation -> invocation.getArgument(0));
 		wordResponseMapper = new WordResponseMapper();
 		wordService = new WordService(wordRepository, wordBookmarkRepository, wordVariantRepository,
 				invalidWordRepository, wordAiService, singleFlightCoordinator, wordPersistenceService,
@@ -214,7 +217,7 @@ class WordServiceTest {
 		// AI가 호출되었는지 확인
 		verify(wordAiService, atLeastOnce()).analyzeWord(newWord, LanguageCode.KO.getCode());
 		verify(wordRepository).save(any(Word.class));
-		verify(wordVariantRepository).save(any(WordVariant.class));
+		verify(wordVariantRepository, atLeastOnce()).save(any(WordVariant.class));
 		verify(wordGenerationMetrics).recordLookupResult(false);
 	}
 
@@ -276,7 +279,59 @@ class WordServiceTest {
 		// then
 		// 동사 변형 4개가 저장되어야 함 (past, pastParticiple, presentParticiple, thirdPerson)
 		// "run"은 pastParticiple이 원형과 같으므로 3개만 저장
-		verify(wordVariantRepository).saveAll(anyList());
+		verify(wordVariantRepository, atLeastOnce()).save(any(WordVariant.class));
+	}
+
+	@Test
+	@DisplayName("동시 Word 저장의 unique 충돌은 이미 저장된 Word를 재조회해 반환")
+	void saveWord_duplicateKeyReturnsPersistedWord() {
+		WordAnalysisResult analysisResult = WordAnalysisResult.builder()
+			.originalForm(sampleWord.getWord())
+			.sourceLanguageCode(sampleWord.getSourceLanguageCode())
+			.targetLanguageCode(sampleWord.getTargetLanguageCode())
+			.summary(sampleWord.getSummary())
+			.meanings(sampleWord.getMeanings())
+			.build();
+
+		when(wordRepository.save(any(Word.class))).thenThrow(new DuplicateKeyException("duplicate word"));
+		when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(sampleWord.getWord(), LanguageCode.EN,
+				LanguageCode.KO))
+			.thenReturn(Optional.of(sampleWord));
+
+		Word result = wordPersistenceService.saveWord(analysisResult);
+
+		assertThat(result).isSameAs(sampleWord);
+	}
+
+	@Test
+	@DisplayName("동시 WordVariant 저장의 unique 충돌은 이미 저장된 variant를 재조회해 반환")
+	void saveAnalysisResults_duplicateVariantReturnsPersistedVariant() {
+		WordAnalysisResult analysisResult = WordAnalysisResult.builder()
+			.originalForm(sampleWord.getWord())
+			.variantTypes(List.of(VariantType.ORIGINAL_FORM))
+			.sourceLanguageCode(sampleWord.getSourceLanguageCode())
+			.targetLanguageCode(sampleWord.getTargetLanguageCode())
+			.summary(sampleWord.getSummary())
+			.meanings(sampleWord.getMeanings())
+			.build();
+		WordVariant persistedVariant = WordVariant.builder()
+			.word("running")
+			.originalForm(sampleWord.getWord())
+			.variantTypes(List.of(VariantType.ORIGINAL_FORM))
+			.build();
+
+		when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(sampleWord.getWord(), LanguageCode.EN,
+				LanguageCode.KO))
+			.thenReturn(Optional.of(sampleWord));
+		when(wordVariantRepository.findByWordAndOriginalForm("running", sampleWord.getWord()))
+			.thenReturn(Optional.empty(), Optional.of(persistedVariant));
+		when(wordVariantRepository.save(any(WordVariant.class)))
+			.thenThrow(new DuplicateKeyException("duplicate variant"));
+
+		List<WordVariant> result = wordPersistenceService.saveAnalysisResults("running", List.of(analysisResult),
+				Optional.empty());
+
+		assertThat(result).containsExactly(persistedVariant);
 	}
 
 	@Test
