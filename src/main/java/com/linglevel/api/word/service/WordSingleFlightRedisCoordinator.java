@@ -147,9 +147,7 @@ public class WordSingleFlightRedisCoordinator {
 
 	private boolean tryAcquireLeaderLock(RLock lock) {
 		try {
-			// Use Redisson watchdog mode (no fixed lease time) to keep lock alive
-			// while leaderAction is still running, and release promptly on unlock.
-			return lock.tryLock(0, TimeUnit.MILLISECONDS);
+			return lock.tryLock(0, properties.getLockLeaseMs(), TimeUnit.MILLISECONDS);
 		}
 		catch (InterruptedException e) {
 			metrics.recordLockFailure("acquire");

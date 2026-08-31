@@ -72,6 +72,7 @@ class WordSingleFlightRedisCoordinatorTest {
 		properties = new WordSingleFlightProperties();
 		properties.setEnabled(true);
 		properties.setWaitTimeoutMs(120);
+		properties.setLockLeaseMs(12_000);
 		properties.setResultSchemaVersion("v2");
 
 		when(redissonClient.getLock(anyString())).thenReturn(redissonLock);
@@ -144,7 +145,7 @@ class WordSingleFlightRedisCoordinatorTest {
 		CountDownLatch allowLeaderCompletion = new CountDownLatch(1);
 		AtomicInteger lookupCalls = new AtomicInteger();
 
-		when(redissonLock.tryLock(0, TimeUnit.MILLISECONDS)).thenAnswer(invocation -> {
+		when(redissonLock.tryLock(0, properties.getLockLeaseMs(), TimeUnit.MILLISECONDS)).thenAnswer(invocation -> {
 			int attempt = lockAttempts.getAndIncrement();
 			if (attempt == 0) {
 				return true;
@@ -272,7 +273,7 @@ class WordSingleFlightRedisCoordinatorTest {
 	@DisplayName("Redis lock 획득 실패를 기록하고 원래 예외를 전파한다")
 	void execute_recordsRuntimeLockAcquisitionFailure() throws Exception {
 		RuntimeException failure = new RuntimeException("redis unavailable");
-		doThrow(failure).when(redissonLock).tryLock(0, TimeUnit.MILLISECONDS);
+		doThrow(failure).when(redissonLock).tryLock(0, properties.getLockLeaseMs(), TimeUnit.MILLISECONDS);
 
 		assertThatThrownBy(
 				() -> coordinator.execute("run", LanguageCode.KO, () -> List.of(sample("run")), Optional::empty))
@@ -365,7 +366,7 @@ class WordSingleFlightRedisCoordinatorTest {
 		}
 
 		try {
-			when(redissonLock.tryLock(0, TimeUnit.MILLISECONDS)).thenReturn(sequence[0],
+			when(redissonLock.tryLock(0, properties.getLockLeaseMs(), TimeUnit.MILLISECONDS)).thenReturn(sequence[0],
 					Arrays.copyOfRange(sequence, 1, sequence.length));
 		}
 		catch (InterruptedException e) {

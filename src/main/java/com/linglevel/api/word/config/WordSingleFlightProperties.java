@@ -15,6 +15,8 @@ public class WordSingleFlightProperties {
 
 	private long waitTimeoutMs = 5_000;
 
+	private long lockLeaseMs = 12_000;
+
 	private String resultSchemaVersion = "v2";
 
 }
