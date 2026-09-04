@@ -1,5 +1,6 @@
 package com.linglevel.api.word.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linglevel.api.common.AbstractRedisTest;
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.config.WordSingleFlightProperties;
@@ -163,8 +164,9 @@ class WordSingleFlightRedisCoordinatorIntegrationTest extends AbstractRedisTest 
 		properties.setWaitTimeoutMs(waitTimeoutMs);
 		properties.setResultSchemaVersion("v2");
 
-		WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(template, listenerContainer,
-				redissonClient, properties, new WordGenerationMetrics(new SimpleMeterRegistry()));
+		WordSingleFlightRedisCoordinator coordinator = new WordSingleFlightRedisCoordinator(template,
+				new ObjectMapper(), listenerContainer, redissonClient, properties,
+				new WordGenerationMetrics(new SimpleMeterRegistry()));
 		ReflectionTestUtils.invokeMethod(coordinator, "initialize");
 
 		return new CoordinatorFixture(connectionFactory, template, listenerContainer, redissonClient, coordinator);

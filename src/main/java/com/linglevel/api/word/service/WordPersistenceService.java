@@ -12,6 +12,7 @@ import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,7 +70,12 @@ public class WordPersistenceService {
 	@Transactional
 	public Word saveWord(WordAnalysisResult analysisResult) {
 		Word newWord = convertAnalysisResultToWord(analysisResult);
-		return wordRepository.save(newWord);
+		try {
+			return wordRepository.save(newWord);
+		}
+		catch (DuplicateKeyException e) {
+			return findPersistedWord(analysisResult).orElseThrow(() -> e);
+		}
 	}
 
 	private WordVariant saveWordFromAnalysis(String word, WordAnalysisResult analysisResult) {
@@ -77,15 +83,7 @@ public class WordPersistenceService {
 		LanguageCode sourceLanguageCode = analysisResult.getSourceLanguageCode();
 		LanguageCode targetLanguageCode = analysisResult.getTargetLanguageCode();
 
-		wordRepository
-			.findByWordAndSourceLanguageCodeAndTargetLanguageCode(originalForm, sourceLanguageCode, targetLanguageCode)
-			.orElseGet(() -> {
-				Word newWord = convertAnalysisResultToWord(analysisResult);
-				Word savedWord = wordRepository.save(newWord);
-				saveWordVariants(savedWord);
-
-				return savedWord;
-			});
+		findPersistedWord(analysisResult).orElseGet(() -> saveWordAndVariants(analysisResult));
 
 		Optional<WordVariant> existingVariant = wordVariantRepository.findByWordAndOriginalForm(word, originalForm);
 		if (existingVariant.isPresent()) {
@@ -97,9 +95,23 @@ public class WordPersistenceService {
 						: List.of(VariantType.ORIGINAL_FORM);
 
 		WordVariant inputVariant = createVariant(word, originalForm, variantTypes);
-		wordVariantRepository.save(inputVariant);
+		return saveWordVariantRecoveringDuplicate(inputVariant);
+	}
 
-		return inputVariant;
+	private Word saveWordAndVariants(WordAnalysisResult analysisResult) {
+		try {
+			Word savedWord = wordRepository.save(convertAnalysisResultToWord(analysisResult));
+			saveWordVariants(savedWord);
+			return savedWord;
+		}
+		catch (DuplicateKeyException e) {
+			return findPersistedWord(analysisResult).orElseThrow(() -> e);
+		}
+	}
+
+	private Optional<Word> findPersistedWord(WordAnalysisResult analysisResult) {
+		return wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(analysisResult.getOriginalForm(),
+				analysisResult.getSourceLanguageCode(), analysisResult.getTargetLanguageCode());
 	}
 
 	private void saveWordVariants(Word word) {
@@ -170,9 +182,17 @@ public class WordPersistenceService {
 				.filter(variant -> !existingWords.contains(variant.getWord()))
 				.collect(Collectors.toList());
 
-			if (!newVariants.isEmpty()) {
-				wordVariantRepository.saveAll(newVariants);
-			}
+			newVariants.forEach(this::saveWordVariantRecoveringDuplicate);
+		}
+	}
+
+	private WordVariant saveWordVariantRecoveringDuplicate(WordVariant variant) {
+		try {
+			return wordVariantRepository.save(variant);
+		}
+		catch (DuplicateKeyException e) {
+			return wordVariantRepository.findByWordAndOriginalForm(variant.getWord(), variant.getOriginalForm())
+				.orElseThrow(() -> e);
 		}
 	}
 
