@@ -77,6 +77,24 @@ variable "grafana_image" {
   default     = "grafana/grafana:12.3.4"
 }
 
+variable "otel_collector_image" {
+  description = "OpenTelemetry Collector image used to receive application traces."
+  type        = string
+  default     = "otel/opentelemetry-collector-contrib:0.160.0"
+}
+
+variable "tempo_image" {
+  description = "Grafana Tempo image used to store temporary test traces."
+  type        = string
+  default     = "grafana/tempo:3.0.3"
+}
+
+variable "observability_config_init_image" {
+  description = "Alpine image used to initialize Collector and Tempo configuration volumes."
+  type        = string
+  default     = "public.ecr.aws/docker/library/alpine:3.22.2"
+}
+
 variable "grafana_allowed_cidr" {
   description = "Single public CIDR allowed to access the temporary Grafana task."
   type        = string

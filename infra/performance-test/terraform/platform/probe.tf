@@ -38,6 +38,32 @@ resource "aws_ecs_task_definition" "dependency_probe" {
           probe_tcp "Redis" "redis.${aws_service_discovery_private_dns_namespace.this.name}" 6379
           probe_tcp "MySQL" "mysql.${aws_service_discovery_private_dns_namespace.this.name}" 3306
 
+          collector_health_url="http://otel-collector.${aws_service_discovery_private_dns_namespace.this.name}:13133/"
+          for attempt in $(seq 1 30); do
+            if wget -qO- "$collector_health_url" >/dev/null; then
+              echo "OpenTelemetry Collector health passed: $collector_health_url"
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "OpenTelemetry Collector health failed: $collector_health_url" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          tempo_ready_url="http://tempo.${aws_service_discovery_private_dns_namespace.this.name}:3200/ready"
+          for attempt in $(seq 1 30); do
+            if wget -qO- "$tempo_ready_url" >/dev/null; then
+              echo "Tempo readiness passed: $tempo_ready_url"
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Tempo readiness failed: $tempo_ready_url" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
           probe_metric() {
             name="$1"
             url="$2"

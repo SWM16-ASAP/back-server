@@ -50,6 +50,44 @@ resource "aws_ecs_task_definition" "app" {
           value = "${aws_s3_bucket.environment_files.arn}/${local.environment_file_keys.app}"
         }
       ]
+      environment = [
+        {
+          name  = "JAVA_TOOL_OPTIONS"
+          value = "-javaagent:/opt/opentelemetry-javaagent.jar"
+        },
+        {
+          name  = "OTEL_SERVICE_NAME"
+          value = "llv-api"
+        },
+        {
+          name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+          value = "http://otel-collector.${aws_service_discovery_private_dns_namespace.this.name}:4318"
+        },
+        {
+          name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+          value = "http/protobuf"
+        },
+        {
+          name  = "OTEL_TRACES_EXPORTER"
+          value = "otlp"
+        },
+        {
+          name  = "OTEL_METRICS_EXPORTER"
+          value = "none"
+        },
+        {
+          name  = "OTEL_LOGS_EXPORTER"
+          value = "none"
+        },
+        {
+          name  = "OTEL_TRACES_SAMPLER"
+          value = "always_on"
+        },
+        {
+          name  = "OTEL_RESOURCE_ATTRIBUTES"
+          value = "deployment.environment.name=performance-test,test.run.id=${var.test_run_id}"
+        }
+      ]
       portMappings = [
         {
           containerPort = var.container_port
@@ -101,5 +139,8 @@ resource "aws_ecs_service" "app" {
     registry_arn = aws_service_discovery_service.app.arn
   }
 
-  depends_on = [aws_lb_listener.http]
+  depends_on = [
+    aws_ecs_service.otel_collector,
+    aws_lb_listener.http,
+  ]
 }
