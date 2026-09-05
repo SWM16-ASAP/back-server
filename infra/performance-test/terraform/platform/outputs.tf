@@ -46,6 +46,14 @@ output "dependency_endpoints" {
   }
 }
 
+output "tracing_endpoints" {
+  description = "Private endpoints used by the test tracing pipeline."
+  value = {
+    collector_otlp_http = "otel-collector.${aws_service_discovery_private_dns_namespace.this.name}:4318"
+    tempo_http          = "tempo.${aws_service_discovery_private_dns_namespace.this.name}:3200"
+  }
+}
+
 output "ecs_cluster_arn" {
   description = "ECS cluster used to run the one-off k6 task."
   value       = aws_ecs_cluster.this.arn

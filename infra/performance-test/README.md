@@ -4,7 +4,7 @@
 
 ## 현재 구성
 
-API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, Grafana를 연결했다. 인프라 세션이 유지되는 동안 `update-app`, `reset`, `run`을 반복하고, 분석이 끝난 뒤 `down`으로 제거한다.
+API 2대, Internal ALB, Redis, MySQL, Atlas, WireMock, k6, Prometheus, OpenTelemetry Collector, Tempo, Grafana를 연결했다. 인프라 세션이 유지되는 동안 `update-app`, `reset`, `run`을 반복하고, 분석이 끝난 뒤 `down`으로 제거한다.
 
 ## 구조
 
@@ -47,6 +47,12 @@ Prometheus는 아래 exporter의 `/metrics`를 수집하고 Grafana에서 API �
 - `redis_exporter`: memory, client, command rate, hit/miss, eviction 지표
 
 exporter의 읽기 전용 DB 계정도 서비스별 S3 environment file로 주입한다. 느린 쿼리 원문과 Redis command 인자는 metric label로 수집하지 않고 DB 로그와 profiler에서 확인한다.
+
+테스트용 앱 이미지는 OpenTelemetry Java Agent를 포함한다. ECS에서 Agent를 활성화해 trace만 Collector로 보내고, Collector는 Tempo에 전달한다. 메트릭과 로그 export는 Agent에서 비활성화해 기존 Prometheus와 CloudWatch 수집 경로를 유지한다. 기본 sample ratio는 `1.0`이며 필요하면 `terraform.tfvars`에서 조정한다.
+
+```hcl
+otel_trace_sample_ratio = 1.0
+```
 
 ## 실행 준비
 
@@ -110,9 +116,11 @@ runner는 필요한 로컬 설정 파일이 없으면 example을 복사하고 �
 ./infra/performance-test/run/performance-test.sh update-app --profile llv-performance-test
 ```
 
-검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. `word-single-flight.js`는 생성 결과가 없는 동일한 `rabbit` 조회를 100 VU가 각 1회 실행한다. 공통 시작 시각으로부터 요청 도착 p99가 1초 이내인지 확인하고, 성공 응답의 hash를 남겨 동일한 결과 여부를 검증할 수 있게 한다.
+검증 스크립트는 설정된 수의 앱 target health, Redis·MySQL의 내부 DNS/TCP 연결, 각 DB exporter의 `up` 메트릭, Prometheus scrape target, Collector·Tempo health, Tempo의 실제 `llv-api` trace, Grafana health, WireMock mapping을 순서대로 확인한다. probe와 k6 task는 상시 실행되는 ECS service가 아니다. `word-single-flight.js`는 생성 결과가 없는 동일한 `rabbit` 조회를 100 VU가 각 1회 실행한다. 공통 시작 시각으로부터 요청 도착 p99가 1초 이내인지 확인하고, 성공 응답의 hash를 남겨 동일한 결과 여부를 검증할 수 있게 한다.
 
-`up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus와 CloudWatch datasource가 자동 등록된다. 기본 대시보드 최상단은 앱의 전체 요청 RPS·5xx failures/s, 평균·p95·p99 응답 시간, HTTP 결과를 보여준다. k6 지표는 별도 섹션에서 선택한 실행의 전체 요청 RPS·평균/p95/p99 응답 시간·활성 VU만 보여준다. k6 Trend는 Prometheus native histogram으로 전송해 여러 endpoint가 섞인 시나리오에서도 전체 요청 기준으로 집계한다. 그 아래에는 JVM heap/non-heap/total memory·process CPU·thread state·executor queue·GC pause avg/max·GC count/min·Old Gen을, 이어서 `Application instance` 변수로 CPU·JVM memory·thread state·executor queue·Old Gen·MongoDB pool·Tomcat worker를 인스턴스별로 비교한다. Platform 섹션은 앱 ECS와 k6 task의 CPU·memory를 함께 보여줘 부하 생성기 병목을 구분한다. Redis·MySQL·MongoDB·ALB 세부 지표는 `Dependency and Platform` 대시보드에서 조회하며, Redis `GET` 계열 cache hit rate도 이 대시보드에서 확인한다. `Word Single-flight` 대시보드는 Word 조회 결과 재사용, leader/follower, follower 대기, lock 실패, Bedrock 호출·지연·SDK 재시도를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
+`up`과 `status`는 현재 Grafana task의 URL을 출력한다. Grafana에는 Prometheus, CloudWatch와 Tempo datasource가 자동 등록된다. 기본 대시보드 최상단은 앱의 전체 요청 RPS·5xx failures/s, 평균·p95·p99 응답 시간, HTTP 결과를 보여준다. k6 지표는 별도 섹션에서 선택한 실행의 전체 요청 RPS·평균/p95/p99 응답 시간·활성 VU만 보여준다. k6 Trend는 Prometheus native histogram으로 전송해 여러 endpoint가 섞인 시나리오에서도 전체 요청 기준으로 집계한다. 그 아래에는 JVM heap/non-heap/total memory·process CPU·thread state·executor queue·GC pause avg/max·GC count/min·Old Gen을, 이어서 `Application instance` 변수로 CPU·JVM memory·thread state·executor queue·Old Gen·MongoDB pool·Tomcat worker를 인스턴스별로 비교한다. Platform 섹션은 앱 ECS와 k6 task의 CPU·memory를 함께 보여줘 부하 생성기 병목을 구분한다. Redis·MySQL·MongoDB·ALB 세부 지표는 `Dependency and Platform` 대시보드에서 조회하며, Redis `GET` 계열 cache hit rate도 이 대시보드에서 확인한다. `Word Single-flight` 대시보드는 Word 조회 결과 재사용, leader/follower, follower 대기, lock 실패, Bedrock 호출·지연·SDK 재시도를 조회한다. CloudWatch 지표는 수집 주기 때문에 테스트 시작 직후 잠시 비어 있을 수 있다.
+
+기본 Performance Overview 대시보드의 `Trace Analysis` 행에서 1초 초과 `llv-api` trace를 바로 검색할 수 있다. 상단 `TraceQL filter`를 예를 들어 `{ resource.service.name = "llv-api" && status = error }`로 바꾸면 오류 trace를, `duration > 2s`로 바꾸면 더 느린 요청만 찾는다. Trace ID를 선택하면 Tempo Explore에서 전체 waterfall을 열고 HTTP 요청 아래의 MongoDB, Redis, HTTP client child span을 비교할 수 있다. 일반 내부 메서드는 자동으로 모두 span이 되지 않으므로, 이 정보로 범위를 좁힌 뒤 필요한 지점에만 custom span을 추가한다.
 
 k6 task는 자동 생성된 실행 ID를 `testid` 라벨로 Prometheus remote write에 전송해 Grafana에서 앱 지표와 같은 시간축으로 조회할 수 있게 한다. 실행 맥락, 집계 summary, timestamp가 포함된 raw metric은 세션 전용 S3 bucket에도 업로드한다. `run`은 `k6` 디렉터리에서 선택한 파일을 임시 S3 객체에 덮어쓴 뒤 인프라 재적용 없이 실행한다. 동일 세션에서는 동시에 하나의 k6 task만 실행할 수 있다.
 

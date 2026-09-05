@@ -21,6 +21,9 @@ flowchart LR
     PROM --> MYSQL
     GRAFANA["Grafana"] --> PROM
     GRAFANA --> CLOUDWATCH["CloudWatch"]
+    APP -->|"OTLP/HTTP"| COLLECTOR["OpenTelemetry Collector"]
+    COLLECTOR -->|"OTLP/gRPC"| TEMPO["Tempo"]
+    GRAFANA --> TEMPO
     K6 --> RESULTS["S3 results"]
 ```
 
@@ -55,15 +58,22 @@ up -> update-app? -> reset -> run -> reset -> run -> down
 
 ## 모니터링
 
-세션이 유지되는 동안 Prometheus와 Grafana에서 다음 범주를 분석한다.
+세션이 유지되는 동안 Prometheus, Tempo와 Grafana에서 다음 범주를 분석한다.
 
 - API 요청량, 응답 시간, 오류율
 - JVM, GC, thread와 connection 상태
 - Redis와 MySQL exporter 지표, 선택적 Atlas Prometheus 지표
 - ECS와 ALB의 CPU, memory, target 상태
 - single-flight, Bedrock, circuit breaker 애플리케이션 지표
+- HTTP 요청과 지원되는 외부 I/O 구간의 분산 trace
 
-기본 대시보드는 최상단에 앱의 전체 요청 RPS·5xx failures/s·평균/p95/p99 지연·HTTP 결과를 제공한다. 별도 k6 섹션은 선택한 실행의 전체 요청 RPS·평균/p95/p99 지연·활성 VU를 제공한다. k6 Trend는 Prometheus native histogram으로 전송해 여러 endpoint가 섞인 시나리오도 전체 요청 기준으로 집계한다. 이어서 앱 ECS와 k6 task의 CPU/memory, JVM heap/non-heap/total memory·process CPU·GC pause avg/max·GC count/min·thread state·executor queue·Old Gen/live data, MongoDB driver pool을 제공한다. k6는 실행 ID를 `testid` 라벨로 Prometheus에 전송해 클라이언트 지표를 앱 지표와 같은 시간축에서 비교한다. 합산 지표를 기본으로 두되 `instance` 변수로 CPU·JVM memory·thread state·executor queue·Old Gen·MongoDB pool·Tomcat worker를 특정 API 인스턴스별로 비교할 수 있다. Redis, MySQL, MongoDB와 ALB 세부 지표는 별도 의존성·플랫폼 대시보드에서 본다. Redis `GET` 계열 cache hit rate는 이 대시보드에서 확인하며, MongoDB에 저장된 Word 결과 재사용은 Word 전용 지표로 구분한다. Prometheus 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
+기본 대시보드는 최상단에 앱의 전체 요청 RPS·5xx failures/s·평균/p95/p99 지연·HTTP 결과를 제공한다. 별도 k6 섹션은 선택한 실행의 전체 요청 RPS·평균/p95/p99 지연·활성 VU를 제공한다. k6 Trend는 Prometheus native histogram으로 전송해 여러 endpoint가 섞인 시나리오도 전체 요청 기준으로 집계한다. 이어서 앱 ECS와 k6 task의 CPU/memory, JVM heap/non-heap/total memory·process CPU·GC pause avg/max·GC count/min·thread state·executor queue·Old Gen/live data, MongoDB driver pool을 제공한다. k6는 실행 ID를 `testid` 라벨로 Prometheus에 전송해 클라이언트 지표를 앱 지표와 같은 시간축에서 비교한다. 합산 지표를 기본으로 두되 `instance` 변수로 CPU·JVM memory·thread state·executor queue·Old Gen·MongoDB pool·Tomcat worker를 특정 API 인스턴스별로 비교할 수 있다. Redis, MySQL, MongoDB와 ALB 세부 지표는 별도 의존성·플랫폼 대시보드에서 본다. Redis `GET` 계열 cache hit rate는 이 대시보드에서 확인하며, MongoDB에 저장된 Word 결과 재사용은 Word 전용 지표로 구분한다.
+
+테스트 이미지에만 OpenTelemetry Java Agent를 포함하고 ECS에서 이를 활성화한다. Agent는 trace만 OTLP/HTTP로 Collector에 전송하며, 메트릭과 로그는 기존 Prometheus와 CloudWatch 경로를 유지한다. Collector는 batch와 memory limit을 적용한 뒤 OTLP/gRPC로 단일 인스턴스 Tempo에 전달한다. Tempo 데이터는 ECS task의 임시 로컬 저장소에만 유지되므로 task 교체나 `down` 이후에는 보존되지 않는다. 환경 검증은 Collector와 Tempo의 상태뿐 아니라 `llv-api` trace가 실제로 검색되는지까지 확인한다.
+
+기본 Performance Overview 대시보드의 `Trace Analysis` 행은 기본적으로 1초를 초과한 `llv-api` trace를 표로 보여준다. 상단 `TraceQL filter` 입력값을 바꿔 서비스, 오류, 외부 I/O, 지연 조건을 검색하고, Trace ID를 선택하면 Tempo Explore의 전체 waterfall을 연다. Java Agent는 HTTP 서버, MongoDB, Redis와 지원되는 클라이언트 라이브러리 경계의 span을 자동 생성한다. 임의의 모든 내부 메서드를 자동 측정하지는 않으므로, 자동 span으로 병목 구간을 좁힌 뒤 필요한 메서드에만 명시적 span을 추가한다. 기본 trace sample ratio는 진단을 위한 `1.0`이며 `terraform.tfvars`의 `otel_trace_sample_ratio`로 `0`부터 `1` 사이에서 조정한다. 정밀한 부하 한계 측정에서는 trace 수집 비용을 별도 기준 실행과 비교한다.
+
+Prometheus와 Tempo 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
 
 ## 운영 경계
 
