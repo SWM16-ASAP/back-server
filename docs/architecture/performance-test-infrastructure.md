@@ -71,7 +71,7 @@ up -> update-app? -> reset -> run -> reset -> run -> down
 
 테스트 이미지에만 OpenTelemetry Java Agent를 포함하고 ECS에서 이를 활성화한다. Agent는 trace만 OTLP/HTTP로 Collector에 전송하며, 메트릭과 로그는 기존 Prometheus와 CloudWatch 경로를 유지한다. Collector는 batch와 memory limit을 적용한 뒤 OTLP/gRPC로 단일 인스턴스 Tempo에 전달한다. Tempo 데이터는 ECS task의 임시 로컬 저장소에만 유지되므로 task 교체나 `down` 이후에는 보존되지 않는다. 환경 검증은 Collector와 Tempo의 상태뿐 아니라 `llv-api` trace가 실제로 검색되는지까지 확인한다.
 
-Grafana Explore에서 Tempo datasource를 선택하고 TraceQL `{ resource.service.name = "llv-api" }`로 요청 trace를 검색한다. Java Agent는 HTTP 서버, MongoDB, Redis와 지원되는 클라이언트 라이브러리 경계의 span을 자동 생성한다. 임의의 모든 내부 메서드를 자동 측정하지는 않으므로, 자동 span으로 병목 구간을 좁힌 뒤 필요한 메서드에만 명시적 span을 추가한다. 기본 trace sample ratio는 진단을 위한 `1.0`이며 `terraform.tfvars`의 `otel_trace_sample_ratio`로 `0`부터 `1` 사이에서 조정한다. 정밀한 부하 한계 측정에서는 trace 수집 비용을 별도 기준 실행과 비교한다.
+기본 Performance Overview 대시보드의 `Trace Analysis` 행은 기본적으로 1초를 초과한 `llv-api` trace를 표로 보여준다. 상단 `TraceQL filter` 입력값을 바꿔 서비스, 오류, 외부 I/O, 지연 조건을 검색하고, Trace ID를 선택하면 Tempo Explore의 전체 waterfall을 연다. Java Agent는 HTTP 서버, MongoDB, Redis와 지원되는 클라이언트 라이브러리 경계의 span을 자동 생성한다. 임의의 모든 내부 메서드를 자동 측정하지는 않으므로, 자동 span으로 병목 구간을 좁힌 뒤 필요한 메서드에만 명시적 span을 추가한다. 기본 trace sample ratio는 진단을 위한 `1.0`이며 `terraform.tfvars`의 `otel_trace_sample_ratio`로 `0`부터 `1` 사이에서 조정한다. 정밀한 부하 한계 측정에서는 trace 수집 비용을 별도 기준 실행과 비교한다.
 
 Prometheus와 Tempo 데이터는 테스트 세션 동안만 유지하며 원격 저장과 자동 리포트는 현재 범위에 포함하지 않는다.
 
