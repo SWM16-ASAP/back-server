@@ -118,6 +118,21 @@ resource "aws_ecs_task_definition" "dependency_probe" {
             sleep 2
           done
 
+          tempo_trace_url="http://tempo.${aws_service_discovery_private_dns_namespace.this.name}:3200/api/search?q=%7Bresource.service.name%3D%22llv-api%22%7D&limit=1"
+          for attempt in $(seq 1 30); do
+            if wget -qO /tmp/tempo-traces.json "$tempo_trace_url" && \
+                grep -q '"traceID"' /tmp/tempo-traces.json; then
+              echo "Application trace passed: llv-api trace found in Tempo"
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Application trace failed: no llv-api trace found in Tempo" >&2
+              cat /tmp/tempo-traces.json >&2 || true
+              exit 1
+            fi
+            sleep 2
+          done
+
           mock_url="http://mock.${aws_service_discovery_private_dns_namespace.this.name}:8080/__admin/mappings"
           for attempt in $(seq 1 30); do
             if wget -qO /tmp/mappings.json "$mock_url" && \

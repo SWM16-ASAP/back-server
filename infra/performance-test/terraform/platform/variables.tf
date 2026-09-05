@@ -95,6 +95,17 @@ variable "observability_config_init_image" {
   default     = "public.ecr.aws/docker/library/alpine:3.22.2"
 }
 
+variable "otel_trace_sample_ratio" {
+  description = "Fraction of application traces retained in the performance-test environment."
+  type        = number
+  default     = 1.0
+
+  validation {
+    condition     = var.otel_trace_sample_ratio >= 0 && var.otel_trace_sample_ratio <= 1
+    error_message = "otel_trace_sample_ratio must be between 0 and 1."
+  }
+}
+
 variable "grafana_allowed_cidr" {
   description = "Single public CIDR allowed to access the temporary Grafana task."
   type        = string

@@ -81,7 +81,11 @@ resource "aws_ecs_task_definition" "app" {
         },
         {
           name  = "OTEL_TRACES_SAMPLER"
-          value = "always_on"
+          value = "parentbased_traceidratio"
+        },
+        {
+          name  = "OTEL_TRACES_SAMPLER_ARG"
+          value = tostring(var.otel_trace_sample_ratio)
         },
         {
           name  = "OTEL_RESOURCE_ATTRIBUTES"
