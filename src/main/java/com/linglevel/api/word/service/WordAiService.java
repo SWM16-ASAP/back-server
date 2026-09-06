@@ -17,6 +17,12 @@ import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -24,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +38,8 @@ import java.util.stream.Collectors;
 public class WordAiService {
 
 	private static final String PROMPT_TEMPLATE_PATH = "prompts/word-analysis.md";
+
+	private static final Tracer TRACER = GlobalOpenTelemetry.getTracer("com.linglevel.api.word");
 
 	private static final double INPUT_COST_PER_1K_TOKENS_USD = 0.00017;
 
@@ -60,43 +69,20 @@ public class WordAiService {
 
 	public List<WordAnalysisResult> analyzeWord(String word, String targetLanguage) {
 		try {
-			BeanOutputConverter<WordAnalysisResult[]> outputConverter = new BeanOutputConverter<>(
-					WordAnalysisResult[].class);
+			PreparedPrompt preparedPrompt = trace("word.ai.prompt.prepare", () -> {
+				BeanOutputConverter<WordAnalysisResult[]> outputConverter = new BeanOutputConverter<>(
+						WordAnalysisResult[].class);
+				String format = outputConverter.getFormat();
+				PromptTemplate promptTemplate = new PromptTemplate(this.promptTemplate);
+				Prompt prompt = promptTemplate
+					.create(Map.of("word", word, "targetLanguage", targetLanguage, "format", format));
+				return new PreparedPrompt(outputConverter, prompt);
+			});
 
-			String format = outputConverter.getFormat();
+			ChatResponse chatResponse = trace("word.ai.invoke", () -> wordBedrockClient.call(preparedPrompt.prompt()));
 
-			PromptTemplate promptTemplate = new PromptTemplate(this.promptTemplate);
-			Prompt prompt = promptTemplate
-				.create(Map.of("word", word, "targetLanguage", targetLanguage, "format", format));
-
-			ChatResponse chatResponse = wordBedrockClient.call(prompt);
-
-			String response = chatResponse.getResult().getOutput().getText();
-			logAiUsage(word, chatResponse);
-
-			WordAnalysisResult[] results = outputConverter.convert(response);
-
-			for (WordAnalysisResult result : results) {
-				validateResult(result, word);
-			}
-
-			// ENUM 필터링 - variantTypes와 partOfSpeech에서 유효하지 않은 값 제거 (AI 실수 방지)
-			results = filterInvalidEnumValues(results, word);
-
-			// 같은 originalForm을 가진 결과를 병합 (AI가 잘못 분리한 경우 대비)
-			List<WordAnalysisResult> mergedResults = mergeDuplicateOriginalForms(results, word);
-
-			if (mergedResults.isEmpty()) {
-				throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
-			}
-
-			String summary = mergedResults.stream()
-				.map(r -> r.getOriginalForm() + " ("
-						+ String.join(", ", r.getVariantTypes().stream().map(Enum::name).toArray(String[]::new)) + ")")
-				.collect(Collectors.joining(", "));
-			log.info("AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
-
-			return mergedResults;
+			return trace("word.ai.response.parse",
+					() -> parseAndValidateResponse(word, preparedPrompt.outputConverter(), chatResponse));
 		}
 		catch (WordsException e) {
 			throw e;
@@ -105,6 +91,54 @@ public class WordAiService {
 			log.error("Failed to analyze word '{}' with AI (target: {})", word, targetLanguage, e);
 			throw new WordsException(WordsErrorCode.WORD_ANALYSIS_FAILED, e);
 		}
+	}
+
+	private List<WordAnalysisResult> parseAndValidateResponse(String word,
+			BeanOutputConverter<WordAnalysisResult[]> outputConverter, ChatResponse chatResponse) {
+		String response = chatResponse.getResult().getOutput().getText();
+		logAiUsage(word, chatResponse);
+
+		WordAnalysisResult[] results = outputConverter.convert(response);
+
+		for (WordAnalysisResult result : results) {
+			validateResult(result, word);
+		}
+
+		// ENUM 필터링 - variantTypes와 partOfSpeech에서 유효하지 않은 값 제거 (AI 실수 방지)
+		results = filterInvalidEnumValues(results, word);
+
+		// 같은 originalForm을 가진 결과를 병합 (AI가 잘못 분리한 경우 대비)
+		List<WordAnalysisResult> mergedResults = mergeDuplicateOriginalForms(results, word);
+
+		if (mergedResults.isEmpty()) {
+			throw new WordsException(WordsErrorCode.WORD_IS_MEANINGLESS);
+		}
+
+		String summary = mergedResults.stream()
+			.map(r -> r.getOriginalForm() + " ("
+					+ String.join(", ", r.getVariantTypes().stream().map(Enum::name).toArray(String[]::new)) + ")")
+			.collect(Collectors.joining(", "));
+		log.info("AI analysis completed for '{}': {} result(s) - {}", word, mergedResults.size(), summary);
+
+		return mergedResults;
+	}
+
+	private <T> T trace(String name, Supplier<T> action) {
+		Span span = TRACER.spanBuilder(name).startSpan();
+		try (Scope scope = span.makeCurrent()) {
+			return action.get();
+		}
+		catch (RuntimeException | Error e) {
+			span.recordException(e);
+			span.setStatus(StatusCode.ERROR);
+			throw e;
+		}
+		finally {
+			span.end();
+		}
+	}
+
+	private record PreparedPrompt(BeanOutputConverter<WordAnalysisResult[]> outputConverter, Prompt prompt) {
 	}
 
 	private void logAiUsage(String word, ChatResponse chatResponse) {

@@ -38,6 +38,32 @@ resource "aws_ecs_task_definition" "dependency_probe" {
           probe_tcp "Redis" "redis.${aws_service_discovery_private_dns_namespace.this.name}" 6379
           probe_tcp "MySQL" "mysql.${aws_service_discovery_private_dns_namespace.this.name}" 3306
 
+          collector_health_url="http://otel-collector.${aws_service_discovery_private_dns_namespace.this.name}:13133/"
+          for attempt in $(seq 1 30); do
+            if wget -qO- "$collector_health_url" >/dev/null; then
+              echo "OpenTelemetry Collector health passed: $collector_health_url"
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "OpenTelemetry Collector health failed: $collector_health_url" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          tempo_ready_url="http://tempo.${aws_service_discovery_private_dns_namespace.this.name}:3200/ready"
+          for attempt in $(seq 1 30); do
+            if wget -qO- "$tempo_ready_url" >/dev/null; then
+              echo "Tempo readiness passed: $tempo_ready_url"
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Tempo readiness failed: $tempo_ready_url" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
           probe_metric() {
             name="$1"
             url="$2"
@@ -87,6 +113,21 @@ resource "aws_ecs_task_definition" "dependency_probe" {
             fi
             if [ "$attempt" -eq 30 ]; then
               echo "Grafana health failed: $grafana_health_url" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          tempo_trace_url="http://tempo.${aws_service_discovery_private_dns_namespace.this.name}:3200/api/search?q=%7Bresource.service.name%3D%22llv-api%22%7D&limit=1"
+          for attempt in $(seq 1 30); do
+            if wget -qO /tmp/tempo-traces.json "$tempo_trace_url" && \
+                grep -q '"traceID"' /tmp/tempo-traces.json; then
+              echo "Application trace passed: llv-api trace found in Tempo"
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Application trace failed: no llv-api trace found in Tempo" >&2
+              cat /tmp/tempo-traces.json >&2 || true
               exit 1
             fi
             sleep 2

@@ -311,6 +311,49 @@
       "targets": [{ "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "ClusterName": "${cluster_name}", "ContainerName": "k6", "TaskDefinitionFamily": "${k6_task_family}" }, "label": "", "matchExact": true, "metricEditorMode": 0, "metricName": "ContainerMemoryUtilized", "metricQueryType": 0, "namespace": "ECS/ContainerInsights", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "${aws_region}", "statistic": "Average" }],
       "title": "k6 Task Memory Utilized",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 61 },
+      "id": 106,
+      "panels": [],
+      "title": "Trace Analysis",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "Click a Trace ID to open its full waterfall in Tempo Explore. Edit the TraceQL filter above to search errors, dependencies, or a different duration threshold.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 62 },
+      "id": 29,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "limit": 50,
+          "query": "$traceql_filter",
+          "queryType": "traceql",
+          "refId": "A",
+          "tableType": "traces"
+        }
+      ],
+      "title": "Matching Application Traces",
+      "type": "table"
     }
   ],
   "refresh": "10s",
@@ -343,6 +386,13 @@
         "multi": false,
         "refresh": 1,
         "current": { "selected": true, "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "traceql_filter",
+        "label": "TraceQL filter",
+        "type": "textbox",
+        "query": "{ resource.service.name = \"llv-api\" && duration > 1s }",
+        "current": { "selected": true, "text": "{ resource.service.name = \"llv-api\" && duration > 1s }", "value": "{ resource.service.name = \"llv-api\" && duration > 1s }" }
       }
     ]
   },

@@ -17,6 +17,18 @@ locals {
         jsonData:
           authType: default
           defaultRegion: ${var.aws_region}
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.${aws_service_discovery_private_dns_namespace.this.name}:3200
+        editable: false
+        jsonData:
+          httpMethod: GET
+          nodeGraph:
+            enabled: true
+          search:
+            hide: false
   YAML
 
   grafana_dashboard_provider = <<-YAML
@@ -197,4 +209,6 @@ resource "aws_ecs_service" "grafana" {
   service_registries {
     registry_arn = aws_service_discovery_service.grafana.arn
   }
+
+  depends_on = [aws_ecs_service.tempo]
 }

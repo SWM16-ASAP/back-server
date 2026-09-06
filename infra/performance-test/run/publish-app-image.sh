@@ -38,6 +38,7 @@ aws ecr get-login-password --region "$region" | \
 	docker login --username AWS --password-stdin "$registry"
 docker buildx build \
 	--platform linux/amd64 \
+	--target performance-test \
 	--tag "${repository_url}:${image_tag}" \
 	--push \
 	.

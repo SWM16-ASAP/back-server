@@ -4,8 +4,10 @@ locals {
     {
       grafana        = 3000
       mysql_exporter = 9104
+      otel_collector = 13133
       prometheus     = 9090
       redis_exporter = 9121
+      tempo          = 3200
     }
   )
 }
@@ -99,6 +101,14 @@ resource "aws_security_group" "app" {
       protocol    = "tcp"
       cidr_blocks = [var.vpc_cidr]
     }
+  }
+
+  egress {
+    description = "OTLP traces to the OpenTelemetry Collector"
+    from_port   = 4318
+    to_port     = 4318
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = {
@@ -248,6 +258,14 @@ resource "aws_security_group" "grafana" {
   }
 
   egress {
+    description = "Tempo datasource"
+    from_port   = 3200
+    to_port     = 3200
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
     description = "HTTPS for image pulls and CloudWatch APIs"
     from_port   = 443
     to_port     = 443
@@ -273,6 +291,117 @@ resource "aws_security_group" "grafana" {
 
   tags = {
     Name = "${local.name_prefix}-grafana"
+  }
+}
+
+resource "aws_security_group" "otel_collector" {
+  name_prefix = "${local.name_prefix}-otel-collector-"
+  description = "Allow application traces and Collector health verification."
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description     = "OTLP HTTP traces from application tasks"
+    from_port       = 4318
+    to_port         = 4318
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+  }
+
+  ingress {
+    description     = "Collector health from verification tasks"
+    from_port       = 13133
+    to_port         = 13133
+    protocol        = "tcp"
+    security_groups = [aws_security_group.probe.id]
+  }
+
+  egress {
+    description = "OTLP traces to Tempo"
+    from_port   = 4317
+    to_port     = 4317
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "HTTPS for image pulls and AWS APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-otel-collector"
+  }
+}
+
+resource "aws_security_group" "tempo" {
+  name_prefix = "${local.name_prefix}-tempo-"
+  description = "Allow Collector ingestion and Tempo API queries."
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description     = "OTLP gRPC traces from the OpenTelemetry Collector"
+    from_port       = 4317
+    to_port         = 4317
+    protocol        = "tcp"
+    security_groups = [aws_security_group.otel_collector.id]
+  }
+
+  ingress {
+    description = "Tempo API from Grafana and verification tasks"
+    from_port   = 3200
+    to_port     = 3200
+    protocol    = "tcp"
+    security_groups = [
+      aws_security_group.grafana.id,
+      aws_security_group.probe.id,
+    ]
+  }
+
+  egress {
+    description = "HTTPS for image pulls and AWS APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "DNS to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "TCP DNS fallback to the VPC resolver"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-tempo"
   }
 }
 
