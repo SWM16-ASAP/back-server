@@ -1,6 +1,6 @@
 package com.linglevel.api.content.book.repository;
 
-import com.linglevel.api.common.AbstractDatabaseTest;
+import com.linglevel.api.content.common.AbstractCatalogTest;
 import com.linglevel.api.content.book.dto.GetBooksRequest;
 import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.common.DifficultyLevel;
@@ -10,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,9 +22,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataMongoTest
 @Import(BookRepositoryImpl.class)
-class BookRepositoryImplTest extends AbstractDatabaseTest {
+class BookRepositoryImplTest extends AbstractCatalogTest {
 
 	@Autowired
 	private BookRepository bookRepository;
@@ -35,6 +33,8 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
 	@Autowired
 	private MongoTemplate mongoTemplate;
+
+	private final java.util.Map<String, Long> ids = new java.util.HashMap<>();
 
 	private static final String USER_ID = "user-1";
 
@@ -58,7 +58,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
 		Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
 
-		assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-1");
+		assertThat(result.getContent()).extracting(Book::getId).containsExactly(ids.get("book-1"));
 		assertThat(result.getTotalElements()).isEqualTo(1);
 	}
 
@@ -69,7 +69,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
 		Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
 
-		assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-2");
+		assertThat(result.getContent()).extracting(Book::getId).containsExactly(ids.get("book-2"));
 		assertThat(result.getTotalElements()).isEqualTo(1);
 	}
 
@@ -83,7 +83,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
 		Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
 
-		assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-1");
+		assertThat(result.getContent()).extracting(Book::getId).containsExactly(ids.get("book-1"));
 		assertThat(result.getTotalElements()).isEqualTo(1);
 	}
 
@@ -94,7 +94,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
 		Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
 
-		assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-3");
+		assertThat(result.getContent()).extracting(Book::getId).containsExactly(ids.get("book-3"));
 		assertThat(result.getTotalElements()).isEqualTo(1);
 	}
 
@@ -121,7 +121,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
 		Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
 
-		assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-1");
+		assertThat(result.getContent()).extracting(Book::getId).containsExactly(ids.get("book-1"));
 		assertThat(result.getTotalElements()).isEqualTo(1);
 	}
 
@@ -135,7 +135,7 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
 		Page<Book> result = bookRepository.findBooksWithFilters(request, USER_ID, defaultPageable());
 
-		assertThat(result.getContent()).extracting(Book::getId).containsExactly("book-2", "book-3");
+		assertThat(result.getContent()).extracting(Book::getId).containsExactly(ids.get("book-2"), ids.get("book-3"));
 		assertThat(result.getTotalElements()).isEqualTo(2);
 	}
 
@@ -145,17 +145,19 @@ class BookRepositoryImplTest extends AbstractDatabaseTest {
 
 	private Book createBook(String id, String title, Instant createdAt) {
 		Book book = new Book();
-		book.setId(id);
+
 		book.setTitle(title);
 		book.setAuthor("Author");
 		book.setDifficultyLevel(DifficultyLevel.A1);
 		book.setChapterCount(10);
 		book.setCreatedAt(createdAt);
+		bookRepository.save(book);
+		ids.put(id, book.getId());
 		return book;
 	}
 
 	private Document createProgressDocument(String bookId, boolean isCompleted, double normalizedProgress) {
-		return new Document("userId", USER_ID).append("bookId", bookId)
+		return new Document("userId", USER_ID).append("bookId", ids.get(bookId).toString())
 			.append("isCompleted", isCompleted)
 			.append("normalizedProgress", normalizedProgress);
 	}

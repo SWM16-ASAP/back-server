@@ -61,7 +61,7 @@ class ArticleProgressServiceTest {
 	void updateProgress_shouldLazyMigrate_forOldData() {
 		// Given: 마이그레이션되지 않은(V2 필드가 null인) ArticleProgress 설정
 		String userId = "test-user";
-		String articleId = "test-article";
+		String articleId = "101";
 		String chunkId = "test-chunk";
 
 		// V2 필드가 null인 레거시 데이터
@@ -79,7 +79,7 @@ class ArticleProgressServiceTest {
 		currentChunk.setDifficultyLevel(DifficultyLevel.B1);
 
 		Article article = new Article();
-		article.setId(articleId);
+		article.setId(Long.valueOf(articleId));
 
 		ArticleProgressUpdateRequest request = new ArticleProgressUpdateRequest();
 		request.setChunkId(chunkId);

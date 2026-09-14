@@ -65,37 +65,40 @@ public class BookService {
 		Book book = createBook(importData, request.getId());
 		Book savedBook = bookRepository.save(book);
 
-		s3TransferService.transferImagesFromAiToStatic(request.getId(), savedBook.getId(), bookPathStrategy);
+		s3TransferService.transferImagesFromAiToStatic(request.getId(), savedBook.getId().toString(), bookPathStrategy);
 
-		String coverImageUrl = s3UrlService.getCoverImageUrl(savedBook.getId(), bookPathStrategy);
+		String coverImageUrl = s3UrlService.getCoverImageUrl(savedBook.getId().toString(), bookPathStrategy);
 		savedBook.setCoverImageUrl(coverImageUrl);
 
 		if (StringUtils.hasText(coverImageUrl)) {
 			try {
-				log.info("Auto-processing cover image for imported book: {}", savedBook.getId());
+				log.info("Auto-processing cover image for imported book: {}", savedBook.getId().toString());
 
-				String originalCoverS3Key = bookPathStrategy.generateCoverImagePath(savedBook.getId());
+				String originalCoverS3Key = bookPathStrategy.generateCoverImagePath(savedBook.getId().toString());
 				String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
 
 				savedBook.setCoverImageUrl(smallImageUrl);
-				log.info("Successfully auto-processed cover image: {} → {}", savedBook.getId(), smallImageUrl);
+				log.info("Successfully auto-processed cover image: {} → {}", savedBook.getId().toString(),
+						smallImageUrl);
 
 			}
 			catch (Exception e) {
-				log.warn("Failed to auto-process cover image for book: {}, keeping original URL", savedBook.getId(), e);
+				log.warn("Failed to auto-process cover image for book: {}, keeping original URL",
+						savedBook.getId().toString(), e);
 			}
 		}
 
 		bookRepository.save(savedBook);
 
-		List<Chapter> savedChapters = bookImportService.createChaptersFromMetadata(importData, savedBook.getId());
+		List<Chapter> savedChapters = bookImportService.createChaptersFromMetadata(importData,
+				savedBook.getId().toString());
 
-		bookImportService.createChunksFromLeveledResults(importData, savedChapters, savedBook.getId());
+		bookImportService.createChunksFromLeveledResults(importData, savedChapters, savedBook.getId().toString());
 
-		bookReadingTimeService.updateReadingTimes(savedBook.getId(), importData);
+		bookReadingTimeService.updateReadingTimes(savedBook.getId().toString(), importData);
 
-		log.info("Successfully imported book with id: {}", savedBook.getId());
-		return new BookImportResponse(savedBook.getId());
+		log.info("Successfully imported book with id: {}", savedBook.getId().toString());
+		return new BookImportResponse(savedBook.getId().toString());
 	}
 
 	private Book createBook(BookImportData importData, String requestId) {
@@ -135,7 +138,7 @@ public class BookService {
 
 		LanguageCode languageCode = request.getLanguageCode();
 		List<BookResponse> bookResponses = books.stream()
-			.map(book -> convertToBookResponse(book, progressMap.get(book.getId()), languageCode))
+			.map(book -> convertToBookResponse(book, progressMap.get(book.getId().toString()), languageCode))
 			.collect(Collectors.toList());
 
 		return new PageResponse<>(bookResponses, bookPage);
@@ -146,7 +149,7 @@ public class BookService {
 			.orElseThrow(() -> new BooksException(BooksErrorCode.BOOK_NOT_FOUND));
 
 		BookProgress progress = userId == null ? null
-				: bookProgressRepository.findByUserIdAndBookId(userId, book.getId()).orElse(null);
+				: bookProgressRepository.findByUserIdAndBookId(userId, book.getId().toString()).orElse(null);
 
 		return convertToBookResponse(book, progress, languageCode);
 	}
@@ -191,7 +194,7 @@ public class BookService {
 			return Map.of();
 		}
 
-		List<String> bookIds = books.stream().map(Book::getId).toList();
+		List<String> bookIds = books.stream().map(b -> b.getId().toString()).toList();
 		List<BookProgress> progresses = bookProgressRepository.findByUserIdAndBookIdIn(userId, bookIds);
 		if (progresses == null || progresses.isEmpty()) {
 			return Map.of();
@@ -228,7 +231,7 @@ public class BookService {
 		String selectedTitle = selectTitleByLanguage(book, languageCode);
 
 		return BookResponse.builder()
-			.id(book.getId())
+			.id(book.getId().toString())
 			.title(selectedTitle)
 			.author(book.getAuthor())
 			.coverImageUrl(book.getCoverImageUrl())

@@ -94,38 +94,40 @@ public class ArticleService {
 		Article article = createArticle(importData, request.getId());
 		Article savedArticle = articleRepository.save(article);
 
-		s3TransferService.transferImagesFromAiToStatic(request.getId(), savedArticle.getId(), articlePathStrategy);
+		s3TransferService.transferImagesFromAiToStatic(request.getId(), savedArticle.getId().toString(),
+				articlePathStrategy);
 
-		String coverImageUrl = s3UrlService.getCoverImageUrl(savedArticle.getId(), articlePathStrategy);
+		String coverImageUrl = s3UrlService.getCoverImageUrl(savedArticle.getId().toString(), articlePathStrategy);
 		savedArticle.setCoverImageUrl(coverImageUrl);
 
 		if (StringUtils.hasText(coverImageUrl)) {
 			try {
-				log.info("Auto-processing cover image for imported article: {}", savedArticle.getId());
+				log.info("Auto-processing cover image for imported article: {}", savedArticle.getId().toString());
 
-				String originalCoverS3Key = articlePathStrategy.generateCoverImagePath(savedArticle.getId());
+				String originalCoverS3Key = articlePathStrategy.generateCoverImagePath(savedArticle.getId().toString());
 				String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
 
 				savedArticle.setCoverImageUrl(smallImageUrl);
-				log.info("Successfully auto-processed cover image: {} → {}", savedArticle.getId(), smallImageUrl);
+				log.info("Successfully auto-processed cover image: {} → {}", savedArticle.getId().toString(),
+						smallImageUrl);
 
 			}
 			catch (Exception e) {
 				log.warn("Failed to auto-process cover image for article: {}, keeping original URL",
-						savedArticle.getId(), e);
+						savedArticle.getId().toString(), e);
 			}
 		}
 
 		articleRepository.save(savedArticle);
 
-		articleImportService.createChunksFromLeveledResults(importData, savedArticle.getId());
+		articleImportService.createChunksFromLeveledResults(importData, savedArticle.getId().toString());
 
-		articleReadingTimeService.updateReadingTime(savedArticle.getId(), importData);
+		articleReadingTimeService.updateReadingTime(savedArticle.getId().toString(), importData);
 
-		log.info("Successfully imported article with id: {}", savedArticle.getId());
+		log.info("Successfully imported article with id: {}", savedArticle.getId().toString());
 
 		ArticleImportResponse response = new ArticleImportResponse();
-		response.setId(savedArticle.getId());
+		response.setId(savedArticle.getId().toString());
 		return response;
 	}
 
@@ -232,7 +234,8 @@ public class ArticleService {
 																				// 난이도
 
 		if (userId != null) {
-			ArticleProgress progress = articleProgressRepository.findByUserIdAndArticleId(userId, article.getId())
+			ArticleProgress progress = articleProgressRepository
+				.findByUserIdAndArticleId(userId, article.getId().toString())
 				.orElse(null);
 
 			if (progress != null) {
@@ -252,8 +255,8 @@ public class ArticleService {
 				}
 
 				// V2: 현재 난이도 기준으로 동적으로 청크 수 계산
-				long totalChunksForLevel = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(),
-						currentDifficultyLevel);
+				long totalChunksForLevel = articleChunkRepository
+					.countByArticleIdAndDifficultyLevel(article.getId().toString(), currentDifficultyLevel);
 
 				if (totalChunksForLevel > 0) {
 					progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
@@ -265,13 +268,13 @@ public class ArticleService {
 		}
 
 		ArticleResponse response = new ArticleResponse();
-		response.setId(article.getId());
+		response.setId(article.getId().toString());
 		response.setTitle(article.getTitle());
 		response.setAuthor(article.getAuthor());
 		response.setCoverImageUrl(article.getCoverImageUrl());
 		response.setDifficultyLevel(article.getDifficultyLevel());
-		response.setChunkCount((int) articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(),
-				currentDifficultyLevel));
+		response.setChunkCount((int) articleChunkRepository
+			.countByArticleIdAndDifficultyLevel(article.getId().toString(), currentDifficultyLevel));
 		response.setCurrentReadChunkNumber(currentReadChunkNumber);
 		response.setProgressPercentage(progressPercentage);
 		response.setCurrentDifficultyLevel(currentDifficultyLevel);
@@ -320,7 +323,7 @@ public class ArticleService {
 
 	private ArticleOriginResponse convertToArticleOriginResponse(Article article) {
 		ArticleOriginResponse response = new ArticleOriginResponse();
-		response.setId(article.getId());
+		response.setId(article.getId().toString());
 		response.setTitle(article.getTitle());
 		response.setOriginUrl(article.getOriginUrl());
 

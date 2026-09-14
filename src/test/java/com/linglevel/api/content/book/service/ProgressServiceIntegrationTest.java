@@ -63,9 +63,9 @@ class ProgressServiceIntegrationTest {
 
 	private static final String TEST_USER_ID = "test-user-123";
 
-	private static final String TEST_BOOK_ID = "book-123";
+	private static final String TEST_BOOK_ID = "123";
 
-	private static final String TEST_CHAPTER_ID = "chapter-1";
+	private static final String TEST_CHAPTER_ID = "1";
 
 	private static final String TEST_CHUNK_ID = "chunk-1";
 
@@ -78,8 +78,8 @@ class ProgressServiceIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		testChapter = new Chapter();
-		testChapter.setId(TEST_CHAPTER_ID);
-		testChapter.setBookId(TEST_BOOK_ID);
+		testChapter.setId(Long.valueOf(TEST_CHAPTER_ID));
+		testChapter.setBookId(Long.valueOf(TEST_BOOK_ID));
 		testChapter.setChapterNumber(1);
 
 		testChunk = new Chunk();

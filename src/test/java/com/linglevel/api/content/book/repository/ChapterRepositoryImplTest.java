@@ -1,6 +1,6 @@
 package com.linglevel.api.content.book.repository;
 
-import com.linglevel.api.common.AbstractDatabaseTest;
+import com.linglevel.api.content.common.AbstractCatalogTest;
 import com.linglevel.api.content.book.dto.GetChaptersRequest;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.entity.Chapter;
@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,9 +19,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataMongoTest
 @Import(ChapterRepositoryImpl.class)
-class ChapterRepositoryImplTest extends AbstractDatabaseTest {
+class ChapterRepositoryImplTest extends AbstractCatalogTest {
 
 	@Autowired
 	private ChapterRepository chapterRepository;
@@ -30,7 +28,10 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
 	@Autowired
 	private BookProgressRepository bookProgressRepository;
 
-	private static final String BOOK_ID = "book-1";
+	private String BOOK_ID;
+
+	@Autowired
+	private BookRepository bookRepository;
 
 	private static final String USER_ID = "user-1";
 
@@ -38,6 +39,11 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
 	void setUp() {
 		bookProgressRepository.deleteAll();
 		chapterRepository.deleteAll();
+		bookRepository.deleteAll();
+		var book = new com.linglevel.api.content.book.entity.Book();
+		book.setTitle("Book");
+		book.setDifficultyLevel(com.linglevel.api.content.common.DifficultyLevel.A1);
+		BOOK_ID = bookRepository.save(book).getId().toString();
 
 		chapterRepository.saveAll(
 				List.of(createChapter(1, "Chapter 1"), createChapter(2, "Chapter 2"), createChapter(3, "Chapter 3")));
@@ -129,8 +135,8 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
 
 	private Chapter createChapter(int chapterNumber, String title) {
 		Chapter chapter = new Chapter();
-		chapter.setId("chapter-" + chapterNumber);
-		chapter.setBookId(BOOK_ID);
+
+		chapter.setBookId(Long.valueOf(BOOK_ID));
 		chapter.setChapterNumber(chapterNumber);
 		chapter.setTitle(title);
 		return chapter;

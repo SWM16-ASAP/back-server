@@ -40,7 +40,7 @@ public class ChunkService {
 
 		Chapter chapter = chapterRepository.findById(chapterId)
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
-		if (!bookId.equals(chapter.getBookId())) {
+		if (!bookId.equals(chapter.getBookId().toString())) {
 			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
 		}
 
@@ -73,7 +73,7 @@ public class ChunkService {
 
 		Chapter chapter = chapterRepository.findById(chapterId)
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
-		if (!bookId.equals(chapter.getBookId())) {
+		if (!bookId.equals(chapter.getBookId().toString())) {
 			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
 		}
 

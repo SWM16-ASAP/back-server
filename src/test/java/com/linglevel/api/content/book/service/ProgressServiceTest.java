@@ -72,9 +72,9 @@ class ProgressServiceTest {
 	void updateProgress_shouldLazyMigrate_forOldBookProgress() {
 		// Given: 마이그레이션되지 않은(V3 필드가 null인) BookProgress 설정
 		String userId = "test-user";
-		String bookId = "test-book";
+		String bookId = "101";
 		String chunkId = "test-chunk";
-		String chapterId = "test-chapter";
+		String chapterId = "201";
 
 		// V3 필드(chapterProgresses)가 null인 레거시 데이터
 		BookProgress legacyProgress = new BookProgress();
@@ -89,8 +89,8 @@ class ProgressServiceTest {
 		currentChunk.setChunkNumber(1);
 
 		Chapter currentChapter = new Chapter();
-		currentChapter.setId(chapterId);
-		currentChapter.setBookId(bookId);
+		currentChapter.setId(Long.valueOf(chapterId));
+		currentChapter.setBookId(Long.valueOf(bookId));
 		currentChapter.setChapterNumber(1);
 
 		ProgressUpdateRequest request = new ProgressUpdateRequest();
@@ -127,7 +127,7 @@ class ProgressServiceTest {
 	void getProgress_returnsZeroProgressWhenMissing() {
 		// given
 		String userId = "user-1";
-		String bookId = "book-1";
+		String bookId = "1";
 
 		when(bookService.existsById(bookId)).thenReturn(true);
 		when(bookProgressRepository.findByUserIdAndBookId(userId, bookId)).thenReturn(Optional.empty());
@@ -157,9 +157,9 @@ class ProgressServiceTest {
 	void updateProgress_updatesExistingChapterProgressEntry() {
 		// given
 		String userId = "user-1";
-		String bookId = "book-1";
+		String bookId = "1";
 		String chunkId = "chunk-3";
-		String chapterId = "chapter-1";
+		String chapterId = "1";
 
 		BookProgress progress = new BookProgress();
 		progress.setId("progress-1");
@@ -180,8 +180,8 @@ class ProgressServiceTest {
 		chunk.setDifficultyLevel(DifficultyLevel.A1);
 
 		Chapter chapter = new Chapter();
-		chapter.setId(chapterId);
-		chapter.setBookId(bookId);
+		chapter.setId(Long.valueOf(chapterId));
+		chapter.setBookId(Long.valueOf(bookId));
 		chapter.setChapterNumber(1);
 
 		ProgressUpdateRequest request = new ProgressUpdateRequest();
@@ -221,9 +221,9 @@ class ProgressServiceTest {
 	void updateProgress_marksBookCompletedWhenLastRemainingChapterFinishes() {
 		// given
 		String userId = "user-1";
-		String bookId = "book-1";
+		String bookId = "1";
 		String chunkId = "chunk-4";
-		String chapterId = "chapter-2";
+		String chapterId = "2";
 
 		BookProgress progress = new BookProgress();
 		progress.setId("progress-1");
@@ -245,8 +245,8 @@ class ProgressServiceTest {
 		chunk.setDifficultyLevel(DifficultyLevel.A1);
 
 		Chapter chapter = new Chapter();
-		chapter.setId(chapterId);
-		chapter.setBookId(bookId);
+		chapter.setId(Long.valueOf(chapterId));
+		chapter.setBookId(Long.valueOf(bookId));
 		chapter.setChapterNumber(2);
 
 		ProgressUpdateRequest request = new ProgressUpdateRequest();
@@ -288,9 +288,9 @@ class ProgressServiceTest {
 	void updateProgress_updatesMaxReadChunkNumberByChapterPriority() {
 		// given
 		String userId = "user-1";
-		String bookId = "book-1";
+		String bookId = "1";
 		String chunkId = "chunk-1";
-		String chapterId = "chapter-2";
+		String chapterId = "2";
 
 		BookProgress progress = new BookProgress();
 		progress.setId("progress-1");
@@ -306,8 +306,8 @@ class ProgressServiceTest {
 		chunk.setDifficultyLevel(DifficultyLevel.A1);
 
 		Chapter chapter = new Chapter();
-		chapter.setId(chapterId);
-		chapter.setBookId(bookId);
+		chapter.setId(Long.valueOf(chapterId));
+		chapter.setBookId(Long.valueOf(bookId));
 		chapter.setChapterNumber(2);
 
 		ProgressUpdateRequest request = new ProgressUpdateRequest();
@@ -338,7 +338,7 @@ class ProgressServiceTest {
 	void deleteProgress_deletesExistingProgress() {
 		// given
 		String userId = "user-1";
-		String bookId = "book-1";
+		String bookId = "1";
 
 		BookProgress progress = new BookProgress();
 		progress.setId("progress-1");
@@ -358,7 +358,7 @@ class ProgressServiceTest {
 	void deleteProgress_throwsWhenProgressMissing() {
 		// given
 		String userId = "user-1";
-		String bookId = "book-1";
+		String bookId = "1";
 
 		when(bookService.existsById(bookId)).thenReturn(true);
 		when(bookProgressRepository.findByUserIdAndBookId(userId, bookId)).thenReturn(Optional.empty());

@@ -1,27 +1,35 @@
 package com.linglevel.api.content.book.entity;
 
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "chapters")
+@Entity
+@Table(name = "chapters")
 public class Chapter {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	private String bookId;
+	@Column(nullable = false)
+	private Long bookId;
 
+	@Column(nullable = false)
 	private Integer chapterNumber;
 
+	@Column(length = 500, nullable = false)
 	private String title;
 
+	@Column(length = 2048)
 	private String chapterImageUrl;
 
+	@Column(columnDefinition = "text")
 	private String description;
 
 	private Integer readingTime;

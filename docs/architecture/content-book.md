@@ -32,7 +32,8 @@
 
 ## 외부 시스템 의존성
 
-- MongoDB: 책, 챕터, 청크, 진행도 저장
+- MySQL: 책·챕터 메타데이터, 책 FK와 챕터 번호 유일성 보장
+- MongoDB: 청크·진행도 저장. 책·챕터 참조는 SQL ID의 문자열 표현
 - S3 / R2: 표지 이미지와 import 산출물 저장
 - StreakService: 읽기 완료 이후 스트릭 반영
 
@@ -46,6 +47,7 @@ flowchart TD
     ChapterService[ChapterService]
     ProgressService[ProgressService]
     Mongo[(MongoDB)]
+    MySQL[(MySQL)]
     S3[(S3 / R2)]
     Streak[StreakService]
 
@@ -57,7 +59,9 @@ flowchart TD
     BooksController --> ChapterService
     ProgressController --> ProgressService
 
+    BookService --> MySQL
     BookService --> Mongo
+    ChapterService --> MySQL
     ChapterService --> Mongo
     ProgressService --> Mongo
 
@@ -83,14 +87,16 @@ sequenceDiagram
     participant BookRepository
     participant BookProgressRepository
     participant Mongo
+    participant MySQL
 
     Client->>BooksController: GET /api/v1/books
     BooksController->>BookService: getBooks(...)
     BookService->>BookRepository: find books
     BookService->>BookProgressRepository: load user progress
-    BookRepository->>Mongo: query books
+    BookRepository->>MySQL: query books
     BookProgressRepository->>Mongo: query bookProgress
-    Mongo-->>BookService: books + progress
+    MySQL-->>BookService: books
+    Mongo-->>BookService: progress
     BookService-->>BooksController: BookResponse list
     BooksController-->>Client: response
 ```

@@ -62,7 +62,7 @@ public class ProgressService {
 		}
 		Chapter chapter = chapterService.findById(chunk.getChapterId());
 
-		if (!chapter.getBookId().equals(bookId)) {
+		if (!chapter.getBookId().toString().equals(bookId)) {
 			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND_IN_BOOK);
 		}
 
@@ -78,13 +78,13 @@ public class ProgressService {
 
 		bookProgress.setUserId(userId);
 		bookProgress.setBookId(bookId);
-		bookProgress.setChapterId(chapter.getId()); // 역추산된 chapter ID
+		bookProgress.setChapterId(chapter.getId().toString()); // 역추산된 chapter ID
 		bookProgress.setChunkId(request.getChunkId());
 		bookProgress.setCurrentReadChapterNumber(chapter.getChapterNumber());
 		bookProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
 		// [V3_CHAPTER_BASED] 챕터별 진행률 계산
-		long totalChunksInChapter = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(),
+		long totalChunksInChapter = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId().toString(),
 				chunk.getDifficultyLevel());
 		double chapterProgressPercentage = totalChunksInChapter > 0
 				? (chunk.getChunkNumber() * 100.0 / totalChunksInChapter) : 0.0;
@@ -124,7 +124,7 @@ public class ProgressService {
 		// 읽기 완료 처리 (30초 이상 읽은 경우 이벤트 발행 + 세션 삭제)
 		// Book은 category가 없으므로 null 전달 (추천 시스템 집계에서 자동 제외됨)
 		Long readTimeSeconds = readingCompletionService.processReadingCompletion(userId, ContentType.BOOK,
-				chapter.getId(), null);
+				chapter.getId().toString(), null);
 
 		// 스트릭 검사 및 완료 처리 로직
 		boolean streakUpdated = false;
@@ -145,8 +145,8 @@ public class ProgressService {
 			// 스트릭 업데이트 (30초 이상 읽은 경우에만)
 			if (readTimeSeconds != null && readTimeSeconds >= 30) {
 				streakService.addStudyTime(userId, readTimeSeconds);
-				streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, chapter.getId());
-				streakService.addCompletedContent(userId, ContentType.BOOK, chapter.getId(), streakUpdated);
+				streakUpdated = streakService.updateStreak(userId, ContentType.BOOK, chapter.getId().toString());
+				streakService.addCompletedContent(userId, ContentType.BOOK, chapter.getId().toString(), streakUpdated);
 			}
 
 			// 3. 책 전체 완료 확인 (모든 챕터 완료 시)

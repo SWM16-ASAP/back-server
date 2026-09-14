@@ -208,7 +208,7 @@ class ArticleServiceTest {
 
 	private Article createArticle(String title, String author, List<String> tags) {
 		Article article = new Article();
-		article.setId("article-" + title.hashCode());
+		article.setId(Math.abs((long) title.hashCode()));
 		article.setTitle(title);
 		article.setAuthor(author);
 		article.setTags(tags);
@@ -231,8 +231,10 @@ class ArticleServiceTest {
 			.thenReturn(100L);
 
 		for (Article article : articles) {
-			ArticleProgress progress = createArticleProgress(testUser.getId().toString(), article.getId(), isCompleted);
-			when(articleProgressRepository.findByUserIdAndArticleId(testUser.getId().toString(), article.getId()))
+			ArticleProgress progress = createArticleProgress(testUser.getId().toString(), article.getId().toString(),
+					isCompleted);
+			when(articleProgressRepository.findByUserIdAndArticleId(testUser.getId().toString(),
+					article.getId().toString()))
 				.thenReturn(Optional.of(progress));
 		}
 	}

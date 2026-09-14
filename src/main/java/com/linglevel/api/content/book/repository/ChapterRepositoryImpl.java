@@ -4,115 +4,69 @@ import com.linglevel.api.content.book.dto.GetChaptersRequest;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.common.ProgressStatus;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.*;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.*;
 
 @RequiredArgsConstructor
 public class ChapterRepositoryImpl implements ChapterRepositoryCustom {
 
-	private final MongoTemplate mongoTemplate;
+	private final EntityManager entityManager;
 
-	private final BookProgressRepository bookProgressRepository;
+	private final ObjectProvider<BookProgressRepository> progressRepository;
 
 	@Override
+	@Transactional(readOnly = true)
 	public Page<Chapter> findChaptersWithFilters(String bookId, GetChaptersRequest request, String userId,
 			Pageable pageable) {
-		Query query = buildQuery(bookId, request, userId);
-
-		// 총 개수 조회 (필터링 적용 후)
-		long total = mongoTemplate.count(query, Chapter.class);
-
-		// 페이지네이션 적용
-		query.with(pageable);
-
-		// 데이터 조회
-		List<Chapter> chapters = mongoTemplate.find(query, Chapter.class);
-
-		return new PageImpl<>(chapters, pageable, total);
-	}
-
-	/**
-	 * 동적 쿼리 빌드
-	 */
-	private Query buildQuery(String bookId, GetChaptersRequest request, String userId) {
-		Query query = new Query();
-
-		// bookId 필터는 항상 적용
-		query.addCriteria(Criteria.where("bookId").is(bookId));
-
-		// 진도 필터 적용
-		applyProgressFilter(query, request.getProgress(), bookId, userId);
-
-		return query;
-	}
-
-	/**
-	 * 진도 필터 적용
-	 */
-	private void applyProgressFilter(Query query, ProgressStatus progress, String bookId, String userId) {
-		if (progress == null || userId == null) {
-			return;
+		String where = " where c.bookId = :bookId";
+		Map<String, Object> params = new HashMap<>();
+		params.put("bookId", Long.valueOf(bookId));
+		if (userId != null && request.getProgress() != null) {
+			BookProgress progress = progressRepository.getObject().findByUserIdAndBookId(userId, bookId).orElse(null);
+			List<BookProgress.ChapterProgressInfo> infos = progress == null || progress.getChapterProgresses() == null
+					? List.of() : progress.getChapterProgresses();
+			List<Integer> numbers = infos.stream().filter(info -> {
+				boolean complete = Boolean.TRUE.equals(info.getIsCompleted());
+				boolean started = complete
+						|| (info.getProgressPercentage() != null && info.getProgressPercentage() > 0);
+				return switch (request.getProgress()) {
+					case COMPLETED -> complete;
+					case IN_PROGRESS -> started && !complete;
+					case NOT_STARTED -> started;
+				};
+			}).map(BookProgress.ChapterProgressInfo::getChapterNumber).distinct().toList();
+			boolean exclude = request.getProgress() == ProgressStatus.NOT_STARTED;
+			if (numbers.isEmpty() && !exclude)
+				return Page.empty(pageable);
+			if (!numbers.isEmpty()) {
+				where += exclude ? " and c.chapterNumber not in :numbers" : " and c.chapterNumber in :numbers";
+				params.put("numbers", numbers);
+			}
 		}
-
-		BookProgress bookProgress = bookProgressRepository.findByUserIdAndBookId(userId, bookId).orElse(null);
-
-		List<Integer> chapterNumbers = getChapterNumbersByProgress(bookId, bookProgress, progress);
-
-		if (chapterNumbers == null) {
-			// null이면 필터링하지 않음 (모든 챕터 반환)
-			return;
-		}
-
-		if (!chapterNumbers.isEmpty()) {
-			query.addCriteria(Criteria.where("chapterNumber").in(chapterNumbers));
-		}
-		else {
-			// 조건에 맞는 챕터가 없으면 빈 결과 반환
-			query.addCriteria(Criteria.where("_id").is(null));
-		}
-	}
-
-	/**
-	 * 진도 상태별 챕터 번호 목록 조회
-	 */
-	private List<Integer> getChapterNumbersByProgress(String bookId, BookProgress bookProgress,
-			ProgressStatus progressStatus) {
-		// 모든 챕터 번호 조회
-		List<Chapter> allChapters = mongoTemplate.find(Query.query(Criteria.where("bookId").is(bookId)), Chapter.class);
-		List<Integer> allChapterNumbers = allChapters.stream().map(Chapter::getChapterNumber).toList();
-
-		if (bookProgress == null) {
-			return progressStatus == ProgressStatus.NOT_STARTED ? allChapterNumbers : List.of();
-		}
-
-		Map<Integer, BookProgress.ChapterProgressInfo> progressInfoMap = bookProgress.getChapterProgresses() == null
-				? Map.of()
-				: bookProgress.getChapterProgresses()
-					.stream()
-					.collect(Collectors.toMap(BookProgress.ChapterProgressInfo::getChapterNumber, Function.identity()));
-
-		return allChapterNumbers.stream().filter(chapterNumber -> {
-			BookProgress.ChapterProgressInfo info = progressInfoMap.get(chapterNumber);
-			boolean isCompleted = info != null && Boolean.TRUE.equals(info.getIsCompleted());
-			boolean inProgress = info != null && !isCompleted && info.getProgressPercentage() != null
-					&& info.getProgressPercentage() > 0;
-
-			return switch (progressStatus) {
-				case COMPLETED -> isCompleted;
-				case IN_PROGRESS -> inProgress;
-				case NOT_STARTED -> !isCompleted && !inProgress;
-			};
-		}).toList();
+		List<String> orders = new ArrayList<>();
+		pageable.getSort().forEach(order -> {
+			if (!Set.of("chapterNumber", "id").contains(order.getProperty()))
+				throw new IllegalArgumentException("Unsupported chapter sort");
+			orders.add("c." + order.getProperty() + (order.isAscending() ? " asc" : " desc"));
+		});
+		if (orders.isEmpty())
+			orders.add("c.chapterNumber asc");
+		if (pageable.getSort().getOrderFor("id") == null)
+			orders.add("c.id asc");
+		var query = entityManager
+			.createQuery("select c from Chapter c" + where + " order by " + String.join(", ", orders), Chapter.class);
+		var count = entityManager.createQuery("select count(c) from Chapter c" + where, Long.class);
+		params.forEach((k, v) -> {
+			query.setParameter(k, v);
+			count.setParameter(k, v);
+		});
+		return new PageImpl<>(query.setFirstResult(Math.toIntExact(pageable.getOffset()))
+			.setMaxResults(pageable.getPageSize())
+			.getResultList(), pageable, count.getSingleResult());
 	}
 
 }

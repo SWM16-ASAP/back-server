@@ -29,13 +29,24 @@ public class ArticleImportService {
 		log.info("Creating chunks for article: {}", articleId);
 
 		List<ArticleChunk> allChunks = new ArrayList<>();
+		if (importData.getLeveledResults() == null || importData.getLeveledResults().isEmpty()) {
+			throw new IllegalArgumentException("Article must contain leveled text");
+		}
 
 		for (ArticleImportData.TextLevelData levelData : importData.getLeveledResults()) {
 			DifficultyLevel difficulty = DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase());
 
-			// 챕터는 1개가 보장되므로 첫 번째 챕터만 사용
-			if (!levelData.getChapters().isEmpty()) {
+			if (levelData.getChapters() == null || levelData.getChapters().size() != 1) {
+				throw new IllegalArgumentException("Article must have exactly one chapter per level");
+			}
+			{
 				ArticleImportData.ChapterData chapterData = levelData.getChapters().get(0);
+				if (chapterData.getChunks() == null || chapterData.getChunks()
+					.stream()
+					.noneMatch(c -> !Boolean.TRUE.equals(c.getIsImage())
+							&& org.springframework.util.StringUtils.hasText(c.getChunkText()))) {
+					throw new IllegalArgumentException("Article has no text");
+				}
 
 				int chunkCounter = 1;
 				for (ArticleImportData.ChunkData chunkData : chapterData.getChunks()) {

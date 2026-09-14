@@ -33,7 +33,7 @@ public class BookImportService {
 		AtomicInteger chapterCounter = new AtomicInteger(1);
 		List<Chapter> chapters = importData.getChapterMetadata().stream().map(metadata -> {
 			Chapter chapter = new Chapter();
-			chapter.setBookId(bookId);
+			chapter.setBookId(Long.valueOf(bookId));
 			chapter.setChapterNumber(chapterCounter.getAndIncrement());
 			chapter.setTitle(metadata.getTitle());
 			chapter.setDescription(metadata.getSummary());
@@ -46,18 +46,28 @@ public class BookImportService {
 
 	public void createChunksFromLeveledResults(BookImportData importData, List<Chapter> savedChapters,
 			String databaseBookId) {
+		if (savedChapters.isEmpty() || importData.getLeveledResults() == null
+				|| importData.getLeveledResults().isEmpty()) {
+			throw new IllegalArgumentException("Book must contain chapters and leveled text");
+		}
 		List<Chunk> allChunks = new ArrayList<>();
 
 		for (BookImportData.TextLevelData levelData : importData.getLeveledResults()) {
 			DifficultyLevel difficulty = DifficultyLevel.valueOf(levelData.getTextLevel().toUpperCase());
 			List<BookImportData.ChapterData> aiChapters = levelData.getChapters();
+			if (aiChapters == null || aiChapters.size() != savedChapters.size()) {
+				throw new IllegalArgumentException("Book metadata and body chapter counts differ");
+			}
 
 			for (int i = 0; i < savedChapters.size(); i++) {
-				if (i >= aiChapters.size())
-					break; // Safety break if lists are not aligned
-
 				Chapter savedChapter = savedChapters.get(i);
 				BookImportData.ChapterData aiChapterData = aiChapters.get(i);
+				if (aiChapterData.getChunks() == null || aiChapterData.getChunks()
+					.stream()
+					.noneMatch(c -> !Boolean.TRUE.equals(c.getIsImage())
+							&& org.springframework.util.StringUtils.hasText(c.getChunkText()))) {
+					throw new IllegalArgumentException("Book chapter has no text");
+				}
 
 				int chunkCounter = 1;
 				for (BookImportData.ChunkData chunkData : aiChapterData.getChunks()) {
@@ -72,7 +82,7 @@ public class BookImportService {
 	private Chunk createChunk(BookImportData.ChunkData chunkData, Chapter chapter, DifficultyLevel difficulty,
 			String bookId, int chunkNumber) {
 		Chunk chunk = new Chunk();
-		chunk.setChapterId(chapter.getId());
+		chunk.setChapterId(chapter.getId().toString());
 		chunk.setChunkNumber(chunkNumber);
 		chunk.setDifficultyLevel(difficulty);
 

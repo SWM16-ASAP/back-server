@@ -365,12 +365,12 @@ public class NotificationService {
 							.title(localizedTitle)
 							.body(article.getTitle())
 							.type("ARTICLE_RELEASE")
-							.deepLink("linglevel:///articles/" + article.getId())
+							.deepLink("linglevel:///articles/" + article.getId().toString())
 							.campaignId(campaignId)
 							.build();
 
 						Map<String, String> additionalData = new HashMap<>();
-						additionalData.put("articleId", article.getId());
+						additionalData.put("articleId", article.getId().toString());
 						fcmRequest.setAdditionalData(additionalData);
 
 						List<String> fcmTokens = userTokens.stream()
@@ -531,12 +531,12 @@ public class NotificationService {
 			.title(localizedTitle)
 			.body(article.getTitle())
 			.type("ARTICLE_RELEASE")
-			.deepLink("linglevel:///articles/" + article.getId())
+			.deepLink("linglevel:///articles/" + article.getId().toString())
 			.campaignId(campaignId)
 			.build();
 
 		Map<String, String> additionalData = new HashMap<>();
-		additionalData.put("articleId", article.getId());
+		additionalData.put("articleId", article.getId().toString());
 		fcmRequest.setAdditionalData(additionalData);
 
 		fcmMessagingService.sendMessage(token.getFcmToken(), fcmRequest);

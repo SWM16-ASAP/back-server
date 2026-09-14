@@ -74,7 +74,7 @@ public class AdminService {
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
 
 		// 챕터가 해당 책에 속하는지 확인
-		if (!chapter.getBookId().equals(bookId)) {
+		if (!chapter.getBookId().toString().equals(bookId)) {
 			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND);
 		}
 
@@ -143,10 +143,11 @@ public class AdminService {
 			// 3. 청크 삭제
 			List<Chapter> chapters = chapterRepository.findByBookIdOrderByChapterNumber(bookId);
 			for (Chapter chapter : chapters) {
-				List<Chunk> chunks = chunkRepository.findByChapterIdOrderByChunkNumber(chapter.getId());
+				List<Chunk> chunks = chunkRepository.findByChapterIdOrderByChunkNumber(chapter.getId().toString());
 				if (!chunks.isEmpty()) {
 					chunkRepository.deleteAll(chunks);
-					log.info("Chunks deleted for chapter - chapterId: {}, count: {}", chapter.getId(), chunks.size());
+					log.info("Chunks deleted for chapter - chapterId: {}, count: {}", chapter.getId().toString(),
+							chunks.size());
 				}
 			}
 

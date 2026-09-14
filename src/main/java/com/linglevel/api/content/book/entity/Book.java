@@ -3,8 +3,9 @@ package com.linglevel.api.content.book.entity;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.TitleTranslations;
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.List;
@@ -13,34 +14,47 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "books")
+@Entity
+@Table(name = "books")
 public class Book {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
+	@Column(length = 500, nullable = false)
 	private String title;
 
+	@JdbcTypeCode(SqlTypes.JSON)
 	private TitleTranslations titleTranslations;
 
+	@Column(length = 500)
 	private String author;
 
+	@Column(length = 2048)
 	private String coverImageUrl;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10, nullable = false)
 	private DifficultyLevel difficultyLevel;
 
 	private Integer chapterCount;
 
 	private Integer readingTime;
 
-	private Double averageRating;
+	@Column(nullable = false)
+	private Double averageRating = 0.0;
 
-	private Integer reviewCount;
+	@Column(nullable = false)
+	private Integer reviewCount = 0;
 
-	private Integer viewCount;
+	@Column(nullable = false)
+	private Integer viewCount = 0;
 
+	@JdbcTypeCode(SqlTypes.JSON)
 	private List<String> tags;
 
-	private Instant createdAt;
+	@Column(nullable = false, updatable = false)
+	private Instant createdAt = Instant.now();
 
 }

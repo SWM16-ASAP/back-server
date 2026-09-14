@@ -109,13 +109,15 @@ public class ContentService {
 					Collectors.mapping(GenericProgress::contentId, Collectors.toList())));
 
 		Map<String, Book> booksMap = bookRepository
-			.findAllById(contentIdsByType.getOrDefault(ContentType.BOOK, List.of()))
+			.findAllById(
+					contentIdsByType.getOrDefault(ContentType.BOOK, List.of()).stream().map(Long::valueOf).toList())
 			.stream()
-			.collect(Collectors.toMap(Book::getId, Function.identity()));
+			.collect(Collectors.toMap(b -> b.getId().toString(), Function.identity()));
 		Map<String, Article> articlesMap = articleRepository
-			.findAllById(contentIdsByType.getOrDefault(ContentType.ARTICLE, List.of()))
+			.findAllById(
+					contentIdsByType.getOrDefault(ContentType.ARTICLE, List.of()).stream().map(Long::valueOf).toList())
 			.stream()
-			.collect(Collectors.toMap(Article::getId, Function.identity()));
+			.collect(Collectors.toMap(a -> a.getId().toString(), Function.identity()));
 		Map<String, CustomContent> customContentsMap = customContentRepository
 			.findAllById(
 					contentIdsByType.getOrDefault(ContentType.CUSTOM, List.of()).stream().map(Long::valueOf).toList())
@@ -137,7 +139,7 @@ public class ContentService {
 							: calculatePercentage(progress.getCurrentReadChapterNumber(), book.getChapterCount());
 
 					return RecentContentResponse.builder()
-						.contentId(book.getId())
+						.contentId(book.getId().toString())
 						.contentType(ContentType.BOOK)
 						.title(book.getTitle())
 						.author(book.getAuthor())
@@ -176,7 +178,7 @@ public class ContentService {
 
 					DifficultyLevel difficulty = progress.getCurrentDifficultyLevel() != null
 							? progress.getCurrentDifficultyLevel() : article.getDifficultyLevel();
-					totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(),
+					totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId().toString(),
 							difficulty);
 
 					// If normalizedProgress is somehow null (not migrated), fallback to
@@ -186,7 +188,7 @@ public class ContentService {
 					}
 
 					return RecentContentResponse.builder()
-						.contentId(article.getId())
+						.contentId(article.getId().toString())
 						.contentType(ContentType.ARTICLE)
 						.title(article.getTitle())
 						.author(article.getAuthor())
