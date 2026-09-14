@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -69,10 +70,9 @@ public class CustomContentRequestService {
 			}
 		}
 
-		// 티켓 소비 (캐시 히트/미스 무관하게 소비, 단 이미 소유한 경우는 제외)
+		String reservationId;
 		try {
-			ticketService.spendTicket(userId, 1, "Custom content creation");
-			log.info("Ticket spent for user: {} (Custom content: {})", userId, request.getTitle());
+			reservationId = ticketService.reserveTicket(userId, 1, "Custom content creation");
 		}
 		catch (Exception e) {
 			log.error("Failed to spend ticket for user: {}", userId, e);
@@ -81,7 +81,9 @@ public class CustomContentRequestService {
 
 		// ContentRequest 생성
 		ContentRequest contentRequest = ContentRequest.builder()
-			.userId(userId)
+			.requestKey(UUID.randomUUID().toString())
+			.userId(Long.parseLong(userId))
+			.ticketReservationId(Long.parseLong(reservationId))
 			.title(request.getTitle())
 			.contentType(request.getContentType())
 			.originalText(request.getOriginalContent())
@@ -95,7 +97,7 @@ public class CustomContentRequestService {
 			.build();
 
 		ContentRequest savedRequest = contentRequestRepository.save(contentRequest);
-		log.info("Content request created with ID: {}", savedRequest.getId());
+		log.info("Content request created with key: {}", savedRequest.getRequestKey());
 
 		// 캐시 히트 시: 즉시 완료 처리
 		if (cachedContent.isPresent()) {
@@ -106,7 +108,7 @@ public class CustomContentRequestService {
 		uploadToAiInput(savedRequest, request);
 
 		return CreateContentRequestResponse.builder()
-			.requestId(savedRequest.getId())
+			.requestId(savedRequest.getRequestKey())
 			.title(savedRequest.getTitle())
 			.status(savedRequest.getStatus().getCode())
 			.cached(false)
@@ -137,6 +139,7 @@ public class CustomContentRequestService {
 	private CreateContentRequestResponse handleCacheHit(ContentRequest contentRequest, CustomContent cachedContent) {
 		// 1. UserCustomContent 매핑 생성
 		userCustomContentService.createMapping(contentRequest, cachedContent);
+		ticketService.confirmReservation(contentRequest.getTicketReservationId().toString());
 
 		// 2. ContentRequest 즉시 완료 처리
 		contentRequest.setResultCustomContentId(cachedContent.getId());
@@ -146,7 +149,7 @@ public class CustomContentRequestService {
 		contentRequestRepository.save(contentRequest);
 
 		return CreateContentRequestResponse.builder()
-			.requestId(contentRequest.getId())
+			.requestId(contentRequest.getRequestKey())
 			.title(contentRequest.getTitle())
 			.status(ContentRequestStatus.COMPLETED.getCode())
 			.cached(true)
@@ -176,8 +179,8 @@ public class CustomContentRequestService {
 				aiInputData.put("coverImageUrl", request.getCoverImageUrl());
 			}
 
-			s3AiService.uploadJsonToInputBucket(contentRequest.getId(), aiInputData, pathStrategy);
-			log.info("Successfully uploaded AI input data for request: {}", contentRequest.getId());
+			s3AiService.uploadJsonToInputBucket(contentRequest.getRequestKey(), aiInputData, pathStrategy);
+			log.info("Successfully uploaded AI input data for request: {}", contentRequest.getRequestKey());
 
 		}
 		catch (Exception e) {
@@ -186,10 +189,10 @@ public class CustomContentRequestService {
 			contentRequest.setErrorMessage("AI 입력 데이터 업로드 실패: " + e.getMessage());
 			contentRequestRepository.save(contentRequest);
 
-			// AI 입력 업로드 실패 시 티켓 복원
+			// AI 입력 업로드 실패 시 예약 해제
 			try {
-				ticketService.grantTicket(contentRequest.getUserId(), 1, "Content creation failed - refund");
-				log.info("Ticket refunded for failed request: {}", contentRequest.getId());
+				ticketService.cancelReservation(contentRequest.getTicketReservationId().toString());
+				log.info("Ticket reservation cancelled for failed request: {}", contentRequest.getRequestKey());
 			}
 			catch (Exception ticketE) {
 				log.error("Failed to refund ticket for request: {}", contentRequest.getId(), ticketE);
@@ -208,11 +211,11 @@ public class CustomContentRequestService {
 		Page<ContentRequest> contentRequests;
 		if (request.getStatus() != null) {
 			ContentRequestStatus status = ContentRequestStatus.valueOf(request.getStatus().toUpperCase());
-			contentRequests = contentRequestRepository.findByUserIdAndStatus(userId, status, pageable);
+			contentRequests = contentRequestRepository.findByUserIdAndStatus(Long.parseLong(userId), status, pageable);
 		}
 		else {
-			contentRequests = contentRequestRepository.findByUserIdAndStatusNot(userId, ContentRequestStatus.DELETED,
-					pageable);
+			contentRequests = contentRequestRepository.findByUserIdAndStatusNot(Long.parseLong(userId),
+					ContentRequestStatus.DELETED, pageable);
 		}
 
 		Page<ContentRequestResponse> responsePage = contentRequests.map(this::mapToResponse);
@@ -222,7 +225,8 @@ public class CustomContentRequestService {
 	public ContentRequestResponse getContentRequest(String userId, String requestId) {
 		log.info("Getting content request {} for user: {}", requestId, userId);
 
-		ContentRequest contentRequest = contentRequestRepository.findByIdAndUserId(requestId, userId)
+		ContentRequest contentRequest = contentRequestRepository
+			.findByRequestKeyAndUserId(requestId, Long.parseLong(userId))
 			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
 
 		return mapToResponse(contentRequest);
@@ -230,7 +234,7 @@ public class CustomContentRequestService {
 
 	private ContentRequestResponse mapToResponse(ContentRequest contentRequest) {
 		ContentRequestResponse response = new ContentRequestResponse();
-		response.setId(contentRequest.getId());
+		response.setId(contentRequest.getRequestKey());
 		response.setTitle(contentRequest.getTitle());
 		response.setOriginalText(contentRequest.getOriginalText());
 		response.setContentType(contentRequest.getContentType().getCode());

@@ -208,8 +208,7 @@ class TicketsControllerTest {
 	@Test
 	void 티켓예외처리_잔고부족() throws Exception {
 		// given
-		when(ticketService.getTicketBalance("1"))
-			.thenThrow(new TicketException(TicketErrorCode.INSUFFICIENT_BALANCE));
+		when(ticketService.getTicketBalance("1")).thenThrow(new TicketException(TicketErrorCode.INSUFFICIENT_BALANCE));
 
 		// when & then
 		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))
@@ -223,8 +222,7 @@ class TicketsControllerTest {
 	@Test
 	void 티켓예외처리_티켓없음() throws Exception {
 		// given
-		when(ticketService.getTicketBalance("1"))
-			.thenThrow(new TicketException(TicketErrorCode.TICKET_NOT_FOUND));
+		when(ticketService.getTicketBalance("1")).thenThrow(new TicketException(TicketErrorCode.TICKET_NOT_FOUND));
 
 		// when & then
 		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))

@@ -434,7 +434,8 @@ class BookServiceTest {
 			.map(book -> createBookProgress(testUser.getId().toString(), book.getId(), isCompleted))
 			.toList();
 
-		when(bookProgressRepository.findByUserIdAndBookIdIn(testUser.getId().toString(), bookIds)).thenReturn(progresses);
+		when(bookProgressRepository.findByUserIdAndBookIdIn(testUser.getId().toString(), bookIds))
+			.thenReturn(progresses);
 	}
 
 	private BookProgress createBookProgress(String userId, String bookId, boolean isCompleted) {

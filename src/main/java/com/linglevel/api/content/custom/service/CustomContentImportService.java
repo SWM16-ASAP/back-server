@@ -49,7 +49,7 @@ public class CustomContentImportService {
 		}
 
 		CustomContent content = CustomContent.builder()
-			.userId(contentRequest.getUserId())
+			.userId(contentRequest.getUserId().toString())
 			.title(title)
 			.author(contentRequest.getOriginAuthor())
 			.coverImageUrl(coverImageUrl)

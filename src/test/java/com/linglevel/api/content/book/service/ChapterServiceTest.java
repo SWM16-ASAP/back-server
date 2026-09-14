@@ -248,7 +248,8 @@ class ChapterServiceTest {
 			.thenReturn(List.of(new ChunkCountByLevelDto(chapter.getId(), DifficultyLevel.B1, 8L)));
 
 		// when
-		ChapterResponse response = chapterService.getChapter(testBook.getId(), chapter.getId(), testUser.getId().toString());
+		ChapterResponse response = chapterService.getChapter(testBook.getId(), chapter.getId(),
+				testUser.getId().toString());
 
 		// then
 		assertThat(response.getId()).isEqualTo(chapter.getId());
@@ -278,7 +279,8 @@ class ChapterServiceTest {
 			.thenReturn(List.of(new ChunkCountByLevelDto(chapter.getId(), DifficultyLevel.B1, 8L)));
 
 		// when
-		ChapterResponse response = chapterService.getChapter(testBook.getId(), chapter.getId(), testUser.getId().toString());
+		ChapterResponse response = chapterService.getChapter(testBook.getId(), chapter.getId(),
+				testUser.getId().toString());
 
 		// then
 		assertThat(response.getId()).isEqualTo(chapter.getId());
@@ -297,8 +299,8 @@ class ChapterServiceTest {
 		when(chapterRepository.findById(anotherBookChapter.getId())).thenReturn(Optional.of(anotherBookChapter));
 
 		// when
-		BooksException exception = assertThrows(BooksException.class,
-				() -> chapterService.getChapter(testBook.getId(), anotherBookChapter.getId(), testUser.getId().toString()));
+		BooksException exception = assertThrows(BooksException.class, () -> chapterService.getChapter(testBook.getId(),
+				anotherBookChapter.getId(), testUser.getId().toString()));
 
 		// then
 		assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK.getMessage());

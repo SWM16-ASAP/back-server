@@ -24,7 +24,7 @@ public class UserCustomContentService {
 
 	@Transactional
 	public void createMapping(ContentRequest contentRequest, CustomContent customContent) {
-		createMapping(contentRequest.getUserId(), customContent.getId(), contentRequest.getId());
+		createMapping(contentRequest.getUserId().toString(), customContent.getId(), contentRequest.getRequestKey());
 	}
 
 	@Transactional

@@ -27,10 +27,13 @@ class TicketServiceTest {
 
 	@Mock
 	private UserTicketRepository userTicketRepository;
+
 	@Mock
 	private TicketTransactionRepository ticketTransactionRepository;
+
 	@Mock
 	private TicketReservationRepository ticketReservationRepository;
+
 	@InjectMocks
 	private TicketService ticketService;
 
@@ -43,8 +46,13 @@ class TicketServiceTest {
 
 	@Test
 	void reservesTicketAndReducesAvailableBalance() {
-		TicketReservation saved = TicketReservation.builder().id(7L).userId(1L).amount(3)
-			.description("custom content").status(TicketReservationStatus.RESERVED).build();
+		TicketReservation saved = TicketReservation.builder()
+			.id(7L)
+			.userId(1L)
+			.amount(3)
+			.description("custom content")
+			.status(TicketReservationStatus.RESERVED)
+			.build();
 		when(userTicketRepository.findById(1L)).thenReturn(Optional.of(wallet));
 		when(ticketReservationRepository.save(any())).thenReturn(saved);
 
@@ -54,8 +62,13 @@ class TicketServiceTest {
 
 	@Test
 	void confirmsReservationAndWritesFinalTransaction() {
-		TicketReservation reservation = TicketReservation.builder().id(7L).userId(1L).amount(3)
-			.description("custom content").status(TicketReservationStatus.RESERVED).build();
+		TicketReservation reservation = TicketReservation.builder()
+			.id(7L)
+			.userId(1L)
+			.amount(3)
+			.description("custom content")
+			.status(TicketReservationStatus.RESERVED)
+			.build();
 		when(ticketReservationRepository.findById(7L)).thenReturn(Optional.of(reservation));
 
 		ticketService.confirmReservation("7");

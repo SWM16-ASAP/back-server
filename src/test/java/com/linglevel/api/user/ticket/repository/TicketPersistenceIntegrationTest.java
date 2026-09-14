@@ -37,16 +37,25 @@ class TicketPersistenceIntegrationTest extends AbstractMysqlTest {
 		User user = userRepository.saveAndFlush(user());
 		userTicketRepository.saveAndFlush(UserTicket.builder().userId(user.getId()).balance(9).build());
 		TicketReservation reservation = ticketReservationRepository.saveAndFlush(TicketReservation.builder()
-			.userId(user.getId()).amount(1).description("custom content").status(TicketReservationStatus.CONFIRMED)
+			.userId(user.getId())
+			.amount(1)
+			.description("custom content")
+			.status(TicketReservationStatus.CONFIRMED)
 			.build());
 		ticketTransactionRepository.saveAndFlush(TicketTransaction.builder()
-			.userId(user.getId()).amount(-1).description("custom content").reservationId(reservation.getId()).build());
+			.userId(user.getId())
+			.amount(-1)
+			.description("custom content")
+			.reservationId(reservation.getId())
+			.build());
 
 		UserTicket wallet = userTicketRepository.findById(user.getId()).orElseThrow();
 		assertThat(wallet.getBalance()).isEqualTo(9);
 		assertThat(wallet.getVersion()).isNotNull();
 		assertThat(ticketTransactionRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, 10))
-			.getContent()).singleElement().extracting(TicketTransaction::getReservationId).isEqualTo(reservation.getId());
+			.getContent()).singleElement()
+			.extracting(TicketTransaction::getReservationId)
+			.isEqualTo(reservation.getId());
 	}
 
 	private User user() {

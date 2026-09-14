@@ -54,7 +54,7 @@ public class CustomContentWebhookService {
 
 		try {
 			// 1. Get ContentRequest and AiResultDto
-			ContentRequest contentRequest = contentRequestRepository.findById(request.getRequestId())
+			ContentRequest contentRequest = contentRequestRepository.findByRequestKey(request.getRequestId())
 				.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
 
 			AiResultDto aiResult = s3AiService.downloadJsonFile(request.getRequestId(), AiResultDto.class,
@@ -83,10 +83,11 @@ public class CustomContentWebhookService {
 			contentRequest.setStatus(ContentRequestStatus.COMPLETED);
 			contentRequest.setCompletedAt(Instant.now());
 			contentRequestRepository.save(contentRequest);
+			ticketService.confirmReservation(contentRequest.getTicketReservationId().toString());
 
 			// 8. Send notification
-			notificationService.sendContentCompletedNotification(contentRequest.getUserId(), request.getRequestId(),
-					aiResult.getTitle(), savedContent.getId());
+			notificationService.sendContentCompletedNotification(contentRequest.getUserId().toString(),
+					request.getRequestId(), aiResult.getTitle(), savedContent.getId());
 
 			log.info("Successfully processed AI result for request: {}", request.getRequestId());
 
@@ -112,16 +113,16 @@ public class CustomContentWebhookService {
 		log.info("Handling content failure for request: {}", request.getRequestId());
 
 		try {
-			ContentRequest contentRequest = contentRequestRepository.findById(request.getRequestId())
+			ContentRequest contentRequest = contentRequestRepository.findByRequestKey(request.getRequestId())
 				.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
 
 			contentRequest.setStatus(ContentRequestStatus.FAILED);
 			contentRequest.setErrorMessage(request.getErrorMessage());
 			contentRequestRepository.save(contentRequest);
 
-			// 티켓 복원 (1개 환불)
+			// 예약 해제
 			try {
-				ticketService.grantTicket(contentRequest.getUserId(), 1, "Content creation failed - refund");
+				ticketService.cancelReservation(contentRequest.getTicketReservationId().toString());
 				log.info("Ticket refunded for failed request: {}", request.getRequestId());
 			}
 			catch (Exception ticketE) {
@@ -132,8 +133,8 @@ public class CustomContentWebhookService {
 			String titleForNotification = StringUtils.hasText(contentRequest.getTitle()) ? contentRequest.getTitle()
 					: "Untitled Content";
 
-			notificationService.sendContentFailedNotification(contentRequest.getUserId(), request.getRequestId(),
-					titleForNotification, request.getErrorMessage());
+			notificationService.sendContentFailedNotification(contentRequest.getUserId().toString(),
+					request.getRequestId(), titleForNotification, request.getErrorMessage());
 
 			log.info("Updated request status to FAILED for request: {}", request.getRequestId());
 
@@ -150,7 +151,7 @@ public class CustomContentWebhookService {
 		log.info("Handling content progress for request: {} - {}%", request.getRequestId(), request.getProgress());
 
 		try {
-			ContentRequest contentRequest = contentRequestRepository.findById(request.getRequestId())
+			ContentRequest contentRequest = contentRequestRepository.findByRequestKey(request.getRequestId())
 				.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
 
 			contentRequest.setStatus(ContentRequestStatus.PROCESSING);
@@ -185,15 +186,15 @@ public class CustomContentWebhookService {
 
 	private void handleContentProcessingFailure(String requestId, Exception originalException) {
 		try {
-			ContentRequest contentRequest = contentRequestRepository.findById(requestId).orElse(null);
+			ContentRequest contentRequest = contentRequestRepository.findByRequestKey(requestId).orElse(null);
 			if (contentRequest != null) {
 				contentRequest.setStatus(ContentRequestStatus.FAILED);
 				contentRequest.setErrorMessage("AI 결과 처리 실패: " + originalException.getMessage());
 				contentRequestRepository.save(contentRequest);
 
-				// 티켓 복원 (1개 환불)
+				// 예약 해제
 				try {
-					ticketService.grantTicket(contentRequest.getUserId(), 1, "Content processing failed - refund");
+					ticketService.cancelReservation(contentRequest.getTicketReservationId().toString());
 					log.info("Ticket refunded for processing failure: {}", requestId);
 				}
 				catch (Exception ticketE) {

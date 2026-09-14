@@ -83,7 +83,8 @@ class ArticleServiceTest {
 		// Mock Page 생성 (총 10개 중 5개)
 		Page<Article> articlePage = new org.springframework.data.domain.PageImpl<>(articles, PageRequest.of(0, 5), 10);
 
-		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(articlePage);
+		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any()))
+			.thenReturn(articlePage);
 
 		// Mock ArticleProgress for in-progress articles
 		mockArticleProgress(articles, false);
@@ -117,7 +118,8 @@ class ArticleServiceTest {
 
 		Page<Article> articlePage = new org.springframework.data.domain.PageImpl<>(articles, PageRequest.of(0, 10), 15);
 
-		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(articlePage);
+		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any()))
+			.thenReturn(articlePage);
 
 		// When
 		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId().toString());
@@ -145,7 +147,8 @@ class ArticleServiceTest {
 
 		Page<Article> articlePage = new PageImpl<>(articles, PageRequest.of(0, 10), 12);
 
-		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(articlePage);
+		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any()))
+			.thenReturn(articlePage);
 
 		// When
 		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId().toString());
@@ -174,7 +177,8 @@ class ArticleServiceTest {
 
 		Page<Article> articlePage = new org.springframework.data.domain.PageImpl<>(articles, PageRequest.of(0, 5), 10);
 
-		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(articlePage);
+		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any()))
+			.thenReturn(articlePage);
 
 		// Mock ArticleProgress for in-progress articles
 		mockArticleProgress(articles, false);
