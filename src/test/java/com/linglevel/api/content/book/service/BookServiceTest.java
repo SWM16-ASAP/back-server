@@ -82,7 +82,7 @@ class BookServiceTest {
 	@BeforeEach
 	void setUp() {
 		testUser = new User();
-		testUser.setId("test-user-id");
+		testUser.setId(1L);
 		testUser.setUsername("testuser");
 		testUser.setEmail("test@example.com");
 		testUser.setRole(UserRole.USER);
@@ -195,7 +195,7 @@ class BookServiceTest {
 		when(bookRepository.findById(book.getId())).thenReturn(Optional.of(book));
 
 		// when
-		BookResponse response = bookService.getBook(book.getId(), testUser.getId(), LanguageCode.KO);
+		BookResponse response = bookService.getBook(book.getId(), testUser.getId().toString(), LanguageCode.KO);
 
 		// then
 		assertThat(response.getTitle()).isEqualTo("번역 제목");
@@ -210,7 +210,7 @@ class BookServiceTest {
 		when(bookRepository.findById(book.getId())).thenReturn(Optional.of(book));
 
 		// when
-		BookResponse response = bookService.getBook(book.getId(), testUser.getId(), LanguageCode.KO);
+		BookResponse response = bookService.getBook(book.getId(), testUser.getId().toString(), LanguageCode.KO);
 
 		// then
 		assertThat(response.getTitle()).isEqualTo("Original title");
@@ -224,7 +224,7 @@ class BookServiceTest {
 
 		// when
 		BooksException exception = assertThrows(BooksException.class,
-				() -> bookService.getBook("missing-book", testUser.getId(), LanguageCode.EN));
+				() -> bookService.getBook("missing-book", testUser.getId().toString(), LanguageCode.EN));
 
 		// then
 		assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.BOOK_NOT_FOUND.getMessage());
@@ -238,7 +238,7 @@ class BookServiceTest {
 
 		// when
 		BooksException exception = assertThrows(BooksException.class,
-				() -> bookService.getBooks(request, testUser.getId()));
+				() -> bookService.getBooks(request, testUser.getId().toString()));
 
 		// then
 		assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.INVALID_SORT_BY.getMessage());
@@ -257,11 +257,11 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 5), 10);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
 		mockBookProgress(books, false);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -284,11 +284,11 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 5), 10);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
 		mockBookProgress(books, true);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -315,9 +315,9 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 5), 10);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -338,9 +338,9 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 10), 15);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(10);
 		assertThat(response.getTotalCount()).isEqualTo(15);
@@ -358,9 +358,9 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 10), 12);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(10);
 		assertThat(response.getTotalCount()).isEqualTo(12);
@@ -387,11 +387,11 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 5), 10);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
 		mockBookProgress(books, false);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -431,10 +431,10 @@ class BookServiceTest {
 	private void mockBookProgress(List<Book> books, boolean isCompleted) {
 		List<String> bookIds = books.stream().map(Book::getId).toList();
 		List<BookProgress> progresses = books.stream()
-			.map(book -> createBookProgress(testUser.getId(), book.getId(), isCompleted))
+			.map(book -> createBookProgress(testUser.getId().toString(), book.getId(), isCompleted))
 			.toList();
 
-		when(bookProgressRepository.findByUserIdAndBookIdIn(testUser.getId(), bookIds)).thenReturn(progresses);
+		when(bookProgressRepository.findByUserIdAndBookIdIn(testUser.getId().toString(), bookIds)).thenReturn(progresses);
 	}
 
 	private BookProgress createBookProgress(String userId, String bookId, boolean isCompleted) {

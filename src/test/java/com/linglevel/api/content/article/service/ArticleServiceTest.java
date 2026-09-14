@@ -60,7 +60,7 @@ class ArticleServiceTest {
 	void setUp() {
 		// 테스트 유저 생성
 		testUser = new User();
-		testUser.setId("test-user-id");
+		testUser.setId(1L);
 		testUser.setUsername("testuser");
 		testUser.setEmail("test@example.com");
 		testUser.setRole(UserRole.USER);
@@ -83,13 +83,13 @@ class ArticleServiceTest {
 		// Mock Page 생성 (총 10개 중 5개)
 		Page<Article> articlePage = new org.springframework.data.domain.PageImpl<>(articles, PageRequest.of(0, 5), 10);
 
-		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId()), any())).thenReturn(articlePage);
+		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(articlePage);
 
 		// Mock ArticleProgress for in-progress articles
 		mockArticleProgress(articles, false);
 
 		// When
-		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId());
+		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId().toString());
 
 		// Then: 정확히 5개 반환, 총 10개
 		assertThat(response.getData()).hasSize(5);
@@ -117,10 +117,10 @@ class ArticleServiceTest {
 
 		Page<Article> articlePage = new org.springframework.data.domain.PageImpl<>(articles, PageRequest.of(0, 10), 15);
 
-		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId()), any())).thenReturn(articlePage);
+		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(articlePage);
 
 		// When
-		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId());
+		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId().toString());
 
 		// Then: 정확히 10개 반환, 총 15개
 		assertThat(response.getData()).hasSize(10);
@@ -145,10 +145,10 @@ class ArticleServiceTest {
 
 		Page<Article> articlePage = new PageImpl<>(articles, PageRequest.of(0, 10), 12);
 
-		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId()), any())).thenReturn(articlePage);
+		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(articlePage);
 
 		// When
-		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId());
+		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId().toString());
 
 		// Then: 정확히 10개 반환, 총 12개
 		assertThat(response.getData()).hasSize(10);
@@ -174,13 +174,13 @@ class ArticleServiceTest {
 
 		Page<Article> articlePage = new org.springframework.data.domain.PageImpl<>(articles, PageRequest.of(0, 5), 10);
 
-		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId()), any())).thenReturn(articlePage);
+		when(articleRepository.findArticlesWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(articlePage);
 
 		// Mock ArticleProgress for in-progress articles
 		mockArticleProgress(articles, false);
 
 		// When
-		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId());
+		PageResponse<ArticleResponse> response = articleService.getArticles(request, testUser.getId().toString());
 
 		// Then: technology 태그 + 진행중인 아티클만 반환
 		assertThat(response.getData()).hasSize(5);
@@ -227,8 +227,8 @@ class ArticleServiceTest {
 			.thenReturn(100L);
 
 		for (Article article : articles) {
-			ArticleProgress progress = createArticleProgress(testUser.getId(), article.getId(), isCompleted);
-			when(articleProgressRepository.findByUserIdAndArticleId(testUser.getId(), article.getId()))
+			ArticleProgress progress = createArticleProgress(testUser.getId().toString(), article.getId(), isCompleted);
+			when(articleProgressRepository.findByUserIdAndArticleId(testUser.getId().toString(), article.getId()))
 				.thenReturn(Optional.of(progress));
 		}
 	}

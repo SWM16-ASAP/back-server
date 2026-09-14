@@ -27,7 +27,7 @@ public class JwtProvider {
 
 	public String createToken(User user) {
 		Claims claims = Jwts.claims()
-			.add("id", user.getId())
+			.add("id", user.getId().toString())
 			.add("email", user.getEmail())
 			.add("role", user.getRole().name())
 			.add("provider", user.getProvider())

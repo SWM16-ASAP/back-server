@@ -63,7 +63,7 @@ public class RefreshTokenService {
 		}
 
 		String newAccessToken = jwtProvider.createToken(user);
-		String newRefreshToken = createRefreshToken(user.getId());
+		String newRefreshToken = createRefreshToken(user.getId().toString());
 
 		log.info("Access token refreshed for user: {}", user.getId());
 

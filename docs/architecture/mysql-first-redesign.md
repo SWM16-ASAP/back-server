@@ -9,7 +9,7 @@
 
 | 작업 단위 | 기존 MongoDB 모델 | MySQL 테이블안 | 변경 내용 |
 | --- | --- | --- | --- |
-| 사용자 | User | users | 사용자 기준 정보를 저장하고 다른 업무 테이블에서 참조 |
+| 사용자 | User | users | `id`를 MySQL PK·FK용 순차 ID로 사용하고, JWT·API 경계에서는 문자열로 직렬화 |
 | 티켓 | UserTicket, TicketTransaction | ticket_wallets, ticket_transactions, ticket_reservations(신규) | 지갑·거래 내역·예약 분리. 생성 요청과 예약을 연결하고 예약→확정/해제 적용 |
 | 커스텀 콘텐츠 | ContentRequest, CustomContent, UserCustomContent | content_requests, custom_contents, user_custom_contents | 요청·메타데이터·소유권 관리. 소유권 부여와 티켓 소비 확정을 함께 처리 |
 | 책·아티클 | Book, Chapter, Article | books, chapters, articles | 카탈로그·챕터 구조를 관계형으로 관리하고 본문은 별도 참조 |

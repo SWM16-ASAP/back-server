@@ -32,7 +32,7 @@ import org.testcontainers.junit.jupiter.Container;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@DataJpaTest(properties = "spring.flyway.locations=classpath:db/testmigration/mysql")
+@DataJpaTest(properties = "spring.flyway.locations=classpath:db/migration/mysql,classpath:db/testmigration/mysql")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ContextConfiguration(classes = MysqlPersistenceIntegrationTest.Config.class)
 @ImportAutoConfiguration({ MongoAutoConfiguration.class, MongoDataAutoConfiguration.class })
@@ -61,7 +61,7 @@ class MysqlPersistenceIntegrationTest extends AbstractMysqlTest {
 
 	@Test
 	void appliesMigrationOnlyOnce() {
-		assertThat(flyway.info().applied()).hasSize(1);
+		assertThat(flyway.info().applied()).hasSize(2);
 		assertThat(flyway.migrate().migrationsExecuted).isZero();
 	}
 

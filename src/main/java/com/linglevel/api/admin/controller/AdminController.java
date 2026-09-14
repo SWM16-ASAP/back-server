@@ -170,7 +170,7 @@ public class AdminController {
 			.orElseThrow(() -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "User not found."));
 
 		String reason = request.getReason() != null ? request.getReason() : "관리자 지급";
-		int newBalance = ticketService.grantTicket(user.getId(), request.getAmount(), reason);
+		int newBalance = ticketService.grantTicket(user.getId().toString(), request.getAmount(), reason);
 
 		GrantTicketResponse response = GrantTicketResponse.builder()
 			.message("Tickets granted successfully.")
