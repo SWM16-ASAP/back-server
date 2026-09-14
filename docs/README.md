@@ -7,6 +7,7 @@
 - [AI 개발 컨텍스트](../AGENTS.md)
 - [아키텍처 문서 모음](architecture/)
 - [의사결정 기록 모음](decisions/)
+- [MySQL 중심 신규 시스템 재설계 및 버전 변경 계획](architecture/mysql-first-redesign.md)
 - [템플릿 모음](templates/)
 
 ## 언제 무엇을 쓰는가
