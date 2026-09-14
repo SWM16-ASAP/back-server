@@ -1,6 +1,6 @@
 # MySQL 중심 신규 시스템 재설계 계획
 
-상태: 설계 초안, 구현 전. 아래 테이블명은 제안이며 상세 컬럼은 구현 전에 정한다.
+상태: 사용자·티켓 구현 완료, 나머지 설계 초안.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
 기존 운영 환경에 적용하려면 별도 데이터 마이그레이션이 필요하다.
@@ -9,8 +9,8 @@
 
 | 작업 단위 | 기존 MongoDB 모델 | MySQL 테이블안 | 변경 내용 |
 | --- | --- | --- | --- |
-| 사용자 | User | users | `id`를 MySQL PK·FK용 순차 ID로 사용하고, JWT·API 경계에서는 문자열로 직렬화 |
-| 티켓 | UserTicket, TicketTransaction | ticket_wallets, ticket_transactions, ticket_reservations(신규) | 지갑·거래 내역·예약 분리. 생성 요청과 예약을 연결하고 예약→확정/해제 적용 |
+| 사용자 | User | users | 구현 완료. `id`를 MySQL PK·FK용 순차 ID로 사용하고, JWT·API 경계에서는 문자열로 직렬화 |
+| 티켓 | UserTicket, TicketTransaction | ticket_wallets, ticket_transactions, ticket_reservations(신규) | 구현 완료. 지갑·확정 거래·예약을 분리하고 예약→확정/해제 적용 |
 | 커스텀 콘텐츠 | ContentRequest, CustomContent, UserCustomContent | content_requests, custom_contents, user_custom_contents | 요청·메타데이터·소유권 관리. 소유권 부여와 티켓 소비 확정을 함께 처리 |
 | 책·아티클 | Book, Chapter, Article | books, chapters, articles | 카탈로그·챕터 구조를 관계형으로 관리하고 본문은 별도 참조 |
 | 학습 이력·보상 | DailyCompletion, UserStudyReport, FreezeTransaction | daily_completions, learning_completions, user_study_reports, freeze_transactions | 완료 내역 배열·누적 완료 ID 집합을 완료 이력으로 분리. 일별 요약·스트릭·프리즈·티켓 보상 정합성 관리 |
@@ -50,7 +50,7 @@ Redis의 세션·rate limit·single-flight 역할은 변경하지 않는다.
 - 별도 전환 프로필이나 직접 작성한 연결·트랜잭션 설정 클래스 없이 Spring Boot 자동 구성을 사용한다.
 - `MYSQL_JDBC_URL`, `MYSQL_USERNAME`, `MYSQL_PASSWORD`를 환경변수로 전달한다. URL은 사전에 생성한 신규 DB를 가리켜야 한다.
 - `MYSQL_JDBC_URL` 예: `jdbc:mysql://localhost:3306/linglevel`. 계정·비밀번호는 저장소에 기록하지 않는다.
-- Hibernate는 `validate`만 수행한다. 업무 테이블 SQL은 `src/main/resources/db/migration/mysql`에 순서대로 추가한다. 현재 업무 테이블은 생성하지 않는다.
+- Hibernate는 `validate`만 수행한다. 업무 테이블 SQL은 `src/main/resources/db/migration/mysql`에 순서대로 추가한다. 현재 `users`, `ticket_wallets`, `ticket_reservations`, `ticket_transactions`가 생성된다.
 - Flyway의 `clean`과 자동 baseline은 비활성화한다. 기존 운영 DB를 초기화하거나 자동 변환하지 않는다.
 - SQL 작업은 기본 `@Transactional`을 사용한다. 자동 구성된 JPA 관리자는 MongoDB 쓰기를 보호하지 않으므로 기존 MongoDB 서비스의 선언은 도메인 전환 시 검토한다.
 - AI·Redis·S3 등 나머지 기존 환경 설정은 별도로 필요하다. 성능 테스트 인프라의 앱 환경변수 배선은 이번 변경에 포함하지 않는다.

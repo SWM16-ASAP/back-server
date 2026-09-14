@@ -1,12 +1,12 @@
 package com.linglevel.api.user.ticket.repository;
 
 import com.linglevel.api.user.ticket.entity.UserTicket;
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.Optional;
+public interface UserTicketRepository extends JpaRepository<UserTicket, Long> {
 
-public interface UserTicketRepository extends MongoRepository<UserTicket, String> {
-
-	Optional<UserTicket> findByUserId(String userId);
+	default UserTicket getReferenceByUserId(String userId) {
+		return getReferenceById(Long.parseLong(userId));
+	}
 
 }

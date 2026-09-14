@@ -2,20 +2,20 @@ package com.linglevel.api.user.ticket.service;
 
 import com.linglevel.api.user.ticket.dto.TicketBalanceResponse;
 import com.linglevel.api.user.ticket.dto.TicketTransactionResponse;
+import com.linglevel.api.user.ticket.entity.TicketReservation;
+import com.linglevel.api.user.ticket.entity.TicketReservationStatus;
 import com.linglevel.api.user.ticket.entity.TicketTransaction;
-import com.linglevel.api.user.ticket.entity.TransactionStatus;
 import com.linglevel.api.user.ticket.entity.UserTicket;
 import com.linglevel.api.user.ticket.exception.TicketErrorCode;
 import com.linglevel.api.user.ticket.exception.TicketException;
 import com.linglevel.api.user.ticket.repository.TicketTransactionRepository;
+import com.linglevel.api.user.ticket.repository.TicketReservationRepository;
 import com.linglevel.api.user.ticket.repository.UserTicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +25,9 @@ public class TicketService {
 
 	private final TicketTransactionRepository ticketTransactionRepository;
 
+	private final TicketReservationRepository ticketReservationRepository;
+
+	@Transactional
 	public TicketBalanceResponse getTicketBalance(String userId) {
 		UserTicket userTicket = getOrCreateUserTicket(userId);
 		return TicketBalanceResponse.builder()
@@ -33,13 +36,14 @@ public class TicketService {
 			.build();
 	}
 
+	@Transactional
 	public Page<TicketTransactionResponse> getTicketTransactions(String userId, int page, int limit) {
 		// 지갑이 없으면 생성 (잔고 조회와 동일한 동작)
 		getOrCreateUserTicket(userId);
 
 		PageRequest pageRequest = PageRequest.of(page - 1, limit);
 		Page<TicketTransaction> transactions = ticketTransactionRepository
-			.findByUserIdAndStatusOrderByCreatedAtDesc(userId, TransactionStatus.CONFIRMED, pageRequest);
+			.findByUserIdOrderByCreatedAtDesc(toUserId(userId), pageRequest);
 
 		return transactions.map(this::toTicketTransactionResponse);
 	}
@@ -53,50 +57,49 @@ public class TicketService {
 			throw new TicketException(TicketErrorCode.INSUFFICIENT_BALANCE);
 		}
 
-		String reservationId = UUID.randomUUID().toString();
-
-		// 티켓 차감 (예약 상태)
+		// 예약 금액은 사용 가능 잔액에서 제외한다.
 		userTicket.setBalance(userTicket.getBalance() - amount);
 		userTicketRepository.save(userTicket);
 
-		// 예약 거래 내역 기록
-		TicketTransaction transaction = TicketTransaction.builder()
-			.userId(userId)
-			.amount(-amount)
+		TicketReservation reservation = TicketReservation.builder()
+			.userId(toUserId(userId))
+			.amount(amount)
 			.description(description)
-			.status(TransactionStatus.RESERVED)
-			.reservationId(reservationId)
+			.status(TicketReservationStatus.RESERVED)
 			.build();
-		ticketTransactionRepository.save(transaction);
+		TicketReservation savedReservation = ticketReservationRepository.save(reservation);
 
-		return reservationId;
+		return savedReservation.getId().toString();
 	}
 
 	@Transactional
 	public void confirmReservation(String reservationId) {
-		TicketTransaction transaction = ticketTransactionRepository
-			.findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED)
+		TicketReservation reservation = ticketReservationRepository.findById(toReservationId(reservationId))
+			.filter(candidate -> candidate.getStatus() == TicketReservationStatus.RESERVED)
 			.orElseThrow(() -> new TicketException(TicketErrorCode.RESERVATION_NOT_FOUND));
 
-		// 예약 상태를 확정으로 변경
-		transaction.setStatus(TransactionStatus.CONFIRMED);
-		ticketTransactionRepository.save(transaction);
+		reservation.setStatus(TicketReservationStatus.CONFIRMED);
+		ticketReservationRepository.save(reservation);
+		ticketTransactionRepository.save(TicketTransaction.builder()
+			.userId(reservation.getUserId())
+			.amount(-reservation.getAmount())
+			.description(reservation.getDescription())
+			.reservationId(reservation.getId())
+			.build());
 	}
 
 	@Transactional
 	public void cancelReservation(String reservationId) {
-		TicketTransaction transaction = ticketTransactionRepository
-			.findByReservationIdAndStatus(reservationId, TransactionStatus.RESERVED)
+		TicketReservation reservation = ticketReservationRepository.findById(toReservationId(reservationId))
+			.filter(candidate -> candidate.getStatus() == TicketReservationStatus.RESERVED)
 			.orElseThrow(() -> new TicketException(TicketErrorCode.RESERVATION_NOT_FOUND));
 
-		// 티켓 복구
-		UserTicket userTicket = getOrCreateUserTicket(transaction.getUserId());
-		userTicket.setBalance(userTicket.getBalance() + Math.abs(transaction.getAmount()));
+		UserTicket userTicket = getOrCreateUserTicket(reservation.getUserId());
+		userTicket.setBalance(userTicket.getBalance() + reservation.getAmount());
 		userTicketRepository.save(userTicket);
 
-		// 예약 상태를 취소로 변경
-		transaction.setStatus(TransactionStatus.CANCELLED);
-		ticketTransactionRepository.save(transaction);
+		reservation.setStatus(TicketReservationStatus.CANCELLED);
+		ticketReservationRepository.save(reservation);
 	}
 
 	/**
@@ -121,10 +124,9 @@ public class TicketService {
 
 		// 거래 내역 기록
 		TicketTransaction transaction = TicketTransaction.builder()
-			.userId(userId)
+			.userId(toUserId(userId))
 			.amount(-amount) // 음수로 저장
 			.description(description)
-			.status(TransactionStatus.CONFIRMED)
 			.build();
 		ticketTransactionRepository.save(transaction);
 
@@ -148,10 +150,9 @@ public class TicketService {
 
 		// 거래 내역 기록
 		TicketTransaction transaction = TicketTransaction.builder()
-			.userId(userId)
+			.userId(toUserId(userId))
 			.amount(amount) // 양수로 저장
 			.description(description)
-			.status(TransactionStatus.CONFIRMED)
 			.build();
 		ticketTransactionRepository.save(transaction);
 
@@ -159,13 +160,17 @@ public class TicketService {
 	}
 
 	private UserTicket getOrCreateUserTicket(String userId) {
-		return userTicketRepository.findByUserId(userId).orElseGet(() -> createDefaultUserTicket(userId));
+		return getOrCreateUserTicket(toUserId(userId));
+	}
+
+	private UserTicket getOrCreateUserTicket(Long userId) {
+		return userTicketRepository.findById(userId).orElseGet(() -> createDefaultUserTicket(userId));
 	}
 
 	/**
 	 * 기본 사용자 티켓을 생성합니다 🎁 이벤트: 최초 지갑 생성 시 10개 티켓 지급
 	 */
-	private UserTicket createDefaultUserTicket(String userId) {
+	private UserTicket createDefaultUserTicket(Long userId) {
 		UserTicket userTicket = UserTicket.builder()
 			.userId(userId)
 			.balance(10) // 🎁 이벤트: 최초 10개 티켓 지급
@@ -176,7 +181,6 @@ public class TicketService {
 			.userId(userId)
 			.amount(10)
 			.description("Welcome bonus for new user")
-			.status(TransactionStatus.CONFIRMED)
 			.build();
 		ticketTransactionRepository.save(welcomeTransaction);
 
@@ -185,11 +189,29 @@ public class TicketService {
 
 	private TicketTransactionResponse toTicketTransactionResponse(TicketTransaction transaction) {
 		return TicketTransactionResponse.builder()
-			.id(transaction.getId())
+			.id(transaction.getId().toString())
 			.amount(transaction.getAmount())
 			.description(transaction.getDescription())
 			.createdAt(transaction.getCreatedAt())
 			.build();
+	}
+
+	private Long toUserId(String userId) {
+		try {
+			return Long.parseLong(userId);
+		}
+		catch (NumberFormatException exception) {
+			throw new TicketException(TicketErrorCode.TICKET_NOT_FOUND);
+		}
+	}
+
+	private Long toReservationId(String reservationId) {
+		try {
+			return Long.parseLong(reservationId);
+		}
+		catch (NumberFormatException exception) {
+			throw new TicketException(TicketErrorCode.RESERVATION_NOT_FOUND);
+		}
 	}
 
 }

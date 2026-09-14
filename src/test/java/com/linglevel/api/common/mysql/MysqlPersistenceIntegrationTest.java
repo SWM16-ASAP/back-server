@@ -61,7 +61,7 @@ class MysqlPersistenceIntegrationTest extends AbstractMysqlTest {
 
 	@Test
 	void appliesMigrationOnlyOnce() {
-		assertThat(flyway.info().applied()).hasSize(2);
+		assertThat(flyway.info().applied()).hasSize(3);
 		assertThat(flyway.migrate().migrationsExecuted).isZero();
 	}
 
