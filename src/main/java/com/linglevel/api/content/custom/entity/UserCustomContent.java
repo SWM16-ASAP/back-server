@@ -1,12 +1,8 @@
 package com.linglevel.api.content.custom.entity;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
@@ -18,26 +14,26 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "userCustomContents")
-@CompoundIndex(name = "user_content_idx", def = "{'userId': 1, 'customContentId': 1}", unique = true)
+@Entity
+@Table(name = "user_custom_contents",
+		uniqueConstraints = @UniqueConstraint(columnNames = { "user_id", "custom_content_id" }))
 public class UserCustomContent {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@NotNull
-	@Indexed
-	private String userId;
+	@Column(name = "user_id", nullable = false)
+	private Long userId;
 
-	@NotNull
-	@Indexed
-	private String customContentId;
+	@Column(name = "custom_content_id", nullable = false)
+	private Long customContentId;
 
-	@NotNull
-	@Indexed
-	private String contentRequestId;
+	@Column(name = "content_request_id", nullable = false)
+	private Long contentRequestId;
 
-	@CreatedDate
+	@CreationTimestamp
+	@Column(nullable = false, updatable = false)
 	private Instant unlockedAt;
 
 }

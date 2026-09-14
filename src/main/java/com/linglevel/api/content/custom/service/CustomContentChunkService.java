@@ -82,7 +82,7 @@ public class CustomContentChunkService {
 
 	private CustomContent validateCustomContentAccess(String customContentId, String userId) {
 
-		CustomContent customContent = customContentRepository.findById(customContentId)
+		CustomContent customContent = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
 			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
 		userCustomContentRepository.findByUserIdAndCustomContentId(userId, customContentId)

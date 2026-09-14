@@ -57,9 +57,9 @@ public class UserCustomContentMigrationController {
 
 		for (CustomContent content : allContents) {
 			try {
-				String userId = content.getUserId();
-				String customContentId = content.getId();
-				String contentRequestId = content.getContentRequestId();
+				String userId = content.getUserId().toString();
+				String customContentId = content.getId().toString();
+				Long contentRequestId = content.getContentRequestId();
 
 				// userId가 없는 경우 스킵 (데이터 무결성 문제)
 				if (userId == null || userId.isBlank()) {
@@ -78,8 +78,8 @@ public class UserCustomContentMigrationController {
 
 				// UserCustomContent 생성
 				UserCustomContent userCustomContent = UserCustomContent.builder()
-					.userId(userId)
-					.customContentId(customContentId)
+					.userId(Long.valueOf(userId))
+					.customContentId(Long.valueOf(customContentId))
 					.contentRequestId(contentRequestId)
 					.build();
 

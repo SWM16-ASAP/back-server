@@ -7,6 +7,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
+@org.springframework.test.annotation.DirtiesContext(
+		classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 public abstract class AbstractMysqlTest {
 
 	@Container

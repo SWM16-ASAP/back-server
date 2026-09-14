@@ -18,6 +18,11 @@ public interface ContentRequestRepository extends JpaRepository<ContentRequest, 
 
 	Optional<ContentRequest> findByRequestKey(String requestKey);
 
+	@org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+	@org.springframework.data.jpa.repository.Query("select r from ContentRequest r where r.requestKey = :key")
+	Optional<ContentRequest> findForUpdateByRequestKey(
+			@org.springframework.data.repository.query.Param("key") String key);
+
 	Optional<ContentRequest> findByRequestKeyAndUserId(String requestKey, Long userId);
 
 }

@@ -73,7 +73,7 @@ public class ContentRequest {
 
 	private String errorMessage;
 
-	private String resultCustomContentId;
+	private Long resultCustomContentId;
 
 	@UpdateTimestamp
 	@Column(nullable = false)

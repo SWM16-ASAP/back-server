@@ -64,7 +64,7 @@ public class CustomContentRequestService {
 		if (isUrlBasedContentType(request.getContentType())) {
 			cachedContent = checkCachedContent(request.getOriginUrl());
 			if (cachedContent.isPresent()) {
-				if (!userCustomContentService.validateNotOwned(userId, cachedContent.get().getId())) {
+				if (!userCustomContentService.validateNotOwned(userId, cachedContent.get().getId().toString())) {
 					throw new CustomContentException(CustomContentErrorCode.CONTENT_ALREADY_OWNED);
 				}
 			}
@@ -153,7 +153,7 @@ public class CustomContentRequestService {
 			.title(contentRequest.getTitle())
 			.status(ContentRequestStatus.COMPLETED.getCode())
 			.cached(true)
-			.customContentId(cachedContent.getId())
+			.customContentId(cachedContent.getId().toString())
 			.customContentTitle(cachedContent.getTitle())
 			.createdAt(contentRequest.getCreatedAt())
 			.build();
@@ -248,7 +248,8 @@ public class CustomContentRequestService {
 		response.setCreatedAt(contentRequest.getCreatedAt());
 		response.setCompletedAt(contentRequest.getCompletedAt());
 		response.setErrorMessage(contentRequest.getErrorMessage());
-		response.setResultCustomContentId(contentRequest.getResultCustomContentId());
+		response.setResultCustomContentId(contentRequest.getResultCustomContentId() == null ? null
+				: contentRequest.getResultCustomContentId().toString());
 		return response;
 	}
 

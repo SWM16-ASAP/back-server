@@ -1,6 +1,17 @@
 package com.linglevel.api.content.custom.repository;
 
-import com.linglevel.api.common.AbstractDatabaseTest;
+import com.linglevel.api.common.AbstractMysqlTest;
+import com.linglevel.api.user.repository.UserRepository;
+import com.linglevel.api.user.entity.User;
+import com.linglevel.api.user.entity.UserRole;
+import com.linglevel.api.content.custom.entity.ContentRequest;
+import com.linglevel.api.content.custom.entity.ContentType;
+import com.linglevel.api.user.ticket.repository.TicketReservationRepository;
+import com.linglevel.api.user.ticket.entity.TicketReservation;
+import com.linglevel.api.user.ticket.entity.TicketReservationStatus;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
 import com.linglevel.api.content.custom.dto.GetCustomContentsRequest;
@@ -24,9 +35,10 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataMongoTest
+@DataJpaTest(properties = "spring.flyway.locations=classpath:db/migration/mysql,classpath:db/testmigration/mysql")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(CustomContentRepositoryImpl.class)
-class CustomContentRepositoryTest extends AbstractDatabaseTest {
+class CustomContentRepositoryTest extends AbstractMysqlTest {
 
 	@Autowired
 	private CustomContentRepository customContentRepository;
@@ -34,11 +46,20 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 	@Autowired
 	private UserCustomContentRepository userCustomContentRepository;
 
-	@Autowired
+	@MockitoBean
 	private CustomContentProgressRepository customContentProgressRepository;
 
 	@Autowired
-	private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+	private UserRepository users;
+
+	@Autowired
+	private ContentRequestRepository requests;
+
+	@Autowired
+	private TicketReservationRepository reservations;
+
+	@Autowired
+	private jakarta.persistence.EntityManager em;
 
 	private String testUserId;
 
@@ -56,17 +77,14 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 
 	@BeforeEach
 	void setUp() {
-		// 기존 데이터 삭제
-		customContentRepository.deleteAll();
-		userCustomContentRepository.deleteAll();
-		customContentProgressRepository.deleteAll();
-
-		testUserId = "test-user-id";
+		testUserId = users.saveAndFlush(User.builder().username("reader").role(UserRole.USER).build())
+			.getId()
+			.toString();
 
 		// CustomContent 데이터 생성
 		content1 = CustomContent.builder()
-			.userId("creator-1")
-			.contentRequestId("request-1")
+			.userId(Long.valueOf(testUserId))
+			.contentRequestId(newRequest(1))
 			.isDeleted(false)
 			.title("The Little Prince")
 			.author("Antoine de Saint-Exupéry")
@@ -85,8 +103,8 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 			.build();
 
 		content2 = CustomContent.builder()
-			.userId("creator-2")
-			.contentRequestId("request-2")
+			.userId(Long.valueOf(testUserId))
+			.contentRequestId(newRequest(2))
 			.isDeleted(false)
 			.title("Harry Potter")
 			.author("J.K. Rowling")
@@ -105,8 +123,8 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 			.build();
 
 		content3 = CustomContent.builder()
-			.userId("creator-3")
-			.contentRequestId("request-3")
+			.userId(Long.valueOf(testUserId))
+			.contentRequestId(newRequest(3))
 			.isDeleted(false)
 			.title("Alice in Wonderland")
 			.author("Lewis Carroll")
@@ -129,25 +147,34 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 		content2 = customContentRepository.save(content2);
 		content3 = customContentRepository.save(content3);
 
+		em.flush();
+		for (CustomContent c : List.of(content1, content2, content3)) {
+			em.createNativeQuery("update custom_contents set created_at = :time where id = :id")
+				.setParameter("time",
+						java.sql.Timestamp
+							.from(Instant.now().minusSeconds(c == content1 ? 3600 : c == content2 ? 7200 : 10800)))
+				.setParameter("id", c.getId())
+				.executeUpdate();
+		}
 		// UserCustomContent 매핑 생성
 		userCustomContent1 = UserCustomContent.builder()
-			.userId(testUserId)
+			.userId(Long.valueOf(testUserId))
 			.customContentId(content1.getId())
-			.contentRequestId("request-1")
+			.contentRequestId(newRequest(1))
 			.unlockedAt(Instant.now().minusSeconds(3600))
 			.build();
 
 		userCustomContent2 = UserCustomContent.builder()
-			.userId(testUserId)
+			.userId(Long.valueOf(testUserId))
 			.customContentId(content2.getId())
-			.contentRequestId("request-2")
+			.contentRequestId(newRequest(2))
 			.unlockedAt(Instant.now().minusSeconds(7200))
 			.build();
 
 		userCustomContent3 = UserCustomContent.builder()
-			.userId(testUserId)
+			.userId(Long.valueOf(testUserId))
 			.customContentId(content3.getId())
-			.contentRequestId("request-3")
+			.contentRequestId(newRequest(3))
 			.unlockedAt(Instant.now().minusSeconds(10800))
 			.build();
 
@@ -299,12 +326,13 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 		// Given - content2에 진행 중인 progress 추가
 		CustomContentProgress progress = new CustomContentProgress();
 		progress.setUserId(testUserId);
-		progress.setCustomId(content2.getId());
+		progress.setCustomId(content2.getId().toString());
 		progress.setChunkId("chunk-1");
 		progress.setNormalizedProgress(10.0);
 		progress.setCurrentDifficultyLevel(DifficultyLevel.B1);
 		progress.setIsCompleted(false);
-		customContentProgressRepository.save(progress);
+		org.mockito.Mockito.when(customContentProgressRepository.findAllByUserId(testUserId))
+			.thenReturn(List.of(progress));
 
 		GetCustomContentsRequest request = new GetCustomContentsRequest();
 		request.setPage(1);
@@ -329,13 +357,14 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 		// Given - content1을 완료 상태로 설정
 		CustomContentProgress progress = new CustomContentProgress();
 		progress.setUserId(testUserId);
-		progress.setCustomId(content1.getId());
+		progress.setCustomId(content1.getId().toString());
 		progress.setChunkId("chunk-50");
 		progress.setNormalizedProgress(100.0);
 		progress.setCurrentDifficultyLevel(DifficultyLevel.A2);
 		progress.setIsCompleted(true);
 		progress.setCompletedAt(Instant.now());
-		customContentProgressRepository.save(progress);
+		org.mockito.Mockito.when(customContentProgressRepository.findAllByUserId(testUserId))
+			.thenReturn(List.of(progress));
 
 		GetCustomContentsRequest request = new GetCustomContentsRequest();
 		request.setPage(1);
@@ -360,12 +389,13 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 		// Given - content1에만 progress 추가
 		CustomContentProgress progress = new CustomContentProgress();
 		progress.setUserId(testUserId);
-		progress.setCustomId(content1.getId());
+		progress.setCustomId(content1.getId().toString());
 		progress.setChunkId("chunk-1");
 		progress.setNormalizedProgress(2.0);
 		progress.setCurrentDifficultyLevel(DifficultyLevel.A2);
 		progress.setIsCompleted(false);
-		customContentProgressRepository.save(progress);
+		org.mockito.Mockito.when(customContentProgressRepository.findAllByUserId(testUserId))
+			.thenReturn(List.of(progress));
 
 		GetCustomContentsRequest request = new GetCustomContentsRequest();
 		request.setPage(1);
@@ -413,7 +443,7 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 	@DisplayName("다른 유저의 콘텐츠는 조회되지 않는다")
 	void findCustomContentsByUserWithFilters_shouldNotReturnOtherUsersContents() {
 		// Given
-		String otherUserId = "other-user-id";
+		String otherUserId = "999999";
 		GetCustomContentsRequest request = new GetCustomContentsRequest();
 		request.setPage(1);
 		request.setLimit(10);
@@ -428,6 +458,24 @@ class CustomContentRepositoryTest extends AbstractDatabaseTest {
 		assertThat(result).isNotNull();
 		assertThat(result.getContent()).isEmpty();
 		assertThat(result.getTotalElements()).isEqualTo(0);
+	}
+
+	private Long newRequest(int number) {
+		TicketReservation reservation = reservations.saveAndFlush(TicketReservation.builder()
+			.userId(Long.valueOf(testUserId))
+			.amount(1)
+			.description("test")
+			.status(TicketReservationStatus.RESERVED)
+			.build());
+		return requests
+			.saveAndFlush(ContentRequest.builder()
+				.requestKey(java.util.UUID.randomUUID().toString())
+				.userId(Long.valueOf(testUserId))
+				.ticketReservationId(reservation.getId())
+				.title("request " + number)
+				.contentType(ContentType.TEXT)
+				.build())
+			.getId();
 	}
 
 }

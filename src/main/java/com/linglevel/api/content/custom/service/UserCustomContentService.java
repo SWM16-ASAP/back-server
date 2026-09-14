@@ -24,11 +24,11 @@ public class UserCustomContentService {
 
 	@Transactional
 	public void createMapping(ContentRequest contentRequest, CustomContent customContent) {
-		createMapping(contentRequest.getUserId().toString(), customContent.getId(), contentRequest.getRequestKey());
+		createMapping(contentRequest.getUserId(), customContent.getId(), contentRequest.getId());
 	}
 
 	@Transactional
-	public void createMapping(String userId, String customContentId, String contentRequestId) {
+	public void createMapping(Long userId, Long customContentId, Long contentRequestId) {
 		UserCustomContent userCustomContent = UserCustomContent.builder()
 			.userId(userId)
 			.customContentId(customContentId)

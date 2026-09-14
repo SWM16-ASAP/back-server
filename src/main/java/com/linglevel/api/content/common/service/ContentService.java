@@ -117,9 +117,10 @@ public class ContentService {
 			.stream()
 			.collect(Collectors.toMap(Article::getId, Function.identity()));
 		Map<String, CustomContent> customContentsMap = customContentRepository
-			.findAllById(contentIdsByType.getOrDefault(ContentType.CUSTOM, List.of()))
+			.findAllById(
+					contentIdsByType.getOrDefault(ContentType.CUSTOM, List.of()).stream().map(Long::valueOf).toList())
 			.stream()
-			.collect(Collectors.toMap(CustomContent::getId, Function.identity()));
+			.collect(Collectors.toMap(content -> content.getId().toString(), Function.identity()));
 
 		List<RecentContentResponse> result = paginatedProgresses.stream().map(p -> {
 			switch (p.contentType()) {
@@ -222,7 +223,8 @@ public class ContentService {
 					DifficultyLevel difficulty = progress.getCurrentDifficultyLevel() != null
 							? progress.getCurrentDifficultyLevel() : custom.getDifficultyLevel();
 					totalChunks = customContentChunkRepository
-						.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(custom.getId(), difficulty);
+						.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(custom.getId().toString(),
+								difficulty);
 
 					// If normalizedProgress is somehow null (not migrated), fallback to
 					// calculation.
@@ -231,7 +233,7 @@ public class ContentService {
 					}
 
 					return RecentContentResponse.builder()
-						.contentId(custom.getId())
+						.contentId(custom.getId().toString())
 						.contentType(ContentType.CUSTOM)
 						.title(custom.getTitle())
 						.author(custom.getAuthor())
