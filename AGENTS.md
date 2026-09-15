@@ -14,7 +14,7 @@
 
 ## 코드 작업 전 확인할 운영 포인트
 
-- 업무 데이터는 모두 MySQL을 사용한다(사용자·티켓·콘텐츠 메타데이터·본문·학습·북마크·피드/추천·설정·인증 토큰·단어·로그 포함). MongoDB 의존성·설정 자체는 아직 코드에 남아 있으며 제거는 별도 마무리 작업으로 남겨뒀다 — 자세한 배경은 [MySQL 재설계 문서](docs/architecture/mysql-first-redesign.md)를 따른다.
+- 업무 데이터는 모두 MySQL을 사용한다(사용자·티켓·콘텐츠 메타데이터·본문·학습·북마크·피드/추천·설정·인증 토큰·단어·로그 포함). MongoDB 의존성·설정(`MongoConfig`, `build.gradle`)은 나중에 다시 필요해질 가능성을 남겨두기 위해 의도적으로 유지하며, 추가로 제거할 계획은 없다 — 자세한 배경은 [MySQL 재설계 문서](docs/architecture/mysql-first-redesign.md)와 [013번 결정 기록](docs/decisions/013-mongodb-to-mysql-full-migration.md)을 따른다.
 - Redis는 rate limit, 짧은 상태, 분산 조정에 사용한다.
 - 단어 생성 경로는 Spring AI와 AWS Bedrock 호출 비용, 실패 재시도, 동시 요청 중복을 함께 고려해야 한다.
 - `word` 동적 생성 경로는 Redisson `RLock` 기반 single-flight 조정 흐름을 가진다.
@@ -25,7 +25,8 @@
 
 ## 설계 및 운영 판단 기록
 
-- [MongoDB 중심 데이터 모델링](docs/decisions/007-choose-mongodb-for-early-flexibility.md)
+- [MongoDB 중심 데이터 모델링 (2026-09 013번으로 대체됨)](docs/decisions/007-choose-mongodb-for-early-flexibility.md)
+- [MongoDB 중심 저장소를 MySQL 단일 축으로 완전 전환](docs/decisions/013-mongodb-to-mysql-full-migration.md)
 - [Redis 기반 Rate Limiting](docs/decisions/002-rate-limiting-with-bucket4j.md)
 - [AI 단어 분석 파이프라인 비용과 안정성 개선](docs/decisions/005-ai-word-analysis-cost-and-reliability.md)
 - [Word single-flight 분산 안정화](docs/decisions/011-word-single-flight-distributed-stability-with-redlock.md)
