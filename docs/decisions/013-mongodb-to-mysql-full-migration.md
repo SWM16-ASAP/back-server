@@ -21,7 +21,7 @@
 - 도메인마다 실제 MySQL(Testcontainers) 기반 영속성 통합 테스트를 새로 추가해, 유니크 제약·FK·낙관적 락·정리 스케줄러 쿼리가 목(mock) 테스트로는 가려지는 문제를 잡아냈다. 대표적으로 [WordPersistenceIntegrationTest.java](../../src/test/java/com/linglevel/api/word/service/WordPersistenceIntegrationTest.java), [LogPersistenceIntegrationTest.java](../../src/test/java/com/linglevel/api/common/log/LogPersistenceIntegrationTest.java), [ContentAccessLogCleanupTransactionTest.java](../../src/test/java/com/linglevel/api/common/log/ContentAccessLogCleanupTransactionTest.java).
 - 전체 전환 완료 후 `grep`으로 `src/main/java`에 `@Document`/`extends MongoRepository`가 하나도 남지 않았음을 확인했다.
 - `./gradlew clean test`(447개 테스트, 실패 0) / `./gradlew checkFormat`로 전체 회귀를 반복 검증했다.
-- 전환 직후 진행한 코드 리뷰에서 실제 버그 3건을 잡아 같은 PR에서 수정했다: 단어 중복 저장 복구가 `EntityManager.clear()`만으로는 rollback-only 트랜잭션을 되돌리지 못해 커밋 시점에 실패하던 문제, 정리 스케줄러 4개가 `deleteByXBefore()` 파생 쿼리에 자체 트랜잭션이 없어 매번 조용히 실패하던 문제, `feeds`/`feed_sources`의 `UNIQUE(url(255))` 접두 인덱스가 서로 다른 URL을 중복으로 오판하던 문제. 자세한 내용은 [MySQL 재설계 문서](../architecture/mysql-first-redesign.md)에 기록했다.
+- 전환 직후 진행한 코드 리뷰에서 실제 버그 3건을 잡아 같은 PR에서 수정했다: 단어 중복 저장 복구가 `EntityManager.clear()`만으로는 rollback-only 트랜잭션을 되돌리지 못해 커밋 시점에 실패하던 문제(→ `PROPAGATION_REQUIRES_NEW`로 삽입·재조회를 분리), 정리 스케줄러 4개가 `deleteByXBefore()` 파생 쿼리에 자체 트랜잭션이 없어 매번 조용히 실패하던 문제(→ 리포지토리 메서드에 `@Transactional` 직접 부여), `feeds`/`feed_sources`의 `UNIQUE(url(255))` 접두 인덱스가 서로 다른 URL을 중복으로 오판하던 문제(→ `url_hash CHAR(64) AS (SHA2(url, 256)) STORED` 생성 컬럼에 유니크 제약).
 
 ## 결과와 남은 이슈
 

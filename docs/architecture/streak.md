@@ -97,7 +97,7 @@ sequenceDiagram
 
 ## 전환 경계
 
-- BIGINT ID·스키마·보장 범위는 [MySQL 재설계 문서](mysql-first-redesign.md)를 따른다.
+- BIGINT ID·스키마·보장 범위 배경은 [013번 결정 기록](../decisions/013-mongodb-to-mysql-full-migration.md)을 따른다.
 - 반복 읽기 이력은 여러 건 저장하되 하루 스트릭 보상은 한 번만 지급한다.
 - 진행률도 SQL 트랜잭션에 포함된다. Redis 세션과 이미 발행한 접근 이벤트는 SQL 롤백 대상이 아니며, 전송 재시도에 대한 종단 멱등성은 별도 과제다.
 
