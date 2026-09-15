@@ -12,14 +12,18 @@ import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +36,24 @@ public class WordPersistenceService {
 	private final WordVariantRepository wordVariantRepository;
 
 	private final InvalidWordRepository invalidWordRepository;
+
+	private final PlatformTransactionManager transactionManager;
+
+	/**
+	 * MySQL 유니크 제약을 이용한 동시 삽입 경쟁 복구는 실패한 INSERT를 별도의 REQUIRES_NEW 트랜잭션에서 실행해야 한다. 같은 트랜잭션
+	 * 안에서 DataIntegrityViolationException을 잡기만 하면, Hibernate가 물리 트랜잭션을 이미 rollback-only로
+	 * 표시해 버려서 EntityManager.clear()로도 되돌릴 수 없고, 이후 커밋 시점에 UnexpectedRollbackException이
+	 * 발생한다.
+	 *
+	 * 복구용 재조회도 반드시 이 메서드로 실행해야 한다 — MySQL의 기본 격리 수준인 REPEATABLE READ에서는, 바깥쪽 메서드 트랜잭션이 이미
+	 * 오래 열려 있었다면 그 트랜잭션의 스냅샷이 경쟁 상대가 방금 커밋한 행을 보지 못할 수 있다. 재조회를 새 트랜잭션(새 스냅샷)에서 실행해야 항상
+	 * 최신 커밋 상태를 읽는다.
+	 */
+	private <T> T runInNewTransaction(Supplier<T> action) {
+		TransactionTemplate requiresNew = new TransactionTemplate(transactionManager);
+		requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+		return requiresNew.execute(status -> action.get());
+	}
 
 	@Transactional
 	public List<WordVariant> saveAnalysisResults(String word, List<WordAnalysisResult> analysisResults,
@@ -71,10 +93,10 @@ public class WordPersistenceService {
 	public Word saveWord(WordAnalysisResult analysisResult) {
 		Word newWord = convertAnalysisResultToWord(analysisResult);
 		try {
-			return wordRepository.save(newWord);
+			return runInNewTransaction(() -> wordRepository.save(newWord));
 		}
-		catch (DuplicateKeyException e) {
-			return findPersistedWord(analysisResult).orElseThrow(() -> e);
+		catch (DataIntegrityViolationException e) {
+			return runInNewTransaction(() -> findPersistedWord(analysisResult)).orElseThrow(() -> e);
 		}
 	}
 
@@ -99,14 +121,15 @@ public class WordPersistenceService {
 	}
 
 	private Word saveWordAndVariants(WordAnalysisResult analysisResult) {
+		Word savedWord;
 		try {
-			Word savedWord = wordRepository.save(convertAnalysisResultToWord(analysisResult));
-			saveWordVariants(savedWord);
-			return savedWord;
+			savedWord = runInNewTransaction(() -> wordRepository.save(convertAnalysisResultToWord(analysisResult)));
 		}
-		catch (DuplicateKeyException e) {
-			return findPersistedWord(analysisResult).orElseThrow(() -> e);
+		catch (DataIntegrityViolationException e) {
+			return runInNewTransaction(() -> findPersistedWord(analysisResult)).orElseThrow(() -> e);
 		}
+		saveWordVariants(savedWord);
+		return savedWord;
 	}
 
 	private Optional<Word> findPersistedWord(WordAnalysisResult analysisResult) {
@@ -188,10 +211,11 @@ public class WordPersistenceService {
 
 	private WordVariant saveWordVariantRecoveringDuplicate(WordVariant variant) {
 		try {
-			return wordVariantRepository.save(variant);
+			return runInNewTransaction(() -> wordVariantRepository.save(variant));
 		}
-		catch (DuplicateKeyException e) {
-			return wordVariantRepository.findByWordAndOriginalForm(variant.getWord(), variant.getOriginalForm())
+		catch (DataIntegrityViolationException e) {
+			return runInNewTransaction(
+					() -> wordVariantRepository.findByWordAndOriginalForm(variant.getWord(), variant.getOriginalForm()))
 				.orElseThrow(() -> e);
 		}
 	}

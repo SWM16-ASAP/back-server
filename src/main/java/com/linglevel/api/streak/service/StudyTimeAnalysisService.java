@@ -30,6 +30,8 @@ public class StudyTimeAnalysisService {
 
 	private final UserStudyReportRepository userStudyReportRepository;
 
+	private final StudyReportLock studyReportLock;
+
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	private static final int ANALYSIS_DAYS = 7; // 최근 7일 분석
@@ -37,6 +39,7 @@ public class StudyTimeAnalysisService {
 	/**
 	 * DB에 저장된 사용자의 선호 학습 시간을 반환합니다. 값이 없으면 즉시 계산하여 저장합니다.
 	 */
+	@org.springframework.transaction.annotation.Transactional
 	public Optional<Integer> getPreferredStudyHour(String userId) {
 		Optional<UserStudyReport> reportOpt = userStudyReportRepository.findByUserId(userId);
 
@@ -58,8 +61,10 @@ public class StudyTimeAnalysisService {
 	/**
 	 * 사용자의 선호 학습 시간을 계산하고 DB에 저장합니다. PreferredStudyHourUpdateScheduler에서 주기적으로 호출됩니다.
 	 */
+	@org.springframework.transaction.annotation.Transactional
 	public Optional<Integer> calculateAndSavePreferredStudyHour(String userId) {
-		Optional<UserStudyReport> reportOpt = userStudyReportRepository.findByUserId(userId);
+		studyReportLock.lock(userId);
+		Optional<UserStudyReport> reportOpt = userStudyReportRepository.findForUpdate(userId);
 
 		if (reportOpt.isEmpty()) {
 			return Optional.empty();
@@ -103,7 +108,7 @@ public class StudyTimeAnalysisService {
 				continue;
 			}
 
-			for (DailyCompletion.CompletedContent content : completion.getCompletedContents()) {
+			for (com.linglevel.api.streak.entity.LearningCompletion content : completion.getCompletedContents()) {
 				if (content.getCompletedAt() == null) {
 					continue;
 				}

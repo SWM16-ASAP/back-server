@@ -42,9 +42,12 @@ public class CustomContentReadingProgressService {
 
 	private final StreakService streakService;
 
+	private final com.linglevel.api.streak.service.StudyReportLock studyReportLock;
+
 	@Transactional
 	public CustomContentReadingProgressResponse updateProgress(String customId,
 			CustomContentReadingProgressUpdateRequest request, String userId) {
+		studyReportLock.lock(userId);
 		// 커스텀 콘텐츠 존재 여부 확인
 		if (!customContentService.existsById(customId)) {
 			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
@@ -54,11 +57,11 @@ public class CustomContentReadingProgressService {
 		CustomContentChunk chunk = customContentChunkService.findById(request.getChunkId());
 
 		// chunk가 해당 custom content에 속하는지 검증
-		if (chunk.getCustomContentId() == null || !chunk.getCustomContentId().equals(customId)) {
+		if (chunk.getCustomContentId() == null || !chunk.getCustomContentId().toString().equals(customId)) {
 			throw new CustomContentException(CustomContentErrorCode.CHUNK_NOT_FOUND_IN_CUSTOM_CONTENT);
 		}
 
-		CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
+		CustomContentProgress customProgress = customContentProgressRepository.findForUpdate(userId, customId)
 			.orElse(new CustomContentProgress());
 
 		ensureMigrated(customProgress, chunk);
@@ -68,13 +71,13 @@ public class CustomContentReadingProgressService {
 			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_CHUNK_NOT_FOUND);
 		}
 
-		customProgress.setUserId(userId);
-		customProgress.setCustomId(customId);
+		customProgress.setUserId(Long.valueOf(userId));
+		customProgress.setCustomId(Long.valueOf(customId));
 		customProgress.setChunkId(request.getChunkId());
 
 		// [V2_CORE] V2 필드: 정규화된 진행률 계산
-		long totalChunks = customContentChunkRepository
-			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(customId, chunk.getDifficultyLevel());
+		long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+				chunk.getCustomContentId(), chunk.getDifficultyLevel());
 		double normalizedProgress = progressCalculationService.calculateNormalizedProgress(chunk.getChunkNum(),
 				totalChunks);
 
@@ -109,6 +112,7 @@ public class CustomContentReadingProgressService {
 			}
 		}
 
+		customProgress.setUpdatedAt(java.time.Instant.now());
 		customContentProgressRepository.save(customProgress);
 
 		return convertToCustomContentReadingProgressResponse(customProgress, streakUpdated);
@@ -162,13 +166,13 @@ public class CustomContentReadingProgressService {
 		CustomContentChunk firstChunk = customContentChunkService.findFirstByCustomContentId(customId);
 
 		CustomContentProgress newProgress = new CustomContentProgress();
-		newProgress.setUserId(userId);
-		newProgress.setCustomId(customId);
-		newProgress.setChunkId(firstChunk.getId());
+		newProgress.setUserId(Long.valueOf(userId));
+		newProgress.setCustomId(Long.valueOf(customId));
+		newProgress.setChunkId(firstChunk.getId().toString());
 
 		// [V2_CORE] V2 필드: 초기 진행률 계산
-		long totalChunks = customContentChunkRepository
-			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(customId, firstChunk.getDifficultyLevel());
+		long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+				firstChunk.getCustomContentId(), firstChunk.getDifficultyLevel());
 		double initialProgress = progressCalculationService.calculateNormalizedProgress(firstChunk.getChunkNum(),
 				totalChunks);
 
@@ -176,16 +180,18 @@ public class CustomContentReadingProgressService {
 		newProgress.setMaxNormalizedProgress(initialProgress);
 		newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
 
-		return customContentProgressRepository.save(newProgress);
+		newProgress.setUpdatedAt(null);
+		return newProgress;
 	}
 
 	@Transactional
 	public void deleteProgress(String customId, String userId) {
+		studyReportLock.lock(userId);
 		if (!customContentService.existsById(customId)) {
 			throw new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND);
 		}
 
-		CustomContentProgress customProgress = customContentProgressRepository.findByUserIdAndCustomId(userId, customId)
+		CustomContentProgress customProgress = customContentProgressRepository.findForUpdate(userId, customId)
 			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.PROGRESS_NOT_FOUND));
 
 		customContentProgressRepository.delete(customProgress);
@@ -202,9 +208,9 @@ public class CustomContentReadingProgressService {
 		}
 
 		return CustomContentReadingProgressResponse.builder()
-			.id(progress.getId())
-			.userId(progress.getUserId())
-			.customId(progress.getCustomId())
+			.id(progress.getId() == null ? null : progress.getId().toString())
+			.userId(progress.getUserId() == null ? null : progress.getUserId().toString())
+			.customId(progress.getCustomId() == null ? null : progress.getCustomId().toString())
 			.chunkId(progress.getChunkId())
 			.currentReadChunkNumber(chunk.getChunkNum())
 			.isCompleted(progress.getIsCompleted())

@@ -56,25 +56,25 @@ class ChunkServiceTest {
 			.limit(300)
 			.build();
 
-		Chapter chapter = createChapter("chapter-1", "book-1");
-		Chunk firstChunk = createChunk("chunk-1", "chapter-1", 1, ChunkType.TEXT, "first", null);
-		Chunk secondChunk = createChunk("chunk-2", "chapter-1", 2, ChunkType.IMAGE, "https://cdn/image.png", "image");
+		Chapter chapter = createChapter("1", "1");
+		Chunk firstChunk = createChunk("101", "1", 1, ChunkType.TEXT, "first", null);
+		Chunk secondChunk = createChunk("102", "1", 2, ChunkType.IMAGE, "https://cdn/image.png", "image");
 		Page<Chunk> chunkPage = new PageImpl<>(List.of(firstChunk, secondChunk));
 
-		when(bookService.existsById("book-1")).thenReturn(true);
-		when(chapterRepository.findById("chapter-1")).thenReturn(Optional.of(chapter));
+		when(bookService.existsById("1")).thenReturn(true);
+		when(chapterRepository.findById("1")).thenReturn(Optional.of(chapter));
 
 		ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-		when(chunkRepository.findByChapterIdAndDifficultyLevel(ArgumentMatchers.eq("chapter-1"),
+		when(chunkRepository.findByChapterIdAndDifficultyLevel(ArgumentMatchers.eq("1"),
 				ArgumentMatchers.eq(DifficultyLevel.A1), pageableCaptor.capture()))
 			.thenReturn(chunkPage);
 
 		// when
-		PageResponse<ChunkResponse> response = chunkService.getChunks("book-1", "chapter-1", request, "user-1");
+		PageResponse<ChunkResponse> response = chunkService.getChunks("1", "1", request, "user-1");
 
 		// then
 		assertEquals(2, response.getData().size());
-		assertEquals("chunk-1", response.getData().get(0).getId());
+		assertEquals("101", response.getData().get(0).getId());
 		assertEquals(ChunkType.TEXT, response.getData().get(0).getType());
 		assertEquals("https://cdn/image.png", response.getData().get(1).getContent());
 		assertEquals("image", response.getData().get(1).getDescription());
@@ -92,7 +92,7 @@ class ChunkServiceTest {
 
 		// when
 		BooksException exception = assertThrows(BooksException.class,
-				() -> chunkService.getChunks("missing-book", "chapter-1", request, "user-1"));
+				() -> chunkService.getChunks("missing-book", "1", request, "user-1"));
 
 		// then
 		assertEquals(BooksErrorCode.BOOK_NOT_FOUND.getMessage(), exception.getMessage());
@@ -104,13 +104,12 @@ class ChunkServiceTest {
 		// given
 		GetChunksRequest request = GetChunksRequest.builder().difficultyLevel(DifficultyLevel.A1).build();
 
-		when(bookService.existsById("book-1")).thenReturn(true);
-		when(chapterRepository.findById("chapter-1"))
-			.thenReturn(Optional.of(createChapter("chapter-1", "another-book")));
+		when(bookService.existsById("1")).thenReturn(true);
+		when(chapterRepository.findById("1")).thenReturn(Optional.of(createChapter("1", "999")));
 
 		// when
 		BooksException exception = assertThrows(BooksException.class,
-				() -> chunkService.getChunks("book-1", "chapter-1", request, "user-1"));
+				() -> chunkService.getChunks("1", "1", request, "user-1"));
 
 		// then
 		assertEquals(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK.getMessage(), exception.getMessage());
@@ -120,18 +119,18 @@ class ChunkServiceTest {
 	@DisplayName("단일 청크 조회 시 ChunkResponse로 변환해 반환한다.")
 	void getChunk_returnsChunkResponse() {
 		// given
-		Chapter chapter = createChapter("chapter-1", "book-1");
-		Chunk chunk = createChunk("chunk-1", "chapter-1", 3, ChunkType.TEXT, "body", null);
+		Chapter chapter = createChapter("1", "1");
+		Chunk chunk = createChunk("101", "1", 3, ChunkType.TEXT, "body", null);
 
-		when(bookService.existsById("book-1")).thenReturn(true);
-		when(chapterRepository.findById("chapter-1")).thenReturn(Optional.of(chapter));
-		when(chunkRepository.findById("chunk-1")).thenReturn(Optional.of(chunk));
+		when(bookService.existsById("1")).thenReturn(true);
+		when(chapterRepository.findById("1")).thenReturn(Optional.of(chapter));
+		when(chunkRepository.findById("101")).thenReturn(Optional.of(chunk));
 
 		// when
-		ChunkResponse response = chunkService.getChunk("book-1", "chapter-1", "chunk-1");
+		ChunkResponse response = chunkService.getChunk("1", "1", "101");
 
 		// then
-		assertEquals("chunk-1", response.getId());
+		assertEquals("101", response.getId());
 		assertEquals(3, response.getChunkNumber());
 		assertEquals(ChunkType.TEXT, response.getType());
 		assertEquals("body", response.getContent());
@@ -141,16 +140,15 @@ class ChunkServiceTest {
 	@DisplayName("청크가 다른 챕터에 속하면 CHUNK_NOT_FOUND 예외를 던진다.")
 	void getChunk_throwsWhenChunkDoesNotBelongToChapter() {
 		// given
-		Chapter chapter = createChapter("chapter-1", "book-1");
-		Chunk chunk = createChunk("chunk-1", "chapter-2", 1, ChunkType.TEXT, "body", null);
+		Chapter chapter = createChapter("1", "1");
+		Chunk chunk = createChunk("101", "2", 1, ChunkType.TEXT, "body", null);
 
-		when(bookService.existsById("book-1")).thenReturn(true);
-		when(chapterRepository.findById("chapter-1")).thenReturn(Optional.of(chapter));
-		when(chunkRepository.findById("chunk-1")).thenReturn(Optional.of(chunk));
+		when(bookService.existsById("1")).thenReturn(true);
+		when(chapterRepository.findById("1")).thenReturn(Optional.of(chapter));
+		when(chunkRepository.findById("101")).thenReturn(Optional.of(chunk));
 
 		// when
-		BooksException exception = assertThrows(BooksException.class,
-				() -> chunkService.getChunk("book-1", "chapter-1", "chunk-1"));
+		BooksException exception = assertThrows(BooksException.class, () -> chunkService.getChunk("1", "1", "101"));
 
 		// then
 		assertEquals(BooksErrorCode.CHUNK_NOT_FOUND.getMessage(), exception.getMessage());
@@ -160,10 +158,10 @@ class ChunkServiceTest {
 	@DisplayName("findById는 청크가 없으면 CHUNK_NOT_FOUND 예외를 던진다.")
 	void findById_throwsWhenChunkNotFound() {
 		// given
-		when(chunkRepository.findById("missing-chunk")).thenReturn(Optional.empty());
+		when(chunkRepository.findById("999")).thenReturn(Optional.empty());
 
 		// when
-		BooksException exception = assertThrows(BooksException.class, () -> chunkService.findById("missing-chunk"));
+		BooksException exception = assertThrows(BooksException.class, () -> chunkService.findById("999"));
 
 		// then
 		assertEquals(BooksErrorCode.CHUNK_NOT_FOUND.getMessage(), exception.getMessage());
@@ -173,29 +171,29 @@ class ChunkServiceTest {
 	@DisplayName("findFirstByChapterId는 첫 번째 청크를 반환한다.")
 	void findFirstByChapterId_returnsFirstChunk() {
 		// given
-		Chunk chunk = createChunk("chunk-1", "chapter-1", 1, ChunkType.TEXT, "body", null);
-		when(chunkRepository.findFirstByChapterIdOrderByChunkNumberAsc("chapter-1")).thenReturn(Optional.of(chunk));
+		Chunk chunk = createChunk("101", "1", 1, ChunkType.TEXT, "body", null);
+		when(chunkRepository.findFirstByChapterIdOrderByChunkNumberAsc("1")).thenReturn(Optional.of(chunk));
 
 		// when
-		Chunk result = chunkService.findFirstByChapterId("chapter-1");
+		Chunk result = chunkService.findFirstByChapterId("1");
 
 		// then
-		assertEquals("chunk-1", result.getId());
+		assertEquals(101L, result.getId());
 		assertEquals(1, result.getChunkNumber());
 	}
 
 	private Chapter createChapter(String chapterId, String bookId) {
 		Chapter chapter = new Chapter();
-		chapter.setId(chapterId);
-		chapter.setBookId(bookId);
+		chapter.setId(Long.valueOf(chapterId));
+		chapter.setBookId(Long.valueOf(bookId));
 		return chapter;
 	}
 
 	private Chunk createChunk(String chunkId, String chapterId, int chunkNumber, ChunkType type, String content,
 			String description) {
 		Chunk chunk = new Chunk();
-		chunk.setId(chunkId);
-		chunk.setChapterId(chapterId);
+		chunk.setId(Long.valueOf(chunkId));
+		chunk.setChapterId(Long.valueOf(chapterId));
 		chunk.setChunkNumber(chunkNumber);
 		chunk.setDifficultyLevel(DifficultyLevel.A1);
 		chunk.setType(type);

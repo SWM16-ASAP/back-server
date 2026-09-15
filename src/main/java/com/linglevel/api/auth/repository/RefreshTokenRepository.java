@@ -1,18 +1,31 @@
 package com.linglevel.api.auth.repository;
 
 import com.linglevel.api.auth.jwt.RefreshToken;
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Repository
-public interface RefreshTokenRepository extends MongoRepository<RefreshToken, String> {
+public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
 	Optional<RefreshToken> findByTokenId(String tokenId);
 
-	Optional<RefreshToken> findByUserId(String userId);
+	Optional<RefreshToken> findByUserId(Long userId);
 
-	void deleteByUserId(String userId);
+	default Optional<RefreshToken> findByUserId(String userId) {
+		return findByUserId(Long.valueOf(userId));
+	}
+
+	void deleteByUserId(Long userId);
+
+	default void deleteByUserId(String userId) {
+		deleteByUserId(Long.valueOf(userId));
+	}
+
+	@Transactional
+	long deleteByExpiresAtBefore(LocalDateTime cutoff);
 
 }

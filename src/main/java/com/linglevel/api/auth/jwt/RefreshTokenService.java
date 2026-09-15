@@ -36,7 +36,11 @@ public class RefreshTokenService {
 		String tokenId = UUID.randomUUID().toString();
 		LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(refreshTokenExpirationMs / 1000);
 
-		RefreshToken refreshToken = RefreshToken.builder().tokenId(tokenId).userId(userId).expiresAt(expiresAt).build();
+		RefreshToken refreshToken = RefreshToken.builder()
+			.tokenId(tokenId)
+			.userId(Long.valueOf(userId))
+			.expiresAt(expiresAt)
+			.build();
 
 		refreshTokenRepository.save(refreshToken);
 		log.info("Refresh token created for user: {}", userId);
@@ -63,7 +67,7 @@ public class RefreshTokenService {
 		}
 
 		String newAccessToken = jwtProvider.createToken(user);
-		String newRefreshToken = createRefreshToken(user.getId());
+		String newRefreshToken = createRefreshToken(user.getId().toString());
 
 		log.info("Access token refreshed for user: {}", user.getId());
 

@@ -70,7 +70,7 @@ class ChapterServiceTest {
 	@BeforeEach
 	void setUp() {
 		testUser = new User();
-		testUser.setId("test-user-id");
+		testUser.setId(1L);
 		testUser.setUsername("testuser");
 		testUser.setEmail("test@example.com");
 		testUser.setRole(UserRole.USER);
@@ -78,7 +78,7 @@ class ChapterServiceTest {
 		testUser.setCreatedAt(LocalDateTime.now());
 
 		testBook = new Book();
-		testBook.setId("test-book-id");
+		testBook.setId(Long.valueOf("101"));
 		testBook.setTitle("Test Book");
 		testBook.setAuthor("Test Author");
 		testBook.setDifficultyLevel(DifficultyLevel.A1);
@@ -101,26 +101,26 @@ class ChapterServiceTest {
 			.build();
 
 		// Mock: 6-10번 챕터 (5번까지 읽어서 6번부터 NOT_STARTED)
-		List<Chapter> chapters = createChapters(3, testBook.getId(), 6, "Chapter");
+		List<Chapter> chapters = createChapters(3, testBook.getId().toString(), 6, "Chapter");
 
 		Page<Chapter> chapterPage = new PageImpl<>(chapters, PageRequest.of(0, 3), 5);
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId());
-		progress.setBookId(testBook.getId());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setChunkId("test-chunk-id");
 		progress.setCurrentReadChapterNumber(5);
 		progress.setMaxReadChapterNumber(5);
 		progress.setIsCompleted(false);
 		progress.setUpdatedAt(Instant.now());
 
-		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
+		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId().toString(), testBook.getId().toString()))
 			.thenReturn(Optional.of(progress));
 
 		when(chapterRepository.findChaptersWithFilters(anyString(), any(), anyString(), any())).thenReturn(chapterPage);
 
-		PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request,
-				testUser.getId());
+		PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId().toString(), request,
+				testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(3);
 		assertThat(response.getTotalCount()).isEqualTo(5);
@@ -137,26 +137,26 @@ class ChapterServiceTest {
 			.build();
 
 		// Mock: 5번 챕터만 IN_PROGRESS
-		List<Chapter> chapters = createChapters(1, testBook.getId(), 5, "Chapter");
+		List<Chapter> chapters = createChapters(1, testBook.getId().toString(), 5, "Chapter");
 
 		Page<Chapter> chapterPage = new PageImpl<>(chapters, PageRequest.of(0, 10), 1);
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId());
-		progress.setBookId(testBook.getId());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setChunkId("test-chunk-id");
 		progress.setCurrentReadChapterNumber(5);
 		progress.setMaxReadChapterNumber(5);
 		progress.setIsCompleted(false);
 		progress.setUpdatedAt(Instant.now());
 
-		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
+		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId().toString(), testBook.getId().toString()))
 			.thenReturn(Optional.of(progress));
 
 		when(chapterRepository.findChaptersWithFilters(anyString(), any(), anyString(), any())).thenReturn(chapterPage);
 
-		PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request,
-				testUser.getId());
+		PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId().toString(), request,
+				testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(1);
 		assertThat(response.getTotalCount()).isEqualTo(1);
@@ -173,26 +173,26 @@ class ChapterServiceTest {
 			.build();
 
 		// Mock: 1-4번 챕터 (5번 진행중이므로 1-4번까지 완료)
-		List<Chapter> chapters = createChapters(2, testBook.getId(), 1, "Chapter");
+		List<Chapter> chapters = createChapters(2, testBook.getId().toString(), 1, "Chapter");
 
 		Page<Chapter> chapterPage = new PageImpl<>(chapters, PageRequest.of(0, 2), 4);
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId());
-		progress.setBookId(testBook.getId());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setChunkId("test-chunk-id");
 		progress.setCurrentReadChapterNumber(5);
 		progress.setMaxReadChapterNumber(5);
 		progress.setIsCompleted(false);
 		progress.setUpdatedAt(Instant.now());
 
-		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
+		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId().toString(), testBook.getId().toString()))
 			.thenReturn(Optional.of(progress));
 
 		when(chapterRepository.findChaptersWithFilters(anyString(), any(), anyString(), any())).thenReturn(chapterPage);
 
-		PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request,
-				testUser.getId());
+		PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId().toString(), request,
+				testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(2);
 		assertThat(response.getTotalCount()).isEqualTo(4);
@@ -209,17 +209,17 @@ class ChapterServiceTest {
 			.build();
 
 		// Mock: 모든 챕터 (진도 정보 없음)
-		List<Chapter> chapters = createChapters(5, testBook.getId(), 1, "Chapter");
+		List<Chapter> chapters = createChapters(5, testBook.getId().toString(), 1, "Chapter");
 
 		Page<Chapter> chapterPage = new PageImpl<>(chapters, PageRequest.of(0, 5), 10);
 
-		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
+		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId().toString(), testBook.getId().toString()))
 			.thenReturn(Optional.empty());
 
 		when(chapterRepository.findChaptersWithFilters(anyString(), any(), anyString(), any())).thenReturn(chapterPage);
 
-		PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId(), request,
-				testUser.getId());
+		PageResponse<ChapterResponse> response = chapterService.getChapters(testBook.getId().toString(), request,
+				testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -229,11 +229,11 @@ class ChapterServiceTest {
 	@DisplayName("단일 챕터 조회 시 V3 chapterProgresses 정보를 기준으로 응답을 계산한다")
 	void getChapter_usesV3ChapterProgressInfo() {
 		// given
-		Chapter chapter = createChapter(testBook.getId(), 2, "Chapter 2");
+		Chapter chapter = createChapter(testBook.getId().toString(), 2, "Chapter 2");
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId());
-		progress.setBookId(testBook.getId());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setCurrentDifficultyLevel(DifficultyLevel.B1);
 		progress.setChapterProgresses(List.of(BookProgress.ChapterProgressInfo.builder()
 			.chapterNumber(2)
@@ -241,17 +241,18 @@ class ChapterServiceTest {
 			.isCompleted(false)
 			.build()));
 
-		when(chapterRepository.findById(chapter.getId())).thenReturn(Optional.of(chapter));
-		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
+		when(chapterRepository.findById(chapter.getId().toString())).thenReturn(Optional.of(chapter));
+		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId().toString(), testBook.getId().toString()))
 			.thenReturn(Optional.of(progress));
-		when(chunkRepository.findChunkCountsByChapterIds(List.of(chapter.getId())))
-			.thenReturn(List.of(new ChunkCountByLevelDto(chapter.getId(), DifficultyLevel.B1, 8L)));
+		when(chunkRepository.findChunkCountsByChapterIds(List.of(chapter.getId().toString())))
+			.thenReturn(List.of(new ChunkCountByLevelDto(chapter.getId().toString(), DifficultyLevel.B1, 8L)));
 
 		// when
-		ChapterResponse response = chapterService.getChapter(testBook.getId(), chapter.getId(), testUser.getId());
+		ChapterResponse response = chapterService.getChapter(testBook.getId().toString(), chapter.getId().toString(),
+				testUser.getId().toString());
 
 		// then
-		assertThat(response.getId()).isEqualTo(chapter.getId());
+		assertThat(response.getId()).isEqualTo(chapter.getId().toString());
 		assertThat(response.getCurrentDifficultyLevel()).isEqualTo(DifficultyLevel.B1);
 		assertThat(response.getChunkCount()).isEqualTo(8);
 		assertThat(response.getProgressPercentage()).isEqualTo(37.5);
@@ -263,25 +264,26 @@ class ChapterServiceTest {
 	@DisplayName("단일 챕터 조회 시 V3 데이터가 없으면 해당 챕터를 NOT_STARTED로 계산한다")
 	void getChapter_returnsNotStartedWhenV3DataMissing() {
 		// given
-		Chapter chapter = createChapter(testBook.getId(), 2, "Chapter 2");
+		Chapter chapter = createChapter(testBook.getId().toString(), 2, "Chapter 2");
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId());
-		progress.setBookId(testBook.getId());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setCurrentDifficultyLevel(DifficultyLevel.B1);
 		progress.setChapterProgresses(null);
 
-		when(chapterRepository.findById(chapter.getId())).thenReturn(Optional.of(chapter));
-		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId(), testBook.getId()))
+		when(chapterRepository.findById(chapter.getId().toString())).thenReturn(Optional.of(chapter));
+		when(bookProgressRepository.findByUserIdAndBookId(testUser.getId().toString(), testBook.getId().toString()))
 			.thenReturn(Optional.of(progress));
-		when(chunkRepository.findChunkCountsByChapterIds(List.of(chapter.getId())))
-			.thenReturn(List.of(new ChunkCountByLevelDto(chapter.getId(), DifficultyLevel.B1, 8L)));
+		when(chunkRepository.findChunkCountsByChapterIds(List.of(chapter.getId().toString())))
+			.thenReturn(List.of(new ChunkCountByLevelDto(chapter.getId().toString(), DifficultyLevel.B1, 8L)));
 
 		// when
-		ChapterResponse response = chapterService.getChapter(testBook.getId(), chapter.getId(), testUser.getId());
+		ChapterResponse response = chapterService.getChapter(testBook.getId().toString(), chapter.getId().toString(),
+				testUser.getId().toString());
 
 		// then
-		assertThat(response.getId()).isEqualTo(chapter.getId());
+		assertThat(response.getId()).isEqualTo(chapter.getId().toString());
 		assertThat(response.getCurrentDifficultyLevel()).isEqualTo(DifficultyLevel.B1);
 		assertThat(response.getChunkCount()).isEqualTo(8);
 		assertThat(response.getProgressPercentage()).isEqualTo(0.0);
@@ -293,12 +295,14 @@ class ChapterServiceTest {
 	@DisplayName("챕터가 다른 책에 속하면 CHAPTER_NOT_FOUND_IN_BOOK 예외를 던진다")
 	void getChapter_throwsWhenChapterDoesNotBelongToBook() {
 		// given
-		Chapter anotherBookChapter = createChapter("another-book", 1, "Wrong Chapter");
-		when(chapterRepository.findById(anotherBookChapter.getId())).thenReturn(Optional.of(anotherBookChapter));
+		Chapter anotherBookChapter = createChapter("999", 1, "Wrong Chapter");
+		when(chapterRepository.findById(anotherBookChapter.getId().toString()))
+			.thenReturn(Optional.of(anotherBookChapter));
 
 		// when
 		BooksException exception = assertThrows(BooksException.class,
-				() -> chapterService.getChapter(testBook.getId(), anotherBookChapter.getId(), testUser.getId()));
+				() -> chapterService.getChapter(testBook.getId().toString(), anotherBookChapter.getId().toString(),
+						testUser.getId().toString()));
 
 		// then
 		assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK.getMessage());
@@ -308,27 +312,28 @@ class ChapterServiceTest {
 	@DisplayName("챕터 네비게이션 조회 시 이전/다음 챕터 정보를 반환한다")
 	void getChapterNavigation_returnsPreviousAndNextChapter() {
 		// given
-		Chapter currentChapter = createChapter(testBook.getId(), 2, "Chapter 2");
-		Chapter previousChapter = createChapter(testBook.getId(), 1, "Chapter 1");
-		Chapter nextChapter = createChapter(testBook.getId(), 3, "Chapter 3");
+		Chapter currentChapter = createChapter(testBook.getId().toString(), 2, "Chapter 2");
+		Chapter previousChapter = createChapter(testBook.getId().toString(), 1, "Chapter 1");
+		Chapter nextChapter = createChapter(testBook.getId().toString(), 3, "Chapter 3");
 
-		when(bookService.existsById(testBook.getId())).thenReturn(true);
-		when(chapterRepository.findById(currentChapter.getId())).thenReturn(Optional.of(currentChapter));
-		when(chapterRepository.findByBookIdAndChapterNumber(testBook.getId(), 1))
+		when(bookService.existsById(testBook.getId().toString())).thenReturn(true);
+		when(chapterRepository.findById(currentChapter.getId().toString())).thenReturn(Optional.of(currentChapter));
+		when(chapterRepository.findByBookIdAndChapterNumber(testBook.getId().toString(), 1))
 			.thenReturn(Optional.of(previousChapter));
-		when(chapterRepository.findByBookIdAndChapterNumber(testBook.getId(), 3)).thenReturn(Optional.of(nextChapter));
+		when(chapterRepository.findByBookIdAndChapterNumber(testBook.getId().toString(), 3))
+			.thenReturn(Optional.of(nextChapter));
 
 		// when
-		ChapterNavigationResponse response = chapterService.getChapterNavigation(testBook.getId(),
-				currentChapter.getId());
+		ChapterNavigationResponse response = chapterService.getChapterNavigation(testBook.getId().toString(),
+				currentChapter.getId().toString());
 
 		// then
-		assertThat(response.getCurrentChapterId()).isEqualTo(currentChapter.getId());
+		assertThat(response.getCurrentChapterId()).isEqualTo(currentChapter.getId().toString());
 		assertThat(response.getCurrentChapterNumber()).isEqualTo(2);
 		assertThat(response.getHasPreviousChapter()).isTrue();
-		assertThat(response.getPreviousChapterId()).isEqualTo(previousChapter.getId());
+		assertThat(response.getPreviousChapterId()).isEqualTo(previousChapter.getId().toString());
 		assertThat(response.getHasNextChapter()).isTrue();
-		assertThat(response.getNextChapterId()).isEqualTo(nextChapter.getId());
+		assertThat(response.getNextChapterId()).isEqualTo(nextChapter.getId().toString());
 	}
 
 	@Test
@@ -337,16 +342,16 @@ class ChapterServiceTest {
 		// given
 		GetChaptersRequest request = GetChaptersRequest.builder().page(1).limit(2).build();
 
-		List<Chapter> chapters = createChapters(1, testBook.getId(), 1, "Chapter");
+		List<Chapter> chapters = createChapters(1, testBook.getId().toString(), 1, "Chapter");
 		Page<Chapter> chapterPage = new PageImpl<>(chapters, PageRequest.of(0, 2), 1);
 
 		when(chapterRepository.findChaptersWithFilters(anyString(), any(), any(), any())).thenReturn(chapterPage);
 
 		// when
-		chapterService.getChapters(testBook.getId(), request, testUser.getId());
+		chapterService.getChapters(testBook.getId().toString(), request, testUser.getId().toString());
 
 		// then
-		verify(bookRepository).incrementViewCount(testBook.getId());
+		verify(bookRepository).incrementViewCount(testBook.getId().toString());
 	}
 
 	private List<Chapter> createChapters(int count, String bookId, int startNumber, String titlePrefix) {
@@ -360,8 +365,8 @@ class ChapterServiceTest {
 
 	private Chapter createChapter(String bookId, Integer chapterNumber, String title) {
 		Chapter chapter = new Chapter();
-		chapter.setId("chapter-" + chapterNumber);
-		chapter.setBookId(bookId);
+		chapter.setId((long) chapterNumber);
+		chapter.setBookId(Long.valueOf(bookId));
 		chapter.setChapterNumber(chapterNumber);
 		chapter.setTitle(title);
 		chapter.setReadingTime(30);

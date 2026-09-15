@@ -1,6 +1,6 @@
 package com.linglevel.api.content.book.repository;
 
-import com.linglevel.api.common.AbstractDatabaseTest;
+import com.linglevel.api.content.common.AbstractCatalogTest;
 import com.linglevel.api.content.book.dto.GetChaptersRequest;
 import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.entity.Chapter;
@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,9 +19,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataMongoTest
 @Import(ChapterRepositoryImpl.class)
-class ChapterRepositoryImplTest extends AbstractDatabaseTest {
+class ChapterRepositoryImplTest extends AbstractCatalogTest {
 
 	@Autowired
 	private ChapterRepository chapterRepository;
@@ -30,14 +28,32 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
 	@Autowired
 	private BookProgressRepository bookProgressRepository;
 
-	private static final String BOOK_ID = "book-1";
+	private String BOOK_ID;
 
-	private static final String USER_ID = "user-1";
+	@Autowired
+	private BookRepository bookRepository;
+
+	private String USER_ID;
+
+	@Autowired
+	private com.linglevel.api.user.repository.UserRepository users;
 
 	@BeforeEach
 	void setUp() {
+		USER_ID = users
+			.saveAndFlush(com.linglevel.api.user.entity.User.builder()
+				.username("reader")
+				.role(com.linglevel.api.user.entity.UserRole.USER)
+				.build())
+			.getId()
+			.toString();
 		bookProgressRepository.deleteAll();
 		chapterRepository.deleteAll();
+		bookRepository.deleteAll();
+		var book = new com.linglevel.api.content.book.entity.Book();
+		book.setTitle("Book");
+		book.setDifficultyLevel(com.linglevel.api.content.common.DifficultyLevel.A1);
+		BOOK_ID = bookRepository.save(book).getId().toString();
 
 		chapterRepository.saveAll(
 				List.of(createChapter(1, "Chapter 1"), createChapter(2, "Chapter 2"), createChapter(3, "Chapter 3")));
@@ -58,15 +74,17 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
 	@DisplayName("V3 chapterProgresses 기준으로 IN_PROGRESS와 COMPLETED를 구분한다")
 	void findChaptersWithFilters_usesV3ChapterProgresses() {
 		BookProgress progress = new BookProgress();
-		progress.setUserId(USER_ID);
-		progress.setBookId(BOOK_ID);
+		progress.setUserId(Long.valueOf(USER_ID));
+		progress.setBookId(Long.valueOf(BOOK_ID));
 		progress.setChapterProgresses(List.of(
 				BookProgress.ChapterProgressInfo.builder()
+					.bookProgress(progress)
 					.chapterNumber(1)
 					.progressPercentage(100.0)
 					.isCompleted(true)
 					.build(),
 				BookProgress.ChapterProgressInfo.builder()
+					.bookProgress(progress)
 					.chapterNumber(2)
 					.progressPercentage(50.0)
 					.isCompleted(false)
@@ -97,8 +115,8 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
 	@DisplayName("V3 데이터가 없으면 모든 챕터를 NOT_STARTED로 본다")
 	void findChaptersWithFilters_treatsMissingV3DataAsNotStarted() {
 		BookProgress progress = new BookProgress();
-		progress.setUserId(USER_ID);
-		progress.setBookId(BOOK_ID);
+		progress.setUserId(Long.valueOf(USER_ID));
+		progress.setBookId(Long.valueOf(BOOK_ID));
 		progress.setCurrentReadChapterNumber(2); // legacy field only (ignored in V3-only
 													// filtering)
 		bookProgressRepository.save(progress);
@@ -129,8 +147,8 @@ class ChapterRepositoryImplTest extends AbstractDatabaseTest {
 
 	private Chapter createChapter(int chapterNumber, String title) {
 		Chapter chapter = new Chapter();
-		chapter.setId("chapter-" + chapterNumber);
-		chapter.setBookId(BOOK_ID);
+
+		chapter.setBookId(Long.valueOf(BOOK_ID));
 		chapter.setChapterNumber(chapterNumber);
 		chapter.setTitle(title);
 		return chapter;

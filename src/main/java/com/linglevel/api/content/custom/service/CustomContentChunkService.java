@@ -44,11 +44,8 @@ public class CustomContentChunkService {
 
 		// Feed 조회수도 함께 증가 (originUrl 기반)
 		if (customContent.getOriginUrl() != null && !customContent.getOriginUrl().isEmpty()) {
-			feedRepository.findByUrl(customContent.getOriginUrl()).ifPresent(feed -> {
-				feed.setViewCount((feed.getViewCount() != null ? feed.getViewCount() : 0) + 1);
-				feedRepository.save(feed);
-				log.debug("Incremented Feed viewCount for url: {}", customContent.getOriginUrl());
-			});
+			feedRepository.incrementViewCountByUrl(customContent.getOriginUrl());
+			log.debug("Incremented Feed viewCount for url: {}", customContent.getOriginUrl());
 		}
 
 		DifficultyLevel difficulty = request.getDifficultyLevel();
@@ -82,7 +79,7 @@ public class CustomContentChunkService {
 
 	private CustomContent validateCustomContentAccess(String customContentId, String userId) {
 
-		CustomContent customContent = customContentRepository.findById(customContentId)
+		CustomContent customContent = customContentRepository.findByIdAndIsDeletedFalse(customContentId)
 			.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CUSTOM_CONTENT_NOT_FOUND));
 
 		userCustomContentRepository.findByUserIdAndCustomContentId(userId, customContentId)

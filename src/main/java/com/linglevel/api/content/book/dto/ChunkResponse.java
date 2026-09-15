@@ -36,7 +36,7 @@ public class ChunkResponse {
 
 	public static ChunkResponse from(Chunk chunk) {
 		return ChunkResponse.builder()
-			.id(chunk.getId())
+			.id(chunk.getId().toString())
 			.chunkNumber(chunk.getChunkNumber())
 			.difficultyLevel(chunk.getDifficultyLevel())
 			.type(chunk.getType())

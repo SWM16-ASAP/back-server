@@ -37,6 +37,9 @@ public class CustomContentImportService {
 	private final CustomContentPathStrategy pathStrategy;
 
 	public CustomContent createCustomContent(ContentRequest contentRequest, AiResultDto aiResult) {
+		if (aiResult == null || aiResult.getLeveledResults() == null || aiResult.getLeveledResults().isEmpty()) {
+			throw new IllegalArgumentException("AI result contains no content levels");
+		}
 		String title = StringUtils.hasText(aiResult.getTitle()) ? aiResult.getTitle() : "Untitled Content";
 
 		// ContentRequest의 coverImageUrl이 있으면 우선 사용, 없으면 AI 결과의 coverImageUrl 사용
@@ -50,6 +53,7 @@ public class CustomContentImportService {
 
 		CustomContent content = CustomContent.builder()
 			.userId(contentRequest.getUserId())
+			.contentRequestId(contentRequest.getId())
 			.title(title)
 			.author(contentRequest.getOriginAuthor())
 			.coverImageUrl(coverImageUrl)
@@ -67,16 +71,18 @@ public class CustomContentImportService {
 
 		if (StringUtils.hasText(aiResult.getCoverImageUrl())) {
 			try {
-				log.info("Auto-processing cover image for imported custom content: {}", savedContent.getId());
-				String originalCoverS3Key = pathStrategy.generateCoverImagePath(savedContent.getId());
+				log.info("Auto-processing cover image for imported custom content: {}",
+						savedContent.getId().toString());
+				String originalCoverS3Key = pathStrategy.generateCoverImagePath(savedContent.getId().toString());
 				String smallImageUrl = imageResizeService.createSmallImage(originalCoverS3Key);
 				savedContent.setCoverImageUrl(smallImageUrl);
 				customContentRepository.save(savedContent);
-				log.info("Successfully auto-processed cover image: {} → {}", savedContent.getId(), smallImageUrl);
+				log.info("Successfully auto-processed cover image: {} → {}", savedContent.getId().toString(),
+						smallImageUrl);
 			}
 			catch (Exception e) {
 				log.warn("Failed to auto-process cover image for custom content: {}, keeping original URL",
-						savedContent.getId(), e);
+						savedContent.getId().toString(), e);
 			}
 		}
 
@@ -87,7 +93,7 @@ public class CustomContentImportService {
 		List<CustomContentChunk> allChunks = new ArrayList<>();
 
 		if (aiResult.getLeveledResults() == null) {
-			log.warn("No leveled results found for custom content: {}", customContent.getId());
+			log.warn("No leveled results found for custom content: {}", customContent.getId().toString());
 			return;
 		}
 
@@ -116,22 +122,26 @@ public class CustomContentImportService {
 				}
 
 				for (AiResultDto.Chunk chunkData : chapter.getChunks()) {
-					CustomContentChunk newChunk = createCustomContentChunk(chunkData, customContent.getId(),
-							customContent.getUserId(), difficulty, chapterCounter, chunkCounter++);
+					CustomContentChunk newChunk = createCustomContentChunk(chunkData, customContent.getId().toString(),
+							customContent.getUserId().toString(), difficulty, chapterCounter, chunkCounter++);
 					allChunks.add(newChunk);
 				}
 				chapterCounter++;
 			}
 		}
+		if (allChunks.stream()
+			.noneMatch(chunk -> chunk.getType() == ChunkType.TEXT && StringUtils.hasText(chunk.getChunkText()))) {
+			throw new IllegalArgumentException("AI result contains no readable text");
+		}
 		customContentChunkRepository.saveAll(allChunks);
-		log.info("Saved {} chunks for custom content {}", allChunks.size(), customContent.getId());
+		log.info("Saved {} chunks for custom content {}", allChunks.size(), customContent.getId().toString());
 	}
 
 	private CustomContentChunk createCustomContentChunk(AiResultDto.Chunk chunkData, String customContentId,
 			String userId, DifficultyLevel difficulty, int chapterNum, int chunkNum) {
 		CustomContentChunk.CustomContentChunkBuilder builder = CustomContentChunk.builder()
-			.customContentId(customContentId)
-			.userId(userId)
+			.customContentId(Long.valueOf(customContentId))
+			.userId(Long.valueOf(userId))
 			.difficultyLevel(difficulty)
 			.chapterNum(chapterNum)
 			.chunkNum(chunkNum);

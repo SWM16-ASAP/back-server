@@ -38,7 +38,7 @@ public class ArticleChunkResponse {
 
 	public static ArticleChunkResponse from(ArticleChunk chunk) {
 		return ArticleChunkResponse.builder()
-			.id(chunk.getId())
+			.id(chunk.getId().toString())
 			.chunkNumber(chunk.getChunkNumber())
 			.difficultyLevel(chunk.getDifficultyLevel())
 			.type(chunk.getType())

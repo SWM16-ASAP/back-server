@@ -90,7 +90,7 @@ class BookImportServiceTest {
 		when(chapterRepository.saveAll(ArgumentMatchers.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		// when
-		List<Chapter> chapters = bookImportService.createChaptersFromMetadata(bookImportData, "bookId");
+		List<Chapter> chapters = bookImportService.createChaptersFromMetadata(bookImportData, "101");
 
 		// then
 		verify(chapterRepository).saveAll(captor.capture());
@@ -100,7 +100,7 @@ class BookImportServiceTest {
 		assertEquals(1, savedChapters.size());
 
 		Chapter savedChapter = savedChapters.get(0);
-		assertEquals("bookId", savedChapter.getBookId());
+		assertEquals(101L, savedChapter.getBookId());
 		assertEquals(1, savedChapter.getChapterNumber());
 		assertEquals("제목", savedChapter.getTitle());
 		assertEquals("요약", savedChapter.getDescription());
@@ -113,17 +113,16 @@ class BookImportServiceTest {
 	void importChunks() {
 		// given
 		Chapter savedChapter = new Chapter();
-		savedChapter.setId("chapter-1");
+		savedChapter.setId(Long.valueOf("1"));
 		List<Chapter> chapters = List.of(savedChapter);
 
-		when(s3UrlService.buildImageUrl("bookId", "주소", bookPathStrategy))
-			.thenReturn("https://cdn.example.com/image.png");
+		when(s3UrlService.buildImageUrl("101", "주소", bookPathStrategy)).thenReturn("https://cdn.example.com/image.png");
 
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Iterable<Chunk>> captor = ArgumentCaptor.forClass((Class) Iterable.class);
 
 		// when
-		bookImportService.createChunksFromLeveledResults(bookImportData, chapters, "bookId");
+		bookImportService.createChunksFromLeveledResults(bookImportData, chapters, "101");
 
 		// then
 		verify(chunkRepository).saveAll(captor.capture());
@@ -133,7 +132,7 @@ class BookImportServiceTest {
 		assertEquals(2, savedChunks.size());
 
 		Chunk textChunk = savedChunks.get(0);
-		assertEquals("chapter-1", textChunk.getChapterId());
+		assertEquals(1L, textChunk.getChapterId());
 		assertEquals(1, textChunk.getChunkNumber());
 		assertEquals(DifficultyLevel.A1, textChunk.getDifficultyLevel());
 		assertEquals(ChunkType.TEXT, textChunk.getType());
@@ -141,14 +140,14 @@ class BookImportServiceTest {
 		assertNull(textChunk.getDescription());
 
 		Chunk imageChunk = savedChunks.get(1);
-		assertEquals("chapter-1", imageChunk.getChapterId());
+		assertEquals(1L, imageChunk.getChapterId());
 		assertEquals(2, imageChunk.getChunkNumber());
 		assertEquals(DifficultyLevel.A1, imageChunk.getDifficultyLevel());
 		assertEquals(ChunkType.IMAGE, imageChunk.getType());
 		assertEquals("https://cdn.example.com/image.png", imageChunk.getContent());
 		assertEquals("이미지 설명", imageChunk.getDescription());
 
-		verify(s3UrlService).buildImageUrl("bookId", "주소", bookPathStrategy);
+		verify(s3UrlService).buildImageUrl("101", "주소", bookPathStrategy);
 	}
 
 	@Test
@@ -167,7 +166,7 @@ class BookImportServiceTest {
 		when(chapterRepository.saveAll(ArgumentMatchers.anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		// when
-		bookImportService.createChaptersFromMetadata(bookImportData, "bookId");
+		bookImportService.createChaptersFromMetadata(bookImportData, "101");
 
 		// then
 		verify(chapterRepository).saveAll(captor.capture());
@@ -186,9 +185,9 @@ class BookImportServiceTest {
 	void importChunks_resetsChunkNumberPerChapter() {
 		// given
 		Chapter firstChapter = new Chapter();
-		firstChapter.setId("chapter-1");
+		firstChapter.setId(Long.valueOf("1"));
 		Chapter secondChapter = new Chapter();
-		secondChapter.setId("chapter-2");
+		secondChapter.setId(Long.valueOf("2"));
 		List<Chapter> chapters = List.of(firstChapter, secondChapter);
 
 		BookImportData.ChunkData firstTextChunk = createChunkData("첫 챕터 1", false, null);
@@ -203,14 +202,14 @@ class BookImportServiceTest {
 		textLevelData.setChapters(List.of(firstChapterData, secondChapterData));
 		bookImportData.setLeveledResults(List.of(textLevelData));
 
-		when(s3UrlService.buildImageUrl("bookId", "first.png", bookPathStrategy))
+		when(s3UrlService.buildImageUrl("101", "first.png", bookPathStrategy))
 			.thenReturn("https://cdn.example.com/first.png");
 
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Iterable<Chunk>> captor = ArgumentCaptor.forClass((Class) Iterable.class);
 
 		// when
-		bookImportService.createChunksFromLeveledResults(bookImportData, chapters, "bookId");
+		bookImportService.createChunksFromLeveledResults(bookImportData, chapters, "101");
 
 		// then
 		verify(chunkRepository).saveAll(captor.capture());
@@ -218,22 +217,22 @@ class BookImportServiceTest {
 		List<Chunk> savedChunks = StreamSupport.stream(captor.getValue().spliterator(), false).toList();
 
 		assertEquals(3, savedChunks.size());
-		assertEquals("chapter-1", savedChunks.get(0).getChapterId());
+		assertEquals(1L, savedChunks.get(0).getChapterId());
 		assertEquals(1, savedChunks.get(0).getChunkNumber());
-		assertEquals("chapter-1", savedChunks.get(1).getChapterId());
+		assertEquals(1L, savedChunks.get(1).getChapterId());
 		assertEquals(2, savedChunks.get(1).getChunkNumber());
-		assertEquals("chapter-2", savedChunks.get(2).getChapterId());
+		assertEquals(2L, savedChunks.get(2).getChapterId());
 		assertEquals(1, savedChunks.get(2).getChunkNumber());
 	}
 
 	@Test
-	@DisplayName("AI chapter 수가 savedChapters보다 적으면 남은 챕터는 건너뛴다.")
-	void importChunks_skipsRemainingSavedChaptersWhenAiChaptersAreShorter() {
+	@DisplayName("AI chapter 수가 메타데이터와 다르면 불완전한 책을 저장하지 않는다.")
+	void importChunks_rejectsMismatchedChapterCount() {
 		// given
 		Chapter firstChapter = new Chapter();
-		firstChapter.setId("chapter-1");
+		firstChapter.setId(Long.valueOf("1"));
 		Chapter secondChapter = new Chapter();
-		secondChapter.setId("chapter-2");
+		secondChapter.setId(Long.valueOf("2"));
 		List<Chapter> chapters = List.of(firstChapter, secondChapter);
 
 		BookImportData.ChunkData onlyChunk = createChunkData("첫 챕터만 저장", false, null);
@@ -244,20 +243,9 @@ class BookImportServiceTest {
 		textLevelData.setChapters(List.of(onlyChapterData));
 		bookImportData.setLeveledResults(List.of(textLevelData));
 
-		@SuppressWarnings("unchecked")
-		ArgumentCaptor<Iterable<Chunk>> captor = ArgumentCaptor.forClass((Class) Iterable.class);
-
-		// when
-		bookImportService.createChunksFromLeveledResults(bookImportData, chapters, "bookId");
-
-		// then
-		verify(chunkRepository).saveAll(captor.capture());
-
-		List<Chunk> savedChunks = StreamSupport.stream(captor.getValue().spliterator(), false).toList();
-
-		assertEquals(1, savedChunks.size());
-		assertEquals("chapter-1", savedChunks.get(0).getChapterId());
-		assertEquals("첫 챕터만 저장", savedChunks.get(0).getContent());
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+				() -> bookImportService.createChunksFromLeveledResults(bookImportData, chapters, "101"));
+		org.mockito.Mockito.verifyNoInteractions(chunkRepository);
 	}
 
 	private BookImportData.ChunkData createChunkData(String chunkText, boolean isImage, String description) {

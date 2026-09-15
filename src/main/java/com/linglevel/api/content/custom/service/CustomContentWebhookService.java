@@ -54,8 +54,19 @@ public class CustomContentWebhookService {
 
 		try {
 			// 1. Get ContentRequest and AiResultDto
-			ContentRequest contentRequest = contentRequestRepository.findById(request.getRequestId())
+			ContentRequest contentRequest = contentRequestRepository.findForUpdateByRequestKey(request.getRequestId())
 				.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
+
+			if (contentRequest.getStatus() == ContentRequestStatus.COMPLETED) {
+				return CustomContentCompletedResponse.builder()
+					.requestId(request.getRequestId())
+					.status("completed")
+					.build();
+			}
+			if (isTerminal(contentRequest)) {
+				throw new CustomContentException(CustomContentErrorCode.AI_RESULT_PROCESSING_FAILED,
+						"Request already closed");
+			}
 
 			AiResultDto aiResult = s3AiService.downloadJsonFile(request.getRequestId(), AiResultDto.class,
 					pathStrategy);
@@ -76,17 +87,32 @@ public class CustomContentWebhookService {
 			customContentImportService.createCustomContentChunks(savedContent, aiResult);
 
 			// 6. Calculate and update reading time
-			customContentReadingTimeService.updateReadingTime(savedContent.getId());
+			customContentReadingTimeService.updateReadingTime(savedContent.getId().toString());
 
 			// 7. Update ContentRequest status
 			contentRequest.setResultCustomContentId(savedContent.getId());
 			contentRequest.setStatus(ContentRequestStatus.COMPLETED);
+			contentRequest.setProgress(100);
 			contentRequest.setCompletedAt(Instant.now());
 			contentRequestRepository.save(contentRequest);
+			ticketService.confirmReservation(contentRequest.getTicketReservationId().toString());
 
-			// 8. Send notification
-			notificationService.sendContentCompletedNotification(contentRequest.getUserId(), request.getRequestId(),
-					aiResult.getTitle(), savedContent.getId());
+			// Publish notifications only after SQL commit.
+			String contentId = savedContent.getId().toString();
+			org.springframework.transaction.support.TransactionSynchronizationManager
+				.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization() {
+					@Override
+					public void afterCommit() {
+						try {
+							notificationService.sendContentCompletedNotification(contentRequest.getUserId().toString(),
+									request.getRequestId(), aiResult.getTitle(), contentId);
+						}
+						catch (Exception notificationError) {
+							log.warn("Completion notification failed for {}", request.getRequestId(),
+									notificationError);
+						}
+					}
+				});
 
 			log.info("Successfully processed AI result for request: {}", request.getRequestId());
 
@@ -101,7 +127,7 @@ public class CustomContentWebhookService {
 					e.getMessage());
 
 			// Handle failure case with proper exception handling
-			handleContentProcessingFailure(request.getRequestId(), e);
+			// SQL state rolls back; retain the reservation so processing can be retried.
 
 			throw new CustomContentException(CustomContentErrorCode.AI_RESULT_PROCESSING_FAILED, e.getMessage());
 		}
@@ -112,28 +138,23 @@ public class CustomContentWebhookService {
 		log.info("Handling content failure for request: {}", request.getRequestId());
 
 		try {
-			ContentRequest contentRequest = contentRequestRepository.findById(request.getRequestId())
+			ContentRequest contentRequest = contentRequestRepository.findForUpdateByRequestKey(request.getRequestId())
 				.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
 
+			if (isTerminal(contentRequest)) {
+				return;
+			}
 			contentRequest.setStatus(ContentRequestStatus.FAILED);
 			contentRequest.setErrorMessage(request.getErrorMessage());
 			contentRequestRepository.save(contentRequest);
 
-			// 티켓 복원 (1개 환불)
-			try {
-				ticketService.grantTicket(contentRequest.getUserId(), 1, "Content creation failed - refund");
-				log.info("Ticket refunded for failed request: {}", request.getRequestId());
-			}
-			catch (Exception ticketE) {
-				log.error("Failed to refund ticket for request: {}. Error: {}", request.getRequestId(),
-						ticketE.getMessage());
-			}
+			ticketService.cancelReservation(contentRequest.getTicketReservationId().toString());
 
 			String titleForNotification = StringUtils.hasText(contentRequest.getTitle()) ? contentRequest.getTitle()
 					: "Untitled Content";
 
-			notificationService.sendContentFailedNotification(contentRequest.getUserId(), request.getRequestId(),
-					titleForNotification, request.getErrorMessage());
+			notificationService.sendContentFailedNotification(contentRequest.getUserId().toString(),
+					request.getRequestId(), titleForNotification, request.getErrorMessage());
 
 			log.info("Updated request status to FAILED for request: {}", request.getRequestId());
 
@@ -150,11 +171,15 @@ public class CustomContentWebhookService {
 		log.info("Handling content progress for request: {} - {}%", request.getRequestId(), request.getProgress());
 
 		try {
-			ContentRequest contentRequest = contentRequestRepository.findById(request.getRequestId())
+			ContentRequest contentRequest = contentRequestRepository.findForUpdateByRequestKey(request.getRequestId())
 				.orElseThrow(() -> new CustomContentException(CustomContentErrorCode.CONTENT_REQUEST_NOT_FOUND));
 
+			if (isTerminal(contentRequest)) {
+				return;
+			}
 			contentRequest.setStatus(ContentRequestStatus.PROCESSING);
-			contentRequest.setProgress(request.getProgress());
+			contentRequest
+				.setProgress(Math.max(contentRequest.getProgress(), Math.min(100, Math.max(0, request.getProgress()))));
 			contentRequestRepository.save(contentRequest);
 
 			log.info("Updated progress to {}% for request: {}", request.getProgress(), request.getRequestId());
@@ -170,43 +195,26 @@ public class CustomContentWebhookService {
 	private void transferS3ImagesAndUpdateCoverUrl(String requestId, CustomContent customContent,
 			AiResultDto aiResult) {
 		try {
-			s3TransferService.transferImagesFromAiToStatic(requestId, customContent.getId(), pathStrategy);
+			s3TransferService.transferImagesFromAiToStatic(requestId, customContent.getId().toString(), pathStrategy);
 
 			if (StringUtils.hasText(aiResult.getCoverImageUrl())) {
-				String permanentCoverImageUrl = s3UrlService.getCoverImageUrl(customContent.getId(), pathStrategy);
+				String permanentCoverImageUrl = s3UrlService.getCoverImageUrl(customContent.getId().toString(),
+						pathStrategy);
 				customContent.setCoverImageUrl(permanentCoverImageUrl);
 			}
 		}
 		catch (Exception e) {
-			log.error("Failed to transfer S3 images for content: {}. Error: {}", customContent.getId(), e.getMessage());
-			// Don't fail the entire process for S3 transfer issues
+			log.error("Failed to transfer S3 images for content: {}. Error: {}", customContent.getId().toString(),
+					e.getMessage());
+			throw new CustomContentException(CustomContentErrorCode.AI_RESULT_PROCESSING_FAILED,
+					"Image transfer failed");
 		}
 	}
 
-	private void handleContentProcessingFailure(String requestId, Exception originalException) {
-		try {
-			ContentRequest contentRequest = contentRequestRepository.findById(requestId).orElse(null);
-			if (contentRequest != null) {
-				contentRequest.setStatus(ContentRequestStatus.FAILED);
-				contentRequest.setErrorMessage("AI 결과 처리 실패: " + originalException.getMessage());
-				contentRequestRepository.save(contentRequest);
-
-				// 티켓 복원 (1개 환불)
-				try {
-					ticketService.grantTicket(contentRequest.getUserId(), 1, "Content processing failed - refund");
-					log.info("Ticket refunded for processing failure: {}", requestId);
-				}
-				catch (Exception ticketE) {
-					log.error("Failed to refund ticket for processing failure: {}. Error: {}", requestId,
-							ticketE.getMessage());
-				}
-			}
-		}
-		catch (Exception e) {
-			log.error("Failed to update content request status to FAILED for request: {}. Error: {}", requestId,
-					e.getMessage());
-			// Don't throw exception here to preserve original exception
-		}
+	private boolean isTerminal(ContentRequest request) {
+		return request.getStatus() == ContentRequestStatus.COMPLETED
+				|| request.getStatus() == ContentRequestStatus.FAILED
+				|| request.getStatus() == ContentRequestStatus.DELETED;
 	}
 
 }

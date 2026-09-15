@@ -3,18 +3,28 @@ package com.linglevel.api.bookmark.repository;
 import com.linglevel.api.bookmark.entity.WordBookmark;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.*;
+import jakarta.persistence.LockModeType;
+import java.util.Optional;
 
-@Repository
-public interface WordBookmarkRepository extends MongoRepository<WordBookmark, String> {
+public interface WordBookmarkRepository extends JpaRepository<WordBookmark, Long> {
 
-	boolean existsByUserIdAndWord(String userId, String word);
+	boolean existsByUserIdAndWord(Long userId, String word);
 
-	Page<WordBookmark> findByUserId(String userId, Pageable pageable);
+	default boolean existsByUserIdAndWord(String userId, String word) {
+		return existsByUserIdAndWord(Long.valueOf(userId), word);
+	}
 
-	Page<WordBookmark> findByUserIdAndWordIn(String userId, java.util.List<String> words, Pageable pageable);
+	Page<WordBookmark> findByUserId(Long userId, Pageable pageable);
 
-	void deleteByUserIdAndWord(String userId, String word);
+	Page<WordBookmark> findByUserIdAndWordContainingIgnoreCase(Long userId, String word, Pageable pageable);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select b from WordBookmark b where b.userId = :userId and b.word = :word")
+	Optional<WordBookmark> findForUpdate(Long userId, String word);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select b from WordBookmark b where b.userId = :userId and b.id = :id")
+	Optional<WordBookmark> findForUpdateById(Long userId, Long id);
 
 }

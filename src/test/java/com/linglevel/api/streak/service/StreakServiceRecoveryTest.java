@@ -45,6 +45,9 @@ class StreakServiceRecoveryTest {
 	@Mock
 	private FreezeTransactionRepository freezeTransactionRepository;
 
+	@Mock
+	private StudyReportLock studyReportLock;
+
 	@InjectMocks
 	private StreakService streakService;
 
@@ -57,7 +60,7 @@ class StreakServiceRecoveryTest {
 	@Captor
 	private ArgumentCaptor<UserStudyReport> userStudyReportCaptor;
 
-	private static final String TEST_USER_ID = "test-user-123";
+	private static final String TEST_USER_ID = "123";
 
 	private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -71,8 +74,8 @@ class StreakServiceRecoveryTest {
 	void setUp() {
 		today = LocalDate.now(KST_ZONE);
 		testReport = new UserStudyReport();
-		testReport.setUserId(TEST_USER_ID);
-		testReport.setCompletedContentIds(new HashSet<>());
+		testReport.setUserId(Long.valueOf(TEST_USER_ID));
+
 		testReport.setCurrentStreak(0);
 		testReport.setLongestStreak(0);
 		testReport.setAvailableFreezes(0);
@@ -112,7 +115,7 @@ class StreakServiceRecoveryTest {
 
 		assertThat(day2Completion.getStreakStatus()).isEqualTo(StreakStatus.COMPLETED);
 		assertThat(day2Completion.getStreakCount()).isEqualTo(2);
-		assertThat(day2Completion.getUserId()).isEqualTo(TEST_USER_ID);
+		assertThat(day2Completion.getUserId()).isEqualTo(Long.valueOf(TEST_USER_ID));
 
 		// 프리즈 트랜잭션이 없어야 함 (복구만 했고, FREEZE_USED 아님)
 		verify(freezeTransactionRepository, never()).saveAll(any());
@@ -171,7 +174,7 @@ class StreakServiceRecoveryTest {
 		assertThat(rewards).hasSize(1);
 
 		FreezeTransaction rewardTx = rewards.get(0);
-		assertThat(rewardTx.getUserId()).isEqualTo(TEST_USER_ID);
+		assertThat(rewardTx.getUserId()).isEqualTo(Long.valueOf(TEST_USER_ID));
 		assertThat(rewardTx.getDescription()).contains(day2.toString());
 
 		// UserStudyReport 검증
@@ -482,7 +485,7 @@ class StreakServiceRecoveryTest {
 
 	private DailyCompletion createCompletion(LocalDate date, StreakStatus status, Integer streakCount) {
 		return DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(date)
 			.streakStatus(status)
 			.streakCount(streakCount)
@@ -495,7 +498,7 @@ class StreakServiceRecoveryTest {
 
 	private void setupMocks() {
 		// UserStudyReport mock
-		lenient().when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		lenient().when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		lenient().when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 

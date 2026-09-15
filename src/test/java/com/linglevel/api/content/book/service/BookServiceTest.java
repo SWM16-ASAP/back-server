@@ -82,7 +82,7 @@ class BookServiceTest {
 	@BeforeEach
 	void setUp() {
 		testUser = new User();
-		testUser.setId("test-user-id");
+		testUser.setId(1L);
 		testUser.setUsername("testuser");
 		testUser.setEmail("test@example.com");
 		testUser.setRole(UserRole.USER);
@@ -99,25 +99,23 @@ class BookServiceTest {
 
 		BookImportData importData = createImportData();
 		Chapter savedChapter = new Chapter();
-		savedChapter.setId("chapter-1");
+		savedChapter.setId(Long.valueOf("1"));
 		List<Chapter> savedChapters = List.of(savedChapter);
 
 		when(s3AiService.downloadJsonFile("request-1", BookImportData.class, bookPathStrategy)).thenReturn(importData);
 		when(s3UrlService.getCoverImageUrl("request-1", bookPathStrategy)).thenReturn("https://cdn/request-cover.jpg");
-		when(s3UrlService.getCoverImageUrl("saved-book-id", bookPathStrategy))
-			.thenReturn("https://cdn/original-cover.jpg");
-		when(bookPathStrategy.generateCoverImagePath("saved-book-id"))
-			.thenReturn("literature/saved-book-id/images/cover.jpg");
+		when(s3UrlService.getCoverImageUrl("102", bookPathStrategy)).thenReturn("https://cdn/original-cover.jpg");
+		when(bookPathStrategy.generateCoverImagePath("102")).thenReturn("literature/saved-book-id/images/cover.jpg");
 		when(imageResizeService.createSmallImage("literature/saved-book-id/images/cover.jpg"))
 			.thenReturn("https://cdn/small-cover.webp");
 		when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> {
 			Book book = invocation.getArgument(0);
 			if (book.getId() == null) {
-				book.setId("saved-book-id");
+				book.setId(Long.valueOf("102"));
 			}
 			return book;
 		});
-		when(bookImportService.createChaptersFromMetadata(importData, "saved-book-id")).thenReturn(savedChapters);
+		when(bookImportService.createChaptersFromMetadata(importData, "102")).thenReturn(savedChapters);
 
 		ArgumentCaptor<Book> bookCaptor = ArgumentCaptor.forClass(Book.class);
 
@@ -129,17 +127,17 @@ class BookServiceTest {
 		List<Book> savedBooks = bookCaptor.getAllValues();
 		Book finalSavedBook = savedBooks.get(savedBooks.size() - 1);
 
-		assertThat(response.getId()).isEqualTo("saved-book-id");
-		assertThat(finalSavedBook.getId()).isEqualTo("saved-book-id");
+		assertThat(response.getId()).isEqualTo("102");
+		assertThat(finalSavedBook.getId().toString()).isEqualTo("102");
 		assertThat(finalSavedBook.getTitle()).isEqualTo("Imported title");
 		assertThat(finalSavedBook.getDifficultyLevel()).isEqualTo(DifficultyLevel.A1);
 		assertThat(finalSavedBook.getChapterCount()).isEqualTo(2);
 		assertThat(finalSavedBook.getCoverImageUrl()).isEqualTo("https://cdn/small-cover.webp");
 
-		verify(s3TransferService).transferImagesFromAiToStatic("request-1", "saved-book-id", bookPathStrategy);
-		verify(bookImportService).createChaptersFromMetadata(importData, "saved-book-id");
-		verify(bookImportService).createChunksFromLeveledResults(importData, savedChapters, "saved-book-id");
-		verify(bookReadingTimeService).updateReadingTimes("saved-book-id", importData);
+		verify(s3TransferService).transferImagesFromAiToStatic("request-1", "102", bookPathStrategy);
+		verify(bookImportService).createChaptersFromMetadata(importData, "102");
+		verify(bookImportService).createChunksFromLeveledResults(importData, savedChapters, "102");
+		verify(bookReadingTimeService).updateReadingTimes("102", importData);
 	}
 
 	@Test
@@ -154,20 +152,18 @@ class BookServiceTest {
 
 		when(s3AiService.downloadJsonFile("request-1", BookImportData.class, bookPathStrategy)).thenReturn(importData);
 		when(s3UrlService.getCoverImageUrl("request-1", bookPathStrategy)).thenReturn("https://cdn/request-cover.jpg");
-		when(s3UrlService.getCoverImageUrl("saved-book-id", bookPathStrategy))
-			.thenReturn("https://cdn/original-cover.jpg");
-		when(bookPathStrategy.generateCoverImagePath("saved-book-id"))
-			.thenReturn("literature/saved-book-id/images/cover.jpg");
+		when(s3UrlService.getCoverImageUrl("102", bookPathStrategy)).thenReturn("https://cdn/original-cover.jpg");
+		when(bookPathStrategy.generateCoverImagePath("102")).thenReturn("literature/saved-book-id/images/cover.jpg");
 		when(imageResizeService.createSmallImage("literature/saved-book-id/images/cover.jpg"))
 			.thenThrow(new RuntimeException("resize failed"));
 		when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> {
 			Book book = invocation.getArgument(0);
 			if (book.getId() == null) {
-				book.setId("saved-book-id");
+				book.setId(Long.valueOf("102"));
 			}
 			return book;
 		});
-		when(bookImportService.createChaptersFromMetadata(importData, "saved-book-id")).thenReturn(savedChapters);
+		when(bookImportService.createChaptersFromMetadata(importData, "102")).thenReturn(savedChapters);
 
 		ArgumentCaptor<Book> bookCaptor = ArgumentCaptor.forClass(Book.class);
 
@@ -179,11 +175,11 @@ class BookServiceTest {
 		List<Book> savedBooks = bookCaptor.getAllValues();
 		Book finalSavedBook = savedBooks.get(savedBooks.size() - 1);
 
-		assertThat(response.getId()).isEqualTo("saved-book-id");
+		assertThat(response.getId()).isEqualTo("102");
 		assertThat(finalSavedBook.getCoverImageUrl()).isEqualTo("https://cdn/original-cover.jpg");
 
-		verify(bookImportService).createChunksFromLeveledResults(importData, savedChapters, "saved-book-id");
-		verify(bookReadingTimeService).updateReadingTimes("saved-book-id", importData);
+		verify(bookImportService).createChunksFromLeveledResults(importData, savedChapters, "102");
+		verify(bookReadingTimeService).updateReadingTimes("102", importData);
 	}
 
 	@Test
@@ -192,10 +188,11 @@ class BookServiceTest {
 		// given
 		Book book = createBook("Original title", "Author", List.of("tag1"));
 		book.setTitleTranslations(new TitleTranslations("번역 제목", "Original title"));
-		when(bookRepository.findById(book.getId())).thenReturn(Optional.of(book));
+		when(bookRepository.findById(book.getId().toString())).thenReturn(Optional.of(book));
 
 		// when
-		BookResponse response = bookService.getBook(book.getId(), testUser.getId(), LanguageCode.KO);
+		BookResponse response = bookService.getBook(book.getId().toString(), testUser.getId().toString(),
+				LanguageCode.KO);
 
 		// then
 		assertThat(response.getTitle()).isEqualTo("번역 제목");
@@ -207,10 +204,11 @@ class BookServiceTest {
 		// given
 		Book book = createBook("Original title", "Author", List.of("tag1"));
 		book.setTitleTranslations(new TitleTranslations(null, "Original title"));
-		when(bookRepository.findById(book.getId())).thenReturn(Optional.of(book));
+		when(bookRepository.findById(book.getId().toString())).thenReturn(Optional.of(book));
 
 		// when
-		BookResponse response = bookService.getBook(book.getId(), testUser.getId(), LanguageCode.KO);
+		BookResponse response = bookService.getBook(book.getId().toString(), testUser.getId().toString(),
+				LanguageCode.KO);
 
 		// then
 		assertThat(response.getTitle()).isEqualTo("Original title");
@@ -224,7 +222,7 @@ class BookServiceTest {
 
 		// when
 		BooksException exception = assertThrows(BooksException.class,
-				() -> bookService.getBook("missing-book", testUser.getId(), LanguageCode.EN));
+				() -> bookService.getBook("missing-book", testUser.getId().toString(), LanguageCode.EN));
 
 		// then
 		assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.BOOK_NOT_FOUND.getMessage());
@@ -238,7 +236,7 @@ class BookServiceTest {
 
 		// when
 		BooksException exception = assertThrows(BooksException.class,
-				() -> bookService.getBooks(request, testUser.getId()));
+				() -> bookService.getBooks(request, testUser.getId().toString()));
 
 		// then
 		assertThat(exception.getMessage()).isEqualTo(BooksErrorCode.INVALID_SORT_BY.getMessage());
@@ -257,11 +255,11 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 5), 10);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
 		mockBookProgress(books, false);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -284,11 +282,11 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 5), 10);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
 		mockBookProgress(books, true);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -315,9 +313,9 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 5), 10);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -338,9 +336,9 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 10), 15);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(10);
 		assertThat(response.getTotalCount()).isEqualTo(15);
@@ -358,9 +356,9 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 10), 12);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(10);
 		assertThat(response.getTotalCount()).isEqualTo(12);
@@ -387,11 +385,11 @@ class BookServiceTest {
 
 		Page<Book> bookPage = new PageImpl<>(books, PageRequest.of(0, 5), 10);
 
-		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId()), any())).thenReturn(bookPage);
+		when(bookRepository.findBooksWithFilters(any(), eq(testUser.getId().toString()), any())).thenReturn(bookPage);
 
 		mockBookProgress(books, false);
 
-		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId());
+		PageResponse<BookResponse> response = bookService.getBooks(request, testUser.getId().toString());
 
 		assertThat(response.getData()).hasSize(5);
 		assertThat(response.getTotalCount()).isEqualTo(10);
@@ -414,7 +412,7 @@ class BookServiceTest {
 
 	private Book createBook(String title, String author, List<String> tags) {
 		Book book = new Book();
-		book.setId("book-" + title.hashCode());
+		book.setId(Math.abs((long) title.hashCode()));
 		book.setTitle(title);
 		book.setAuthor(author);
 		book.setTags(tags);
@@ -429,18 +427,19 @@ class BookServiceTest {
 	}
 
 	private void mockBookProgress(List<Book> books, boolean isCompleted) {
-		List<String> bookIds = books.stream().map(Book::getId).toList();
+		List<String> bookIds = books.stream().map(b -> b.getId().toString()).toList();
 		List<BookProgress> progresses = books.stream()
-			.map(book -> createBookProgress(testUser.getId(), book.getId(), isCompleted))
+			.map(book -> createBookProgress(testUser.getId().toString(), book.getId().toString(), isCompleted))
 			.toList();
 
-		when(bookProgressRepository.findByUserIdAndBookIdIn(testUser.getId(), bookIds)).thenReturn(progresses);
+		when(bookProgressRepository.findByUserIdAndBookIdIn(testUser.getId().toString(), bookIds))
+			.thenReturn(progresses);
 	}
 
 	private BookProgress createBookProgress(String userId, String bookId, boolean isCompleted) {
 		BookProgress progress = new BookProgress();
-		progress.setUserId(userId);
-		progress.setBookId(bookId);
+		progress.setUserId(Long.valueOf(userId));
+		progress.setBookId(Long.valueOf(bookId));
 		progress.setCurrentReadChapterNumber(isCompleted ? 20 : 10);
 		progress.setMaxReadChapterNumber(isCompleted ? 20 : 10);
 		progress.setNormalizedProgress(isCompleted ? 100.0 : 50.0);

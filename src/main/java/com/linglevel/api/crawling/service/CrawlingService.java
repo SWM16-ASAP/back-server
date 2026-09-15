@@ -77,7 +77,7 @@ public class CrawlingService {
 		}
 
 		return domains.map(dsl -> DomainsResponse.builder()
-			.id(dsl.getId())
+			.id(dsl.getId().toString())
 			.domain(dsl.getDomain())
 			.name(dsl.getName())
 			.contentType(dsl.getContentType())
@@ -105,7 +105,7 @@ public class CrawlingService {
 		CrawlingDsl saved = crawlingDslRepository.save(crawlingDsl);
 
 		return CreateDslResponse.builder()
-			.id(saved.getId())
+			.id(saved.getId().toString())
 			.domain(saved.getDomain())
 			.message("DSL created successfully.")
 			.build();
@@ -135,7 +135,7 @@ public class CrawlingService {
 		CrawlingDsl updated = crawlingDslRepository.save(crawlingDsl);
 
 		return UpdateDslResponse.builder()
-			.id(updated.getId())
+			.id(updated.getId().toString())
 			.domain(updated.getDomain())
 			.name(updated.getName())
 			.titleDsl(updated.getTitleDsl())

@@ -53,7 +53,7 @@ public class PreferredStudyHourUpdateScheduler {
 
 				for (UserStudyReport report : batch) {
 					try {
-						String userId = report.getUserId();
+						String userId = report.getUserId().toString();
 
 						// 선호 학습 시간 재계산 및 저장
 						studyTimeAnalysisService.calculateAndSavePreferredStudyHour(userId);
@@ -66,7 +66,8 @@ public class PreferredStudyHourUpdateScheduler {
 					}
 					catch (Exception e) {
 						failedUsers++;
-						log.warn("[Preferred Study Hour Update] Failed to update user: {}", report.getUserId(), e);
+						log.warn("[Preferred Study Hour Update] Failed to update user: {}",
+								report.getUserId().toString(), e);
 					}
 				}
 			}

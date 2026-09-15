@@ -12,6 +12,4 @@ public interface ArticleRepositoryCustom {
 
 	Page<Article> findArticleOriginsWithFilters(GetArticleOriginsRequest request, Pageable pageable);
 
-	void incrementViewCount(String articleId);
-
 }

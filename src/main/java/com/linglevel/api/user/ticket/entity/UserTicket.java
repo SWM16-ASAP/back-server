@@ -1,12 +1,13 @@
 package com.linglevel.api.user.ticket.entity;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.annotation.Version;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -15,25 +16,27 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "userTickets")
+@Entity
+@Table(name = "ticket_wallets")
 public class UserTicket {
 
 	@Id
-	private String id;
-
-	@Indexed(unique = true)
-	private String userId;
+	@Column(name = "user_id")
+	private Long userId;
 
 	@Builder.Default
+	@Column(nullable = false)
 	private Integer balance = 0;
 
 	@Version
 	private Long version;
 
-	@CreatedDate
+	@CreationTimestamp
+	@Column(nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
-	@LastModifiedDate
+	@UpdateTimestamp
+	@Column(nullable = false)
 	private LocalDateTime updatedAt;
 
 }

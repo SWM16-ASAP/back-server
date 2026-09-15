@@ -1,13 +1,12 @@
 package com.linglevel.api.content.custom.entity;
 
 import com.linglevel.api.content.common.DifficultyLevel;
-import jakarta.validation.constraints.NotNull;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.List;
@@ -17,33 +16,39 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "customContents")
+@Entity
+@Table(name = "custom_contents")
 public class CustomContent {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@NotNull
-	@Indexed
-	private String userId;
+	@Column(name = "content_request_id", nullable = false, unique = true)
+	private Long contentRequestId;
 
-	@NotNull
-	@Indexed
-	private String contentRequestId;
+	@Column(name = "creator_user_id", nullable = false)
+	private Long userId;
 
 	@Builder.Default
+	@Column(name = "deleted", nullable = false)
 	private Boolean isDeleted = false;
 
-	@NotNull
+	@Column(nullable = false, length = 500)
 	private String title;
 
+	@Column(length = 500)
 	private String author;
 
+	@Column(length = 2048)
 	private String coverImageUrl;
 
-	@NotNull
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 10)
 	private DifficultyLevel difficultyLevel;
 
+	@JdbcTypeCode(SqlTypes.JSON)
+	@Column(columnDefinition = "JSON")
 	private List<DifficultyLevel> targetDifficultyLevels;
 
 	private Integer readingTime;
@@ -57,16 +62,19 @@ public class CustomContent {
 	@Builder.Default
 	private Integer viewCount = 0;
 
+	@JdbcTypeCode(SqlTypes.JSON)
+	@Column(columnDefinition = "JSON")
 	private List<String> tags;
 
+	@Column(length = 2048)
 	private String originUrl;
 
 	private String originDomain;
 
-	@CreatedDate
+	@CreationTimestamp
 	private Instant createdAt;
 
-	@LastModifiedDate
+	@UpdateTimestamp
 	private Instant updatedAt;
 
 	private Instant deletedAt;

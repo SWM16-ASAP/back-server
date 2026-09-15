@@ -1,13 +1,12 @@
 package com.linglevel.api.content.custom.entity;
 
 import com.linglevel.api.content.common.DifficultyLevel;
-import jakarta.validation.constraints.NotNull;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.List;
@@ -17,26 +16,37 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "contentRequests")
+@Entity
+@Table(name = "content_requests")
 public class ContentRequest {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@NotNull
-	@Indexed
-	private String userId;
+	@Column(name = "request_key", nullable = false, unique = true, length = 36, updatable = false)
+	private String requestKey;
 
-	@NotNull
+	@Column(name = "user_id", nullable = false)
+	private Long userId;
+
+	@Column(name = "ticket_reservation_id", nullable = false, unique = true)
+	private Long ticketReservationId;
+
+	@Column(nullable = false, length = 500)
 	private String title;
 
+	@Column(columnDefinition = "TEXT")
 	private String originalText;
 
-	@NotNull
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
 	private ContentType contentType;
 
 	private String originAuthor;
 
+	@JdbcTypeCode(SqlTypes.JSON)
+	@Column(columnDefinition = "JSON")
 	private List<DifficultyLevel> targetDifficultyLevels;
 
 	private String originUrl;
@@ -45,14 +55,16 @@ public class ContentRequest {
 
 	private String coverImageUrl;
 
-	@NotNull
 	@Builder.Default
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
 	private ContentRequestStatus status = ContentRequestStatus.PENDING;
 
 	@Builder.Default
 	private Integer progress = 0;
 
-	@CreatedDate
+	@CreationTimestamp
+	@Column(nullable = false, updatable = false)
 	private Instant createdAt;
 
 	private Instant completedAt;
@@ -61,9 +73,10 @@ public class ContentRequest {
 
 	private String errorMessage;
 
-	private String resultCustomContentId;
+	private Long resultCustomContentId;
 
-	@LastModifiedDate
+	@UpdateTimestamp
+	@Column(nullable = false)
 	private Instant updatedAt;
 
 }

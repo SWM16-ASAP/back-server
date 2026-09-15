@@ -38,7 +38,7 @@ public class CustomContentChunkResponse {
 
 	public static CustomContentChunkResponse from(CustomContentChunk chunk) {
 		return CustomContentChunkResponse.builder()
-			.id(chunk.getId())
+			.id(chunk.getId().toString())
 			.chunkNumber(chunk.getChunkNum())
 			.difficultyLevel(chunk.getDifficultyLevel())
 			.type(chunk.getType())

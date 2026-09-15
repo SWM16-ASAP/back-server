@@ -1,9 +1,7 @@
 package com.linglevel.api.bookmark.entity;
 
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
@@ -12,17 +10,22 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "wordBookmarks")
-@CompoundIndex(name = "userId_word_unique", def = "{'userId': 1, 'word': 1}", unique = true)
+@Entity
+@Table(name = "word_bookmarks")
 public class WordBookmark {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
+	@Column(nullable = false, length = 255)
 	private String word;
 
-	private LocalDateTime bookmarkedAt;
+	@Builder.Default
+	@Column(nullable = false)
+	private LocalDateTime bookmarkedAt = LocalDateTime.now();
 
 }

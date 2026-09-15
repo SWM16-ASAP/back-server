@@ -52,14 +52,22 @@ class StreakServiceContentCompletionTest {
 	@Mock
 	private ReadingSessionService readingSessionService;
 
+	@Mock
+	private StudyReportLock studyReportLock;
+
+	@Mock
+	private com.linglevel.api.streak.repository.LearningCompletionRepository learningCompletionRepository;
+
+	private final java.util.Set<String> recordedContents = new java.util.HashSet<>();
+
 	@InjectMocks
 	private StreakService streakService;
 
-	private static final String TEST_USER_ID = "test-user-123";
+	private static final String TEST_USER_ID = "123";
 
-	private static final String CONTENT_ID_1 = "content-chapter-1";
+	private static final String CONTENT_ID_1 = "101";
 
-	private static final String CONTENT_ID_2 = "content-chapter-2";
+	private static final String CONTENT_ID_2 = "102";
 
 	private static final ContentType CONTENT_TYPE = ContentType.BOOK;
 
@@ -71,27 +79,42 @@ class StreakServiceContentCompletionTest {
 
 	@BeforeEach
 	void setUp() {
+		recordedContents.clear();
+		org.mockito.Mockito.lenient()
+			.when(learningCompletionRepository.findFirstByDailyCompletionUserIdAndTypeAndContentId(
+					org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any(),
+					org.mockito.ArgumentMatchers.anyLong()))
+			.thenAnswer(inv -> recordedContents.contains(inv.getArgument(2).toString())
+					? Optional.of(new com.linglevel.api.streak.entity.LearningCompletion()) : Optional.empty());
+		org.mockito.Mockito.lenient()
+			.when(dailyCompletionRepository.save(org.mockito.ArgumentMatchers.any(DailyCompletion.class)))
+			.thenAnswer(inv -> {
+				DailyCompletion d = inv.getArgument(0);
+				if (d.getCompletedContents() != null)
+					d.getCompletedContents().forEach(c -> recordedContents.add(c.getContentId().toString()));
+				return d;
+			});
 		today = LocalDate.now(KST_ZONE);
 		testReport = new UserStudyReport();
-		testReport.setUserId(TEST_USER_ID);
-		testReport.setCompletedContentIds(new HashSet<>());
+		testReport.setUserId(Long.valueOf(TEST_USER_ID));
+
 		testReport.setCurrentStreak(0);
 		testReport.setLongestStreak(0);
 		testReport.setCreatedAt(Instant.now());
 	}
 
 	@Test
-	@DisplayName("첫 완료 시 UserStudyReport.completedContentIds에 추가")
+	@DisplayName("첫 완료 시 분리된 학습 이력에 추가")
 	void addCompletedContent_FirstCompletion_AddsToReport() {
 		// given
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
-		when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, today)).thenReturn(Optional.empty());
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, today)).thenReturn(Optional.empty());
 
 		// when
 		streakService.addCompletedContent(TEST_USER_ID, CONTENT_TYPE, CONTENT_ID_1, false);
 
 		// then
-		assertThat(testReport.getCompletedContentIds()).contains(CONTENT_ID_1);
+		assertThat(recordedContents).contains(CONTENT_ID_1);
 		verify(userStudyReportRepository).save(testReport);
 		verify(dailyCompletionRepository).save(any(DailyCompletion.class));
 	}
@@ -100,10 +123,10 @@ class StreakServiceContentCompletionTest {
 	@DisplayName("이미 완료한 콘텐츠 재완료 시 totalCount 증가, firstCount 유지")
 	void addCompletedContent_DuplicateCompletion_Skipped() {
 		// given
-		testReport.getCompletedContentIds().add(CONTENT_ID_1); // 이미 완료됨
+		recordedContents.add(CONTENT_ID_1); // 이미 완료됨
 
 		DailyCompletion existing = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(today)
 			.firstCompletionCount(1)
 			.totalCompletionCount(1)
@@ -112,9 +135,8 @@ class StreakServiceContentCompletionTest {
 			.createdAt(Instant.now())
 			.build();
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
-		when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, today))
-			.thenReturn(Optional.of(existing));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, today)).thenReturn(Optional.of(existing));
 
 		// when - 재완료
 		streakService.addCompletedContent(TEST_USER_ID, CONTENT_TYPE, CONTENT_ID_1, false);
@@ -128,10 +150,10 @@ class StreakServiceContentCompletionTest {
 	@DisplayName("같은 날 여러 콘텐츠 완료 시 모두 기록됨")
 	void addCompletedContent_MultipleContentsOnSameDay_AllRecorded() {
 		// given
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 
 		DailyCompletion existingDaily = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(today)
 			.firstCompletionCount(1)
 			.totalCompletionCount(1)
@@ -140,8 +162,8 @@ class StreakServiceContentCompletionTest {
 			.createdAt(Instant.now())
 			.build();
 
-		when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, today)).thenReturn(Optional.empty()) // 첫
-																														// 완료
+		when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, today)).thenReturn(Optional.empty()) // 첫
+																										// 완료
 			.thenReturn(Optional.of(existingDaily)); // 두 번째 완료
 
 		// when
@@ -155,7 +177,7 @@ class StreakServiceContentCompletionTest {
 																							// 완료
 
 		// then
-		assertThat(testReport.getCompletedContentIds()).contains(CONTENT_ID_1, CONTENT_ID_2);
+		assertThat(recordedContents).contains(CONTENT_ID_1, CONTENT_ID_2);
 		verify(userStudyReportRepository, times(2)).save(testReport);
 		verify(dailyCompletionRepository, times(2)).save(any(DailyCompletion.class));
 	}
@@ -164,10 +186,10 @@ class StreakServiceContentCompletionTest {
 	@DisplayName("첫 완료 시 DailyCompletion에 firstCompletionCount 증가")
 	void addCompletedContent_FirstCompletion_IncrementsFirstCount() {
 		// given
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 
 		DailyCompletion existingDaily = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(today)
 			.firstCompletionCount(0)
 			.totalCompletionCount(0)
@@ -176,8 +198,7 @@ class StreakServiceContentCompletionTest {
 			.createdAt(Instant.now())
 			.build();
 
-		when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, today))
-			.thenReturn(Optional.of(existingDaily));
+		when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, today)).thenReturn(Optional.of(existingDaily));
 
 		// when
 		streakService.addCompletedContent(TEST_USER_ID, CONTENT_TYPE, CONTENT_ID_1, false);
@@ -190,19 +211,19 @@ class StreakServiceContentCompletionTest {
 	}
 
 	@Test
-	@DisplayName("completedContentIds null일 때 초기화 후 추가")
+	@DisplayName("완료 이력이 없으면 새 이력으로 추가")
 	void addCompletedContent_NullCompletedContentIds_InitializesAndAdds() {
 		// given
-		testReport.setCompletedContentIds(null);
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
-		when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, today)).thenReturn(Optional.empty());
+		recordedContents.clear();
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, today)).thenReturn(Optional.empty());
 
 		// when
 		streakService.addCompletedContent(TEST_USER_ID, CONTENT_TYPE, CONTENT_ID_1, false);
 
 		// then
-		assertThat(testReport.getCompletedContentIds()).isNotNull();
-		assertThat(testReport.getCompletedContentIds()).contains(CONTENT_ID_1);
+		assertThat(recordedContents).isNotNull();
+		assertThat(recordedContents).contains(CONTENT_ID_1);
 	}
 
 	@Test
@@ -210,7 +231,7 @@ class StreakServiceContentCompletionTest {
 	void updateStreak_CalledTwiceSameDay_SecondReturnsFalse() {
 		// given
 		DailyCompletion existingDaily = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(today)
 			.firstCompletionCount(0)
 			.totalCompletionCount(1) // 이미 오늘 완료함
@@ -220,8 +241,7 @@ class StreakServiceContentCompletionTest {
 			.createdAt(Instant.now())
 			.build();
 
-		when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, today))
-			.thenReturn(Optional.of(existingDaily));
+		when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, today)).thenReturn(Optional.of(existingDaily));
 
 		// when
 		boolean result = streakService.updateStreak(TEST_USER_ID, CONTENT_TYPE, CONTENT_ID_1);
@@ -234,10 +254,10 @@ class StreakServiceContentCompletionTest {
 	@DisplayName("스트릭과 학습 완료가 독립적으로 동작")
 	void streakAndCompletionAreIndependent() {
 		// given
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 
 		DailyCompletion dailyAfterFirstStreak = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(today)
 			.firstCompletionCount(0)
 			.totalCompletionCount(0)
@@ -248,7 +268,7 @@ class StreakServiceContentCompletionTest {
 			.build();
 
 		DailyCompletion dailyAfterFirstContent = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(today)
 			.firstCompletionCount(1)
 			.totalCompletionCount(1)
@@ -258,10 +278,10 @@ class StreakServiceContentCompletionTest {
 			.createdAt(Instant.now())
 			.build();
 
-		when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, today)).thenReturn(Optional.empty()) // 1.
-																														// 첫
-																														// 스트릭
-																														// 체크
+		when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, today)).thenReturn(Optional.empty()) // 1.
+																										// 첫
+																										// 스트릭
+																										// 체크
 			.thenReturn(Optional.of(dailyAfterFirstStreak)) // 2. 두 번째 스트릭 체크 (이미 완료)
 			.thenReturn(Optional.of(dailyAfterFirstStreak)) // 3. 첫 완료 기록
 			.thenReturn(Optional.of(dailyAfterFirstContent)); // 4. 두 번째 완료 기록
@@ -279,10 +299,10 @@ class StreakServiceContentCompletionTest {
 		// then - 스트릭은 하루 1번, 완료 기록은 여러 번
 		assertThat(firstStreakResult).isTrue(); // 스트릭은 한 번만
 		assertThat(secondStreakResult).isFalse(); // 같은 날 두 번째는 안됨
-		assertThat(testReport.getCompletedContentIds()).contains(CONTENT_ID_1, CONTENT_ID_2); // 완료
-																								// 기록은
-																								// 둘
-																								// 다
+		assertThat(recordedContents).contains(CONTENT_ID_1, CONTENT_ID_2); // 완료
+																			// 기록은
+																			// 둘
+																			// 다
 	}
 
 }

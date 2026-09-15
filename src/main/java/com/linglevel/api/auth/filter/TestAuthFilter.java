@@ -43,7 +43,7 @@ public class TestAuthFilter extends OncePerRequestFilter {
 
 				// JwtFilter와 일관성을 위해 JwtClaims 객체를 Principal로 사용
 				JwtClaims claims = JwtClaims.builder()
-					.id(user.getId())
+					.id(user.getId().toString())
 					.username(user.getUsername())
 					.email(user.getEmail())
 					.role(user.getRole())

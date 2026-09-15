@@ -37,9 +37,12 @@ public class ArticleProgressService {
 
 	private final StreakService streakService;
 
+	private final com.linglevel.api.streak.service.StudyReportLock studyReportLock;
+
 	@Transactional
 	public ArticleProgressResponse updateProgress(String articleId, ArticleProgressUpdateRequest request,
 			String userId) {
+		studyReportLock.lock(userId);
 		// 아티클 존재 여부 확인
 		if (!articleService.existsById(articleId)) {
 			throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
@@ -49,11 +52,11 @@ public class ArticleProgressService {
 		ArticleChunk chunk = articleChunkService.findById(request.getChunkId());
 
 		// chunk가 해당 article에 속하는지 검증
-		if (chunk.getArticleId() == null || !chunk.getArticleId().equals(articleId)) {
+		if (chunk.getArticleId() == null || !chunk.getArticleId().toString().equals(articleId)) {
 			throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND_IN_ARTICLE);
 		}
 
-		ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
+		ArticleProgress articleProgress = articleProgressRepository.findForUpdate(userId, articleId)
 			.orElse(new ArticleProgress());
 
 		// [MIGRATION] V2 진행률 필드 마이그레이션
@@ -64,12 +67,12 @@ public class ArticleProgressService {
 			throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
 		}
 
-		articleProgress.setUserId(userId);
-		articleProgress.setArticleId(articleId);
+		articleProgress.setUserId(Long.valueOf(userId));
+		articleProgress.setArticleId(Long.valueOf(articleId));
 		articleProgress.setChunkId(request.getChunkId());
 
 		// [V2_CORE] V2 필드: 정규화된 진행률 계산
-		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId,
+		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(chunk.getArticleId(),
 				chunk.getDifficultyLevel());
 		double normalizedProgress = progressCalculationService.calculateNormalizedProgress(chunk.getChunkNumber(),
 				totalChunks);
@@ -105,6 +108,7 @@ public class ArticleProgressService {
 			}
 		}
 
+		articleProgress.setUpdatedAt(java.time.Instant.now());
 		articleProgressRepository.save(articleProgress);
 
 		return convertToArticleProgressResponse(articleProgress, streakUpdated);
@@ -162,12 +166,12 @@ public class ArticleProgressService {
 		ArticleChunk firstChunk = articleChunkService.findFirstByArticleId(articleId);
 
 		ArticleProgress newProgress = new ArticleProgress();
-		newProgress.setUserId(userId);
-		newProgress.setArticleId(articleId);
-		newProgress.setChunkId(firstChunk.getId());
+		newProgress.setUserId(Long.valueOf(userId));
+		newProgress.setArticleId(Long.valueOf(articleId));
+		newProgress.setChunkId(firstChunk.getId().toString());
 
 		// [V2_CORE] V2 필드: 초기 진행률 계산
-		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId,
+		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(firstChunk.getArticleId(),
 				firstChunk.getDifficultyLevel());
 		double initialProgress = progressCalculationService.calculateNormalizedProgress(firstChunk.getChunkNumber(),
 				totalChunks);
@@ -176,16 +180,18 @@ public class ArticleProgressService {
 		newProgress.setMaxNormalizedProgress(initialProgress);
 		newProgress.setCurrentDifficultyLevel(firstChunk.getDifficultyLevel());
 
-		return articleProgressRepository.save(newProgress);
+		newProgress.setUpdatedAt(null);
+		return newProgress;
 	}
 
 	@Transactional
 	public void deleteProgress(String articleId, String userId) {
+		studyReportLock.lock(userId);
 		if (!articleService.existsById(articleId)) {
 			throw new ArticleException(ArticleErrorCode.ARTICLE_NOT_FOUND);
 		}
 
-		ArticleProgress articleProgress = articleProgressRepository.findByUserIdAndArticleId(userId, articleId)
+		ArticleProgress articleProgress = articleProgressRepository.findForUpdate(userId, articleId)
 			.orElseThrow(() -> new ArticleException(ArticleErrorCode.PROGRESS_NOT_FOUND));
 
 		articleProgressRepository.delete(articleProgress);
@@ -202,9 +208,9 @@ public class ArticleProgressService {
 		}
 
 		return ArticleProgressResponse.builder()
-			.id(progress.getId())
-			.userId(progress.getUserId())
-			.articleId(progress.getArticleId())
+			.id(progress.getId() == null ? null : progress.getId().toString())
+			.userId(progress.getUserId() == null ? null : progress.getUserId().toString())
+			.articleId(progress.getArticleId() == null ? null : progress.getArticleId().toString())
 			.chunkId(progress.getChunkId())
 			.currentReadChunkNumber(chunk.getChunkNumber())
 			.isCompleted(progress.getIsCompleted())

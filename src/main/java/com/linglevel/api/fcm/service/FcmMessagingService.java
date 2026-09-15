@@ -246,7 +246,8 @@ public class FcmMessagingService {
 	private Map<String, String> getTokenToUserIdMap(List<String> fcmTokens) {
 		List<FcmToken> tokens = fcmTokenRepository.findAllByFcmTokenIn(fcmTokens);
 		return tokens.stream()
-			.collect(Collectors.toMap(FcmToken::getFcmToken, FcmToken::getUserId, (existing, replacement) -> existing));
+			.collect(Collectors.toMap(FcmToken::getFcmToken, token -> token.getUserId().toString(),
+					(existing, replacement) -> existing));
 	}
 
 	/**
@@ -258,7 +259,7 @@ public class FcmMessagingService {
 			.campaignId(pushId) // 자체 UUID를 campaignId로 사용
 			.fcmMessageId(fcmMessageId) // FCM messageId (선택적)
 			.campaignGroup(campaignGroup) // 캠페인 그룹
-			.userId(userId)
+			.userId(Long.valueOf(userId))
 			.sentAt(now)
 			.sentSuccess(success)
 			.createdAt(now)
@@ -280,7 +281,7 @@ public class FcmMessagingService {
 	 */
 	private String getUserIdFromToken(String fcmToken) {
 		Optional<FcmToken> tokenOpt = fcmTokenRepository.findFirstByFcmToken(fcmToken);
-		return tokenOpt.map(FcmToken::getUserId).orElse(null);
+		return tokenOpt.map(token -> token.getUserId().toString()).orElse(null);
 	}
 
 	/**

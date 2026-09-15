@@ -1,9 +1,7 @@
 package com.linglevel.api.word.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
@@ -12,18 +10,22 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "invalidWords")
+@Entity
+@Table(name = "invalid_words")
 public class InvalidWord {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@Indexed(unique = true)
+	@Column(nullable = false, unique = true, length = 255)
 	private String word;
 
+	@Column(nullable = false)
 	private LocalDateTime attemptedAt;
 
 	@Builder.Default
+	@Column(nullable = false)
 	private Integer attemptCount = 1;
 
 }

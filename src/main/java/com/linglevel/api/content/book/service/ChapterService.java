@@ -44,6 +44,7 @@ public class ChapterService {
 
 	private final BookRepository bookRepository;
 
+	@org.springframework.transaction.annotation.Transactional
 	public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request, String userId) {
 		Book book = bookService.findById(bookId);
 
@@ -59,7 +60,7 @@ public class ChapterService {
 			return new PageResponse<>(Collections.emptyList(), chapterPage);
 		}
 
-		List<String> chapterIds = chapters.stream().map(Chapter::getId).collect(Collectors.toList());
+		List<String> chapterIds = chapters.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
 
 		BookProgress bookProgress = Optional.ofNullable(userId)
 			.flatMap(id -> bookProgressRepository.findByUserIdAndBookId(id, bookId))
@@ -77,13 +78,14 @@ public class ChapterService {
 		return new PageResponse<>(chapterResponses, chapterPage);
 	}
 
+	@org.springframework.transaction.annotation.Transactional(readOnly = true)
 	public ChapterResponse getChapter(String bookId, String chapterId, String userId) {
 		Book book = bookService.findById(bookId);
 
 		Chapter chapter = chapterRepository.findById(chapterId)
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
 
-		if (!bookId.equals(chapter.getBookId())) {
+		if (!bookId.equals(chapter.getBookId().toString())) {
 			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
 		}
 
@@ -122,7 +124,7 @@ public class ChapterService {
 		Chapter currentChapter = chapterRepository.findById(chapterId)
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
 
-		if (!bookId.equals(currentChapter.getBookId())) {
+		if (!bookId.equals(currentChapter.getBookId().toString())) {
 			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND_IN_BOOK);
 		}
 
@@ -136,9 +138,9 @@ public class ChapterService {
 			.currentChapterId(chapterId)
 			.currentChapterNumber(currentChapter.getChapterNumber())
 			.hasPreviousChapter(previousChapter.isPresent())
-			.previousChapterId(previousChapter.map(Chapter::getId).orElse(null))
+			.previousChapterId(previousChapter.map(c -> c.getId().toString()).orElse(null))
 			.hasNextChapter(nextChapter.isPresent())
-			.nextChapterId(nextChapter.map(Chapter::getId).orElse(null))
+			.nextChapterId(nextChapter.map(c -> c.getId().toString()).orElse(null))
 			.build();
 	}
 
@@ -171,17 +173,18 @@ public class ChapterService {
 				isCompleted = Boolean.TRUE.equals(chapterProgressInfo.getIsCompleted());
 
 				// 진행률에 따라 currentReadChunkNumber 계산
-				long totalChunksForLevel = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap())
+				long totalChunksForLevel = chunkCountsMap
+					.getOrDefault(chapter.getId().toString(), Collections.emptyMap())
 					.getOrDefault(currentDifficultyLevel, 0L);
 				currentReadChunkNumber = (int) Math.ceil(progressPercentage * totalChunksForLevel / 100.0);
 			}
 		}
 
-		long totalChunkCount = chunkCountsMap.getOrDefault(chapter.getId(), Collections.emptyMap())
+		long totalChunkCount = chunkCountsMap.getOrDefault(chapter.getId().toString(), Collections.emptyMap())
 			.getOrDefault(currentDifficultyLevel, 0L);
 
 		return ChapterResponse.builder()
-			.id(chapter.getId())
+			.id(chapter.getId().toString())
 			.chapterNumber(chapter.getChapterNumber())
 			.title(chapter.getTitle())
 			.chapterImageUrl(chapter.getChapterImageUrl())

@@ -2,29 +2,37 @@ package com.linglevel.api.streak.entity;
 
 import lombok.Builder;
 import lombok.Getter;
+import jakarta.persistence.*;
 import lombok.Setter;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
-@Document(collection = "freezeTransactions")
 @Getter
 @Setter
 @Builder
+@lombok.NoArgsConstructor
+@lombok.AllArgsConstructor
+@Entity
+@Table(name = "freeze_transactions")
 public class FreezeTransaction {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@Indexed
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
+	@Column(nullable = false)
 	private Integer amount;
 
+	private java.time.LocalDate effectiveDate;
+
+	@Column(length = 500)
 	private String description;
 
-	private Instant createdAt;
+	@Builder.Default
+	@Column(nullable = false, updatable = false)
+	private Instant createdAt = Instant.now();
 
 }

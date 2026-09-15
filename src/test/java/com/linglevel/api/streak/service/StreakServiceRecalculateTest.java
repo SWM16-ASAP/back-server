@@ -37,10 +37,13 @@ class StreakServiceRecalculateTest {
 	@Mock
 	private DailyCompletionRepository dailyCompletionRepository;
 
+	@Mock
+	private StudyReportLock studyReportLock;
+
 	@InjectMocks
 	private StreakService streakService;
 
-	private static final String TEST_USER_ID = "test-user-123";
+	private static final String TEST_USER_ID = "123";
 
 	private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -52,8 +55,8 @@ class StreakServiceRecalculateTest {
 	void setUp() {
 		today = LocalDate.now(KST_ZONE);
 		testReport = new UserStudyReport();
-		testReport.setUserId(TEST_USER_ID);
-		testReport.setCompletedContentIds(new HashSet<>());
+		testReport.setUserId(Long.valueOf(TEST_USER_ID));
+
 		testReport.setCurrentStreak(0);
 		testReport.setLongestStreak(0);
 		testReport.setAvailableFreezes(0);
@@ -65,7 +68,7 @@ class StreakServiceRecalculateTest {
 	@DisplayName("완료 기록이 없으면 모든 값이 초기화된다")
 	void recalculate_NoCompletions_ResetsAllValues() {
 		// given
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(List.of());
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -92,7 +95,7 @@ class StreakServiceRecalculateTest {
 		List<DailyCompletion> completions = List.of(createCompletion(day1, StreakStatus.COMPLETED, 1),
 				createCompletion(day2, StreakStatus.COMPLETED, 2), createCompletion(day3, StreakStatus.COMPLETED, 3));
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(completions);
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -118,7 +121,7 @@ class StreakServiceRecalculateTest {
 		List<DailyCompletion> completions = List.of(createCompletion(day1, StreakStatus.COMPLETED, 1),
 				createCompletion(day2, StreakStatus.FREEZE_USED, 1), createCompletion(day3, StreakStatus.COMPLETED, 2));
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(completions);
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -147,7 +150,7 @@ class StreakServiceRecalculateTest {
 				createCompletion(day2, StreakStatus.COMPLETED, 2), createCompletion(day3, StreakStatus.MISSED, null),
 				createCompletion(day4, StreakStatus.COMPLETED, 1), createCompletion(day5, StreakStatus.COMPLETED, 2));
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(completions);
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -178,7 +181,7 @@ class StreakServiceRecalculateTest {
 				createCompletion(day4, StreakStatus.COMPLETED, 4), createCompletion(day5, StreakStatus.MISSED, null),
 				createCompletion(day6, StreakStatus.COMPLETED, 1));
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(completions);
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -207,7 +210,7 @@ class StreakServiceRecalculateTest {
 				createCompletion(day2, StreakStatus.COMPLETED, 2), createCompletion(day4, StreakStatus.COMPLETED, 1),
 				createCompletion(day5, StreakStatus.COMPLETED, 2));
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(completions);
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -233,7 +236,7 @@ class StreakServiceRecalculateTest {
 		List<DailyCompletion> completions = List.of(createCompletion(day1, StreakStatus.COMPLETED, 1),
 				createCompletion(day2, StreakStatus.COMPLETED, 2));
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(completions);
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -259,7 +262,7 @@ class StreakServiceRecalculateTest {
 		List<DailyCompletion> completions = List.of(createCompletion(day1, StreakStatus.COMPLETED, 1),
 				createCompletion(day2, StreakStatus.COMPLETED, 2));
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(completions);
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -297,7 +300,7 @@ class StreakServiceRecalculateTest {
 				createCompletion(day8, StreakStatus.COMPLETED, 2), createCompletion(day9, StreakStatus.COMPLETED, 3),
 				createCompletion(day10, StreakStatus.COMPLETED, 4), createCompletion(day11, StreakStatus.COMPLETED, 5));
 
-		when(userStudyReportRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate(TEST_USER_ID)).thenReturn(Optional.of(testReport));
 		when(dailyCompletionRepository.findByUserIdOrderByCompletionDateAsc(TEST_USER_ID)).thenReturn(completions);
 		when(userStudyReportRepository.save(any(UserStudyReport.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -314,7 +317,7 @@ class StreakServiceRecalculateTest {
 
 	private DailyCompletion createCompletion(LocalDate date, StreakStatus status, Integer streakCount) {
 		return DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(date)
 			.streakStatus(status)
 			.streakCount(streakCount)

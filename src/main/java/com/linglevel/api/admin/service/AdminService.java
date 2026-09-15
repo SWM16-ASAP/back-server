@@ -62,6 +62,8 @@ public class AdminService {
 
 	private final UserStudyReportRepository userStudyReportRepository;
 
+	private final com.linglevel.api.streak.service.StudyReportLock studyReportLock;
+
 	public ChunkResponse updateBookChunk(String bookId, String chapterId, String chunkId, UpdateChunkRequest request) {
 		log.info("Updating book chunk - bookId: {}, chapterId: {}, chunkId: {}", bookId, chapterId, chunkId);
 
@@ -74,7 +76,7 @@ public class AdminService {
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND));
 
 		// 챕터가 해당 책에 속하는지 확인
-		if (!chapter.getBookId().equals(bookId)) {
+		if (!chapter.getBookId().toString().equals(bookId)) {
 			throw new BooksException(BooksErrorCode.CHAPTER_NOT_FOUND);
 		}
 
@@ -83,7 +85,7 @@ public class AdminService {
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
 
 		// 청크가 해당 챕터에 속하는지 확인
-		if (!chunk.getChapterId().equals(chapterId)) {
+		if (!chunk.getChapterId().toString().equals(chapterId)) {
 			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
 		}
 
@@ -108,7 +110,7 @@ public class AdminService {
 			.orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
 
 		// 청크가 해당 기사에 속하는지 확인
-		if (!chunk.getArticleId().equals(articleId)) {
+		if (!chunk.getArticleId().toString().equals(articleId)) {
 			throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
 		}
 
@@ -143,10 +145,11 @@ public class AdminService {
 			// 3. 청크 삭제
 			List<Chapter> chapters = chapterRepository.findByBookIdOrderByChapterNumber(bookId);
 			for (Chapter chapter : chapters) {
-				List<Chunk> chunks = chunkRepository.findByChapterIdOrderByChunkNumber(chapter.getId());
+				List<Chunk> chunks = chunkRepository.findByChapterIdOrderByChunkNumber(chapter.getId().toString());
 				if (!chunks.isEmpty()) {
 					chunkRepository.deleteAll(chunks);
-					log.info("Chunks deleted for chapter - chapterId: {}, count: {}", chapter.getId(), chunks.size());
+					log.info("Chunks deleted for chapter - chapterId: {}, count: {}", chapter.getId().toString(),
+							chunks.size());
 				}
 			}
 
@@ -201,21 +204,17 @@ public class AdminService {
 	}
 
 	public void resetTodayStreak(String userId) {
+		studyReportLock.lock(userId);
 		log.info("Admin resetting today's streak for user: {}", userId);
 
 		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
 
 		dailyCompletionRepository.findByUserIdAndCompletionDate(userId, today).ifPresent(todayCompletion -> {
-			List<String> todayContentIds = todayCompletion.getCompletedContents() != null
-					? todayCompletion.getCompletedContents().stream().map(c -> c.getContentId()).toList() : List.of();
 
 			dailyCompletionRepository.delete(todayCompletion);
 			log.info("Deleted today's DailyCompletion for user: {}", userId);
 
-			userStudyReportRepository.findByUserId(userId).ifPresent(report -> {
-				if (report.getCompletedContentIds() != null && !todayContentIds.isEmpty()) {
-					report.getCompletedContentIds().removeAll(todayContentIds);
-				}
+			userStudyReportRepository.findForUpdate(userId).ifPresent(report -> {
 
 				if (report.getLastCompletionDate() != null && report.getLastCompletionDate().isEqual(today)) {
 					dailyCompletionRepository

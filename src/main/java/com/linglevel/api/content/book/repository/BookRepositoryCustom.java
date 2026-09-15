@@ -16,6 +16,4 @@ public interface BookRepositoryCustom {
 	 */
 	Page<Book> findBooksWithFilters(GetBooksRequest request, String userId, Pageable pageable);
 
-	void incrementViewCount(String bookId);
-
 }

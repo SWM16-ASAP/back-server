@@ -37,7 +37,7 @@ class FcmTokenServiceTest {
 	@DisplayName("디바이스별 토큰 비활성화")
 	void testDeactivateTokenByDevice() {
 		// Given
-		String userId = "user123";
+		String userId = "123";
 		String deviceId = "device456";
 		FcmToken token = createToken(userId, deviceId, "token789");
 
@@ -59,7 +59,7 @@ class FcmTokenServiceTest {
 	@DisplayName("전체 토큰 비활성화 (로그아웃/계정삭제)")
 	void testDeactivateAllTokens() {
 		// Given
-		String userId = "user123";
+		String userId = "123";
 		List<FcmToken> tokens = List.of(createToken(userId, "device1", "token1"),
 				createToken(userId, "device2", "token2"), createToken(userId, "device3", "token3"));
 
@@ -83,7 +83,7 @@ class FcmTokenServiceTest {
 	@DisplayName("토큰이 없을 때 - 에러 없이 처리")
 	void testDeactivateAllTokens_NoTokens() {
 		// Given
-		String userId = "user123";
+		String userId = "123";
 		when(fcmTokenRepository.findByUserIdAndIsActive(userId, true)).thenReturn(List.of());
 
 		// When & Then (에러 없이 완료되어야 함)
@@ -95,8 +95,7 @@ class FcmTokenServiceTest {
 	// Helper method
 	private FcmToken createToken(String userId, String deviceId, String fcmToken) {
 		return FcmToken.builder()
-			.id("id_" + fcmToken)
-			.userId(userId)
+			.userId(Long.valueOf(userId))
 			.deviceId(deviceId)
 			.fcmToken(fcmToken)
 			.platform(FcmPlatform.ANDROID)

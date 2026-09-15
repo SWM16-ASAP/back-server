@@ -66,6 +66,7 @@ public class ContentService {
 			boolean isCompleted, Object originalProgress) {
 	}
 
+	@org.springframework.transaction.annotation.Transactional(readOnly = true)
 	public PageResponse<RecentContentResponse> getRecentContents(String userId, GetRecentContentsRequest request) {
 		List<BookProgress> bookProgresses = bookProgressRepository.findAllByUserId(userId);
 		List<ArticleProgress> articleProgresses = articleProgressRepository.findAllByUserId(userId);
@@ -73,15 +74,15 @@ public class ContentService {
 
 		Stream<GenericProgress> genericProgressStream = Stream.concat(
 				bookProgresses.stream()
-					.map(p -> new GenericProgress(p.getBookId(), ContentType.BOOK, p.getUpdatedAt(), p.getIsCompleted(),
-							p)),
+					.map(p -> new GenericProgress(p.getBookId().toString(), ContentType.BOOK, p.getUpdatedAt(),
+							p.getIsCompleted(), p)),
 				Stream.concat(
 						articleProgresses.stream()
-							.map(p -> new GenericProgress(p.getArticleId(), ContentType.ARTICLE, p.getUpdatedAt(),
-									p.getIsCompleted(), p)),
+							.map(p -> new GenericProgress(p.getArticleId().toString(), ContentType.ARTICLE,
+									p.getUpdatedAt(), p.getIsCompleted(), p)),
 						customProgresses.stream()
-							.map(p -> new GenericProgress(p.getCustomId(), ContentType.CUSTOM, p.getUpdatedAt(),
-									p.getIsCompleted(), p))));
+							.map(p -> new GenericProgress(p.getCustomId().toString(), ContentType.CUSTOM,
+									p.getUpdatedAt(), p.getIsCompleted(), p))));
 
 		if (request.getStatus() != null && !request.getStatus().isBlank()) {
 			boolean requiredStatus = "completed".equalsIgnoreCase(request.getStatus());
@@ -109,17 +110,20 @@ public class ContentService {
 					Collectors.mapping(GenericProgress::contentId, Collectors.toList())));
 
 		Map<String, Book> booksMap = bookRepository
-			.findAllById(contentIdsByType.getOrDefault(ContentType.BOOK, List.of()))
+			.findAllById(
+					contentIdsByType.getOrDefault(ContentType.BOOK, List.of()).stream().map(Long::valueOf).toList())
 			.stream()
-			.collect(Collectors.toMap(Book::getId, Function.identity()));
+			.collect(Collectors.toMap(b -> b.getId().toString(), Function.identity()));
 		Map<String, Article> articlesMap = articleRepository
-			.findAllById(contentIdsByType.getOrDefault(ContentType.ARTICLE, List.of()))
+			.findAllById(
+					contentIdsByType.getOrDefault(ContentType.ARTICLE, List.of()).stream().map(Long::valueOf).toList())
 			.stream()
-			.collect(Collectors.toMap(Article::getId, Function.identity()));
+			.collect(Collectors.toMap(a -> a.getId().toString(), Function.identity()));
 		Map<String, CustomContent> customContentsMap = customContentRepository
-			.findAllById(contentIdsByType.getOrDefault(ContentType.CUSTOM, List.of()))
+			.findAllById(
+					contentIdsByType.getOrDefault(ContentType.CUSTOM, List.of()).stream().map(Long::valueOf).toList())
 			.stream()
-			.collect(Collectors.toMap(CustomContent::getId, Function.identity()));
+			.collect(Collectors.toMap(content -> content.getId().toString(), Function.identity()));
 
 		List<RecentContentResponse> result = paginatedProgresses.stream().map(p -> {
 			switch (p.contentType()) {
@@ -136,7 +140,7 @@ public class ContentService {
 							: calculatePercentage(progress.getCurrentReadChapterNumber(), book.getChapterCount());
 
 					return RecentContentResponse.builder()
-						.contentId(book.getId())
+						.contentId(book.getId().toString())
 						.contentType(ContentType.BOOK)
 						.title(book.getTitle())
 						.author(book.getAuthor())
@@ -175,7 +179,7 @@ public class ContentService {
 
 					DifficultyLevel difficulty = progress.getCurrentDifficultyLevel() != null
 							? progress.getCurrentDifficultyLevel() : article.getDifficultyLevel();
-					totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId(),
+					totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(article.getId().toString(),
 							difficulty);
 
 					// If normalizedProgress is somehow null (not migrated), fallback to
@@ -185,7 +189,7 @@ public class ContentService {
 					}
 
 					return RecentContentResponse.builder()
-						.contentId(article.getId())
+						.contentId(article.getId().toString())
 						.contentType(ContentType.ARTICLE)
 						.title(article.getTitle())
 						.author(article.getAuthor())
@@ -222,7 +226,8 @@ public class ContentService {
 					DifficultyLevel difficulty = progress.getCurrentDifficultyLevel() != null
 							? progress.getCurrentDifficultyLevel() : custom.getDifficultyLevel();
 					totalChunks = customContentChunkRepository
-						.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(custom.getId(), difficulty);
+						.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(custom.getId().toString(),
+								difficulty);
 
 					// If normalizedProgress is somehow null (not migrated), fallback to
 					// calculation.
@@ -231,7 +236,7 @@ public class ContentService {
 					}
 
 					return RecentContentResponse.builder()
-						.contentId(custom.getId())
+						.contentId(custom.getId().toString())
 						.contentType(ContentType.CUSTOM)
 						.title(custom.getTitle())
 						.author(custom.getAuthor())

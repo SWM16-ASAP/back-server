@@ -1,18 +1,17 @@
 package com.linglevel.api.banner.repository;
 
 import com.linglevel.api.banner.entity.ContentBanner;
-import com.linglevel.api.content.common.ContentType;
 import com.linglevel.api.i18n.CountryCode;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
-public interface ContentBannerRepository extends MongoRepository<ContentBanner, String> {
+public interface ContentBannerRepository extends JpaRepository<ContentBanner, Long> {
 
 	/**
 	 * 활성화된 배너를 국가별, 표시순서로 조회
@@ -32,7 +31,20 @@ public interface ContentBannerRepository extends MongoRepository<ContentBanner, 
 	/**
 	 * 국가별 최대 표시순서 조회
 	 */
-	@Query("{ 'countryCode': ?0 }")
-	List<ContentBanner> findByCountryCodeOrderByDisplayOrderDesc(CountryCode countryCode);
+	Optional<ContentBanner> findFirstByCountryCodeOrderByDisplayOrderDesc(CountryCode countryCode);
+
+	Optional<ContentBanner> findById(Long id);
+
+	default Optional<ContentBanner> findById(String id) {
+		return findById(Long.valueOf(id));
+	}
+
+	default boolean existsById(String id) {
+		return existsById(Long.valueOf(id));
+	}
+
+	default void deleteById(String id) {
+		deleteById(Long.valueOf(id));
+	}
 
 }

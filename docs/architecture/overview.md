@@ -17,7 +17,8 @@
 
 ## 외부 시스템 의존성
 
-- MongoDB: 주요 도메인 데이터와 로그 저장
+- MySQL: 사용자·티켓·생성 요청·콘텐츠 메타데이터·소유권·진행률·학습 이력·보상·북마크 저장
+- MongoDB: 단어·콘텐츠 본문·로그 저장
 - Redis: 읽기 세션과 짧은 상태 관리
 - S3 / R2: 이미지와 파일 저장
 - AI Model: 단어 분석과 생성 요청
@@ -45,6 +46,7 @@ flowchart TD
     Crawl[Crawling / Feed]
 
     Mongo[(MongoDB)]
+    MySQL[(MySQL)]
     Redis[(Redis)]
     S3[(S3 / R2)]
     AI[AI Model]
@@ -60,7 +62,7 @@ flowchart TD
     Api --> Recommend
     Api --> Crawl
 
-    Streak --> Mongo
+    Streak --> MySQL
     Streak --> Redis
     Streak --> FCM
 
@@ -68,6 +70,7 @@ flowchart TD
     Word --> AI
 
     Book --> Mongo
+    Book --> MySQL
     Book --> S3
     Book --> Streak
 

@@ -56,18 +56,21 @@ class ProgressServiceIntegrationTest {
 	private StreakService streakService;
 
 	@Mock
+	private com.linglevel.api.streak.service.StudyReportLock studyReportLock;
+
+	@Mock
 	private ChapterRepository chapterRepository;
 
 	@InjectMocks
 	private ProgressService progressService;
 
-	private static final String TEST_USER_ID = "test-user-123";
+	private static final String TEST_USER_ID = "1";
 
-	private static final String TEST_BOOK_ID = "book-123";
+	private static final String TEST_BOOK_ID = "123";
 
-	private static final String TEST_CHAPTER_ID = "chapter-1";
+	private static final String TEST_CHAPTER_ID = "1";
 
-	private static final String TEST_CHUNK_ID = "chunk-1";
+	private static final String TEST_CHUNK_ID = "301";
 
 	private Chapter testChapter;
 
@@ -78,19 +81,19 @@ class ProgressServiceIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		testChapter = new Chapter();
-		testChapter.setId(TEST_CHAPTER_ID);
-		testChapter.setBookId(TEST_BOOK_ID);
+		testChapter.setId(Long.valueOf(TEST_CHAPTER_ID));
+		testChapter.setBookId(Long.valueOf(TEST_BOOK_ID));
 		testChapter.setChapterNumber(1);
 
 		testChunk = new Chunk();
-		testChunk.setId(TEST_CHUNK_ID);
-		testChunk.setChapterId(TEST_CHAPTER_ID);
+		testChunk.setId(Long.valueOf(TEST_CHUNK_ID));
+		testChunk.setChapterId(Long.valueOf(TEST_CHAPTER_ID));
 		testChunk.setChunkNumber(5); // 마지막 청크
 		testChunk.setDifficultyLevel(DifficultyLevel.B1);
 
 		testProgress = new BookProgress();
-		testProgress.setUserId(TEST_USER_ID);
-		testProgress.setBookId(TEST_BOOK_ID);
+		testProgress.setUserId(Long.valueOf(TEST_USER_ID));
+		testProgress.setBookId(Long.valueOf(TEST_BOOK_ID));
 		testProgress.setChapterProgresses(new ArrayList<>());
 	}
 
@@ -104,11 +107,11 @@ class ProgressServiceIntegrationTest {
 		when(bookService.existsById(TEST_BOOK_ID)).thenReturn(true);
 		when(chunkService.findById(TEST_CHUNK_ID)).thenReturn(testChunk);
 		when(chapterService.findById(TEST_CHAPTER_ID)).thenReturn(testChapter);
-		when(bookProgressRepository.findByUserIdAndBookId(TEST_USER_ID, TEST_BOOK_ID))
-			.thenReturn(Optional.of(testProgress));
-		when(chunkRepository.countByChapterIdAndDifficultyLevel(TEST_CHAPTER_ID, DifficultyLevel.B1)).thenReturn(5L); // 마지막
-																														// 청크
-																														// (5/5)
+		when(bookProgressRepository.findForUpdate(TEST_USER_ID, TEST_BOOK_ID)).thenReturn(Optional.of(testProgress));
+		when(chunkRepository.countByChapterIdAndDifficultyLevel(Long.valueOf(TEST_CHAPTER_ID), DifficultyLevel.B1))
+			.thenReturn(5L); // 마지막
+		// 청크
+		// (5/5)
 		when(chapterRepository.countByBookId(TEST_BOOK_ID)).thenReturn(10); // 총 10개 챕터
 		when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
 			.thenReturn(120L);
@@ -133,9 +136,9 @@ class ProgressServiceIntegrationTest {
 		when(bookService.existsById(TEST_BOOK_ID)).thenReturn(true);
 		when(chunkService.findById(TEST_CHUNK_ID)).thenReturn(testChunk);
 		when(chapterService.findById(TEST_CHAPTER_ID)).thenReturn(testChapter);
-		when(bookProgressRepository.findByUserIdAndBookId(TEST_USER_ID, TEST_BOOK_ID))
-			.thenReturn(Optional.of(testProgress));
-		when(chunkRepository.countByChapterIdAndDifficultyLevel(TEST_CHAPTER_ID, DifficultyLevel.B1)).thenReturn(5L);
+		when(bookProgressRepository.findForUpdate(TEST_USER_ID, TEST_BOOK_ID)).thenReturn(Optional.of(testProgress));
+		when(chunkRepository.countByChapterIdAndDifficultyLevel(Long.valueOf(TEST_CHAPTER_ID), DifficultyLevel.B1))
+			.thenReturn(5L);
 		when(chapterRepository.countByBookId(TEST_BOOK_ID)).thenReturn(10);
 		when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
 			.thenReturn(120L);
@@ -160,9 +163,9 @@ class ProgressServiceIntegrationTest {
 		when(bookService.existsById(TEST_BOOK_ID)).thenReturn(true);
 		when(chunkService.findById(TEST_CHUNK_ID)).thenReturn(testChunk);
 		when(chapterService.findById(TEST_CHAPTER_ID)).thenReturn(testChapter);
-		when(bookProgressRepository.findByUserIdAndBookId(TEST_USER_ID, TEST_BOOK_ID))
-			.thenReturn(Optional.of(testProgress));
-		when(chunkRepository.countByChapterIdAndDifficultyLevel(TEST_CHAPTER_ID, DifficultyLevel.B1)).thenReturn(5L);
+		when(bookProgressRepository.findForUpdate(TEST_USER_ID, TEST_BOOK_ID)).thenReturn(Optional.of(testProgress));
+		when(chunkRepository.countByChapterIdAndDifficultyLevel(Long.valueOf(TEST_CHAPTER_ID), DifficultyLevel.B1))
+			.thenReturn(5L);
 		when(chapterRepository.countByBookId(TEST_BOOK_ID)).thenReturn(10);
 		when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
 			.thenReturn(29L);
@@ -187,12 +190,12 @@ class ProgressServiceIntegrationTest {
 		when(bookService.existsById(TEST_BOOK_ID)).thenReturn(true);
 		when(chunkService.findById(TEST_CHUNK_ID)).thenReturn(testChunk);
 		when(chapterService.findById(TEST_CHAPTER_ID)).thenReturn(testChapter);
-		when(bookProgressRepository.findByUserIdAndBookId(TEST_USER_ID, TEST_BOOK_ID))
-			.thenReturn(Optional.of(testProgress));
-		when(chunkRepository.countByChapterIdAndDifficultyLevel(TEST_CHAPTER_ID, DifficultyLevel.B1)).thenReturn(5L); // 총
-																														// 5개
-																														// 중
-																														// 3번째
+		when(bookProgressRepository.findForUpdate(TEST_USER_ID, TEST_BOOK_ID)).thenReturn(Optional.of(testProgress));
+		when(chunkRepository.countByChapterIdAndDifficultyLevel(Long.valueOf(TEST_CHAPTER_ID), DifficultyLevel.B1))
+			.thenReturn(5L); // 총
+		// 5개
+		// 중
+		// 3번째
 		when(chapterRepository.countByBookId(TEST_BOOK_ID)).thenReturn(10);
 		when(readingCompletionService.processReadingCompletion(TEST_USER_ID, ContentType.BOOK, TEST_CHAPTER_ID, null))
 			.thenReturn(null); // 마지막 청크가 아니므로 세션 처리 없음

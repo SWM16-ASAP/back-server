@@ -20,9 +20,6 @@ import com.linglevel.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -131,7 +128,7 @@ public class CustomContentService {
 
 		if (userId != null) {
 			CustomContentProgress progress = customContentProgressRepository
-				.findByUserIdAndCustomId(userId, content.getId())
+				.findByUserIdAndCustomId(userId, content.getId().toString())
 				.orElse(null);
 
 			if (progress != null) {
@@ -152,7 +149,8 @@ public class CustomContentService {
 
 				// V2: 현재 난이도 기준으로 동적으로 청크 수 계산
 				long totalChunksForLevel = customContentChunkRepository
-					.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel);
+					.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId().toString(),
+							currentDifficultyLevel);
 
 				if (totalChunksForLevel > 0) {
 					progressPercentage = (double) currentReadChunkNumber / totalChunksForLevel * 100.0;
@@ -163,14 +161,15 @@ public class CustomContentService {
 			}
 		}
 		CustomContentResponse response = new CustomContentResponse();
-		response.setId(content.getId());
+		response.setId(content.getId().toString());
 		response.setTitle(content.getTitle());
 		response.setAuthor(content.getAuthor());
 		response.setCoverImageUrl(content.getCoverImageUrl());
 		response.setDifficultyLevel(content.getDifficultyLevel());
 		response.setTargetDifficultyLevels(content.getTargetDifficultyLevels());
-		response.setChunkCount((int) customContentChunkRepository
-			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(content.getId(), currentDifficultyLevel));
+		response
+			.setChunkCount((int) customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+					content.getId().toString(), currentDifficultyLevel));
 		response.setCurrentReadChunkNumber(currentReadChunkNumber);
 		response.setProgressPercentage(progressPercentage);
 		response.setCurrentDifficultyLevel(currentDifficultyLevel);

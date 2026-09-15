@@ -84,7 +84,7 @@ class TicketsControllerTest {
 
 	@BeforeEach
 	void setUp() {
-		testUser = User.builder().id("test-user-id").username("testuser").role(UserRole.USER).build();
+		testUser = User.builder().id(1L).username("testuser").role(UserRole.USER).build();
 
 		ticketBalanceResponse = TicketBalanceResponse.builder().balance(10).updatedAt(LocalDateTime.now()).build();
 
@@ -116,7 +116,7 @@ class TicketsControllerTest {
 
 	private Authentication getOauthAuthentication() {
 		JwtClaims claims = JwtClaims.builder()
-			.id(testUser.getId())
+			.id(testUser.getId().toString())
 			.username(testUser.getUsername())
 			.role(testUser.getRole())
 			.issuedAt(new Date())
@@ -129,7 +129,7 @@ class TicketsControllerTest {
 	@Test
 	void 티켓잔고조회_성공() throws Exception {
 		// given
-		when(ticketService.getTicketBalance("test-user-id")).thenReturn(ticketBalanceResponse);
+		when(ticketService.getTicketBalance("1")).thenReturn(ticketBalanceResponse);
 
 		// when & then
 		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))
@@ -138,7 +138,7 @@ class TicketsControllerTest {
 			.andExpect(jsonPath("$.balance").value(10))
 			.andExpect(jsonPath("$.updatedAt").exists());
 
-		verify(ticketService).getTicketBalance("test-user-id");
+		verify(ticketService).getTicketBalance("1");
 	}
 
 	@Test
@@ -167,7 +167,7 @@ class TicketsControllerTest {
 		Page<TicketTransactionResponse> transactionPage = new PageImpl<>(List.of(ticketTransactionResponse),
 				PageRequest.of(0, 10), 1L);
 
-		when(ticketService.getTicketTransactions("test-user-id", 1, 10)).thenReturn(transactionPage);
+		when(ticketService.getTicketTransactions("1", 1, 10)).thenReturn(transactionPage);
 
 		// when & then
 		mockMvc
@@ -184,7 +184,7 @@ class TicketsControllerTest {
 			.andExpect(jsonPath("$.totalCount").value(1))
 			.andExpect(jsonPath("$.totalPages").value(1));
 
-		verify(ticketService).getTicketTransactions("test-user-id", 1, 10);
+		verify(ticketService).getTicketTransactions("1", 1, 10);
 	}
 
 	@Test
@@ -192,7 +192,7 @@ class TicketsControllerTest {
 		// given
 		Page<TicketTransactionResponse> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0L);
 
-		when(ticketService.getTicketTransactions("test-user-id", 1, 10)).thenReturn(emptyPage);
+		when(ticketService.getTicketTransactions("1", 1, 10)).thenReturn(emptyPage);
 
 		// when & then
 		mockMvc.perform(get("/api/v1/tickets/transactions").with(authentication(getOauthAuthentication())).with(csrf()))
@@ -202,14 +202,13 @@ class TicketsControllerTest {
 			.andExpect(jsonPath("$.data").isEmpty())
 			.andExpect(jsonPath("$.totalCount").value(0));
 
-		verify(ticketService).getTicketTransactions("test-user-id", 1, 10);
+		verify(ticketService).getTicketTransactions("1", 1, 10);
 	}
 
 	@Test
 	void 티켓예외처리_잔고부족() throws Exception {
 		// given
-		when(ticketService.getTicketBalance("test-user-id"))
-			.thenThrow(new TicketException(TicketErrorCode.INSUFFICIENT_BALANCE));
+		when(ticketService.getTicketBalance("1")).thenThrow(new TicketException(TicketErrorCode.INSUFFICIENT_BALANCE));
 
 		// when & then
 		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))
@@ -217,14 +216,13 @@ class TicketsControllerTest {
 			.andExpect(content().contentType("application/json;charset=UTF-8"))
 			.andExpect(jsonPath("$.message").value("Insufficient ticket balance."));
 
-		verify(ticketService).getTicketBalance("test-user-id");
+		verify(ticketService).getTicketBalance("1");
 	}
 
 	@Test
 	void 티켓예외처리_티켓없음() throws Exception {
 		// given
-		when(ticketService.getTicketBalance("test-user-id"))
-			.thenThrow(new TicketException(TicketErrorCode.TICKET_NOT_FOUND));
+		when(ticketService.getTicketBalance("1")).thenThrow(new TicketException(TicketErrorCode.TICKET_NOT_FOUND));
 
 		// when & then
 		mockMvc.perform(get("/api/v1/tickets/balance").with(authentication(getOauthAuthentication())).with(csrf()))

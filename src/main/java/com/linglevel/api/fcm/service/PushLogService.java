@@ -32,7 +32,7 @@ public class PushLogService {
 				.campaignId(campaignId)
 				.fcmMessageId(fcmMessageId)
 				.campaignGroup(campaignGroup)
-				.userId(userId)
+				.userId(Long.valueOf(userId))
 				.sentAt(LocalDateTime.now())
 				.sentSuccess(success)
 				.createdAt(LocalDateTime.now())

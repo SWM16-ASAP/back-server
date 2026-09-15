@@ -1,10 +1,13 @@
 package com.linglevel.api.user.ticket.entity;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -13,24 +16,28 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "ticketTransactions")
-@CompoundIndex(name = "userId_createdAt", def = "{'userId': 1, 'createdAt': -1}")
+@Entity
+@Table(name = "ticket_transactions")
 public class TicketTransaction {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	private String userId;
+	@Column(name = "user_id", nullable = false)
+	private Long userId;
 
-	private Integer amount; // 양수: 획득, 음수: 사용
+	@Column(nullable = false)
+	private Integer amount;
 
+	@Column(nullable = false, length = 500)
 	private String description;
 
-	private TransactionStatus status;
+	@Column(name = "reservation_id", unique = true)
+	private Long reservationId;
 
-	private String reservationId; // 예약 그룹 ID
-
-	@CreatedDate
+	@CreationTimestamp
+	@Column(nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
 }

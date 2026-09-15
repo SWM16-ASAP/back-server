@@ -76,7 +76,7 @@ public class StreakProtectionScheduler {
 
 			// 2. 오늘 학습 완료하지 않은 사용자 필터링 및 알림 전송
 			for (UserStudyReport report : activeUsers) {
-				String userId = report.getUserId();
+				String userId = report.getUserId().toString();
 
 				// 2-1. 오늘 학습 완료 여부 확인
 				boolean hasCompletedToday = dailyCompletionRepository.existsByUserIdAndCompletionDate(userId, today);
@@ -167,16 +167,9 @@ public class StreakProtectionScheduler {
 		}
 	}
 
-	/** 어제 프리즈가 사용되었는지 확인합니다. 어제 날짜(00:00 ~ 23:59)에 amount가 -1인 트랜잭션이 있으면 프리즈 사용됨 */
+	/** 처리 시각이 아니라 프리즈가 적용된 학습 날짜로 확인한다. */
 	private boolean checkIfFreezeUsedYesterday(String userId, LocalDate today) {
-		LocalDate yesterday = today.minusDays(1);
-		Instant yesterdayStart = yesterday.atStartOfDay(KST).toInstant();
-		Instant yesterdayEnd = today.atStartOfDay(KST).toInstant();
-
-		List<FreezeTransaction> transactions = freezeTransactionRepository
-			.findByUserIdAndAmountAndCreatedAtBetween(userId, -1, yesterdayStart, yesterdayEnd);
-
-		return !transactions.isEmpty();
+		return freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(userId, -1, today.minusDays(1));
 	}
 
 	/** FcmToken 리스트에서 사용자의 선호 언어를 결정합니다. */

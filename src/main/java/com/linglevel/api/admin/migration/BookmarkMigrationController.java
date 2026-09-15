@@ -16,7 +16,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
+import com.linglevel.api.bookmark.service.BookmarkWriter;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,6 +32,8 @@ import java.util.List;
 public class BookmarkMigrationController {
 
 	private final WordBookmarkRepository wordBookmarkRepository;
+
+	private final BookmarkWriter bookmarkWriter;
 
 	private final WordService wordService;
 
@@ -65,7 +67,7 @@ public class BookmarkMigrationController {
 		for (WordBookmark bookmark : allBookmarks) {
 			try {
 				String currentWord = bookmark.getWord();
-				String userId = bookmark.getUserId();
+				String userId = bookmark.getUserId().toString();
 
 				// AI를 통해 단어 새로 생성 및 원형 획득
 				log.info("Restoring and normalizing: {} (userId: {})", currentWord, userId);
@@ -96,18 +98,11 @@ public class BookmarkMigrationController {
 
 				log.info("Normalizing bookmark: {} -> {} (userId: {})", currentWord, originalForm, userId);
 
-				// 기존 북마크 업데이트
-				bookmark.setWord(originalForm);
-				try {
-					wordBookmarkRepository.save(bookmark);
-					normalized++;
-					log.info("Successfully normalized: {} -> {}", currentWord, originalForm);
-				}
-				catch (DuplicateKeyException e) {
-					// 중복 발생 시 현재 북마크 삭제 (원형이 이미 북마크되어 있음)
-					wordBookmarkRepository.delete(bookmark);
-					duplicateRemoved++;
-					log.info("Duplicate bookmark removed: {} (already has {})", currentWord, originalForm);
+				switch (bookmarkWriter.normalize(userId, bookmark.getId(), originalForm)) {
+					case UPDATED -> normalized++;
+					case DUPLICATE_REMOVED -> duplicateRemoved++;
+					case UNCHANGED -> {
+					}
 				}
 
 			}

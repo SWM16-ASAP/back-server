@@ -141,7 +141,7 @@ public class LearningEncouragementScheduler {
 
 			// 2. 평소 학습 시간이 현재 시각과 일치하는 사용자 필터링
 			for (UserStudyReport report : activeUsers) {
-				String userId = report.getUserId();
+				String userId = report.getUserId().toString();
 
 				// 2-1. 평소 학습 시간 확인 (DB에서 조회)
 				Optional<Integer> usualStudyHour = studyTimeAnalysisService.getPreferredStudyHour(userId);
@@ -267,7 +267,7 @@ public class LearningEncouragementScheduler {
 
 			// 각 이탈 유저에 대해 처리
 			for (UserStudyReport report : allChurnedCandidates) {
-				String userId = report.getUserId();
+				String userId = report.getUserId().toString();
 
 				// 1. 평소 학습 시간 확인 (DB에서 조회)
 				Optional<Integer> usualStudyHour = studyTimeAnalysisService.getPreferredStudyHour(userId);

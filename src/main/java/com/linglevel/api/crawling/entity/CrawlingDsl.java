@@ -1,10 +1,8 @@
 package com.linglevel.api.crawling.entity;
 
 import com.linglevel.api.content.feed.entity.FeedContentType;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
@@ -13,29 +11,40 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "crawlingDsl")
+@Entity
+@Table(name = "crawling_dsl")
 public class CrawlingDsl {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@Indexed(unique = true)
+	@Column(length = 255, nullable = false)
 	private String domain;
 
+	@Column(length = 500, nullable = false)
 	private String name;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10)
 	private FeedContentType contentType;
 
+	@Column(columnDefinition = "text", nullable = false)
 	private String titleDsl;
 
+	@Column(columnDefinition = "text", nullable = false)
 	private String contentDsl;
 
+	@Column(columnDefinition = "text")
 	private String coverImageDsl;
 
+	@Column(length = 2048)
 	private String accessUrl;
 
+	@Column(nullable = false)
 	private Instant createdAt;
 
+	@Column(nullable = false)
 	private Instant updatedAt;
 
 }

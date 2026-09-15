@@ -65,24 +65,23 @@ class BookReadingTimeServiceTest {
 	void updateReadingTimes_updatesChapterAndBookReadingTimes() {
 		// given
 		Book book = new Book();
-		book.setId("book-1");
+		book.setId(Long.valueOf("1"));
 		book.setDifficultyLevel(DifficultyLevel.A1);
 
 		Chapter firstChapter = new Chapter();
-		firstChapter.setId("chapter-1");
-		firstChapter.setBookId("book-1");
+		firstChapter.setId(Long.valueOf("1"));
+		firstChapter.setBookId(Long.valueOf("1"));
 		firstChapter.setChapterNumber(1);
 
 		Chapter secondChapter = new Chapter();
-		secondChapter.setId("chapter-2");
-		secondChapter.setBookId("book-1");
+		secondChapter.setId(Long.valueOf("2"));
+		secondChapter.setBookId(Long.valueOf("1"));
 		secondChapter.setChapterNumber(2);
 
 		BookImportData importData = createImportData();
 
-		when(bookRepository.findById("book-1")).thenReturn(Optional.of(book));
-		when(chapterRepository.findByBookIdOrderByChapterNumber("book-1"))
-			.thenReturn(List.of(firstChapter, secondChapter));
+		when(bookRepository.findById("1")).thenReturn(Optional.of(book));
+		when(chapterRepository.findByBookIdOrderByChapterNumber("1")).thenReturn(List.of(firstChapter, secondChapter));
 		when(readingTimeService.calculateReadingTimeFromCharacters(5)).thenReturn(3);
 		when(readingTimeService.calculateReadingTimeFromCharacters(4)).thenReturn(2);
 
@@ -91,7 +90,7 @@ class BookReadingTimeServiceTest {
 		ArgumentCaptor<Book> bookCaptor = ArgumentCaptor.forClass(Book.class);
 
 		// when
-		bookReadingTimeService.updateReadingTimes("book-1", importData);
+		bookReadingTimeService.updateReadingTimes("1", importData);
 
 		// then
 		verify(chapterRepository).saveAll(chaptersCaptor.capture());

@@ -1,16 +1,15 @@
 package com.linglevel.api.auth.jwt;
 
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.time.LocalDateTime;
 
-@Document(collection = "refreshTokens")
+@Entity
+@Table(name = "refresh_tokens")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,15 +17,16 @@ import java.time.LocalDateTime;
 public class RefreshToken {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@Indexed(unique = true)
+	@Column(nullable = false, unique = true, length = 36)
 	private String tokenId;
 
-	@Indexed
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
-	@Indexed(name = "ttl_expires_at", expireAfter = "0s")
+	@Column(nullable = false)
 	private LocalDateTime expiresAt;
 
 	public boolean isExpired() {

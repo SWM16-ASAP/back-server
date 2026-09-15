@@ -53,9 +53,14 @@ public class StreakService {
 
 	private final ReadingSessionService readingSessionService;
 
+	private final StudyReportLock studyReportLock;
+
+	private final com.linglevel.api.streak.repository.LearningCompletionRepository learningCompletionRepository;
+
 	@Transactional
 	public StreakResponse getStreakInfo(String userId, LanguageCode languageCode) {
-		UserStudyReport report = userStudyReportRepository.findByUserId(userId).orElseGet(() -> {
+		studyReportLock.lock(userId);
+		UserStudyReport report = userStudyReportRepository.findForUpdate(userId).orElseGet(() -> {
 			UserStudyReport newReport = createNewUserStudyReport(userId);
 			userStudyReportRepository.save(newReport);
 			log.info("Created new UserStudyReport for user: {}", userId);
@@ -66,7 +71,7 @@ public class StreakService {
 		StreakStatus todayStatus = calculateTodayStatus(userId, today);
 		StreakStatus yesterdayStatus = calculateTodayStatus(userId, today.minusDays(1));
 		long totalStudyDays = dailyCompletionRepository.countByUserId(userId);
-		long totalContentsRead = report.getCompletedContentIds() != null ? report.getCompletedContentIds().size() : 0;
+		long totalContentsRead = learningCompletionRepository.countDistinctContents(Long.valueOf(userId));
 
 		// Calculate expected rewards for today (if not completed yet)
 		RewardInfo expectedRewards = null;
@@ -93,14 +98,16 @@ public class StreakService {
 
 	@Transactional
 	public boolean updateStreak(String userId, ContentType contentType, String contentId) {
+		studyReportLock.lock(userId);
 		LocalDate today = getKstToday();
 
 		// 유효성 검사: 오늘 이미 스트릭 완료했는지만 확인
-		if (hasCompletedStreakToday(userId, today)) {
+		DailyCompletion todayCompletion = dailyCompletionRepository.findForUpdate(userId, today).orElse(null);
+		if (todayCompletion != null && todayCompletion.getStreakStatus() == StreakStatus.COMPLETED) {
 			return false;
 		}
 
-		UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+		UserStudyReport report = userStudyReportRepository.findForUpdate(userId)
 			.orElseGet(() -> createNewUserStudyReport(userId));
 
 		if (report.getLastCompletionDate() == null) {
@@ -150,13 +157,20 @@ public class StreakService {
 		report.setUpdatedAt(Instant.now());
 		userStudyReportRepository.save(report);
 
+		if (todayCompletion == null) {
+			todayCompletion = DailyCompletion.builder().userId(Long.valueOf(userId)).completionDate(today).build();
+		}
+		todayCompletion.setStreakStatus(StreakStatus.COMPLETED);
+		todayCompletion.setStreakCount(report.getCurrentStreak());
+		dailyCompletionRepository.save(todayCompletion);
+
 		log.info("Streak updated for user: {}. Current streak: {}", userId, report.getCurrentStreak());
 		return true;
 	}
 
 	private void checkAndGrantRewards(UserStudyReport report) {
 		int currentStreak = report.getCurrentStreak();
-		String userId = report.getUserId();
+		String userId = report.getUserId().toString();
 
 		grantFreezeIfEligible(report, currentStreak, userId);
 		grantTicketIfEligible(currentStreak, userId);
@@ -173,7 +187,7 @@ public class StreakService {
 		report.setAvailableFreezes(report.getAvailableFreezes() + 1);
 
 		FreezeTransaction freezeTransaction = FreezeTransaction.builder()
-			.userId(userId)
+			.userId(Long.valueOf(userId))
 			.amount(1)
 			.description("Reward for " + currentStreak + "-day streak")
 			.createdAt(Instant.now())
@@ -210,7 +224,7 @@ public class StreakService {
 
 	private UserStudyReport createNewUserStudyReport(String userId) {
 		UserStudyReport report = new UserStudyReport();
-		report.setUserId(userId);
+		report.setUserId(Long.valueOf(userId));
 		report.setCreatedAt(Instant.now());
 		return report;
 	}
@@ -295,7 +309,7 @@ public class StreakService {
 
 	private FreezeTransactionResponse toFreezeTransactionResponse(FreezeTransaction transaction) {
 		return FreezeTransactionResponse.builder()
-			.id(transaction.getId())
+			.id(transaction.getId().toString())
 			.amount(transaction.getAmount())
 			.description(transaction.getDescription())
 			.createdAt(transaction.getCreatedAt())
@@ -304,7 +318,10 @@ public class StreakService {
 
 	@Transactional
 	public void addStudyTime(String userId, long studyTimeSeconds) {
-		UserStudyReport report = userStudyReportRepository.findByUserId(userId).orElseGet(() -> {
+		if (studyTimeSeconds < 0)
+			throw new IllegalArgumentException("Study time must not be negative");
+		studyReportLock.lock(userId);
+		UserStudyReport report = userStudyReportRepository.findForUpdate(userId).orElseGet(() -> {
 			UserStudyReport newReport = createNewUserStudyReport(userId);
 			userStudyReportRepository.save(newReport);
 			return newReport;
@@ -316,26 +333,22 @@ public class StreakService {
 
 	@Transactional
 	public void addCompletedContent(String userId, ContentType contentType, String contentId, boolean streakUpdated) {
+		studyReportLock.lock(userId);
 		LocalDate today = getKstToday();
 
-		UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+		UserStudyReport report = userStudyReportRepository.findForUpdate(userId)
 			.orElseGet(() -> createNewUserStudyReport(userId));
 
-		// completedContentIds 초기화
-		if (report.getCompletedContentIds() == null) {
-			report.setCompletedContentIds(new HashSet<>());
-		}
-
 		// DailyCompletion 업데이트
-		DailyCompletion.CompletedContent completedContent = DailyCompletion.CompletedContent.builder()
+		LearningCompletion completedContent = LearningCompletion.builder()
 			.type(contentType)
-			.contentId(contentId)
+			.contentId(Long.valueOf(contentId))
 			.completedAt(Instant.now())
 			.build();
 
-		DailyCompletion dailyCompletion = dailyCompletionRepository.findByUserIdAndCompletionDate(userId, today)
+		DailyCompletion dailyCompletion = dailyCompletionRepository.findForUpdate(userId, today)
 			.orElse(DailyCompletion.builder()
-				.userId(userId)
+				.userId(Long.valueOf(userId))
 				.completionDate(today)
 				.firstCompletionCount(0)
 				.totalCompletionCount(0)
@@ -348,11 +361,15 @@ public class StreakService {
 			dailyCompletion.setCompletedContents(new ArrayList<>());
 		}
 
+		boolean firstCompletion = learningCompletionRepository
+			.findFirstByDailyCompletionUserIdAndTypeAndContentId(Long.valueOf(userId), contentType,
+					Long.valueOf(contentId))
+			.isEmpty();
+		completedContent.setDailyCompletion(dailyCompletion);
 		dailyCompletion.getCompletedContents().add(completedContent);
 		dailyCompletion.setTotalCompletionCount(dailyCompletion.getTotalCompletionCount() + 1);
 
-		if (!report.getCompletedContentIds().contains(contentId)) {
-			report.getCompletedContentIds().add(contentId);
+		if (firstCompletion) {
 			dailyCompletion.setFirstCompletionCount(dailyCompletion.getFirstCompletionCount() + 1);
 		}
 
@@ -372,8 +389,11 @@ public class StreakService {
 	 */
 	@Transactional
 	public boolean processMissedDays(UserStudyReport report, LocalDate today) {
+		studyReportLock.lock(report.getUserId().toString());
+		report = userStudyReportRepository.findForUpdate(report.getUserId()).orElse(report);
 		if (report.getLastCompletionDate() == null) {
-			log.warn("Cannot process missed days: lastCompletionDate is null for user {}", report.getUserId());
+			log.warn("Cannot process missed days: lastCompletionDate is null for user {}",
+					report.getUserId().toString());
 			return false;
 		}
 
@@ -384,14 +404,14 @@ public class StreakService {
 		}
 
 		int daysMissed = (int) daysSinceLastCompletion - 1;
-		log.warn("User {} missed {} days. Processing gap.", report.getUserId(), daysMissed);
+		log.warn("User {} missed {} days. Processing gap.", report.getUserId().toString(), daysMissed);
 
 		int consumed = 0;
 
 		for (int i = 1; i <= daysMissed; i++) {
 			LocalDate missedDate = report.getLastCompletionDate().plusDays(i);
 
-			if (wasFreezeProcessedForDate(report.getUserId(), missedDate)) {
+			if (wasFreezeProcessedForDate(report.getUserId().toString(), missedDate)) {
 				continue;
 			}
 
@@ -406,7 +426,8 @@ public class StreakService {
 		}
 
 		report.setAvailableFreezes(report.getAvailableFreezes() - consumed);
-		log.info("Consumed {} freezes for user {}. Streak maintained at {}.", consumed, report.getUserId(),
+		userStudyReportRepository.save(report);
+		log.info("Consumed {} freezes for user {}. Streak maintained at {}.", consumed, report.getUserId().toString(),
 				report.getCurrentStreak());
 		return false;
 	}
@@ -417,13 +438,14 @@ public class StreakService {
 		report.setLastCompletionDate(null);
 		report.setStreakStartDate(null);
 		report.setAvailableFreezes(0);
+		userStudyReportRepository.save(report);
 
 		log.warn("Insufficient freezes for user {}. Streak reset from {} to 0. Consumed {} freezes.",
-				report.getUserId(), previousStreak, freezesConsumed);
+				report.getUserId().toString(), previousStreak, freezesConsumed);
 	}
 
 	private boolean wasFreezeProcessedForDate(String userId, LocalDate date) {
-		return dailyCompletionRepository.findByUserIdAndCompletionDate(userId, date)
+		return dailyCompletionRepository.findForUpdate(userId, date)
 			.map(completion -> completion.getStreakStatus() == StreakStatus.FREEZE_USED)
 			.orElse(false);
 	}
@@ -447,7 +469,7 @@ public class StreakService {
 			status = StreakStatus.COMPLETED;
 		}
 		else if (completion.getStreakCount() != null && completion.getStreakCount() > 0) {
-			boolean hasFreeze = hasFreezeTransaction(completion.getUserId(), completion.getCompletionDate());
+			boolean hasFreeze = hasFreezeTransaction(completion.getUserId().toString(), completion.getCompletionDate());
 			status = hasFreeze ? StreakStatus.FREEZE_USED : StreakStatus.COMPLETED;
 		}
 		else {
@@ -457,7 +479,7 @@ public class StreakService {
 		completion.setStreakStatus(status);
 		dailyCompletionRepository.save(completion);
 
-		log.debug("Lazy updated streakStatus for user {} on {}: {}", completion.getUserId(),
+		log.debug("Lazy updated streakStatus for user {} on {}: {}", completion.getUserId().toString(),
 				completion.getCompletionDate(), status);
 
 		return completion;
@@ -467,31 +489,36 @@ public class StreakService {
 		FreezeTransaction transaction = FreezeTransaction.builder()
 			.userId(report.getUserId())
 			.amount(-1)
+			.effectiveDate(missedDate)
 			.description("Auto-consumed for missed day: " + missedDate)
 			.createdAt(Instant.now())
 			.build();
 		freezeTransactionRepository.save(transaction);
 
 		// 프리즈 사용 시에도 DailyCompletion 생성 (streakStatus=FREEZE_USED로 구분)
-		DailyCompletion freezeCompletion = DailyCompletion.builder()
-			.userId(report.getUserId())
-			.completionDate(missedDate)
-			.firstCompletionCount(0)
-			.totalCompletionCount(0)
-			.completedContents(new ArrayList<>())
-			.streakCount(report.getCurrentStreak())
-			.streakStatus(StreakStatus.FREEZE_USED)
-			.createdAt(Instant.now())
-			.build();
+		DailyCompletion freezeCompletion = dailyCompletionRepository.findForUpdate(report.getUserId(), missedDate)
+			.orElseGet(() -> DailyCompletion.builder()
+				.userId(report.getUserId())
+				.completionDate(missedDate)
+				.firstCompletionCount(0)
+				.totalCompletionCount(0)
+				.completedContents(new ArrayList<>())
+				.streakCount(report.getCurrentStreak())
+				.streakStatus(StreakStatus.FREEZE_USED)
+				.createdAt(Instant.now())
+				.build());
+		freezeCompletion.setStreakStatus(StreakStatus.FREEZE_USED);
+		freezeCompletion.setStreakCount(report.getCurrentStreak());
 		dailyCompletionRepository.save(freezeCompletion);
 
 		log.debug(
 				"Created freeze consumption transaction and DailyCompletion for user {} on date {} with streak count {}",
-				report.getUserId(), missedDate, report.getCurrentStreak());
+				report.getUserId().toString(), missedDate, report.getCurrentStreak());
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public CalendarResponse getCalendar(String userId, int year, int month) {
+		studyReportLock.lock(userId);
 		LocalDate today = getKstToday();
 		LocalDate firstDay = LocalDate.of(year, month, 1);
 		LocalDate lastDay = firstDay.withDayOfMonth(firstDay.lengthOfMonth());
@@ -512,8 +539,9 @@ public class StreakService {
 			.build();
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public WeekStreakResponse getThisWeekStreak(String userId) {
+		studyReportLock.lock(userId);
 		LocalDate today = getKstToday();
 		LocalDate sunday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
 		LocalDate saturday = sunday.plusDays(6);
@@ -533,7 +561,7 @@ public class StreakService {
 	}
 
 	private CalendarViewData prepareCalendarViewData(String userId, LocalDate startDate, LocalDate endDate) {
-		UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+		UserStudyReport report = userStudyReportRepository.findForUpdate(userId)
 			.orElseGet(() -> createNewUserStudyReport(userId));
 
 		List<DailyCompletion> completions = dailyCompletionRepository.findByUserIdAndCompletionDateBetween(userId,
@@ -553,8 +581,8 @@ public class StreakService {
 			.collect(Collectors.groupingBy(t -> t.getCreatedAt().atZone(KST_ZONE).toLocalDate(),
 					Collectors.summingInt(FreezeTransaction::getAmount)));
 
-		LocalDateTime startDateTime = startDate.atStartOfDay(KST_ZONE).toLocalDateTime();
-		LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay(KST_ZONE).toLocalDateTime();
+		LocalDateTime startDateTime = startInstant.atZone(ZoneId.systemDefault()).toLocalDateTime();
+		LocalDateTime endDateTime = endInstant.atZone(ZoneId.systemDefault()).toLocalDateTime();
 
 		List<TicketTransaction> ticketRewardTxs = ticketTransactionRepository
 			.findByUserIdAndAmountAndCreatedAtBetween(userId, TICKET_REWARD_AMOUNT, startDateTime, endDateTime);
@@ -821,10 +849,11 @@ public class StreakService {
 
 	@Transactional
 	public UserStudyReport recalculateUserStudyReport(String userId) {
+		studyReportLock.lock(userId);
 		LocalDate today = getKstToday();
 
 		// UserStudyReport 가져오기 (없으면 새로 생성)
-		UserStudyReport report = userStudyReportRepository.findByUserId(userId)
+		UserStudyReport report = userStudyReportRepository.findForUpdate(userId)
 			.orElseGet(() -> createNewUserStudyReport(userId));
 
 		// 모든 DailyCompletion 가져오기 (날짜 순으로 정렬)
@@ -921,6 +950,7 @@ public class StreakService {
 
 	@Transactional
 	public void recoverStreak(String userId, LocalDate startDate, LocalDate endDate) {
+		studyReportLock.lock(userId);
 		LocalDate today = getKstToday();
 
 		// 복구 범위 검증
@@ -932,7 +962,7 @@ public class StreakService {
 		}
 
 		// 복구 전 프리즈 개수 저장
-		UserStudyReport beforeReport = userStudyReportRepository.findByUserId(userId).orElse(null);
+		UserStudyReport beforeReport = userStudyReportRepository.findForUpdate(userId).orElse(null);
 		int freezesBeforeRecovery = beforeReport != null && beforeReport.getAvailableFreezes() != null
 				? beforeReport.getAvailableFreezes() : 0;
 
@@ -952,8 +982,9 @@ public class StreakService {
 				if (existing.getStreakStatus() == StreakStatus.FREEZE_USED) {
 					// 프리즈 보상
 					FreezeTransaction rewardTx = FreezeTransaction.builder()
-						.userId(userId)
+						.userId(Long.valueOf(userId))
 						.amount(1)
+						.effectiveDate(date)
 						.description("Streak recovery compensation for " + date)
 						.createdAt(Instant.now())
 						.build();
@@ -972,7 +1003,7 @@ public class StreakService {
 			else {
 				// 레코드 없음 (MISSED) → 새로 생성
 				DailyCompletion newCompletion = DailyCompletion.builder()
-					.userId(userId)
+					.userId(Long.valueOf(userId))
 					.completionDate(date)
 					.streakStatus(StreakStatus.COMPLETED)
 					.streakCount(null) // 나중에 재계산
@@ -1019,8 +1050,9 @@ public class StreakService {
 
 						// 프리즈 사용
 						FreezeTransaction usageTx = FreezeTransaction.builder()
-							.userId(userId)
+							.userId(Long.valueOf(userId))
 							.amount(-1)
+							.effectiveDate(currentDate)
 							.description("Auto-consumed for recovery on " + currentDate)
 							.createdAt(Instant.now())
 							.build();
@@ -1044,7 +1076,7 @@ public class StreakService {
 				// 레코드 없음 (MISSED) - 프리즈로 커버 시도
 				if (availableFreezes > 0) {
 					DailyCompletion newFreezeCompletion = DailyCompletion.builder()
-						.userId(userId)
+						.userId(Long.valueOf(userId))
 						.completionDate(currentDate)
 						.streakStatus(StreakStatus.FREEZE_USED)
 						.streakCount(null) // 재계산 예정
@@ -1057,7 +1089,7 @@ public class StreakService {
 
 					// 프리즈 사용
 					FreezeTransaction usageTx = FreezeTransaction.builder()
-						.userId(userId)
+						.userId(Long.valueOf(userId))
 						.amount(-1)
 						.description("Auto-consumed for recovery on " + currentDate)
 						.createdAt(Instant.now())
@@ -1097,6 +1129,14 @@ public class StreakService {
 
 		// 최종 프리즈 = 복구 전 + 획득 - 사용 (최대 MAX_FREEZE_COUNT)
 		int finalFreezes = Math.min(MAX_FREEZE_COUNT, freezesBeforeRecovery + availableFreezes);
+		int overflow = freezesBeforeRecovery + availableFreezes - finalFreezes;
+		if (overflow > 0) {
+			freezeTransactionRepository.save(FreezeTransaction.builder()
+				.userId(Long.valueOf(userId))
+				.amount(-overflow)
+				.description("Recovery freeze balance capped at " + MAX_FREEZE_COUNT)
+				.build());
+		}
 		finalReport.setAvailableFreezes(finalFreezes);
 		userStudyReportRepository.save(finalReport);
 
@@ -1108,6 +1148,7 @@ public class StreakService {
 
 	@Transactional
 	public void recalculateAllStreakCounts(String userId, LocalDate recoveryStartDate) {
+		studyReportLock.lock(userId);
 		// 복구 시작일 전날의 streakCount를 기준값으로 가져오기
 		LocalDate dayBeforeStart = recoveryStartDate.minusDays(1);
 		int baseStreakCount = dailyCompletionRepository.findByUserIdAndCompletionDate(userId, dayBeforeStart)

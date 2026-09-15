@@ -24,7 +24,8 @@
 
 ## 외부 시스템 의존성
 
-- MongoDB: 단어 본문, variant, invalid cache 저장
+- MySQL: 단어 본문, variant, invalid cache, 사용자별 북마크를 모두 저장. 북마크는 단어 본문과 FK로 연결하지 않고 원형 문자열을 저장
+- Redis: single-flight 분산 락(Redisson) 및 완료 신호 pubsub
 - AI Model: 새 단어 분석과 생성 요청
 
 ```mermaid
@@ -36,7 +37,7 @@ flowchart TD
     VariantRepo[WordVariantRepository]
     WordRepo[WordRepository]
     InvalidRepo[InvalidWordRepository]
-    Mongo[(MongoDB)]
+    MySQL[(MySQL)]
     Model[AI Model]
 
     Client --> Controller
@@ -46,9 +47,9 @@ flowchart TD
     Service --> InvalidRepo
     Service --> AI
     AI --> Model
-    VariantRepo --> Mongo
-    WordRepo --> Mongo
-    InvalidRepo --> Mongo
+    VariantRepo --> MySQL
+    WordRepo --> MySQL
+    InvalidRepo --> MySQL
 ```
 
 ## 핵심 기능
@@ -69,20 +70,20 @@ sequenceDiagram
     participant InvalidRepo
     participant WordAiService
     participant AI
-    participant Mongo
+    participant MySQL
 
     Client->>WordService: getOrCreateWords(word)
     WordService->>VariantRepo: findAllByWord(word)
     alt variant exists
         VariantRepo-->>WordService: variants
-        WordService->>Mongo: load original words
+        WordService->>MySQL: load original words
     else variant missing
         WordService->>InvalidRepo: findByWord(word)
         WordService->>WordAiService: analyzeWord(word, language)
         WordAiService->>AI: prompt + schema
         AI-->>WordAiService: analysis result
         WordAiService-->>WordService: validated results
-        WordService->>Mongo: save word + variants
+        WordService->>MySQL: save word + variants
     end
     WordService-->>Client: WordSearchResponse
 ```

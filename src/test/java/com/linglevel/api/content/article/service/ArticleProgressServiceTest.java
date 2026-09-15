@@ -50,6 +50,9 @@ class ArticleProgressServiceTest {
 	@Mock
 	private StreakService streakService;
 
+	@Mock
+	private com.linglevel.api.streak.service.StudyReportLock studyReportLock;
+
 	@InjectMocks
 	private ArticleProgressService articleProgressService;
 
@@ -60,26 +63,26 @@ class ArticleProgressServiceTest {
 	@DisplayName("오래된 Article 진행률 업데이트 시 V2 필드가 정상적으로 마이그레이션된다")
 	void updateProgress_shouldLazyMigrate_forOldData() {
 		// Given: 마이그레이션되지 않은(V2 필드가 null인) ArticleProgress 설정
-		String userId = "test-user";
-		String articleId = "test-article";
-		String chunkId = "test-chunk";
+		String userId = "1";
+		String articleId = "101";
+		String chunkId = "301";
 
 		// V2 필드가 null인 레거시 데이터
 		ArticleProgress legacyProgress = new ArticleProgress();
-		legacyProgress.setId("legacy-progress-id");
-		legacyProgress.setUserId(userId);
-		legacyProgress.setArticleId(articleId);
+		legacyProgress.setId(1L);
+		legacyProgress.setUserId(Long.valueOf(userId));
+		legacyProgress.setArticleId(Long.valueOf(articleId));
 		// legacyProgress.normalizedProgress is null
 		// legacyProgress.currentDifficultyLevel is null
 
 		ArticleChunk currentChunk = new ArticleChunk();
-		currentChunk.setId(chunkId);
-		currentChunk.setArticleId(articleId);
+		currentChunk.setId(Long.valueOf(chunkId));
+		currentChunk.setArticleId(Long.valueOf(articleId));
 		currentChunk.setChunkNumber(10);
 		currentChunk.setDifficultyLevel(DifficultyLevel.B1);
 
 		Article article = new Article();
-		article.setId(articleId);
+		article.setId(Long.valueOf(articleId));
 
 		ArticleProgressUpdateRequest request = new ArticleProgressUpdateRequest();
 		request.setChunkId(chunkId);
@@ -87,10 +90,10 @@ class ArticleProgressServiceTest {
 		// Mocking
 		when(articleService.existsById(articleId)).thenReturn(true);
 		when(articleService.findById(articleId)).thenReturn(article);
-		when(articleProgressRepository.findByUserIdAndArticleId(userId, articleId))
-			.thenReturn(Optional.of(legacyProgress));
+		when(articleProgressRepository.findForUpdate(userId, articleId)).thenReturn(Optional.of(legacyProgress));
 		when(articleChunkService.findById(chunkId)).thenReturn(currentChunk);
-		when(articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId, DifficultyLevel.B1)).thenReturn(100L);
+		when(articleChunkRepository.countByArticleIdAndDifficultyLevel(Long.valueOf(articleId), DifficultyLevel.B1))
+			.thenReturn(100L);
 		when(progressCalculationService.calculateNormalizedProgress(10, 100L)).thenReturn(10.0);
 
 		// When: 진행률 업데이트 호출
@@ -100,7 +103,7 @@ class ArticleProgressServiceTest {
 		verify(articleProgressRepository).save(articleProgressCaptor.capture());
 		ArticleProgress savedProgress = articleProgressCaptor.getValue();
 
-		assertThat(savedProgress.getId()).isEqualTo("legacy-progress-id");
+		assertThat(savedProgress.getId()).isEqualTo(1L);
 		assertThat(savedProgress.getNormalizedProgress()).isNotNull();
 		assertThat(savedProgress.getNormalizedProgress()).isEqualTo(10.0);
 		assertThat(savedProgress.getMaxNormalizedProgress()).isEqualTo(10.0);
