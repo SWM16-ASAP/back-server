@@ -25,6 +25,7 @@
 ## 외부 시스템 의존성
 
 - MongoDB: 단어 본문, variant, invalid cache 저장
+- MySQL: 사용자별 북마크. 단어 본문과 FK로 연결하지 않고 원형 문자열을 저장
 - AI Model: 새 단어 분석과 생성 요청
 
 ```mermaid
@@ -37,6 +38,7 @@ flowchart TD
     WordRepo[WordRepository]
     InvalidRepo[InvalidWordRepository]
     Mongo[(MongoDB)]
+    MySQL[(MySQL bookmarks)]
     Model[AI Model]
 
     Client --> Controller
@@ -45,6 +47,7 @@ flowchart TD
     Service --> WordRepo
     Service --> InvalidRepo
     Service --> AI
+    Service --> MySQL
     AI --> Model
     VariantRepo --> Mongo
     WordRepo --> Mongo

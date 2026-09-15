@@ -14,7 +14,8 @@
 
 ## 코드 작업 전 확인할 운영 포인트
 
-- 주요 데이터 저장소는 MongoDB이며, Redis는 rate limit, 짧은 상태, 분산 조정에 사용한다.
+- 사용자·티켓·콘텐츠 메타데이터·학습·북마크는 MySQL, 단어·본문·로그는 MongoDB를 사용한다. 나머지 모델의 배치는 [MySQL 재설계 문서](docs/architecture/mysql-first-redesign.md)를 따른다.
+- Redis는 rate limit, 짧은 상태, 분산 조정에 사용한다.
 - 단어 생성 경로는 Spring AI와 AWS Bedrock 호출 비용, 실패 재시도, 동시 요청 중복을 함께 고려해야 한다.
 - `word` 동적 생성 경로는 Redisson `RLock` 기반 single-flight 조정 흐름을 가진다.
 - 사용자 요청 경로에는 Bucket4j 기반 rate limiting이 적용될 수 있다.

@@ -1,6 +1,6 @@
 # MySQL 중심 신규 시스템 재설계 계획
 
-상태: 사용자·티켓·커스텀 콘텐츠·책·아티클·학습 이력 및 보상·독서 진행률 구현, 북마크 대기.
+상태: 계획한 사용자·티켓·커스텀 콘텐츠·책·아티클·학습 이력 및 보상·독서 진행률·북마크 전환 구현.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
 기존 운영 환경에 적용하려면 별도 데이터 마이그레이션이 필요하다.
@@ -15,7 +15,7 @@
 | 책·아티클 | Book, Chapter, Article | books, chapters, articles | 구현 완료. BIGINT ID, 책·챕터 FK와 챕터 번호 유니크 제약. 본문은 MongoDB에 유지 |
 | 학습 이력·보상 | DailyCompletion, UserStudyReport, FreezeTransaction | daily_completions, learning_completions, user_study_reports, freeze_transactions | 구현 완료. 완료 이력 분리, 사용자별 SQL 잠금, 일별 상태·스트릭·프리즈·티켓 보상 트랜잭션 처리 |
 | 독서 진행률 | BookProgress, ArticleProgress, CustomContentProgress | book_progress, book_chapter_progress, article_progress, custom_content_progress | 사용자·콘텐츠 유니크 제약, 챕터 진행률 행 분리, 학습 보상과 SQL 트랜잭션 통합 |
-| 북마크 | WordBookmark | word_bookmarks | 사용자·단어 조합의 유일성 유지. 단어 본문과는 독립적으로 관리 |
+| 북마크 | WordBookmark | word_bookmarks | 구현 완료. 사용자·원형 문자열 유니크 제약, SQL 검색·페이지네이션, 추가·삭제·토글 잠금 처리 |
 
 ## MongoDB에 남길 데이터
 
@@ -137,6 +137,24 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.content.*' --tests 'com.linglevel.api.streak.*' --tests 'com.linglevel.api.user.repository.*' --tests 'com.linglevel.api.user.ticket.*' --tests 'com.linglevel.api.common.mysql.*'
+./gradlew checkFormat
+```
+
+## 북마크 전환의 보장 범위
+
+- V8에서 `word_bookmarks`를 추가한다. PK와 사용자 FK는 BIGINT이며 API 북마크 ID는 숫자의 문자열 표현이다. 단어 ID 기반 토글의 입력은 계속 Mongo Word의 ObjectId다.
+- 사용자·원형 문자열 조합이 유일하다. 단어 문자열의 유일성은 binary collation으로 기존 Mongo의 정확한 문자열 식별을 유지한다. 목록 검색만 대소문자를 무시한다.
+- 북마크는 Mongo 단어 문서의 존재 여부에 종속되지 않는다. SQL에서 저장된 원형을 직접 검색·페이지 처리해 기존 Mongo 검색 1,000개 제한과 Mongo 장애 시 목록 조회 의존성을 제거했다. 검색은 문자 그대로의 포함 검색이며 `%`, `_`는 와일드카드로 취급하지 않는다.
+- 최신순은 `bookmarked_at DESC, id DESC`다. 같은 시각의 페이지 순서를 고정한다. 사용자별 최신 목록 인덱스는 추가했지만 포함 검색의 인덱스 효율과 부하 성능은 별도 측정이 필요하다.
+- AI/원형 조회를 담당하는 `BookmarkService`와 SQL 변경 전용 `BookmarkWriter`를 분리한다. 기본 API 경로는 원형 조회를 마친 뒤 SQL 트랜잭션을 시작한다. 외부 호출 실패 시 북마크는 변경하지 않는다.
+- Writer는 사용자 행을 먼저 잠근 후 북마크를 잠금 조회한다. 동시 추가는 하나만 성공하고 나머지는 기존 중복 오류(409)가 된다. 토글은 호출마다 한 번씩 반전한다. 토글은 재시도 멱등 API가 아니며 네트워크 재전송도 별도 반전으로 취급한다.
+- 삭제는 입력 문자열을 우선하고, 없으면 variant의 원형 후보를 순서대로 확인하는 정책을 유지한다. 사용자별 잠금은 학습 등 다른 사용자 행 잠금과도 경합할 수 있다.
+- Facade는 `NOT_SUPPORTED`로 호출자 트랜잭션을 중단하고 Writer는 자체 SQL 트랜잭션을 사용한다. 따라서 상위 호출자의 롤백으로 이미 완료한 북마크가 되돌아가지 않는다. 사용자 잠금을 이미 잡은 트랜잭션에서 Facade를 중첩 호출하는 용도로 사용하지 않는다.
+- 기존 관리자 `reset-and-normalize`의 북마크 갱신도 Writer를 통하도록 변경했다. 중복 여부 확인·삭제를 같은 트랜잭션으로 처리하며 SQL 제약 위반 후 같은 트랜잭션에서 복구하지 않는다. 이 API는 **Mongo 단어 전체 삭제와 AI 재생성을 포함하는 기존 운영 도구**이며, 이번 작업에서 실행하거나 안전한 데이터 마이그레이션 도구로 확장하지 않았다.
+- MySQL 컨테이너에서 동시 추가·토글, FK/유니크, 정확한 단어 구분, 검색·동률 페이지, SQL 롤백, 정규화 중복 처리를 검증한다. AI/Mongo는 대역이며 실 AI 비용·서비스 장애 복구는 범위 밖이다.
+
+```sh
+./gradlew test --tests 'com.linglevel.api.bookmark.*' --tests 'com.linglevel.api.word.service.WordServiceTest'
 ./gradlew checkFormat
 ```
 
