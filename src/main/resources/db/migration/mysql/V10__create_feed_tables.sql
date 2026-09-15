@@ -3,6 +3,7 @@ CREATE TABLE feeds (
     content_type VARCHAR(10) NOT NULL,
     title VARCHAR(500) NOT NULL,
     url VARCHAR(2048) NOT NULL,
+    url_hash CHAR(64) GENERATED ALWAYS AS (SHA2(url, 256)) STORED,
     thumbnail_url VARCHAR(2048) NULL,
     author VARCHAR(500) NULL,
     description TEXT NULL,
@@ -16,7 +17,7 @@ CREATE TABLE feeds (
     created_at DATETIME(6) NOT NULL,
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     deleted_at DATETIME(6) NULL,
-    CONSTRAINT uk_feeds_url UNIQUE (url(255)),
+    CONSTRAINT uk_feeds_url_hash UNIQUE (url_hash),
     INDEX idx_feeds_category (category),
     INDEX idx_feeds_published_at (published_at)
 ) ENGINE=InnoDB;
@@ -24,6 +25,7 @@ CREATE TABLE feeds (
 CREATE TABLE feed_sources (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     url VARCHAR(2048) NOT NULL,
+    url_hash CHAR(64) GENERATED ALWAYS AS (SHA2(url, 256)) STORED,
     domain VARCHAR(255) NULL,
     name VARCHAR(500) NOT NULL,
     cover_image_dsl TEXT NULL,
@@ -33,7 +35,7 @@ CREATE TABLE feed_sources (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
-    CONSTRAINT uk_feed_sources_url UNIQUE (url(255)),
+    CONSTRAINT uk_feed_sources_url_hash UNIQUE (url_hash),
     INDEX idx_feed_sources_category (category),
     INDEX idx_feed_sources_active (is_active)
 ) ENGINE=InnoDB;

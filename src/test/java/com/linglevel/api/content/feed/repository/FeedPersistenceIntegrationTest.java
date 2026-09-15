@@ -50,6 +50,17 @@ class FeedPersistenceIntegrationTest extends AbstractMysqlTest {
 	}
 
 	@Test
+	void feedUrlUniquenessCoversTheFullUrlNotJustA255CharPrefix() {
+		// uk_feeds_url_hash hashes the full url, so two URLs sharing a 255-char prefix
+		// must both save.
+		String sharedPrefix = "https://example.com/article?" + "a".repeat(250);
+		feeds.saveAndFlush(feed(sharedPrefix + "-one"));
+		Feed second = feeds.saveAndFlush(feed(sharedPrefix + "-two"));
+
+		assertThat(second.getId()).isNotNull();
+	}
+
+	@Test
 	void viewCountIncrementsAtomicallyByIdAndByUrl() {
 		Feed saved = feeds.saveAndFlush(feed("https://example.com/article-2"));
 		feeds.incrementViewCount(saved.getId().toString());
@@ -63,6 +74,15 @@ class FeedPersistenceIntegrationTest extends AbstractMysqlTest {
 		feedSources.saveAndFlush(feedSource("https://example.com/rss"));
 		assertThatThrownBy(() -> feedSources.saveAndFlush(feedSource("https://example.com/rss")))
 			.isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+	}
+
+	@Test
+	void feedSourceUrlUniquenessCoversTheFullUrlNotJustA255CharPrefix() {
+		String sharedPrefix = "https://example.com/rss?" + "b".repeat(250);
+		feedSources.saveAndFlush(feedSource(sharedPrefix + "-one"));
+		FeedSource second = feedSources.saveAndFlush(feedSource(sharedPrefix + "-two"));
+
+		assertThat(second.getId()).isNotNull();
 	}
 
 	@Test
