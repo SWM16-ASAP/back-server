@@ -1,8 +1,8 @@
 # MySQL 중심 신규 시스템 재설계 계획
 
 상태: MongoDB에 남아 있는 데이터 전체를 MySQL로 전환하는 것이 목표다. 사용자·티켓·커스텀 콘텐츠·책·아티클·학습
-이력 및 보상·독서 진행률·북마크·콘텐츠 본문·피드 및 추천·설정·인증(리프레시 토큰)·FCM 토큰 전환 구현 완료. 남은
-도메인(단어, 로그)은 순차적으로 전환한다.
+이력 및 보상·독서 진행률·북마크·콘텐츠 본문·피드 및 추천·설정·인증(리프레시 토큰)·FCM 토큰·단어(Word/WordVariant
+/InvalidWord) 전환 구현 완료. 남은 도메인(로그)은 순차적으로 전환한다.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
 기존 운영 환경에 적용하려면 별도 데이터 마이그레이션이 필요하다.
@@ -22,12 +22,12 @@
 | 피드·추천 | Feed, FeedSource, UserCategoryPreference | feeds, feed_sources, user_category_preferences | 구현 완료. `Feed`·`FeedSource`의 URL 유일성은 접두 유니크 인덱스로 유지. `UserCategoryPreference.userId`는 BIGINT로 전환하고 `users` FK를 추가. 점수·카운트 맵은 JSON 컬럼으로 보존 |
 | 설정 | CrawlingDsl, ContentBanner, AppVersion | crawling_dsl, content_banners, app_version | 구현 완료. `ContentBanner.content_id`는 Book/Article/CustomContent를 가리키는 다형적 참조라 FK 없이 BIGINT로만 전환(기존 학습 이력의 다형적 참조와 동일한 패턴). `AppVersion`은 단일 설정 로우로 `updated_at` 내림차순 첫 행 조회 방식을 그대로 유지 |
 | 인증·알림 | RefreshToken, FcmToken | refresh_tokens, fcm_tokens | 구현 완료. 두 Mongo TTL 인덱스(즉시 만료 삭제, 90일 미갱신 삭제)를 대체하는 일일 정리 스케줄러를 신규 추가했다. `users` FK를 걸고 `userId`는 BIGINT로 전환 |
+| 단어 | Word, WordVariant, InvalidWord | words, word_variants, invalid_words | 구현 완료. 임베딩된 AI 분석 결과(`meanings`, `relatedForms`, `summary`)는 JSON 컬럼으로 보존. `word` 관련 컬럼은 `word_bookmarks`와 동일한 `utf8mb4_0900_bin`(binary, 대소문자 구분) 컬레이션 적용. 동시 저장 경합 복구 로직을 Mongo `DuplicateKeyException`에서 JPA `DataIntegrityViolationException` + `EntityManager.clear()`로 이식 |
 
 ## 남은 MongoDB 데이터
 
 | 기존 모델 | 방향 |
 | --- | --- |
-| Word, WordVariant, InvalidWord | 단어 조회·생성 도메인 전환 예정. 원형·변형 관계와 조회 쿼리 재설계, 기존 single-flight·실패 처리 동작 유지 필요 |
 | ContentAccessLog | 조회 인덱스·보존 정책을 검토해 전환 예정. `UserCategoryPreference` 집계의 입력 소스이므로 스케줄러의 `userId` 문자열↔BIGINT 경계에 유의 |
 
 ## 나머지 모델
@@ -217,6 +217,23 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.common.auth.*' --tests 'com.linglevel.api.fcm.*' --tests 'com.linglevel.api.streak.scheduler.*' --tests 'com.linglevel.api.admin.*'
+./gradlew checkFormat
+```
+
+## 단어 전환의 보장 범위
+
+- V13에서 `words`, `word_variants`, `invalid_words`를 추가한다. PK는 BIGINT 자동 증가다. `Word`의 기존 복합 유니크 인덱스(`word`+`targetLanguageCode`+`sourceLanguageCode`)와 `WordVariant`의 복합 유니크 인덱스(`word`+`originalForm`), `InvalidWord`의 단일 유니크 인덱스(`word`)를 그대로 옮겼다.
+- `word`/`word_variants.word`/`word_variants.original_form`/`invalid_words.word` 컬럼은 `word_bookmarks.word`와 동일하게 `utf8mb4_0900_bin`(binary, 대소문자 구분) 컬레이션을 적용했다 — 사용자 입력은 `WordValidator`가 항상 소문자로 정규화하지만, AI가 반환하는 `originalForm`/변형 형태는 검증을 거치지 않으므로 대소문자를 그대로 보존해야 하는 기존 동작을 유지한다.
+- `Word.meanings`(품사별 의미 목록), `Word.relatedForms`(활용형/비교급/복수형), `Word.summary`는 관계형으로 쪼갤 필요가 없는 AI 산출물이라 JSON 컬럼으로 그대로 저장한다 — 다른 도메인에서 이 하위 필드로 SQL 조회하는 곳이 없음을 확인했다.
+- **가장 중요한 변경**: `WordPersistenceService`는 동시 저장 경합(같은 단어를 두 leader가 거의 동시에 분석·저장하는 레이스, ADR-011에서 명시적으로 허용한 시나리오)을 감지하면 저장을 재시도하지 않고 이미 커밋된 행을 재조회해 반환하는 방식으로 요청 실패를 막는다. Mongo에서는 `DuplicateKeyException`을 잡아 처리했지만, JPA/Hibernate에서 유니크 제약 위반은 `DataIntegrityViolationException`으로 변환되어 던져진다 — 예외 타입만 바꾸는 게 아니라, **IDENTITY 전략은 `save()` 시점에 즉시 INSERT를 실행하므로 실패한 엔티티가 영속성 컨텍스트에 남아 있으면 이후 같은 트랜잭션에서 실행하는 복구 조회(SELECT)가 Hibernate의 "don't flush the Session after an exception occurs" 어서션에 걸려 죽는다.** 이를 막기 위해 각 복구 지점에서 예외를 잡은 직후 `EntityManager.clear()`로 영속성 컨텍스트를 비우고 나서 재조회하도록 했다. 이 경로는 목(mock) 테스트로는 재현되지 않아 실제 MySQL 컨테이너 기반 통합 테스트(`WordPersistenceIntegrationTest`)로 별도 검증했다.
+- 이번 전환 대상은 아니지만 같은 파일에 있던 `WordRepository.findByWordContainingIgnoreCase`(Mongo 정규식 검색)는 실제 호출부가 전혀 없는 죽은 코드였음을 확인하고 제거했다.
+- `BookmarkService.toggleWordBookmarkById`(`PUT /api/v1/bookmarks/by-id/{wordId}/toggle`)와 `Oxford3000Service.updateEssentialStatus`(`PATCH /api/v1/admin/words/{wordId}/essential`)는 Mongo ObjectId 문자열을 그대로 받아 `findById`하던 유일한 두 지점이다. 신규 시스템 기준 전환이라 기존 ObjectId를 유지해야 할 이유가 없으므로, 다른 도메인과 동일하게 "API는 문자열 ID 유지, 내부적으로 `Long.valueOf`" 패턴만 적용했다 — 별도의 ID 재매핑은 하지 않는다.
+- `WordSingleFlightRedisCoordinator`는 `Word`/`WordVariant`를 제네릭 `TypeReference<T>`로 Jackson 직렬화해 Redis pubsub으로 전달한다 — 엔티티 PK 타입이 String에서 Long으로 바뀌어도 이 직렬화 경로는 코드 변경 없이 그대로 동작한다(필드 타입 변화는 Jackson이 투명하게 처리).
+- `BookmarkMigrationController.resetAndNormalizeBookmarks`(운영용 일회성 마이그레이션 도구)는 `wordRepository.deleteAll()`/`wordVariantRepository.deleteAll()`과 `WordService.getOrCreateWords`만 사용해 문자열 기반으로 동작하므로 저장소 교체 후에도 코드 변경 없이 그대로 동작한다.
+- 이 도메인은 이미 존재하던 테스트가 매우 두꺼웠다(single-flight 동시성, AI 실패/타임아웃, invalid-word 3회 유예, 중복 키 복구 등). 기존 단위 테스트는 리포지토리 시그니처 변경(생성자에 `EntityManager` 추가, ID 타입)만 맞춰 수정했고, 동시 저장 경합 복구는 새 통합 테스트로 실제 MySQL에 대해 별도 검증했다.
+
+```sh
+./gradlew test --tests 'com.linglevel.api.word.*' --tests 'com.linglevel.api.bookmark.*' --tests 'com.linglevel.api.admin.*'
 ./gradlew checkFormat
 ```
 

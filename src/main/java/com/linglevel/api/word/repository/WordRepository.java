@@ -2,20 +2,17 @@ package com.linglevel.api.word.repository;
 
 import com.linglevel.api.i18n.LanguageCode;
 import com.linglevel.api.word.entity.Word;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface WordRepository extends MongoRepository<Word, String> {
+public interface WordRepository extends JpaRepository<Word, Long> {
 
 	/**
-	 * 단어와 언어 쌍으로 검색 같은 단어도 언어 쌍별로 다른 Word 문서가 존재할 수 있음
+	 * 단어와 언어 쌍으로 검색 같은 단어도 언어 쌍별로 다른 Word 행이 존재할 수 있음
 	 */
 	Optional<Word> findByWordAndSourceLanguageCodeAndTargetLanguageCode(String word, LanguageCode sourceLanguageCode,
 			LanguageCode targetLanguageCode);
@@ -25,9 +22,6 @@ public interface WordRepository extends MongoRepository<Word, String> {
 	 * "run"은 항상 EN)
 	 */
 	Optional<Word> findByWordAndTargetLanguageCode(String word, LanguageCode targetLanguageCode);
-
-	@Query("{'word': {$regex: ?0, $options: 'i'}}")
-	Page<Word> findByWordContainingIgnoreCase(String word, Pageable pageable);
 
 	/**
 	 * isEssential 필드로 필터링
@@ -43,5 +37,11 @@ public interface WordRepository extends MongoRepository<Word, String> {
 	 * 필수 단어 중 특정 target 언어로 필터링
 	 */
 	List<Word> findAllByIsEssentialAndTargetLanguageCode(Boolean isEssential, LanguageCode targetLanguageCode);
+
+	Optional<Word> findById(Long id);
+
+	default Optional<Word> findById(String id) {
+		return findById(Long.valueOf(id));
+	}
 
 }

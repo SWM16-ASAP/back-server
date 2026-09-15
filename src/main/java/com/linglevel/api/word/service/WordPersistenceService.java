@@ -12,7 +12,8 @@ import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
+import jakarta.persistence.EntityManager;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,8 @@ public class WordPersistenceService {
 	private final WordVariantRepository wordVariantRepository;
 
 	private final InvalidWordRepository invalidWordRepository;
+
+	private final EntityManager entityManager;
 
 	@Transactional
 	public List<WordVariant> saveAnalysisResults(String word, List<WordAnalysisResult> analysisResults,
@@ -73,7 +76,8 @@ public class WordPersistenceService {
 		try {
 			return wordRepository.save(newWord);
 		}
-		catch (DuplicateKeyException e) {
+		catch (DataIntegrityViolationException e) {
+			entityManager.clear();
 			return findPersistedWord(analysisResult).orElseThrow(() -> e);
 		}
 	}
@@ -104,7 +108,8 @@ public class WordPersistenceService {
 			saveWordVariants(savedWord);
 			return savedWord;
 		}
-		catch (DuplicateKeyException e) {
+		catch (DataIntegrityViolationException e) {
+			entityManager.clear();
 			return findPersistedWord(analysisResult).orElseThrow(() -> e);
 		}
 	}
@@ -190,7 +195,8 @@ public class WordPersistenceService {
 		try {
 			return wordVariantRepository.save(variant);
 		}
-		catch (DuplicateKeyException e) {
+		catch (DataIntegrityViolationException e) {
+			entityManager.clear();
 			return wordVariantRepository.findByWordAndOriginalForm(variant.getWord(), variant.getOriginalForm())
 				.orElseThrow(() -> e);
 		}

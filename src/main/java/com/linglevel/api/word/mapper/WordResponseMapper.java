@@ -14,7 +14,7 @@ public class WordResponseMapper {
 	public WordResponse toWordResponse(Word word, boolean bookmarked, List<VariantType> variantTypes,
 			String originalForm) {
 		return WordResponse.builder()
-			.id(word.getId())
+			.id(word.getId() == null ? null : word.getId().toString())
 			.originalForm(originalForm)
 			.variantTypes(variantTypes)
 			.sourceLanguageCode(word.getSourceLanguageCode())

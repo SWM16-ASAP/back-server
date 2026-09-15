@@ -15,6 +15,7 @@ import com.linglevel.api.word.model.RelatedForms;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 
 import java.util.List;
 import java.util.Optional;
@@ -61,6 +61,9 @@ class WordServiceTest {
 	@Mock
 	private WordGenerationMetrics wordGenerationMetrics;
 
+	@Mock
+	private EntityManager entityManager;
+
 	private WordService wordService;
 
 	private WordPersistenceService wordPersistenceService;
@@ -74,7 +77,7 @@ class WordServiceTest {
 	@BeforeEach
 	void setUp() {
 		wordPersistenceService = new WordPersistenceService(wordRepository, wordVariantRepository,
-				invalidWordRepository);
+				invalidWordRepository, entityManager);
 		lenient().when(wordVariantRepository.save(any(WordVariant.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 		wordResponseMapper = new WordResponseMapper();
@@ -98,7 +101,7 @@ class WordServiceTest {
 
 		// 샘플 Word 데이터 생성
 		sampleWord = Word.builder()
-			.id("word-123")
+			.id(123L)
 			.word("run")
 			.sourceLanguageCode(LanguageCode.EN)
 			.targetLanguageCode(LanguageCode.KO)
@@ -293,7 +296,7 @@ class WordServiceTest {
 			.meanings(sampleWord.getMeanings())
 			.build();
 
-		when(wordRepository.save(any(Word.class))).thenThrow(new DuplicateKeyException("duplicate word"));
+		when(wordRepository.save(any(Word.class))).thenThrow(new DataIntegrityViolationException("duplicate word"));
 		when(wordRepository.findByWordAndSourceLanguageCodeAndTargetLanguageCode(sampleWord.getWord(), LanguageCode.EN,
 				LanguageCode.KO))
 			.thenReturn(Optional.of(sampleWord));
@@ -326,7 +329,7 @@ class WordServiceTest {
 		when(wordVariantRepository.findByWordAndOriginalForm("running", sampleWord.getWord()))
 			.thenReturn(Optional.empty(), Optional.of(persistedVariant));
 		when(wordVariantRepository.save(any(WordVariant.class)))
-			.thenThrow(new DuplicateKeyException("duplicate variant"));
+			.thenThrow(new DataIntegrityViolationException("duplicate variant"));
 
 		List<WordVariant> result = wordPersistenceService.saveAnalysisResults("running", List.of(analysisResult),
 				Optional.empty());
