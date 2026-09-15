@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -105,6 +106,7 @@ public class FcmTokenService {
 	/**
 	 * 특정 사용자의 모든 FCM 토큰을 비활성화합니다. 전체 로그아웃 또는 계정 삭제 시 사용됩니다.
 	 */
+	@Transactional
 	public void deactivateAllTokens(String userId) {
 		try {
 			List<FcmToken> tokens = fcmTokenRepository.findByUserIdAndIsActive(userId, true);
@@ -128,6 +130,7 @@ public class FcmTokenService {
 		}
 	}
 
+	@Transactional
 	public FcmTokenUpsertResult upsertFcmToken(String userId, FcmTokenUpsertRequest request) {
 		try {
 			// FCM 토큰 유효성 검증
