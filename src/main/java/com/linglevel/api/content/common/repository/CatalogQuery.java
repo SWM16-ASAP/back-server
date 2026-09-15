@@ -1,6 +1,7 @@
 package com.linglevel.api.content.common.repository;
 
 import jakarta.persistence.EntityManager;
+import com.linglevel.api.content.common.ProgressStatus;
 import org.springframework.data.domain.*;
 import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
@@ -74,15 +75,25 @@ public final class CatalogQuery {
 		return this;
 	}
 
-	public CatalogQuery ids(List<Long> ids, boolean exclude) {
-		if (ids.isEmpty()) {
-			if (!exclude)
-				where.append(" and 1 = 0");
-		}
-		else {
-			where.append(exclude ? " and c.id not in :ids" : " and c.id in :ids");
-			parameters.put("ids", ids);
-		}
+	public CatalogQuery progress(String entity, String contentField, Long userId, ProgressStatus status) {
+		boolean book = entity.equals("BookProgress");
+		String started = book
+				? "(p.isCompleted = true or p.normalizedProgress > 0 or exists (select cp.id from BookChapterProgress cp where cp.bookProgress = p and cp.isCompleted = false and cp.progressPercentage > 0))"
+				: "p.normalizedProgress > 0";
+		String condition = switch (status) {
+			case COMPLETED -> " and p.isCompleted = true";
+			case IN_PROGRESS -> " and p.isCompleted = false and " + started;
+			case NOT_STARTED -> book ? " and " + started : "";
+		};
+		where.append(status == ProgressStatus.NOT_STARTED ? " and not exists (" : " and exists (")
+			.append("select p.id from ")
+			.append(entity)
+			.append(" p where p.")
+			.append(contentField)
+			.append(" = c.id and p.userId = :progressUserId")
+			.append(condition)
+			.append(")");
+		parameters.put("progressUserId", userId);
 		return this;
 	}
 

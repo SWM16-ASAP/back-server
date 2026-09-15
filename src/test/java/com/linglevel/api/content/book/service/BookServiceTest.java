@@ -438,8 +438,8 @@ class BookServiceTest {
 
 	private BookProgress createBookProgress(String userId, String bookId, boolean isCompleted) {
 		BookProgress progress = new BookProgress();
-		progress.setUserId(userId);
-		progress.setBookId(bookId);
+		progress.setUserId(Long.valueOf(userId));
+		progress.setBookId(Long.valueOf(bookId));
 		progress.setCurrentReadChapterNumber(isCompleted ? 20 : 10);
 		progress.setMaxReadChapterNumber(isCompleted ? 20 : 10);
 		progress.setNormalizedProgress(isCompleted ? 100.0 : 50.0);

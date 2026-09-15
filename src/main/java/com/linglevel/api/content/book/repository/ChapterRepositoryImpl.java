@@ -1,12 +1,10 @@
 package com.linglevel.api.content.book.repository;
 
 import com.linglevel.api.content.book.dto.GetChaptersRequest;
-import com.linglevel.api.content.book.entity.BookProgress;
 import com.linglevel.api.content.book.entity.Chapter;
 import com.linglevel.api.content.common.ProgressStatus;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -16,8 +14,6 @@ public class ChapterRepositoryImpl implements ChapterRepositoryCustom {
 
 	private final EntityManager entityManager;
 
-	private final ObjectProvider<BookProgressRepository> progressRepository;
-
 	@Override
 	@Transactional(readOnly = true)
 	public Page<Chapter> findChaptersWithFilters(String bookId, GetChaptersRequest request, String userId,
@@ -26,26 +22,15 @@ public class ChapterRepositoryImpl implements ChapterRepositoryCustom {
 		Map<String, Object> params = new HashMap<>();
 		params.put("bookId", Long.valueOf(bookId));
 		if (userId != null && request.getProgress() != null) {
-			BookProgress progress = progressRepository.getObject().findByUserIdAndBookId(userId, bookId).orElse(null);
-			List<BookProgress.ChapterProgressInfo> infos = progress == null || progress.getChapterProgresses() == null
-					? List.of() : progress.getChapterProgresses();
-			List<Integer> numbers = infos.stream().filter(info -> {
-				boolean complete = Boolean.TRUE.equals(info.getIsCompleted());
-				boolean started = complete
-						|| (info.getProgressPercentage() != null && info.getProgressPercentage() > 0);
-				return switch (request.getProgress()) {
-					case COMPLETED -> complete;
-					case IN_PROGRESS -> started && !complete;
-					case NOT_STARTED -> started;
-				};
-			}).map(BookProgress.ChapterProgressInfo::getChapterNumber).distinct().toList();
-			boolean exclude = request.getProgress() == ProgressStatus.NOT_STARTED;
-			if (numbers.isEmpty() && !exclude)
-				return Page.empty(pageable);
-			if (!numbers.isEmpty()) {
-				where += exclude ? " and c.chapterNumber not in :numbers" : " and c.chapterNumber in :numbers";
-				params.put("numbers", numbers);
-			}
+			String condition = switch (request.getProgress()) {
+				case COMPLETED -> "cp.isCompleted = true";
+				case IN_PROGRESS -> "cp.isCompleted = false and cp.progressPercentage > 0";
+				case NOT_STARTED -> "(cp.isCompleted = true or cp.progressPercentage > 0)";
+			};
+			where += request.getProgress() == ProgressStatus.NOT_STARTED ? " and not exists (" : " and exists (";
+			where += "select cp.id from BookChapterProgress cp join cp.bookProgress p where p.bookId = c.bookId and p.userId = :userId and cp.chapterNumber = c.chapterNumber and "
+					+ condition + ")";
+			params.put("userId", Long.valueOf(userId));
 		}
 		List<String> orders = new ArrayList<>();
 		pageable.getSort().forEach(order -> {

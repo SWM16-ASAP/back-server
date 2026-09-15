@@ -106,8 +106,8 @@ class ChapterServiceTest {
 		Page<Chapter> chapterPage = new PageImpl<>(chapters, PageRequest.of(0, 3), 5);
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId().toString());
-		progress.setBookId(testBook.getId().toString());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setChunkId("test-chunk-id");
 		progress.setCurrentReadChapterNumber(5);
 		progress.setMaxReadChapterNumber(5);
@@ -142,8 +142,8 @@ class ChapterServiceTest {
 		Page<Chapter> chapterPage = new PageImpl<>(chapters, PageRequest.of(0, 10), 1);
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId().toString());
-		progress.setBookId(testBook.getId().toString());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setChunkId("test-chunk-id");
 		progress.setCurrentReadChapterNumber(5);
 		progress.setMaxReadChapterNumber(5);
@@ -178,8 +178,8 @@ class ChapterServiceTest {
 		Page<Chapter> chapterPage = new PageImpl<>(chapters, PageRequest.of(0, 2), 4);
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId().toString());
-		progress.setBookId(testBook.getId().toString());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setChunkId("test-chunk-id");
 		progress.setCurrentReadChapterNumber(5);
 		progress.setMaxReadChapterNumber(5);
@@ -232,8 +232,8 @@ class ChapterServiceTest {
 		Chapter chapter = createChapter(testBook.getId().toString(), 2, "Chapter 2");
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId().toString());
-		progress.setBookId(testBook.getId().toString());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setCurrentDifficultyLevel(DifficultyLevel.B1);
 		progress.setChapterProgresses(List.of(BookProgress.ChapterProgressInfo.builder()
 			.chapterNumber(2)
@@ -267,8 +267,8 @@ class ChapterServiceTest {
 		Chapter chapter = createChapter(testBook.getId().toString(), 2, "Chapter 2");
 
 		BookProgress progress = new BookProgress();
-		progress.setUserId(testUser.getId().toString());
-		progress.setBookId(testBook.getId().toString());
+		progress.setUserId(Long.valueOf(testUser.getId().toString()));
+		progress.setBookId(Long.valueOf(testBook.getId().toString()));
 		progress.setCurrentDifficultyLevel(DifficultyLevel.B1);
 		progress.setChapterProgresses(null);
 

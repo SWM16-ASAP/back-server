@@ -44,6 +44,7 @@ public class ChapterService {
 
 	private final BookRepository bookRepository;
 
+	@org.springframework.transaction.annotation.Transactional
 	public PageResponse<ChapterResponse> getChapters(String bookId, GetChaptersRequest request, String userId) {
 		Book book = bookService.findById(bookId);
 
@@ -77,6 +78,7 @@ public class ChapterService {
 		return new PageResponse<>(chapterResponses, chapterPage);
 	}
 
+	@org.springframework.transaction.annotation.Transactional(readOnly = true)
 	public ChapterResponse getChapter(String bookId, String chapterId, String userId) {
 		Book book = bookService.findById(bookId);
 

@@ -151,31 +151,38 @@ class CatalogPersistenceIntegrationTest extends AbstractCatalogTest {
 
 	@Test
 	void articleProgressUsesStoredNormalizedProgressAndUserScope() {
+		String userId = users
+			.saveAndFlush(com.linglevel.api.user.entity.User.builder()
+				.username("reader")
+				.role(com.linglevel.api.user.entity.UserRole.USER)
+				.build())
+			.getId()
+			.toString();
 		Article unread = articles.save(article("Unread"));
 		Article reading = articles.save(article("Reading"));
 		Article complete = articles.save(article("Complete"));
 		ArticleProgress p = new ArticleProgress();
-		p.setUserId("1");
-		p.setArticleId(reading.getId().toString());
+		p.setUserId(Long.valueOf(userId));
+		p.setArticleId(Long.valueOf(reading.getId().toString()));
 		p.setNormalizedProgress(30.0);
 		progress.save(p);
 		ArticleProgress done = new ArticleProgress();
-		done.setUserId("1");
-		done.setArticleId(complete.getId().toString());
+		done.setUserId(Long.valueOf(userId));
+		done.setArticleId(Long.valueOf(complete.getId().toString()));
 		done.setIsCompleted(true);
 		progress.save(done);
 		GetArticlesRequest request = new GetArticlesRequest();
 		request.setProgress(ProgressStatus.IN_PROGRESS);
-		assertThat(articles.findArticlesWithFilters(request, "1", page())).extracting(Article::getId)
+		assertThat(articles.findArticlesWithFilters(request, userId, page())).extracting(Article::getId)
 			.containsExactly(reading.getId());
-		assertThat(articles.findArticlesWithFilters(request, "2", page())).isEmpty();
+		assertThat(articles.findArticlesWithFilters(request, "999999", page())).isEmpty();
 		request.setProgress(ProgressStatus.COMPLETED);
-		assertThat(articles.findArticlesWithFilters(request, "1", page())).extracting(Article::getId)
+		assertThat(articles.findArticlesWithFilters(request, userId, page())).extracting(Article::getId)
 			.containsExactly(complete.getId());
 		request.setProgress(ProgressStatus.NOT_STARTED);
-		assertThat(articles.findArticlesWithFilters(request, "1", page())).extracting(Article::getId)
+		assertThat(articles.findArticlesWithFilters(request, userId, page())).extracting(Article::getId)
 			.containsExactly(unread.getId());
-		assertThat(articles.findArticlesWithFilters(request, "2", page()).getTotalElements()).isEqualTo(3);
+		assertThat(articles.findArticlesWithFilters(request, "999999", page()).getTotalElements()).isEqualTo(3);
 	}
 
 	@Test
@@ -190,6 +197,9 @@ class CatalogPersistenceIntegrationTest extends AbstractCatalogTest {
 		assertThat(books.findById(b.getId()).orElseThrow().getViewCount()).isEqualTo(3);
 		assertThat(articles.findById(a.getId()).orElseThrow().getViewCount()).isEqualTo(3);
 	}
+
+	@Autowired
+	private com.linglevel.api.user.repository.UserRepository users;
 
 	private Pageable page() {
 		return PageRequest.of(0, 20, Sort.by("createdAt").descending());

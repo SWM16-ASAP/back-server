@@ -46,7 +46,7 @@ class CustomContentRepositoryTest extends AbstractMysqlTest {
 	@Autowired
 	private UserCustomContentRepository userCustomContentRepository;
 
-	@MockitoBean
+	@Autowired
 	private CustomContentProgressRepository customContentProgressRepository;
 
 	@Autowired
@@ -325,14 +325,13 @@ class CustomContentRepositoryTest extends AbstractMysqlTest {
 	void findCustomContentsByUserWithFilters_shouldFilterByProgressStatus_InProgress() {
 		// Given - content2에 진행 중인 progress 추가
 		CustomContentProgress progress = new CustomContentProgress();
-		progress.setUserId(testUserId);
-		progress.setCustomId(content2.getId().toString());
+		progress.setUserId(Long.valueOf(testUserId));
+		progress.setCustomId(Long.valueOf(content2.getId().toString()));
 		progress.setChunkId("chunk-1");
 		progress.setNormalizedProgress(10.0);
 		progress.setCurrentDifficultyLevel(DifficultyLevel.B1);
 		progress.setIsCompleted(false);
-		org.mockito.Mockito.when(customContentProgressRepository.findAllByUserId(testUserId))
-			.thenReturn(List.of(progress));
+		customContentProgressRepository.saveAndFlush(progress);
 
 		GetCustomContentsRequest request = new GetCustomContentsRequest();
 		request.setPage(1);
@@ -356,15 +355,14 @@ class CustomContentRepositoryTest extends AbstractMysqlTest {
 	void findCustomContentsByUserWithFilters_shouldFilterByProgressStatus_Completed() {
 		// Given - content1을 완료 상태로 설정
 		CustomContentProgress progress = new CustomContentProgress();
-		progress.setUserId(testUserId);
-		progress.setCustomId(content1.getId().toString());
+		progress.setUserId(Long.valueOf(testUserId));
+		progress.setCustomId(Long.valueOf(content1.getId().toString()));
 		progress.setChunkId("chunk-50");
 		progress.setNormalizedProgress(100.0);
 		progress.setCurrentDifficultyLevel(DifficultyLevel.A2);
 		progress.setIsCompleted(true);
 		progress.setCompletedAt(Instant.now());
-		org.mockito.Mockito.when(customContentProgressRepository.findAllByUserId(testUserId))
-			.thenReturn(List.of(progress));
+		customContentProgressRepository.saveAndFlush(progress);
 
 		GetCustomContentsRequest request = new GetCustomContentsRequest();
 		request.setPage(1);
@@ -388,14 +386,13 @@ class CustomContentRepositoryTest extends AbstractMysqlTest {
 	void findCustomContentsByUserWithFilters_shouldFilterByProgressStatus_NotStarted() {
 		// Given - content1에만 progress 추가
 		CustomContentProgress progress = new CustomContentProgress();
-		progress.setUserId(testUserId);
-		progress.setCustomId(content1.getId().toString());
+		progress.setUserId(Long.valueOf(testUserId));
+		progress.setCustomId(Long.valueOf(content1.getId().toString()));
 		progress.setChunkId("chunk-1");
 		progress.setNormalizedProgress(2.0);
 		progress.setCurrentDifficultyLevel(DifficultyLevel.A2);
 		progress.setIsCompleted(false);
-		org.mockito.Mockito.when(customContentProgressRepository.findAllByUserId(testUserId))
-			.thenReturn(List.of(progress));
+		customContentProgressRepository.saveAndFlush(progress);
 
 		GetCustomContentsRequest request = new GetCustomContentsRequest();
 		request.setPage(1);

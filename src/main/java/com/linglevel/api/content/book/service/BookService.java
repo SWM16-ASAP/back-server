@@ -204,7 +204,7 @@ public class BookService {
 		for (BookProgress progress : progresses) {
 			if (progress.getBookId() != null) {
 				// unique index(userId, bookId) 기준으로 bookId당 1건만 유지
-				progressMap.putIfAbsent(progress.getBookId(), progress);
+				progressMap.putIfAbsent(progress.getBookId().toString(), progress);
 			}
 		}
 		return progressMap;

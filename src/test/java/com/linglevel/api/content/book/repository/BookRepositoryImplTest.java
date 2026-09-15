@@ -5,7 +5,7 @@ import com.linglevel.api.content.book.dto.GetBooksRequest;
 import com.linglevel.api.content.book.entity.Book;
 import com.linglevel.api.content.common.DifficultyLevel;
 import com.linglevel.api.content.common.ProgressStatus;
-import org.bson.Document;
+import com.linglevel.api.content.book.entity.BookProgress;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,14 +32,21 @@ class BookRepositoryImplTest extends AbstractCatalogTest {
 	private BookProgressRepository bookProgressRepository;
 
 	@Autowired
-	private MongoTemplate mongoTemplate;
+	private com.linglevel.api.user.repository.UserRepository users;
 
 	private final java.util.Map<String, Long> ids = new java.util.HashMap<>();
 
-	private static final String USER_ID = "user-1";
+	private String USER_ID;
 
 	@BeforeEach
 	void setUp() {
+		USER_ID = users
+			.saveAndFlush(com.linglevel.api.user.entity.User.builder()
+				.username("reader")
+				.role(com.linglevel.api.user.entity.UserRole.USER)
+				.build())
+			.getId()
+			.toString();
 		bookProgressRepository.deleteAll();
 		bookRepository.deleteAll();
 
@@ -47,8 +54,8 @@ class BookRepositoryImplTest extends AbstractCatalogTest {
 				createBook("book-2", "Beta", Instant.parse("2026-01-02T00:00:00Z")),
 				createBook("book-3", "Gamma", Instant.parse("2026-01-03T00:00:00Z"))));
 
-		mongoTemplate.insert(createProgressDocument("book-2", false, 40.0), "bookProgress");
-		mongoTemplate.insert(createProgressDocument("book-3", true, 100.0), "bookProgress");
+		bookProgressRepository.save(createProgressDocument("book-2", false, 40.0));
+		bookProgressRepository.save(createProgressDocument("book-3", true, 100.0));
 	}
 
 	@Test
@@ -77,7 +84,7 @@ class BookRepositoryImplTest extends AbstractCatalogTest {
 	@DisplayName("normalizedProgress가 0이어도 부분 읽기면 IN_PROGRESS로 분류한다")
 	void findBooksWithFilters_includesPartialReadAsInProgress() {
 		bookProgressRepository.deleteAll();
-		mongoTemplate.insert(createPartialInProgressDocument("book-1", 1, 2, 20.0), "bookProgress");
+		bookProgressRepository.save(createPartialInProgressDocument("book-1", 1, 2, 20.0));
 
 		GetBooksRequest request = GetBooksRequest.builder().progress(ProgressStatus.IN_PROGRESS).build();
 
@@ -102,7 +109,7 @@ class BookRepositoryImplTest extends AbstractCatalogTest {
 	@DisplayName("조건에 맞는 progress가 없으면 빈 페이지를 반환한다")
 	void findBooksWithFilters_returnsEmptyPageWhenNoProgressMatch() {
 		bookProgressRepository.deleteAll();
-		mongoTemplate.insert(createProgressDocument("book-1", false, 0.0), "bookProgress");
+		bookProgressRepository.save(createProgressDocument("book-1", false, 0.0));
 
 		GetBooksRequest request = GetBooksRequest.builder().progress(ProgressStatus.IN_PROGRESS).build();
 
@@ -115,7 +122,7 @@ class BookRepositoryImplTest extends AbstractCatalogTest {
 	@Test
 	@DisplayName("normalizedProgress가 0이고 미완료인 책은 NOT_STARTED로 분류한다")
 	void findBooksWithFilters_includesZeroProgressAsNotStarted() {
-		mongoTemplate.insert(createProgressDocument("book-1", false, 0.0), "bookProgress");
+		bookProgressRepository.save(createProgressDocument("book-1", false, 0.0));
 
 		GetBooksRequest request = GetBooksRequest.builder().progress(ProgressStatus.NOT_STARTED).build();
 
@@ -129,7 +136,7 @@ class BookRepositoryImplTest extends AbstractCatalogTest {
 	@DisplayName("부분 읽기 데이터는 NOT_STARTED에서 제외한다")
 	void findBooksWithFilters_excludesPartialReadFromNotStarted() {
 		bookProgressRepository.deleteAll();
-		mongoTemplate.insert(createPartialInProgressDocument("book-1", 1, 2, 20.0), "bookProgress");
+		bookProgressRepository.save(createPartialInProgressDocument("book-1", 1, 2, 20.0));
 
 		GetBooksRequest request = GetBooksRequest.builder().progress(ProgressStatus.NOT_STARTED).build();
 
@@ -156,23 +163,28 @@ class BookRepositoryImplTest extends AbstractCatalogTest {
 		return book;
 	}
 
-	private Document createProgressDocument(String bookId, boolean isCompleted, double normalizedProgress) {
-		return new Document("userId", USER_ID).append("bookId", ids.get(bookId).toString())
-			.append("isCompleted", isCompleted)
-			.append("normalizedProgress", normalizedProgress);
+	private BookProgress createProgressDocument(String bookId, boolean isCompleted, double normalizedProgress) {
+		BookProgress progress = new BookProgress();
+		progress.setUserId(Long.valueOf(USER_ID));
+		progress.setBookId(ids.get(bookId));
+		progress.setIsCompleted(isCompleted);
+		progress.setNormalizedProgress(normalizedProgress);
+		return progress;
 	}
 
-	private Document createPartialInProgressDocument(String bookId, int chapterNumber, int chunkNumber,
+	private BookProgress createPartialInProgressDocument(String bookId, int chapterNumber, int chunkNumber,
 			double progressPercentage) {
-		int encodedPosition = chapterNumber * 65536 + chunkNumber;
-		Document chapterProgress = new Document("chapterNumber", chapterNumber)
-			.append("progressPercentage", progressPercentage)
-			.append("isCompleted", false)
-			.append("completedAt", null);
-
-		return createProgressDocument(bookId, false, 0.0).append("maxReadChapterNumber", chapterNumber)
-			.append("maxReadChunkNumber", encodedPosition)
-			.append("chapterProgresses", List.of(chapterProgress));
+		BookProgress progress = createProgressDocument(bookId, false, 0.0);
+		progress.setMaxReadChapterNumber(chapterNumber);
+		progress.setMaxReadChunkNumber(chapterNumber * 65536 + chunkNumber);
+		progress.getChapterProgresses()
+			.add(BookProgress.ChapterProgressInfo.builder()
+				.bookProgress(progress)
+				.chapterNumber(chapterNumber)
+				.progressPercentage(progressPercentage)
+				.isCompleted(false)
+				.build());
+		return progress;
 	}
 
 }

@@ -6,10 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
+import jakarta.persistence.*;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -19,18 +17,21 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "bookProgress")
-@CompoundIndex(name = "idx_user_book_progress", def = "{'userId': 1, 'bookId': 1}", unique = true)
+@Entity
+@Table(name = "book_progress")
 public class BookProgress {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
-	private String bookId;
+	@Column(nullable = false)
+	private Long bookId;
 
-	private String chapterId;
+	private Long chapterId;
 
 	private String chunkId;
 
@@ -48,22 +49,29 @@ public class BookProgress {
 
 	private Double maxNormalizedProgress;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 30)
 	private DifficultyLevel currentDifficultyLevel;
 
 	/**
-	 * 챕터별 진행률 정보 (배열 구조) 각 챕터의 진행 상태, 완료 여부, 완료 시점을 저장
+	 * 챕터별 진행 상태는 book_chapter_progress의 개별 행으로 저장한다.
 	 */
+	@OneToMany(mappedBy = "bookProgress", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<ChapterProgressInfo> chapterProgresses = new ArrayList<>();
 
 	/**
 	 * 책 전체 완료 여부 모든 챕터가 완료되었을 때만 true로 설정되는 특수 조건
 	 */
+	@Column(nullable = false)
 	private Boolean isCompleted = false;
 
 	private Instant completedAt;
 
-	@LastModifiedDate
-	private Instant updatedAt;
+	@UpdateTimestamp
+	private Instant updatedAt = Instant.now();
+
+	@Version
+	private Long version;
 
 	/**
 	 * 챕터 진행률 정보를 담는 내부 클래스
@@ -73,11 +81,22 @@ public class BookProgress {
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
+	@Entity(name = "BookChapterProgress")
+	@Table(name = "book_chapter_progress")
 	public static class ChapterProgressInfo {
+
+		@Id
+		@GeneratedValue(strategy = GenerationType.IDENTITY)
+		private Long id;
+
+		@ManyToOne(fetch = FetchType.LAZY, optional = false)
+		@JoinColumn(name = "book_progress_id", nullable = false)
+		private BookProgress bookProgress;
 
 		/**
 		 * 챕터 번호
 		 */
+		@Column(nullable = false)
 		private Integer chapterNumber;
 
 		/**
@@ -88,7 +107,9 @@ public class BookProgress {
 		/**
 		 * 챕터 완료 여부
 		 */
-		private Boolean isCompleted;
+		@Builder.Default
+		@Column(nullable = false)
+		private Boolean isCompleted = false;
 
 		/**
 		 * 챕터 완료 시점 (첫 완료 시점)

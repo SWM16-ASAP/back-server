@@ -66,6 +66,7 @@ public class ContentService {
 			boolean isCompleted, Object originalProgress) {
 	}
 
+	@org.springframework.transaction.annotation.Transactional(readOnly = true)
 	public PageResponse<RecentContentResponse> getRecentContents(String userId, GetRecentContentsRequest request) {
 		List<BookProgress> bookProgresses = bookProgressRepository.findAllByUserId(userId);
 		List<ArticleProgress> articleProgresses = articleProgressRepository.findAllByUserId(userId);
@@ -73,15 +74,15 @@ public class ContentService {
 
 		Stream<GenericProgress> genericProgressStream = Stream.concat(
 				bookProgresses.stream()
-					.map(p -> new GenericProgress(p.getBookId(), ContentType.BOOK, p.getUpdatedAt(), p.getIsCompleted(),
-							p)),
+					.map(p -> new GenericProgress(p.getBookId().toString(), ContentType.BOOK, p.getUpdatedAt(),
+							p.getIsCompleted(), p)),
 				Stream.concat(
 						articleProgresses.stream()
-							.map(p -> new GenericProgress(p.getArticleId(), ContentType.ARTICLE, p.getUpdatedAt(),
-									p.getIsCompleted(), p)),
+							.map(p -> new GenericProgress(p.getArticleId().toString(), ContentType.ARTICLE,
+									p.getUpdatedAt(), p.getIsCompleted(), p)),
 						customProgresses.stream()
-							.map(p -> new GenericProgress(p.getCustomId(), ContentType.CUSTOM, p.getUpdatedAt(),
-									p.getIsCompleted(), p))));
+							.map(p -> new GenericProgress(p.getCustomId().toString(), ContentType.CUSTOM,
+									p.getUpdatedAt(), p.getIsCompleted(), p))));
 
 		if (request.getStatus() != null && !request.getStatus().isBlank()) {
 			boolean requiredStatus = "completed".equalsIgnoreCase(request.getStatus());

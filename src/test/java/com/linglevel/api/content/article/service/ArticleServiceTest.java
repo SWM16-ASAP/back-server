@@ -241,8 +241,8 @@ class ArticleServiceTest {
 
 	private ArticleProgress createArticleProgress(String userId, String articleId, boolean isCompleted) {
 		ArticleProgress progress = new ArticleProgress();
-		progress.setUserId(userId);
-		progress.setArticleId(articleId);
+		progress.setUserId(Long.valueOf(userId));
+		progress.setArticleId(Long.valueOf(articleId));
 		progress.setChunkId("test-chunk-id");
 		progress.setIsCompleted(isCompleted);
 		progress.setUpdatedAt(Instant.now());

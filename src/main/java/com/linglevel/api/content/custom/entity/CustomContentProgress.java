@@ -5,10 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
+import jakarta.persistence.*;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 
@@ -16,16 +14,19 @@ import java.time.Instant;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "customProgress")
-@CompoundIndex(name = "idx_user_custom_progress", def = "{'userId': 1, 'customId': 1}", unique = true)
+@Entity
+@Table(name = "custom_content_progress")
 public class CustomContentProgress {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
-	private String customId;
+	@Column(nullable = false)
+	private Long customId;
 
 	private String chunkId;
 
@@ -34,13 +35,19 @@ public class CustomContentProgress {
 
 	private Double maxNormalizedProgress;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 30)
 	private DifficultyLevel currentDifficultyLevel;
 
+	@Column(nullable = false)
 	private Boolean isCompleted = false;
 
 	private Instant completedAt;
 
-	@LastModifiedDate
-	private Instant updatedAt;
+	@UpdateTimestamp
+	private Instant updatedAt = Instant.now();
+
+	@Version
+	private Long version;
 
 }

@@ -2,7 +2,6 @@ package com.linglevel.api.content.custom.repository;
 
 import com.linglevel.api.content.custom.dto.GetCustomContentsRequest;
 import com.linglevel.api.content.custom.entity.CustomContent;
-import com.linglevel.api.content.custom.entity.CustomContentProgress;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +16,6 @@ import java.util.*;
 public class CustomContentRepositoryImpl implements CustomContentRepositoryCustom {
 
 	private final EntityManager entityManager;
-
-	private final org.springframework.beans.factory.ObjectProvider<CustomContentProgressRepository> progressRepository;
 
 	@Override
 	public Page<CustomContent> findCustomContentsWithFilters(String userId, GetCustomContentsRequest request,
@@ -54,21 +51,17 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
 			}
 		}
 		if (request.getProgress() != null) {
-			List<CustomContentProgress> progress = progressRepository.getObject().findAllByUserId(userId);
-			List<Long> ids = progress.stream().filter(p -> switch (request.getProgress()) {
-				case NOT_STARTED -> true;
-				case COMPLETED -> Boolean.TRUE.equals(p.getIsCompleted());
-				case IN_PROGRESS -> !Boolean.TRUE.equals(p.getIsCompleted()) && p.getNormalizedProgress() != null
-						&& p.getNormalizedProgress() > 0;
-			}).map(CustomContentProgress::getCustomId).map(Long::valueOf).toList();
-			if (ids.isEmpty() && request.getProgress() != com.linglevel.api.content.common.ProgressStatus.NOT_STARTED) {
-				return Page.empty(pageable);
-			}
-			if (!ids.isEmpty()) {
-				where.append(request.getProgress() == com.linglevel.api.content.common.ProgressStatus.NOT_STARTED
-						? " and c.id not in :progressIds" : " and c.id in :progressIds");
-				params.put("progressIds", ids);
-			}
+			String condition = switch (request.getProgress()) {
+				case COMPLETED -> " and p.isCompleted = true";
+				case IN_PROGRESS -> " and p.isCompleted = false and p.normalizedProgress > 0";
+				case NOT_STARTED -> "";
+			};
+			where
+				.append(request.getProgress() == com.linglevel.api.content.common.ProgressStatus.NOT_STARTED
+						? " and not exists (" : " and exists (")
+				.append("select p.id from CustomContentProgress p where p.customId = c.id and p.userId = :userId")
+				.append(condition)
+				.append(")");
 		}
 		List<String> sort = new ArrayList<>();
 		pageable.getSort().forEach(order -> {

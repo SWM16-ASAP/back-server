@@ -33,10 +33,20 @@ class ChapterRepositoryImplTest extends AbstractCatalogTest {
 	@Autowired
 	private BookRepository bookRepository;
 
-	private static final String USER_ID = "user-1";
+	private String USER_ID;
+
+	@Autowired
+	private com.linglevel.api.user.repository.UserRepository users;
 
 	@BeforeEach
 	void setUp() {
+		USER_ID = users
+			.saveAndFlush(com.linglevel.api.user.entity.User.builder()
+				.username("reader")
+				.role(com.linglevel.api.user.entity.UserRole.USER)
+				.build())
+			.getId()
+			.toString();
 		bookProgressRepository.deleteAll();
 		chapterRepository.deleteAll();
 		bookRepository.deleteAll();
@@ -64,15 +74,17 @@ class ChapterRepositoryImplTest extends AbstractCatalogTest {
 	@DisplayName("V3 chapterProgresses 기준으로 IN_PROGRESS와 COMPLETED를 구분한다")
 	void findChaptersWithFilters_usesV3ChapterProgresses() {
 		BookProgress progress = new BookProgress();
-		progress.setUserId(USER_ID);
-		progress.setBookId(BOOK_ID);
+		progress.setUserId(Long.valueOf(USER_ID));
+		progress.setBookId(Long.valueOf(BOOK_ID));
 		progress.setChapterProgresses(List.of(
 				BookProgress.ChapterProgressInfo.builder()
+					.bookProgress(progress)
 					.chapterNumber(1)
 					.progressPercentage(100.0)
 					.isCompleted(true)
 					.build(),
 				BookProgress.ChapterProgressInfo.builder()
+					.bookProgress(progress)
 					.chapterNumber(2)
 					.progressPercentage(50.0)
 					.isCompleted(false)
@@ -103,8 +115,8 @@ class ChapterRepositoryImplTest extends AbstractCatalogTest {
 	@DisplayName("V3 데이터가 없으면 모든 챕터를 NOT_STARTED로 본다")
 	void findChaptersWithFilters_treatsMissingV3DataAsNotStarted() {
 		BookProgress progress = new BookProgress();
-		progress.setUserId(USER_ID);
-		progress.setBookId(BOOK_ID);
+		progress.setUserId(Long.valueOf(USER_ID));
+		progress.setBookId(Long.valueOf(BOOK_ID));
 		progress.setCurrentReadChapterNumber(2); // legacy field only (ignored in V3-only
 													// filtering)
 		bookProgressRepository.save(progress);
