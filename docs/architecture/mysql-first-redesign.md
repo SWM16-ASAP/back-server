@@ -1,7 +1,7 @@
 # MySQL 중심 신규 시스템 재설계 계획
 
 상태: MongoDB에 남아 있는 데이터 전체를 MySQL로 전환하는 것이 목표다. 사용자·티켓·커스텀 콘텐츠·책·아티클·학습
-이력 및 보상·독서 진행률·북마크·콘텐츠 본문 전환 구현 완료. 남은 도메인(피드·추천, 설정, 인증·알림, 단어, 로그)은
+이력 및 보상·독서 진행률·북마크·콘텐츠 본문·피드 및 추천 전환 구현 완료. 남은 도메인(설정, 인증·알림, 단어, 로그)은
 순차적으로 전환한다.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
@@ -19,18 +19,19 @@
 | 독서 진행률 | BookProgress, ArticleProgress, CustomContentProgress | book_progress, book_chapter_progress, article_progress, custom_content_progress | 사용자·콘텐츠 유니크 제약, 챕터 진행률 행 분리, 학습 보상과 SQL 트랜잭션 통합 |
 | 북마크 | WordBookmark | word_bookmarks | 구현 완료. 사용자·원형 문자열 유니크 제약, SQL 검색·페이지네이션, 추가·삭제·토글 잠금 처리 |
 | 콘텐츠 본문 | Chunk, ArticleChunk, CustomContentChunk | chunks, article_chunks, custom_content_chunks | 구현 완료. 책·아티클·커스텀 콘텐츠 청크를 각 콘텐츠 BIGINT FK로 연결하고, 메타데이터·본문 생성/삭제를 하나의 SQL 트랜잭션으로 통합 |
+| 피드·추천 | Feed, FeedSource, UserCategoryPreference | feeds, feed_sources, user_category_preferences | 구현 완료. `Feed`·`FeedSource`의 URL 유일성은 접두 유니크 인덱스로 유지. `UserCategoryPreference.userId`는 BIGINT로 전환하고 `users` FK를 추가. 점수·카운트 맵은 JSON 컬럼으로 보존 |
 
 ## 남은 MongoDB 데이터
 
 | 기존 모델 | 방향 |
 | --- | --- |
 | Word, WordVariant, InvalidWord | 단어 조회·생성 도메인 전환 예정. 원형·변형 관계와 조회 쿼리 재설계, 기존 single-flight·실패 처리 동작 유지 필요 |
-| ContentAccessLog | 조회 인덱스·보존 정책을 검토해 전환 예정 |
+| ContentAccessLog | 조회 인덱스·보존 정책을 검토해 전환 예정. `UserCategoryPreference` 집계의 입력 소스이므로 스케줄러의 `userId` 문자열↔BIGINT 경계에 유의 |
 
 ## 나머지 모델
 
-Feed, FeedSource, UserCategoryPreference / CrawlingDsl, ContentBanner, AppVersion / RefreshToken, FcmToken / PushLog는
-후속 작업에서 순서대로 MySQL 배치를 정한다. Redis의 세션·rate limit·single-flight 역할은 변경하지 않는다.
+CrawlingDsl, ContentBanner, AppVersion / RefreshToken, FcmToken / PushLog는 후속 작업에서 순서대로 MySQL 배치를 정한다.
+Redis의 세션·rate limit·single-flight 역할은 변경하지 않는다.
 
 ## 변경 방법
 
@@ -167,6 +168,22 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.content.book.*' --tests 'com.linglevel.api.content.article.*' --tests 'com.linglevel.api.content.common.*' --tests 'com.linglevel.api.admin.*' --tests 'com.linglevel.api.content.custom.*' --tests 'com.linglevel.api.streak.*'
+./gradlew checkFormat
+```
+
+## 피드·추천 전환의 보장 범위
+
+- V10에서 `feeds`, `feed_sources`, `user_category_preferences`를 추가한다. PK는 BIGINT 자동 증가다. `Feed`와 `FeedSource`는 서로 ID로 연결되지 않고(크롤링 시점에 필드만 복사), `CustomContent.originUrl`과 `Feed.url`도 여전히 URL 문자열 동등 비교로만 연결된다 — 이번 전환에서 새 FK 관계를 만들지 않았다.
+- `feeds.url`/`feed_sources.url`은 `VARCHAR(2048)`이라 MySQL InnoDB 유니크 인덱스 키 길이 한도를 넘는다. 기존 `custom_contents.origin_url(255)` 접두 인덱스 관례를 따라 `UNIQUE (url(255))` 접두 유니크 인덱스로 유일성을 보장한다. 254자를 넘는 URL 두 개가 앞 255자까지 완전히 같을 경우에만 이론적으로 오탐지할 수 있으나, 실제 RSS 기사/영상 URL 길이 분포에서는 무시할 수준이다.
+- `UserCategoryPreference.userId`는 `String`에서 `BIGINT`로, `users(id)` FK와 유니크 제약을 추가했다. `ContentAccessLog`(아직 MongoDB, 이번 전환 범위 밖)의 `userId`는 계속 문자열이므로, `UserPreferenceAggregationScheduler`는 로그에서 읽은 문자열 `userId`를 리포지토리 조회/저장 경계에서 `Long.valueOf`로 변환한다 — 다른 이미 전환된 도메인과 동일한 경계 처리 방식이다.
+- `categoryScores`(`Map<ContentCategory, Double>`), `rawAccessCounts`(`Map<ContentCategory, Integer>`)는 JSON 컬럼으로 보존한다. 사용되지 않던 `tagScores` 필드(작성도 조회도 하는 코드가 없었음)는 이번에 제거했다.
+- `Feed.viewCount` 증가는 기존에 3곳(`FeedService.getFeed`, `CustomContentChunkService`의 URL 조인, `ContentAccessEventListener`의 평균 읽기시간 갱신)에서 **읽기→+1→저장**으로 처리되어 동시 요청 시 증가분이 유실될 수 있었다. `FeedRepository.incrementViewCount`/`incrementViewCountByUrl`(`@Modifying @Query` 원자적 벌크 UPDATE)을 추가하고 조회수 증가 경로 두 곳(직접 조회, URL 매칭)을 여기로 옮겼다. `ContentAccessEventListener`의 평균 읽기시간 계산은 현재 조회수를 읽어 가중 평균을 구해야 해서 읽기·수정·저장 방식을 유지한다.
+- 위 작업 중 기존 Book/Article/CustomContent의 `incrementViewCount`가 동적 필터 쿼리(`CatalogQuery`/QueryDSL 스타일)와 같은 `*RepositoryImpl`에 `EntityManager.createQuery` 기반으로 얹혀 있던 것을 발견해, 세 곳 모두 리포지토리 인터페이스의 `@Modifying @Query` 메서드로 옮기고 `*RepositoryCustom`/`*RepositoryImpl`에서는 제거했다. 동적 WHERE 절 조립이 실제로 필요한 카탈로그 필터링 메서드(`findBooksWithFilters` 등)만 `EntityManager` 기반으로 남겼다 — 단순 원자적 증가 같은 정적 쿼리에는 `@Modifying @Query`가 더 적합한 표준 Spring Data 방식이기 때문이다.
+- `FeedService`의 목록 조회는 기존처럼 `findByDeletedFalse()`로 전체를 메모리에 올린 뒤 필터·정렬·페이지네이션을 자바에서 수행한다 — 이번 전환은 저장소만 교체했고, SQL 기반 필터링으로의 전환은 범위에 포함하지 않았다.
+- 실제 MySQL 컨테이너로 URL 접두 유니크 제약, `user_category_preferences`의 FK/유니크 제약, JSON 왕복, 조회수 원자적 증가를 검증한다. RSS 파싱·크롤링 로직 자체는 외부 네트워크에 의존하는 기존 `@Tag("external")` 테스트로 남겨두고 이번 검증에 포함하지 않는다.
+
+```sh
+./gradlew test --tests 'com.linglevel.api.content.feed.*' --tests 'com.linglevel.api.content.recommendation.*' --tests 'com.linglevel.api.admin.*' --tests 'com.linglevel.api.content.custom.*'
 ./gradlew checkFormat
 ```
 

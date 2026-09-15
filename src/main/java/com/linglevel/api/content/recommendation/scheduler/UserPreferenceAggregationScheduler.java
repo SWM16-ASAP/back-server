@@ -123,7 +123,7 @@ public class UserPreferenceAggregationScheduler {
 		}
 
 		UserCategoryPreference preference = userCategoryPreferenceRepository.findByUserId(userId)
-			.orElse(UserCategoryPreference.builder().userId(userId).build());
+			.orElse(UserCategoryPreference.builder().userId(Long.valueOf(userId)).build());
 
 		preference.setPrimaryCategory(primaryCategory);
 		preference.setCategoryScores(categoryScores);

@@ -62,7 +62,7 @@ class UserPreferenceAggregationSchedulerTest {
 	@DisplayName("Article 접근 로그만 있는 경우 primaryCategory가 설정된다")
 	void setPrimaryCategoryForArticleLogsOnly() {
 		// Given
-		String userId = "user123";
+		String userId = "123";
 		List<ContentAccessLog> logs = List.of(
 				createLog(userId, "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(1, ChronoUnit.DAYS)),
 				createLog(userId, "article2", ContentType.ARTICLE, ContentCategory.TECH, now.minus(2, ChronoUnit.DAYS)),
@@ -78,17 +78,18 @@ class UserPreferenceAggregationSchedulerTest {
 		scheduler.aggregateUserPreferences();
 
 		// Then
-		verify(userCategoryPreferenceRepository).save(argThat(preference -> preference.getUserId().equals(userId)
-				&& preference.getPrimaryCategory() == ContentCategory.TECH && preference.getTotalAccessCount() == 3
-				&& preference.getCategoryScores().containsKey(ContentCategory.TECH)
-				&& preference.getCategoryScores().containsKey(ContentCategory.BUSINESS)));
+		verify(userCategoryPreferenceRepository)
+			.save(argThat(preference -> preference.getUserId().equals(Long.valueOf(userId))
+					&& preference.getPrimaryCategory() == ContentCategory.TECH && preference.getTotalAccessCount() == 3
+					&& preference.getCategoryScores().containsKey(ContentCategory.TECH)
+					&& preference.getCategoryScores().containsKey(ContentCategory.BUSINESS)));
 	}
 
 	@Test
 	@DisplayName("Book만 본 경우 primaryCategory는 null이다")
 	void nullPrimaryCategoryForBookOnly() {
 		// Given
-		String userId = "user456";
+		String userId = "456";
 		List<ContentAccessLog> logs = List.of(
 				createLog(userId, "book1", ContentType.BOOK, null, now.minus(1, ChronoUnit.DAYS)),
 				createLog(userId, "book2", ContentType.BOOK, null, now.minus(2, ChronoUnit.DAYS)));
@@ -103,15 +104,16 @@ class UserPreferenceAggregationSchedulerTest {
 
 		// Then
 		verify(userCategoryPreferenceRepository)
-			.save(argThat(preference -> preference.getUserId().equals(userId) && preference.getPrimaryCategory() == null
-					&& preference.getTotalAccessCount() == 2 && preference.getCategoryScores().isEmpty()));
+			.save(argThat(preference -> preference.getUserId().equals(Long.valueOf(userId))
+					&& preference.getPrimaryCategory() == null && preference.getTotalAccessCount() == 2
+					&& preference.getCategoryScores().isEmpty()));
 	}
 
 	@Test
 	@DisplayName("시간 감쇠가 적용되어 최근 로그가 더 높은 가중치를 받는다")
 	void applyTimeDecayWeighting() {
 		// Given
-		String userId = "user789";
+		String userId = "789";
 		List<ContentAccessLog> logs = List.of(
 				// 최근 7일 - 가중치 1.0
 				createLog(userId, "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(3, ChronoUnit.DAYS)),
@@ -150,11 +152,10 @@ class UserPreferenceAggregationSchedulerTest {
 	void aggregateMultipleUsers() {
 		// Given
 		List<ContentAccessLog> logs = List.of(
-				createLog("user1", "article1", ContentType.ARTICLE, ContentCategory.TECH,
+				createLog("1", "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(1, ChronoUnit.DAYS)),
+				createLog("2", "article2", ContentType.ARTICLE, ContentCategory.BUSINESS,
 						now.minus(1, ChronoUnit.DAYS)),
-				createLog("user2", "article2", ContentType.ARTICLE, ContentCategory.BUSINESS,
-						now.minus(1, ChronoUnit.DAYS)),
-				createLog("user3", "book1", ContentType.BOOK, null, now.minus(1, ChronoUnit.DAYS)));
+				createLog("3", "book1", ContentType.BOOK, null, now.minus(1, ChronoUnit.DAYS)));
 
 		when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class))).thenReturn(logs);
 		when(userCategoryPreferenceRepository.findByUserId(anyString())).thenReturn(Optional.empty());
@@ -173,20 +174,18 @@ class UserPreferenceAggregationSchedulerTest {
 	void continueProcessingOnIndividualFailure() {
 		// Given
 		List<ContentAccessLog> logs = List.of(
-				createLog("user1", "article1", ContentType.ARTICLE, ContentCategory.TECH,
+				createLog("1", "article1", ContentType.ARTICLE, ContentCategory.TECH, now.minus(1, ChronoUnit.DAYS)),
+				createLog("2", "article2", ContentType.ARTICLE, ContentCategory.BUSINESS,
 						now.minus(1, ChronoUnit.DAYS)),
-				createLog("user2", "article2", ContentType.ARTICLE, ContentCategory.BUSINESS,
-						now.minus(1, ChronoUnit.DAYS)),
-				createLog("user3", "article3", ContentType.ARTICLE, ContentCategory.SPORTS,
-						now.minus(1, ChronoUnit.DAYS)));
+				createLog("3", "article3", ContentType.ARTICLE, ContentCategory.SPORTS, now.minus(1, ChronoUnit.DAYS)));
 
 		when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class))).thenReturn(logs);
 
 		// user2 처리 시 에러 발생
-		when(userCategoryPreferenceRepository.findByUserId("user1")).thenReturn(Optional.empty());
-		when(userCategoryPreferenceRepository.findByUserId("user2"))
+		when(userCategoryPreferenceRepository.findByUserId("1")).thenReturn(Optional.empty());
+		when(userCategoryPreferenceRepository.findByUserId("2"))
 			.thenThrow(new RuntimeException("DB connection failed"));
-		when(userCategoryPreferenceRepository.findByUserId("user3")).thenReturn(Optional.empty());
+		when(userCategoryPreferenceRepository.findByUserId("3")).thenReturn(Optional.empty());
 
 		when(userCategoryPreferenceRepository.save(any(UserCategoryPreference.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -202,10 +201,10 @@ class UserPreferenceAggregationSchedulerTest {
 	@DisplayName("기존 선호도 데이터가 있으면 업데이트한다")
 	void updateExistingPreference() {
 		// Given
-		String userId = "existingUser";
+		String userId = "999";
 		UserCategoryPreference existingPreference = UserCategoryPreference.builder()
-			.id("pref123")
-			.userId(userId)
+			.id(123L)
+			.userId(Long.valueOf(userId))
 			.primaryCategory(ContentCategory.SPORTS)
 			.totalAccessCount(5)
 			.build();
@@ -222,9 +221,9 @@ class UserPreferenceAggregationSchedulerTest {
 		scheduler.aggregateUserPreferences();
 
 		// Then
-		verify(userCategoryPreferenceRepository).save(argThat(preference -> preference.getId().equals("pref123") && // 기존
-																													// ID
-																													// 유지
+		verify(userCategoryPreferenceRepository).save(argThat(preference -> preference.getId().equals(123L) && // 기존
+																												// ID
+																												// 유지
 				preference.getPrimaryCategory() == ContentCategory.TECH && // 새로운 카테고리로
 																			// 업데이트
 				preference.getTotalAccessCount() == 1 // 새로운 로그 개수

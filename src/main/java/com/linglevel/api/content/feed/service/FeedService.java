@@ -93,14 +93,14 @@ public class FeedService {
 	public FeedResponse getFeed(String feedId, String userId) {
 		Feed feed = feedRepository.findByIdAndDeletedFalse(feedId)
 			.orElseThrow(() -> new FeedException(FeedErrorCode.FEED_NOT_FOUND));
+		feedRepository.incrementViewCount(feedId);
 		feed.setViewCount((feed.getViewCount() != null ? feed.getViewCount() : 0) + 1);
-		feedRepository.save(feed);
 		return mapToResponse(feed);
 	}
 
 	private FeedResponse mapToResponse(Feed feed) {
 		FeedResponse response = new FeedResponse();
-		response.setId(feed.getId());
+		response.setId(feed.getId().toString());
 		response.setContentType(feed.getContentType());
 		response.setTitle(feed.getTitle());
 		response.setUrl(feed.getUrl());

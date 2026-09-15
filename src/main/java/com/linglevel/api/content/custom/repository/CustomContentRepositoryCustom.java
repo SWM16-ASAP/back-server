@@ -15,6 +15,4 @@ public interface CustomContentRepositoryCustom {
 	Page<CustomContent> findCustomContentsByUserWithFilters(String userId, GetCustomContentsRequest request,
 			Pageable pageable);
 
-	void incrementViewCount(String customContentId);
-
 }

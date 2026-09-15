@@ -1,10 +1,10 @@
 package com.linglevel.api.content.recommendation.entity;
 
 import com.linglevel.api.content.common.ContentCategory;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.Map;
@@ -14,23 +14,26 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "userCategoryPreferences")
+@Entity
+@Table(name = "user_category_preferences")
 public class UserCategoryPreference {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@Indexed(unique = true)
-	private String userId;
+	@Column(name = "user_id", nullable = false, unique = true)
+	private Long userId;
 
-	@Indexed
+	@Enumerated(EnumType.STRING)
+	@Column(length = 20)
 	private ContentCategory primaryCategory;
 
+	@JdbcTypeCode(SqlTypes.JSON)
 	private Map<ContentCategory, Double> categoryScores;
 
+	@JdbcTypeCode(SqlTypes.JSON)
 	private Map<ContentCategory, Integer> rawAccessCounts;
-
-	private Map<String, Double> tagScores;
 
 	private Integer totalAccessCount;
 

@@ -37,12 +37,4 @@ public class ArticleRepositoryImpl implements ArticleRepositoryCustom {
 			.page(entityManager, Article.class, pageable);
 	}
 
-	@Override
-	@Transactional
-	public void incrementViewCount(String id) {
-		entityManager.createQuery("update Article c set c.viewCount = c.viewCount + 1 where c.id = :id")
-			.setParameter("id", Long.valueOf(id))
-			.executeUpdate();
-	}
-
 }

@@ -83,14 +83,4 @@ public class CustomContentRepositoryImpl implements CustomContentRepositoryCusto
 			.getResultList(), pageable, count.getSingleResult());
 	}
 
-	@Override
-	@Transactional
-	public void incrementViewCount(String customContentId) {
-		entityManager
-			.createQuery(
-					"update CustomContent c set c.viewCount = c.viewCount + 1 where c.id = :id and c.isDeleted = false")
-			.setParameter("id", Long.valueOf(customContentId))
-			.executeUpdate();
-	}
-
 }

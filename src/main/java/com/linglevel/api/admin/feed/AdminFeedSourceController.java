@@ -146,7 +146,7 @@ public class AdminFeedSourceController {
 
 	private FeedSourceResponse mapToResponse(FeedSource feedSource) {
 		return FeedSourceResponse.builder()
-			.id(feedSource.getId())
+			.id(feedSource.getId().toString())
 			.url(feedSource.getUrl())
 			.domain(feedSource.getDomain())
 			.name(feedSource.getName())
