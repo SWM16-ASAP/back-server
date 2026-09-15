@@ -220,7 +220,7 @@ public class NotificationService {
 			if (message == null) {
 				log.warn("No message found for country: {} and no fallback (US) message", countryCode);
 				for (FcmToken token : tokens) {
-					failedUserIds.add(token.getUserId());
+					failedUserIds.add(token.getUserId().toString());
 					totalFailedCount++;
 				}
 				continue;
@@ -236,7 +236,7 @@ public class NotificationService {
 			List<String> fcmTokens = tokens.stream().map(FcmToken::getFcmToken).collect(Collectors.toList());
 
 			Map<String, String> tokenToUserId = tokens.stream()
-				.collect(Collectors.toMap(FcmToken::getFcmToken, FcmToken::getUserId, (a, b) -> a));
+				.collect(Collectors.toMap(FcmToken::getFcmToken, token -> token.getUserId().toString(), (a, b) -> a));
 
 			try {
 				if (fcmTokens.size() == 1) {
@@ -319,7 +319,7 @@ public class NotificationService {
 
 			// 각 토큰의 사용자에 대해 매칭 정보 저장
 			for (FcmToken token : targetTokens) {
-				String userId = token.getUserId();
+				String userId = token.getUserId().toString();
 				LanguageCode userLanguage = convertCountryCodeToLanguageCode(token.getCountryCode());
 
 				int priority = calculatePriority(token, articleInfo, userLanguage);

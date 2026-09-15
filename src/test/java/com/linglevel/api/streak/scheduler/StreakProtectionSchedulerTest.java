@@ -447,7 +447,7 @@ class StreakProtectionSchedulerTest {
 
 	private FcmToken createFcmToken(String userId, String token, CountryCode countryCode) {
 		FcmToken fcmToken = new FcmToken();
-		fcmToken.setUserId(userId);
+		fcmToken.setUserId(Long.valueOf(userId));
 		fcmToken.setFcmToken(token);
 		fcmToken.setCountryCode(countryCode);
 		fcmToken.setIsActive(true);

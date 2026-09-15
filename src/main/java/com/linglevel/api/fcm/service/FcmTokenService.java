@@ -142,7 +142,8 @@ public class FcmTokenService {
 			Optional<FcmToken> existingFcmToken = fcmTokenRepository.findFirstByFcmToken(request.getFcmToken());
 			if (existingFcmToken.isPresent()) {
 				FcmToken oldToken = existingFcmToken.get();
-				if (!oldToken.getUserId().equals(userId) || !oldToken.getDeviceId().equals(request.getDeviceId())) {
+				if (!oldToken.getUserId().equals(Long.valueOf(userId))
+						|| !oldToken.getDeviceId().equals(request.getDeviceId())) {
 					fcmTokenRepository.delete(oldToken);
 				}
 			}
@@ -164,12 +165,12 @@ public class FcmTokenService {
 				FcmToken savedToken = fcmTokenRepository.save(token);
 				log.info("FCM token updated for user: {}, device: {}", userId, request.getDeviceId());
 
-				return FcmTokenUpsertResult.builder().tokenId(savedToken.getId()).created(false).build();
+				return FcmTokenUpsertResult.builder().tokenId(savedToken.getId().toString()).created(false).build();
 			}
 			else {
 				// 새 토큰 생성
 				FcmToken newToken = FcmToken.builder()
-					.userId(userId)
+					.userId(Long.valueOf(userId))
 					.deviceId(request.getDeviceId())
 					.fcmToken(request.getFcmToken())
 					.platform(request.getPlatform())
@@ -184,7 +185,7 @@ public class FcmTokenService {
 				FcmToken savedToken = fcmTokenRepository.save(newToken);
 				log.info("FCM token created for user: {}, device: {}", userId, request.getDeviceId());
 
-				return FcmTokenUpsertResult.builder().tokenId(savedToken.getId()).created(true).build();
+				return FcmTokenUpsertResult.builder().tokenId(savedToken.getId().toString()).created(true).build();
 			}
 		}
 		catch (Exception e) {

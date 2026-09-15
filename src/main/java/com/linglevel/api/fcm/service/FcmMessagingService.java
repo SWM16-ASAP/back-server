@@ -246,7 +246,8 @@ public class FcmMessagingService {
 	private Map<String, String> getTokenToUserIdMap(List<String> fcmTokens) {
 		List<FcmToken> tokens = fcmTokenRepository.findAllByFcmTokenIn(fcmTokens);
 		return tokens.stream()
-			.collect(Collectors.toMap(FcmToken::getFcmToken, FcmToken::getUserId, (existing, replacement) -> existing));
+			.collect(Collectors.toMap(FcmToken::getFcmToken, token -> token.getUserId().toString(),
+					(existing, replacement) -> existing));
 	}
 
 	/**
@@ -280,7 +281,7 @@ public class FcmMessagingService {
 	 */
 	private String getUserIdFromToken(String fcmToken) {
 		Optional<FcmToken> tokenOpt = fcmTokenRepository.findFirstByFcmToken(fcmToken);
-		return tokenOpt.map(FcmToken::getUserId).orElse(null);
+		return tokenOpt.map(token -> token.getUserId().toString()).orElse(null);
 	}
 
 	/**

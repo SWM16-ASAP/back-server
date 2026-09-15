@@ -1,8 +1,8 @@
 # MySQL 중심 신규 시스템 재설계 계획
 
 상태: MongoDB에 남아 있는 데이터 전체를 MySQL로 전환하는 것이 목표다. 사용자·티켓·커스텀 콘텐츠·책·아티클·학습
-이력 및 보상·독서 진행률·북마크·콘텐츠 본문·피드 및 추천·설정 전환 구현 완료. 남은 도메인(인증·알림, 단어, 로그)은
-순차적으로 전환한다.
+이력 및 보상·독서 진행률·북마크·콘텐츠 본문·피드 및 추천·설정·인증(리프레시 토큰)·FCM 토큰 전환 구현 완료. 남은
+도메인(단어, 로그)은 순차적으로 전환한다.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
 기존 운영 환경에 적용하려면 별도 데이터 마이그레이션이 필요하다.
@@ -21,6 +21,7 @@
 | 콘텐츠 본문 | Chunk, ArticleChunk, CustomContentChunk | chunks, article_chunks, custom_content_chunks | 구현 완료. 책·아티클·커스텀 콘텐츠 청크를 각 콘텐츠 BIGINT FK로 연결하고, 메타데이터·본문 생성/삭제를 하나의 SQL 트랜잭션으로 통합 |
 | 피드·추천 | Feed, FeedSource, UserCategoryPreference | feeds, feed_sources, user_category_preferences | 구현 완료. `Feed`·`FeedSource`의 URL 유일성은 접두 유니크 인덱스로 유지. `UserCategoryPreference.userId`는 BIGINT로 전환하고 `users` FK를 추가. 점수·카운트 맵은 JSON 컬럼으로 보존 |
 | 설정 | CrawlingDsl, ContentBanner, AppVersion | crawling_dsl, content_banners, app_version | 구현 완료. `ContentBanner.content_id`는 Book/Article/CustomContent를 가리키는 다형적 참조라 FK 없이 BIGINT로만 전환(기존 학습 이력의 다형적 참조와 동일한 패턴). `AppVersion`은 단일 설정 로우로 `updated_at` 내림차순 첫 행 조회 방식을 그대로 유지 |
+| 인증·알림 | RefreshToken, FcmToken | refresh_tokens, fcm_tokens | 구현 완료. 두 Mongo TTL 인덱스(즉시 만료 삭제, 90일 미갱신 삭제)를 대체하는 일일 정리 스케줄러를 신규 추가했다. `users` FK를 걸고 `userId`는 BIGINT로 전환 |
 
 ## 남은 MongoDB 데이터
 
@@ -31,7 +32,7 @@
 
 ## 나머지 모델
 
-RefreshToken, FcmToken / PushLog는 후속 작업에서 순서대로 MySQL 배치를 정한다.
+PushLog는 후속 작업에서 MySQL 배치를 정한다(로그 도메인, ContentAccessLog와 함께 전환).
 Redis의 세션·rate limit·single-flight 역할은 변경하지 않는다.
 
 ## 변경 방법
@@ -202,6 +203,20 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.common.config.*' --tests 'com.linglevel.api.crawling.*' --tests 'com.linglevel.api.content.feed.filter.filters.ContentCrawlabilityFilterTest'
+./gradlew checkFormat
+```
+
+## 인증·알림 전환의 보장 범위
+
+- V12에서 `refresh_tokens`, `fcm_tokens`를 추가한다. PK는 BIGINT 자동 증가이며 둘 다 `users` FK를 가진다.
+- Mongo에서는 `RefreshToken.expiresAt`에 즉시 만료 TTL 인덱스(`expireAfter = "0s"`)를, `FcmToken.updatedAt`에 90일 TTL 인덱스를 걸어 만료 데이터를 백그라운드에서 자동 삭제했다. MySQL에는 TTL 인덱스가 없으므로 이를 대체하는 **일일 정리 스케줄러**를 신규 추가했다(`RefreshTokenCleanupScheduler`, `FcmTokenCleanupScheduler`, 매일 03:00 KST, 기존 `UserPreferenceAggregationScheduler`의 로그 정리 배치와 동일한 스타일). 만료 리프레시 토큰은 `RefreshToken.isExpired()` 읽기 시점 확인도 기존처럼 유지해 정리 배치가 지연되더라도 즉시 거부된다.
+- `FcmToken` 정리는 기존 TTL과 동일하게 `isActive` 값과 무관하게 `updated_at` 기준 90일이 지나면 삭제한다 — 90일간 앱을 재실행하지 않은 **활성** 토큰도 삭제될 수 있는 기존 동작을 그대로 옮겼다. 활성 토큰만 남기고 싶다면 별도 정책 변경이 필요하며, 이번 전환에서는 다루지 않았다.
+- `UsersService.deleteUser`는 계정 삭제 시 FCM 토큰은 비활성화하지만(`fcmTokenService.deactivateAllTokens`) 리프레시 토큰은 명시적으로 삭제하지 않는 기존 동작을 그대로 유지한다 — 다음 토큰 갱신 시도에서 `refreshAccessToken`이 `user.getDeleted()`를 확인해 그 시점에 지연 삭제되며, 이 경계는 이번 전환 범위에서 다루지 않는다.
+- `RefreshTokenService.refreshAccessToken`이 회전 시 기존 토큰 행을 무효화하지 않는 기존 동작(리프레시할 때마다 새 토큰이 추가되고 이전 토큰은 만료 전까지 계속 유효), `AuthService.logout`이 FCM 토큰은 건드리지 않는 기존 동작(기기별 FCM 비활성화 메서드 `deactivateTokenByDevice`가 실제로는 어디서도 호출되지 않음)도 모두 기존 그대로 유지했다 — 저장소 전환과 무관한 기존 로직/갭이므로 이번 작업에서 변경하지 않았다.
+- `RefreshToken`/`FcmToken`/`AuthService`/`RefreshTokenService`/`AuthController`는 이번 전환 이전에 테스트가 전혀 없었다. 리포지토리 수준 영속성 테스트(유니크 제약, FK, 정리 쿼리)만 새로 추가했고, 서비스/컨트롤러 계층 테스트 보강은 저장소 전환 범위 밖으로 남겨둔다.
+
+```sh
+./gradlew test --tests 'com.linglevel.api.common.auth.*' --tests 'com.linglevel.api.fcm.*' --tests 'com.linglevel.api.streak.scheduler.*' --tests 'com.linglevel.api.admin.*'
 ./gradlew checkFormat
 ```
 

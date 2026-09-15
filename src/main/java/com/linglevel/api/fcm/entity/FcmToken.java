@@ -1,13 +1,9 @@
 package com.linglevel.api.fcm.entity;
 
 import com.linglevel.api.i18n.CountryCode;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
@@ -16,40 +12,49 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "fcmTokens")
+@Entity
+@Table(name = "fcm_tokens")
 public class FcmToken {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
 	@NotNull
-	@Indexed
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
 	@NotNull
+	@Column(nullable = false, length = 255)
 	private String deviceId;
 
 	@NotNull
-	@Indexed(unique = true)
+	@Column(nullable = false, unique = true, length = 500)
 	private String fcmToken;
 
 	@NotNull
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10, nullable = false)
 	private FcmPlatform platform;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10)
 	private CountryCode countryCode;
 
+	@Column(length = 50)
 	private String appVersion;
 
+	@Column(length = 100)
 	private String osVersion;
 
-	@CreatedDate
+	@Column(nullable = false)
 	private LocalDateTime createdAt;
 
-	@LastModifiedDate
-	@Indexed(expireAfter = "7776000s") // 90일 자동 삭제
+	@Column(nullable = false)
 	private LocalDateTime updatedAt;
 
 	@Builder.Default
+	@Column(nullable = false)
 	private Boolean isActive = true;
 
 }
