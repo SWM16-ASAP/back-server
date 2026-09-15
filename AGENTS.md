@@ -14,7 +14,7 @@
 
 ## 코드 작업 전 확인할 운영 포인트
 
-- 업무 데이터는 모두 MySQL을 사용한다(사용자·티켓·콘텐츠 메타데이터·본문·학습·북마크·피드/추천·설정·인증 토큰·단어·로그 포함). MongoDB 의존성·설정(`MongoConfig`, `build.gradle`)은 나중에 다시 필요해질 가능성을 남겨두기 위해 의도적으로 유지하며, 추가로 제거할 계획은 없다 — 자세한 배경은 [MySQL 재설계 문서](docs/architecture/mysql-first-redesign.md)와 [013번 결정 기록](docs/decisions/013-mongodb-to-mysql-full-migration.md)을 따른다.
+- 업무 데이터는 모두 MySQL을 사용한다(사용자·티켓·콘텐츠 메타데이터·본문·학습·북마크·피드/추천·설정·인증 토큰·단어·로그 포함). MongoDB 의존성·설정(`MongoConfig`, `build.gradle`)은 나중에 다시 필요해질 가능성을 남겨두기 위해 의도적으로 유지하며, 추가로 제거할 계획은 없다 — 자세한 배경은 [013번 결정 기록](docs/decisions/013-mongodb-to-mysql-full-migration.md)을 따른다.
 - Redis는 rate limit, 짧은 상태, 분산 조정에 사용한다.
 - 단어 생성 경로는 Spring AI와 AWS Bedrock 호출 비용, 실패 재시도, 동시 요청 중복을 함께 고려해야 한다.
 - `word` 동적 생성 경로는 Redisson `RLock` 기반 single-flight 조정 흐름을 가진다.
