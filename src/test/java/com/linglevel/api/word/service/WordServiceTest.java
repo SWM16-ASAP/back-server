@@ -15,7 +15,7 @@ import com.linglevel.api.word.model.RelatedForms;
 import com.linglevel.api.word.repository.InvalidWordRepository;
 import com.linglevel.api.word.repository.WordRepository;
 import com.linglevel.api.word.repository.WordVariantRepository;
-import jakarta.persistence.EntityManager;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -62,7 +62,7 @@ class WordServiceTest {
 	private WordGenerationMetrics wordGenerationMetrics;
 
 	@Mock
-	private EntityManager entityManager;
+	private PlatformTransactionManager transactionManager;
 
 	private WordService wordService;
 
@@ -77,7 +77,7 @@ class WordServiceTest {
 	@BeforeEach
 	void setUp() {
 		wordPersistenceService = new WordPersistenceService(wordRepository, wordVariantRepository,
-				invalidWordRepository, entityManager);
+				invalidWordRepository, transactionManager);
 		lenient().when(wordVariantRepository.save(any(WordVariant.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 		wordResponseMapper = new WordResponseMapper();
