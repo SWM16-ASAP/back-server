@@ -37,6 +37,6 @@ public interface FcmTokenRepository extends JpaRepository<FcmToken, Long> {
 	List<FcmToken> findAllByFcmTokenIn(List<String> fcmTokens);
 
 	@Transactional
-	long deleteByUpdatedAtBefore(LocalDateTime cutoff);
+	long deleteByUpdatedAtBeforeAndIsActive(LocalDateTime cutoff, Boolean isActive);
 
 }

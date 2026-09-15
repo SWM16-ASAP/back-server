@@ -79,18 +79,23 @@ class AuthPersistenceIntegrationTest extends AbstractMysqlTest {
 	}
 
 	@Test
-	void staleFcmTokensAreDeletedByCleanupQuery() {
+	void staleInactiveFcmTokensAreDeletedByCleanupQueryButActiveOnesAreKept() {
 		User user = users.saveAndFlush(User.builder().username("reader4").role(UserRole.USER).build());
-		FcmToken stale = fcmToken(user.getId(), "device-old", "old-token");
-		stale.setUpdatedAt(LocalDateTime.now().minusDays(91));
-		fcmTokens.saveAndFlush(stale);
+		FcmToken staleInactive = fcmToken(user.getId(), "device-old", "old-token");
+		staleInactive.setUpdatedAt(LocalDateTime.now().minusDays(91));
+		staleInactive.setIsActive(false);
+		fcmTokens.saveAndFlush(staleInactive);
+		FcmToken staleButActive = fcmToken(user.getId(), "device-still-logged-in", "still-active-token");
+		staleButActive.setUpdatedAt(LocalDateTime.now().minusDays(91));
+		fcmTokens.saveAndFlush(staleButActive);
 		FcmToken fresh = fcmToken(user.getId(), "device-new", "new-token");
 		fcmTokens.saveAndFlush(fresh);
 
-		long deleted = fcmTokens.deleteByUpdatedAtBefore(LocalDateTime.now().minusDays(90));
+		long deleted = fcmTokens.deleteByUpdatedAtBeforeAndIsActive(LocalDateTime.now().minusDays(90), false);
 
 		assertThat(deleted).isEqualTo(1);
-		assertThat(fcmTokens.findById(stale.getId())).isEmpty();
+		assertThat(fcmTokens.findById(staleInactive.getId())).isEmpty();
+		assertThat(fcmTokens.findById(staleButActive.getId())).isPresent();
 		assertThat(fcmTokens.findById(fresh.getId())).isPresent();
 	}
 
