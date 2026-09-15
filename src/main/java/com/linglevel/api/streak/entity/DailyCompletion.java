@@ -4,32 +4,31 @@ import com.linglevel.api.content.common.ContentType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import jakarta.persistence.*;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
-@Document(collection = "dailyCompletions")
-@CompoundIndex(name = "idx_userId_completionDate", def = "{'userId': 1, 'completionDate': 1}", unique = true)
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Entity
+@Table(name = "daily_completions")
 public class DailyCompletion {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@Indexed
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
+	@Column(nullable = false)
 	private LocalDate completionDate;
 
 	@Builder.Default
@@ -38,37 +37,18 @@ public class DailyCompletion {
 	@Builder.Default
 	private Integer totalCompletionCount = 0;
 
-	private List<CompletedContent> completedContents;
+	@Builder.Default
+	@OneToMany(mappedBy = "dailyCompletion", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<LearningCompletion> completedContents = new java.util.ArrayList<>();
 
 	private Integer streakCount;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 20)
 	private StreakStatus streakStatus;
 
-	private Instant createdAt;
-
-	@Getter
-	@Setter
-	@Builder
-	@NoArgsConstructor
-	@AllArgsConstructor
-	public static class CompletedContent {
-
-		private ContentType type;
-
-		private String contentId;
-
-		private String chapterId;
-
-		private Instant completedAt;
-
-		private Integer readingTime;
-
-		private String category;
-
-		private String difficultyLevel;
-
-		private StreakStatus streakStatus;
-
-	}
+	@Builder.Default
+	@Column(nullable = false, updatable = false)
+	private Instant createdAt = Instant.now();
 
 }

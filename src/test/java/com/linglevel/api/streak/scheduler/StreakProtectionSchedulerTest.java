@@ -67,19 +67,19 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("스트릭이 있고 오늘 학습 미완료한 사용자에게 알림 전송")
 	void sendNotification_ToActiveUserWithoutCompletion() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 5);
+		UserStudyReport user = createUserReport("1", 5);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
 		// 오늘 학습 미완료
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
 		// 프리즈 사용 안함
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
 		// FCM 토큰 있음
-		FcmToken token = createFcmToken("user1", "token1", CountryCode.KR);
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of(token));
+		FcmToken token = createFcmToken("1", "token1", CountryCode.KR);
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of(token));
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -92,11 +92,11 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("오늘 이미 학습 완료한 사용자는 알림 전송 안함")
 	void noNotification_WhenAlreadyCompleted() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 5);
+		UserStudyReport user = createUserReport("1", 5);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
 		// 오늘 학습 완료
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(true);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(true);
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -109,13 +109,13 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("FCM 토큰이 없는 사용자는 알림 전송 안함")
 	void noNotification_WhenNoFcmToken() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 5);
+		UserStudyReport user = createUserReport("1", 5);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
 		// FCM 토큰 없음
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of());
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of());
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -128,19 +128,19 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("여러 토큰이 있는 사용자에게 멀티캐스트 전송")
 	void sendMulticast_WhenMultipleTokens() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 5);
+		UserStudyReport user = createUserReport("1", 5);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
 		// 프리즈 사용 안함
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
 		// 여러 FCM 토큰
-		List<FcmToken> tokens = List.of(createFcmToken("user1", "token1", CountryCode.KR),
-				createFcmToken("user1", "token2", CountryCode.KR));
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(tokens);
+		List<FcmToken> tokens = List.of(createFcmToken("1", "token1", CountryCode.KR),
+				createFcmToken("1", "token2", CountryCode.KR));
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(tokens);
 
 		BatchResponse batchResponse = mock(BatchResponse.class);
 		when(batchResponse.getSuccessCount()).thenReturn(2);
@@ -170,17 +170,17 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("언어 코드 변환 - 한국어")
 	void languageConversion_Korean() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 3);
+		UserStudyReport user = createUserReport("1", 3);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
 		// 프리즈 사용 안함
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
-		FcmToken token = createFcmToken("user1", "token1", CountryCode.KR);
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of(token));
+		FcmToken token = createFcmToken("1", "token1", CountryCode.KR);
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of(token));
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -198,17 +198,17 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("언어 코드 변환 - 영어")
 	void languageConversion_English() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 3);
+		UserStudyReport user = createUserReport("1", 3);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
 		// 프리즈 사용 안함
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
-		FcmToken token = createFcmToken("user1", "token1", CountryCode.US);
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of(token));
+		FcmToken token = createFcmToken("1", "token1", CountryCode.US);
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of(token));
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -226,17 +226,17 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("언어 코드 변환 - 일본어")
 	void languageConversion_Japanese() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 3);
+		UserStudyReport user = createUserReport("1", 3);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
 		// 프리즈 사용 안함
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
-		FcmToken token = createFcmToken("user1", "token1", CountryCode.JP);
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of(token));
+		FcmToken token = createFcmToken("1", "token1", CountryCode.JP);
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of(token));
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -254,17 +254,17 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("메시지에 현재 스트릭 수가 포함됨")
 	void messageContainsStreakCount() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 7);
+		UserStudyReport user = createUserReport("1", 7);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
 		// 프리즈 사용 안함
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
-		FcmToken token = createFcmToken("user1", "token1", CountryCode.KR);
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of(token));
+		FcmToken token = createFcmToken("1", "token1", CountryCode.KR);
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of(token));
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -278,24 +278,24 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("여러 사용자에게 개별 알림 전송")
 	void sendToMultipleUsers() throws Exception {
 		// given
-		List<UserStudyReport> users = List.of(createUserReport("user1", 3), createUserReport("user2", 5),
-				createUserReport("user3", 7));
+		List<UserStudyReport> users = List.of(createUserReport("1", 3), createUserReport("2", 5),
+				createUserReport("3", 7));
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(users);
 
 		// 모두 학습 미완료
 		when(dailyCompletionRepository.existsByUserIdAndCompletionDate(anyString(), eq(today))).thenReturn(false);
 
 		// 프리즈 사용 안함
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(anyString(), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(anyString(), eq(-1), any()))
+			.thenReturn(false);
 
 		// 각각 FCM 토큰 있음
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true))
-			.thenReturn(List.of(createFcmToken("user1", "token1", CountryCode.KR)));
-		when(fcmTokenRepository.findByUserIdAndIsActive("user2", true))
-			.thenReturn(List.of(createFcmToken("user2", "token2", CountryCode.US)));
-		when(fcmTokenRepository.findByUserIdAndIsActive("user3", true))
-			.thenReturn(List.of(createFcmToken("user3", "token3", CountryCode.JP)));
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true))
+			.thenReturn(List.of(createFcmToken("1", "token1", CountryCode.KR)));
+		when(fcmTokenRepository.findByUserIdAndIsActive("2", true))
+			.thenReturn(List.of(createFcmToken("2", "token2", CountryCode.US)));
+		when(fcmTokenRepository.findByUserIdAndIsActive("3", true))
+			.thenReturn(List.of(createFcmToken("3", "token3", CountryCode.JP)));
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -308,24 +308,24 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("어제 프리즈를 사용한 경우 STREAK_SAVED_BY_FREEZE 메시지 전송")
 	void sendFreezeMessage_WhenFreezeUsedYesterday() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 5);
+		UserStudyReport user = createUserReport("1", 5);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
-		FcmToken token = createFcmToken("user1", "token1", CountryCode.KR);
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of(token));
+		FcmToken token = createFcmToken("1", "token1", CountryCode.KR);
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of(token));
 
 		// 어제 프리즈 사용 (amount = -1인 트랜잭션 존재)
 		com.linglevel.api.streak.entity.FreezeTransaction freezeTransaction = com.linglevel.api.streak.entity.FreezeTransaction
 			.builder()
-			.userId("user1")
+			.userId(Long.valueOf("1"))
 			.amount(-1)
 			.description("Auto-consumed for missed day")
 			.createdAt(today.minusDays(1).atStartOfDay(KST).toInstant())
 			.build();
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of(freezeTransaction));
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(true);
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -343,17 +343,17 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("어제 프리즈를 사용하지 않은 경우 STREAK_PROTECTION 메시지 전송")
 	void sendProtectionMessage_WhenNoFreezeUsed() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 5);
+		UserStudyReport user = createUserReport("1", 5);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
-		FcmToken token = createFcmToken("user1", "token1", CountryCode.KR);
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of(token));
+		FcmToken token = createFcmToken("1", "token1", CountryCode.KR);
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of(token));
 
 		// 어제 프리즈 사용 안함 (트랜잭션 없음)
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
@@ -374,52 +374,39 @@ class StreakProtectionSchedulerTest {
 	@DisplayName("프리즈 사용 여부 확인 - 어제 날짜 범위 정확성")
 	void checkFreezeUsage_YesterdayDateRange() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 5);
+		UserStudyReport user = createUserReport("1", 5);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
-		FcmToken token = createFcmToken("user1", "token1", CountryCode.KR);
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(List.of(token));
+		FcmToken token = createFcmToken("1", "token1", CountryCode.KR);
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(List.of(token));
 
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
 		// when
 		scheduler.sendStreakProtectionNotifications();
 
-		// then - 정확한 시간 범위로 조회했는지 검증
-		ArgumentCaptor<java.time.Instant> startCaptor = ArgumentCaptor.forClass(java.time.Instant.class);
-		ArgumentCaptor<java.time.Instant> endCaptor = ArgumentCaptor.forClass(java.time.Instant.class);
-
-		verify(freezeTransactionRepository).findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1),
-				startCaptor.capture(), endCaptor.capture());
-
-		// 어제 00:00 ~ 오늘 00:00 범위 확인
-		java.time.LocalDate yesterday = today.minusDays(1);
-		java.time.Instant expectedStart = yesterday.atStartOfDay(KST).toInstant();
-		java.time.Instant expectedEnd = today.atStartOfDay(KST).toInstant();
-
-		assertThat(startCaptor.getValue()).isEqualTo(expectedStart);
-		assertThat(endCaptor.getValue()).isEqualTo(expectedEnd);
+		verify(freezeTransactionRepository).existsByUserIdAndAmountAndEffectiveDate("1", -1, today.minusDays(1));
 	}
 
 	@Test
 	@DisplayName("전송 실패한 토큰은 비활성화됨")
 	void deactivateFailedTokens() throws Exception {
 		// given
-		UserStudyReport user = createUserReport("user1", 5);
+		UserStudyReport user = createUserReport("1", 5);
 		when(userStudyReportRepository.findByCurrentStreakGreaterThan(0)).thenReturn(List.of(user));
 
-		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("user1", today)).thenReturn(false);
+		when(dailyCompletionRepository.existsByUserIdAndCompletionDate("1", today)).thenReturn(false);
 
 		// 프리즈 사용 안함
-		when(freezeTransactionRepository.findByUserIdAndAmountAndCreatedAtBetween(eq("user1"), eq(-1), any(), any()))
-			.thenReturn(List.of());
+		when(freezeTransactionRepository.existsByUserIdAndAmountAndEffectiveDate(eq("1"), eq(-1), any()))
+			.thenReturn(false);
 
-		List<FcmToken> tokens = List.of(createFcmToken("user1", "token1", CountryCode.KR),
-				createFcmToken("user1", "token2", CountryCode.KR));
-		when(fcmTokenRepository.findByUserIdAndIsActive("user1", true)).thenReturn(tokens);
+		List<FcmToken> tokens = List.of(createFcmToken("1", "token1", CountryCode.KR),
+				createFcmToken("1", "token2", CountryCode.KR));
+		when(fcmTokenRepository.findByUserIdAndIsActive("1", true)).thenReturn(tokens);
 
 		// 하나는 성공, 하나는 실패
 		BatchResponse batchResponse = mock(BatchResponse.class);
@@ -453,7 +440,7 @@ class StreakProtectionSchedulerTest {
 	// Helper methods
 	private UserStudyReport createUserReport(String userId, int currentStreak) {
 		UserStudyReport report = new UserStudyReport();
-		report.setUserId(userId);
+		report.setUserId(Long.valueOf(userId));
 		report.setCurrentStreak(currentStreak);
 		return report;
 	}

@@ -1,6 +1,6 @@
 package com.linglevel.api.streak.service;
 
-import com.linglevel.api.common.AbstractDatabaseTest;
+import com.linglevel.api.common.AbstractMysqlTest;
 import com.linglevel.api.streak.dto.CalendarResponse;
 import com.linglevel.api.streak.entity.DailyCompletion;
 import com.linglevel.api.streak.entity.FreezeTransaction;
@@ -14,7 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -25,10 +26,11 @@ import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataMongoTest
-@Import({ StreakService.class, TicketService.class })
+@DataJpaTest(properties = "spring.flyway.locations=classpath:db/migration/mysql,classpath:db/testmigration/mysql")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import({ StreakService.class, TicketService.class, StudyReportLock.class })
 @DisplayName("StreakService Backfill 테스트")
-class StreakServiceBackfillTest extends AbstractDatabaseTest {
+class StreakServiceBackfillTest extends AbstractMysqlTest {
 
 	@Autowired
 	private StreakService streakService;
@@ -48,12 +50,22 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 	@MockitoBean
 	private ReadingSessionService readingSessionService;
 
-	private static final String TEST_USER_ID = "backfill-test-user";
+	private String TEST_USER_ID;
+
+	@Autowired
+	private com.linglevel.api.user.repository.UserRepository users;
 
 	private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
 
 	@BeforeEach
 	void setUp() {
+		TEST_USER_ID = users
+			.save(com.linglevel.api.user.entity.User.builder()
+				.username("backfill-" + java.util.UUID.randomUUID())
+				.role(com.linglevel.api.user.entity.UserRole.USER)
+				.build())
+			.getId()
+			.toString();
 		dailyCompletionRepository.deleteAll();
 		userStudyReportRepository.deleteAll();
 		freezeTransactionRepository.deleteAll();
@@ -69,7 +81,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 		for (int i = 0; i < 5; i++) {
 			LocalDate date = startDate.plusDays(i);
 			DailyCompletion completion = DailyCompletion.builder()
-				.userId(TEST_USER_ID)
+				.userId(Long.valueOf(TEST_USER_ID))
 				.completionDate(date)
 				.totalCompletionCount(1)
 				.firstCompletionCount(1)
@@ -108,7 +120,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 
 		// Day 1: 학습
 		DailyCompletion completion1 = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(day1)
 			.totalCompletionCount(1)
 			.firstCompletionCount(1)
@@ -120,7 +132,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 
 		// Day 2: Freeze (DailyCompletion with count=0)
 		DailyCompletion completion2 = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(day2)
 			.totalCompletionCount(0)
 			.firstCompletionCount(0)
@@ -131,7 +143,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 		dailyCompletionRepository.save(completion2);
 
 		FreezeTransaction freezeTx = FreezeTransaction.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.amount(-1)
 			.description("Freeze for day 2")
 			.createdAt(day2.atStartOfDay(KST_ZONE).toInstant())
@@ -140,7 +152,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 
 		// Day 3: 학습
 		DailyCompletion completion3 = DailyCompletion.builder()
-			.userId(TEST_USER_ID)
+			.userId(Long.valueOf(TEST_USER_ID))
 			.completionDate(day3)
 			.totalCompletionCount(1)
 			.firstCompletionCount(1)
@@ -172,7 +184,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 		for (int i = 0; i < 3; i++) {
 			LocalDate date = day1.plusDays(i);
 			DailyCompletion completion = DailyCompletion.builder()
-				.userId(TEST_USER_ID)
+				.userId(Long.valueOf(TEST_USER_ID))
 				.completionDate(date)
 				.totalCompletionCount(1)
 				.firstCompletionCount(1)
@@ -189,7 +201,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 		for (int i = 4; i < 7; i++) {
 			LocalDate date = day1.plusDays(i);
 			DailyCompletion completion = DailyCompletion.builder()
-				.userId(TEST_USER_ID)
+				.userId(Long.valueOf(TEST_USER_ID))
 				.completionDate(date)
 				.totalCompletionCount(1)
 				.firstCompletionCount(1)
@@ -231,7 +243,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 		for (int i = 0; i < 2; i++) {
 			LocalDate date = day1.plusDays(i);
 			DailyCompletion completion = DailyCompletion.builder()
-				.userId(TEST_USER_ID)
+				.userId(Long.valueOf(TEST_USER_ID))
 				.completionDate(date)
 				.totalCompletionCount(1)
 				.firstCompletionCount(1)
@@ -246,7 +258,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 		for (int i = 2; i < 5; i++) {
 			LocalDate date = day1.plusDays(i);
 			DailyCompletion completion = DailyCompletion.builder()
-				.userId(TEST_USER_ID)
+				.userId(Long.valueOf(TEST_USER_ID))
 				.completionDate(date)
 				.totalCompletionCount(1)
 				.firstCompletionCount(1)
@@ -280,7 +292,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 		for (int i = 0; i < 4; i++) {
 			LocalDate date = dec28.plusDays(i);
 			DailyCompletion completion = DailyCompletion.builder()
-				.userId(TEST_USER_ID)
+				.userId(Long.valueOf(TEST_USER_ID))
 				.completionDate(date)
 				.totalCompletionCount(1)
 				.firstCompletionCount(1)
@@ -296,7 +308,7 @@ class StreakServiceBackfillTest extends AbstractDatabaseTest {
 		for (int i = 0; i < 5; i++) {
 			LocalDate date = jan1.plusDays(i);
 			DailyCompletion completion = DailyCompletion.builder()
-				.userId(TEST_USER_ID)
+				.userId(Long.valueOf(TEST_USER_ID))
 				.completionDate(date)
 				.totalCompletionCount(1)
 				.firstCompletionCount(1)

@@ -34,6 +34,9 @@ class StudyTimeAnalysisServiceTest {
 	@Mock
 	private UserStudyReportRepository userStudyReportRepository;
 
+	@Mock
+	private StudyReportLock studyReportLock;
+
 	@InjectMocks
 	private StudyTimeAnalysisService service;
 
@@ -44,7 +47,7 @@ class StudyTimeAnalysisServiceTest {
 	@BeforeEach
 	void setUp() {
 		testReport = new UserStudyReport();
-		testReport.setUserId("test-user");
+		testReport.setUserId(Long.valueOf("123"));
 		testReport.setCurrentStreak(5);
 	}
 
@@ -53,10 +56,10 @@ class StudyTimeAnalysisServiceTest {
 	void getPreferredStudyHour_WithExistingValue_ReturnsStoredValue() {
 		// given
 		testReport.setPreferredStudyHour(14);
-		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findByUserId("123")).thenReturn(Optional.of(testReport));
 
 		// when
-		Optional<Integer> result = service.getPreferredStudyHour("test-user");
+		Optional<Integer> result = service.getPreferredStudyHour("123");
 
 		// then
 		assertThat(result).isPresent();
@@ -67,16 +70,17 @@ class StudyTimeAnalysisServiceTest {
 	@Test
 	@DisplayName("DB에 저장된 값이 없으면 즉시 계산하여 저장")
 	void getPreferredStudyHour_WithoutExistingValue_CalculatesAndSaves() {
+		when(userStudyReportRepository.findByUserId("123")).thenReturn(Optional.of(testReport));
 		// given
 		testReport.setPreferredStudyHour(null);
-		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate("123")).thenReturn(Optional.of(testReport));
 
 		List<DailyCompletion> completions = createCompletionsAtHour(14, 5);
-		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("123"), any(LocalDate.class)))
 			.thenReturn(completions);
 
 		// when
-		Optional<Integer> result = service.getPreferredStudyHour("test-user");
+		Optional<Integer> result = service.getPreferredStudyHour("123");
 
 		// then
 		assertThat(result).isPresent();
@@ -89,18 +93,18 @@ class StudyTimeAnalysisServiceTest {
 	@DisplayName("가장 빈번한 학습 시간대 계산 - 단일 시간대")
 	void calculateAndSavePreferredStudyHour_SingleFrequentHour() {
 		// given
-		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate("123")).thenReturn(Optional.of(testReport));
 
 		// 14시에 5번, 15시에 2번 학습
 		List<DailyCompletion> completions = new ArrayList<>();
 		completions.addAll(createCompletionsAtHour(14, 5));
 		completions.addAll(createCompletionsAtHour(15, 2));
 
-		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("123"), any(LocalDate.class)))
 			.thenReturn(completions);
 
 		// when
-		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
+		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("123");
 
 		// then
 		assertThat(result).isPresent();
@@ -111,7 +115,7 @@ class StudyTimeAnalysisServiceTest {
 	@DisplayName("가장 빈번한 학습 시간대 계산 - 여러 시간대")
 	void calculateAndSavePreferredStudyHour_MultipleHours() {
 		// given
-		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate("123")).thenReturn(Optional.of(testReport));
 
 		// 20시에 3번, 14시에 2번, 15시에 2번
 		List<DailyCompletion> completions = new ArrayList<>();
@@ -119,11 +123,11 @@ class StudyTimeAnalysisServiceTest {
 		completions.addAll(createCompletionsAtHour(14, 2));
 		completions.addAll(createCompletionsAtHour(15, 2));
 
-		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("123"), any(LocalDate.class)))
 			.thenReturn(completions);
 
 		// when
-		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
+		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("123");
 
 		// then
 		assertThat(result).isPresent();
@@ -134,12 +138,12 @@ class StudyTimeAnalysisServiceTest {
 	@DisplayName("학습 데이터가 없으면 Empty 반환")
 	void calculateAndSavePreferredStudyHour_NoData_ReturnsEmpty() {
 		// given
-		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
-		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+		when(userStudyReportRepository.findForUpdate("123")).thenReturn(Optional.of(testReport));
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("123"), any(LocalDate.class)))
 			.thenReturn(List.of());
 
 		// when
-		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
+		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("123");
 
 		// then
 		assertThat(result).isEmpty();
@@ -163,17 +167,17 @@ class StudyTimeAnalysisServiceTest {
 	@DisplayName("UTC 시각을 KST로 정확히 변환하여 계산")
 	void calculateAndSavePreferredStudyHour_UtcToKstConversion() {
 		// given
-		when(userStudyReportRepository.findByUserId("test-user")).thenReturn(Optional.of(testReport));
+		when(userStudyReportRepository.findForUpdate("123")).thenReturn(Optional.of(testReport));
 
 		// UTC 05:00 = KST 14:00
 		Instant utcTime = ZonedDateTime.of(2025, 1, 10, 5, 0, 0, 0, ZoneId.of("UTC")).toInstant();
 		List<DailyCompletion> completions = createCompletionsAtInstant(utcTime, 3);
 
-		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("test-user"), any(LocalDate.class)))
+		when(dailyCompletionRepository.findByUserIdAndCompletionDateAfter(eq("123"), any(LocalDate.class)))
 			.thenReturn(completions);
 
 		// when
-		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("test-user");
+		Optional<Integer> result = service.calculateAndSavePreferredStudyHour("123");
 
 		// then
 		assertThat(result).isPresent();
@@ -188,14 +192,15 @@ class StudyTimeAnalysisServiceTest {
 
 		for (int i = 0; i < count; i++) {
 			DailyCompletion completion = new DailyCompletion();
-			completion.setUserId("test-user");
+			completion.setUserId(Long.valueOf("123"));
 			completion.setCompletionDate(LocalDate.now(KST).minusDays(i));
 
 			// KST 시간 -> UTC로 변환
 			ZonedDateTime kstTime = ZonedDateTime.of(2025, 1, 10, kstHour, 0, 0, 0, KST);
 			Instant utcInstant = kstTime.toInstant();
 
-			DailyCompletion.CompletedContent content = DailyCompletion.CompletedContent.builder()
+			com.linglevel.api.streak.entity.LearningCompletion content = com.linglevel.api.streak.entity.LearningCompletion
+				.builder()
 				.completedAt(utcInstant)
 				.build();
 
@@ -214,10 +219,11 @@ class StudyTimeAnalysisServiceTest {
 
 		for (int i = 0; i < count; i++) {
 			DailyCompletion completion = new DailyCompletion();
-			completion.setUserId("test-user");
+			completion.setUserId(Long.valueOf("123"));
 			completion.setCompletionDate(LocalDate.now(KST).minusDays(i));
 
-			DailyCompletion.CompletedContent content = DailyCompletion.CompletedContent.builder()
+			com.linglevel.api.streak.entity.LearningCompletion content = com.linglevel.api.streak.entity.LearningCompletion
+				.builder()
 				.completedAt(instant)
 				.build();
 

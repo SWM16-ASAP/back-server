@@ -34,15 +34,21 @@ import static org.mockito.Mockito.*;
 class StreakServiceFreezeAutoConsumeTest {
 
 	@Mock
+	private UserStudyReportRepository userStudyReportRepository;
+
+	@Mock
 	private DailyCompletionRepository dailyCompletionRepository;
 
 	@Mock
 	private FreezeTransactionRepository freezeTransactionRepository;
 
+	@Mock
+	private StudyReportLock studyReportLock;
+
 	@InjectMocks
 	private StreakService streakService;
 
-	private static final String TEST_USER_ID = "test-user-123";
+	private static final String TEST_USER_ID = "123";
 
 	private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -54,8 +60,8 @@ class StreakServiceFreezeAutoConsumeTest {
 	void setUp() {
 		today = LocalDate.now(KST_ZONE);
 		testReport = new UserStudyReport();
-		testReport.setUserId(TEST_USER_ID);
-		testReport.setCompletedContentIds(new HashSet<>());
+		testReport.setUserId(Long.valueOf(TEST_USER_ID));
+
 		testReport.setCurrentStreak(5);
 		testReport.setLongestStreak(5);
 		testReport.setAvailableFreezes(1);
@@ -81,8 +87,9 @@ class StreakServiceFreezeAutoConsumeTest {
 		void withOneFreeze_ConsumeFreezeAndMaintainStreak() {
 			// given
 			LocalDate missedDate = today.minusDays(1);
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, missedDate))
-				.thenReturn(Optional.empty()); // 아직 처리 안됨
+			when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, missedDate)).thenReturn(Optional.empty()); // 아직
+																													// 처리
+																													// 안됨
 
 			// when
 			boolean wasReset = streakService.processMissedDays(testReport, today);
@@ -96,7 +103,7 @@ class StreakServiceFreezeAutoConsumeTest {
 			ArgumentCaptor<FreezeTransaction> transactionCaptor = ArgumentCaptor.forClass(FreezeTransaction.class);
 			verify(freezeTransactionRepository).save(transactionCaptor.capture());
 			FreezeTransaction savedTransaction = transactionCaptor.getValue();
-			assertThat(savedTransaction.getUserId()).isEqualTo(TEST_USER_ID);
+			assertThat(savedTransaction.getUserId()).isEqualTo(Long.valueOf(TEST_USER_ID));
 			assertThat(savedTransaction.getAmount()).isEqualTo(-1); // 소비
 
 			// DailyCompletion 저장 확인
@@ -113,8 +120,7 @@ class StreakServiceFreezeAutoConsumeTest {
 			// given
 			testReport.setAvailableFreezes(0);
 			LocalDate missedDate = today.minusDays(1);
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, missedDate))
-				.thenReturn(Optional.empty());
+			when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, missedDate)).thenReturn(Optional.empty());
 
 			// when
 			boolean wasReset = streakService.processMissedDays(testReport, today);
@@ -138,7 +144,7 @@ class StreakServiceFreezeAutoConsumeTest {
 			LocalDate missedDate = today.minusDays(1);
 			DailyCompletion existingCompletion = new DailyCompletion();
 			existingCompletion.setStreakStatus(StreakStatus.FREEZE_USED); // 이미 프리즈로 처리됨
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, missedDate))
+			when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, missedDate))
 				.thenReturn(Optional.of(existingCompletion));
 
 			int initialFreezes = testReport.getAvailableFreezes();
@@ -174,8 +180,7 @@ class StreakServiceFreezeAutoConsumeTest {
 		void withTwoFreezes_ConsumeAllAndMaintainStreak() {
 			// given
 			testReport.setAvailableFreezes(2);
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(eq(TEST_USER_ID), any()))
-				.thenReturn(Optional.empty());
+			when(dailyCompletionRepository.findForUpdate(eq(TEST_USER_ID), any())).thenReturn(Optional.empty());
 
 			// when
 			boolean wasReset = streakService.processMissedDays(testReport, today);
@@ -196,8 +201,7 @@ class StreakServiceFreezeAutoConsumeTest {
 		void withOneFreeze_ConsumeOneAndResetStreak() {
 			// given
 			testReport.setAvailableFreezes(1);
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(eq(TEST_USER_ID), any()))
-				.thenReturn(Optional.empty());
+			when(dailyCompletionRepository.findForUpdate(eq(TEST_USER_ID), any())).thenReturn(Optional.empty());
 
 			// when
 			boolean wasReset = streakService.processMissedDays(testReport, today);
@@ -217,8 +221,7 @@ class StreakServiceFreezeAutoConsumeTest {
 		void withNoFreeze_ResetStreak() {
 			// given
 			testReport.setAvailableFreezes(0);
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(eq(TEST_USER_ID), any()))
-				.thenReturn(Optional.empty());
+			when(dailyCompletionRepository.findForUpdate(eq(TEST_USER_ID), any())).thenReturn(Optional.empty());
 
 			// when
 			boolean wasReset = streakService.processMissedDays(testReport, today);
@@ -244,12 +247,11 @@ class StreakServiceFreezeAutoConsumeTest {
 			// 첫 번째 날은 이미 처리됨
 			DailyCompletion existingCompletion = new DailyCompletion();
 			existingCompletion.setStreakStatus(StreakStatus.FREEZE_USED);
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, missedDate1))
+			when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, missedDate1))
 				.thenReturn(Optional.of(existingCompletion));
 
 			// 두 번째 날은 미처리
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(TEST_USER_ID, missedDate2))
-				.thenReturn(Optional.empty());
+			when(dailyCompletionRepository.findForUpdate(TEST_USER_ID, missedDate2)).thenReturn(Optional.empty());
 
 			// when
 			boolean wasReset = streakService.processMissedDays(testReport, today);
@@ -281,8 +283,7 @@ class StreakServiceFreezeAutoConsumeTest {
 		void withTwoFreezes_ConsumeAllButStillReset() {
 			// given
 			testReport.setAvailableFreezes(2);
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(eq(TEST_USER_ID), any()))
-				.thenReturn(Optional.empty());
+			when(dailyCompletionRepository.findForUpdate(eq(TEST_USER_ID), any())).thenReturn(Optional.empty());
 
 			// when
 			boolean wasReset = streakService.processMissedDays(testReport, today);
@@ -370,8 +371,7 @@ class StreakServiceFreezeAutoConsumeTest {
 			testReport.setCurrentStreak(0);
 			testReport.setLastCompletionDate(today.minusDays(2));
 			testReport.setAvailableFreezes(1);
-			when(dailyCompletionRepository.findByUserIdAndCompletionDate(eq(TEST_USER_ID), any()))
-				.thenReturn(Optional.empty());
+			when(dailyCompletionRepository.findForUpdate(eq(TEST_USER_ID), any())).thenReturn(Optional.empty());
 
 			// when
 			boolean wasReset = streakService.processMissedDays(testReport, today);

@@ -1,6 +1,6 @@
 # MySQL 중심 신규 시스템 재설계 계획
 
-상태: 사용자·티켓·커스텀 콘텐츠·책·아티클 구현, 나머지 작업 단위 대기.
+상태: 사용자·티켓·커스텀 콘텐츠·책·아티클·학습 이력 및 보상 구현, 독서 진행률·북마크 대기.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
 기존 운영 환경에 적용하려면 별도 데이터 마이그레이션이 필요하다.
@@ -13,7 +13,7 @@
 | 티켓 | UserTicket, TicketTransaction | ticket_wallets, ticket_transactions, ticket_reservations(신규) | 구현 완료. 지갑·확정 거래·예약을 분리하고 예약→확정/해제 적용 |
 | 커스텀 콘텐츠 | ContentRequest, CustomContent, UserCustomContent | content_requests, custom_contents, user_custom_contents | 내부 BIGINT ID와 외부 `request_key` 분리. 콘텐츠·소유권·요청 완료·예약 확정을 SQL 트랜잭션으로 처리 |
 | 책·아티클 | Book, Chapter, Article | books, chapters, articles | 구현 완료. BIGINT ID, 책·챕터 FK와 챕터 번호 유니크 제약. 본문은 MongoDB에 유지 |
-| 학습 이력·보상 | DailyCompletion, UserStudyReport, FreezeTransaction | daily_completions, learning_completions, user_study_reports, freeze_transactions | 완료 내역 배열·누적 완료 ID 집합을 완료 이력으로 분리. 일별 요약·스트릭·프리즈·티켓 보상 정합성 관리 |
+| 학습 이력·보상 | DailyCompletion, UserStudyReport, FreezeTransaction | daily_completions, learning_completions, user_study_reports, freeze_transactions | 구현 완료. 완료 이력 분리, 사용자별 SQL 잠금, 일별 상태·스트릭·프리즈·티켓 보상 트랜잭션 처리 |
 | 독서 진행률 | BookProgress, ArticleProgress, CustomContentProgress | book_progress, book_chapter_progress, article_progress, custom_content_progress | 사용자·콘텐츠별 진행률 관리. 챕터 진행률 배열은 별도 테이블로 분리 |
 | 북마크 | WordBookmark | word_bookmarks | 사용자·단어 조합의 유일성 유지. 단어 본문과는 독립적으로 관리 |
 
@@ -99,6 +99,27 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.content.book.*' --tests 'com.linglevel.api.content.article.*' --tests 'com.linglevel.api.content.common.Catalog*'
+./gradlew checkFormat
+```
+
+## 학습 이력·보상 전환의 보장 범위
+
+- V6에서 `user_study_reports`, `daily_completions`, `learning_completions`, `freeze_transactions`를 추가한다. PK와 사용자 FK는 BIGINT다. API의 사용자·거래 ID는 문자열 표현을 유지한다.
+- 리포트는 사용자당 하나, 일별 요약은 사용자·KST 날짜당 하나다. FK·유니크 제약과 잔액/집계의 음수 방지 CHECK를 적용한다. 리포트에는 낙관적 버전 검사도 둔다.
+- 기존 일별 완료 배열은 `learning_completions` 행으로 분리했다. 리포트에 누적 ID 집합을 저장하지 않고 이력에서 고유 수를 조회한다. 유형과 ID를 함께 식별하므로 BOOK/ARTICLE/CUSTOM의 숫자 ID가 같아도 서로 다른 학습이다. BOOK의 학습 단위 ID는 책이 아니라 챕터다.
+- 다형적인 콘텐츠 참조에는 콘텐츠 테이블 FK를 걸지 않는다. 콘텐츠를 삭제해도 학습 이력을 보존하며, 일별 요약을 명시적으로 삭제할 때만 해당 완료 이력을 함께 삭제한다.
+- 변경 전에 사용자 행을 잠가 최초 리포트 생성부터 동시 학습·보상·복구를 직렬화한다. 리포트·당일 상태·최초 완료 판단은 필요한 곳에서 잠금 읽기를 사용해, 기존 트랜잭션이 먼저 조회했더라도 오래된 스냅샷만 보고 판단하지 않도록 한다.
+- `updateStreak`는 보상 지급과 당일 COMPLETED 표시를 함께 커밋한다. 뒤의 `addCompletedContent` 호출까지 기다리지 않으므로 같은 날 동시 요청에도 스트릭/티켓/프리즈 보상은 한 번만 지급한다. 기존 진행률 서비스의 외부 SQL 트랜잭션 안에서 학습 시간·완료 이력·보상은 함께 롤백된다.
+- 반복 읽기는 기존 정책대로 이력을 추가하고 totalCompletionCount를 늘린다. 동일 콘텐츠의 최초 완료 집계만 한 번 증가한다. 요청/읽기 세션 ID에 의한 전송 재시도 멱등성은 아직 제공하지 않는다.
+- 누락일 처리에서는 스케줄러가 전달한 리포트 대신 잠근 최신 리포트를 사용하며, 프리즈 거래·일별 상태·잔액을 같은 트랜잭션에 저장한다. 스케줄러가 처리 후 오래된 객체를 다시 저장하는 경로는 제거했다.
+- 프리즈의 `created_at`은 처리 시각, `effective_date`는 적용 대상 학습 날짜다. 자정 이후 처리한 전날 프리즈도 올바르게 알림 판정에 포함한다. 복구 보상이 보유 한도를 초과하면 초과분 조정 거래를 남겨 잔액 변화와 이력이 맞도록 한다.
+- 캘린더 날짜 범위는 양 끝을 포함하고, 프리즈/티켓 거래 시간 범위는 시작 포함·종료 제외다. 기존 캘린더의 누락된 상태·스트릭 수 보정은 쓰기 트랜잭션과 사용자 잠금 아래 유지한다.
+- 같은 사용자의 학습·복구는 대기할 수 있다. 다른 SQL 작업과의 데드락/타임아웃 자동 재시도, 대규모 복구·캘린더 backfill 최적화는 이번 범위 밖이다.
+- 진행률은 아직 MongoDB, 읽기 세션은 Redis다. SQL 롤백이 이미 변경한 Mongo 진행률·소비한 Redis 세션·발행한 이벤트까지 되돌리지는 않는다. 해당 경계의 재시도/복구는 별도 과제이며 종단 멱등성을 보장한다고 해석하지 않는다.
+- 실제 MySQL에서 동시 첫 리포트 생성, 최초 콘텐츠 집계, 일별 보상, 누적 학습 시간, 프리즈 재처리, 복구 보상, 제약 조건, 보상 실패 시 롤백을 검증한다. 이전 Mongo 기반 backfill 테스트도 MySQL로 전환했다.
+
+```sh
+./gradlew test --tests 'com.linglevel.api.streak.*'
 ./gradlew checkFormat
 ```
 

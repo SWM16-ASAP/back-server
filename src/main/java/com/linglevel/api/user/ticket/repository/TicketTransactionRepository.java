@@ -12,8 +12,12 @@ public interface TicketTransactionRepository extends JpaRepository<TicketTransac
 
 	Page<TicketTransaction> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
-	List<TicketTransaction> findByUserIdAndAmountAndCreatedAtBetween(Long userId, Integer amount,
-			LocalDateTime startDateTime, LocalDateTime endDateTime);
+	@org.springframework.data.jpa.repository.Query("select t from TicketTransaction t where t.userId = :userId and t.amount = :amount and t.createdAt >= :start and t.createdAt < :end")
+	List<TicketTransaction> findByUserIdAndAmountAndCreatedAtBetween(
+			@org.springframework.data.repository.query.Param("userId") Long userId,
+			@org.springframework.data.repository.query.Param("amount") Integer amount,
+			@org.springframework.data.repository.query.Param("start") LocalDateTime startDateTime,
+			@org.springframework.data.repository.query.Param("end") LocalDateTime endDateTime);
 
 	default List<TicketTransaction> findByUserIdAndAmountAndCreatedAtBetween(String userId, Integer amount,
 			LocalDateTime startDateTime, LocalDateTime endDateTime) {

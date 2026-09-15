@@ -1,26 +1,26 @@
 package com.linglevel.api.streak.entity;
 
 import lombok.Getter;
+import jakarta.persistence.*;
 import lombok.Setter;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
-@Document(collection = "userStudyReports")
 @Getter
 @Setter
+@Entity
+@Table(name = "user_study_reports")
 public class UserStudyReport {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@Indexed(unique = true)
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
 	private Integer currentStreak = 0;
 
@@ -36,14 +36,17 @@ public class UserStudyReport {
 
 	private Long totalReadingTimeSeconds = 0L;
 
-	private Set<String> completedContentIds = new HashSet<>();
-
 	private Integer preferredStudyHour;
 
 	private Instant preferredStudyHourUpdatedAt;
 
-	private Instant createdAt;
+	@Column(nullable = false, updatable = false)
+	private Instant createdAt = Instant.now();
 
+	@org.hibernate.annotations.UpdateTimestamp
 	private Instant updatedAt;
+
+	@Version
+	private Long version;
 
 }

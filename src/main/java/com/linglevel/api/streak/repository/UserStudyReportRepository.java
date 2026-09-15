@@ -1,28 +1,33 @@
 package com.linglevel.api.streak.repository;
 
 import com.linglevel.api.streak.entity.UserStudyReport;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
-
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
-public interface UserStudyReportRepository extends MongoRepository<UserStudyReport, String> {
+public interface UserStudyReportRepository extends JpaRepository<UserStudyReport, Long> {
 
-	Optional<UserStudyReport> findByUserId(String userId);
+	Optional<UserStudyReport> findByUserId(Long userId);
 
-	long countByCurrentStreakGreaterThanEqual(int currentStreak);
+	default Optional<UserStudyReport> findByUserId(String id) {
+		return findByUserId(Long.valueOf(id));
+	}
 
-	List<UserStudyReport> findByCurrentStreakGreaterThan(int currentStreak);
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select r from UserStudyReport r where r.userId = :id")
+	Optional<UserStudyReport> findForUpdate(@Param("id") Long id);
 
-	/**
-	 * 이탈 유저 복귀 알림을 위한 사용자 조회 (currentStreak = 0) 마지막 학습 시간이 특정 범위 내에 있는 이탈 유저를 찾습니다.
-	 * @param startTime 시작 시간
-	 * @param endTime 종료 시간
-	 * @return 해당 조건을 만족하는 이탈 유저 리포트 목록
-	 */
-	@Query("{ 'currentStreak': 0, 'lastLearningTimestamp': { $gte: ?0, $lt: ?1 } }")
-	List<UserStudyReport> findChurnedUsersInTimeWindow(Instant startTime, Instant endTime);
+	default Optional<UserStudyReport> findForUpdate(String id) {
+		return findForUpdate(Long.valueOf(id));
+	}
+
+	long countByCurrentStreakGreaterThanEqual(int count);
+
+	List<UserStudyReport> findByCurrentStreakGreaterThan(int count);
+
+	@Query("select r from UserStudyReport r where r.currentStreak = 0 and r.lastLearningTimestamp >= :start and r.lastLearningTimestamp < :end")
+	List<UserStudyReport> findChurnedUsersInTimeWindow(@Param("start") Instant start, @Param("end") Instant end);
 
 }

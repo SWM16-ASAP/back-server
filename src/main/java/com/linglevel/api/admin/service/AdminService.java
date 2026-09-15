@@ -62,6 +62,8 @@ public class AdminService {
 
 	private final UserStudyReportRepository userStudyReportRepository;
 
+	private final com.linglevel.api.streak.service.StudyReportLock studyReportLock;
+
 	public ChunkResponse updateBookChunk(String bookId, String chapterId, String chunkId, UpdateChunkRequest request) {
 		log.info("Updating book chunk - bookId: {}, chapterId: {}, chunkId: {}", bookId, chapterId, chunkId);
 
@@ -202,21 +204,17 @@ public class AdminService {
 	}
 
 	public void resetTodayStreak(String userId) {
+		studyReportLock.lock(userId);
 		log.info("Admin resetting today's streak for user: {}", userId);
 
 		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
 
 		dailyCompletionRepository.findByUserIdAndCompletionDate(userId, today).ifPresent(todayCompletion -> {
-			List<String> todayContentIds = todayCompletion.getCompletedContents() != null
-					? todayCompletion.getCompletedContents().stream().map(c -> c.getContentId()).toList() : List.of();
 
 			dailyCompletionRepository.delete(todayCompletion);
 			log.info("Deleted today's DailyCompletion for user: {}", userId);
 
-			userStudyReportRepository.findByUserId(userId).ifPresent(report -> {
-				if (report.getCompletedContentIds() != null && !todayContentIds.isEmpty()) {
-					report.getCompletedContentIds().removeAll(todayContentIds);
-				}
+			userStudyReportRepository.findForUpdate(userId).ifPresent(report -> {
 
 				if (report.getLastCompletionDate() != null && report.getLastCompletionDate().isEqual(today)) {
 					dailyCompletionRepository

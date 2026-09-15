@@ -60,7 +60,8 @@ public class DailyStreakValidationScheduler {
 					}
 					else {
 						// 스트릭 유지됨 (어제 완료 또는 프리즈 소진)
-						long daysSinceLastCompletion = ChronoUnit.DAYS.between(report.getLastCompletionDate(), today);
+						long daysSinceLastCompletion = report.getLastCompletionDate() == null ? 0
+								: ChronoUnit.DAYS.between(report.getLastCompletionDate(), today);
 
 						if (daysSinceLastCompletion == 1) {
 							maintainedCount++;
@@ -70,12 +71,9 @@ public class DailyStreakValidationScheduler {
 						}
 					}
 
-					report.setUpdatedAt(Instant.now());
-					userStudyReportRepository.save(report);
-
 				}
 				catch (Exception e) {
-					log.error("[Streak Validation] Failed to process user: {}", report.getUserId(), e);
+					log.error("[Streak Validation] Failed to process user: {}", report.getUserId().toString(), e);
 				}
 			}
 

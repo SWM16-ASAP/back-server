@@ -1,46 +1,72 @@
 package com.linglevel.api.streak.repository;
 
 import com.linglevel.api.streak.entity.DailyCompletion;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
-
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
-public interface DailyCompletionRepository extends MongoRepository<DailyCompletion, String> {
+public interface DailyCompletionRepository extends JpaRepository<DailyCompletion, Long> {
 
-	boolean existsByUserIdAndCompletionDate(String userId, LocalDate completionDate);
+	boolean existsByUserIdAndCompletionDate(Long userId, LocalDate date);
 
-	Optional<DailyCompletion> findByUserIdAndCompletionDate(String userId, LocalDate completionDate);
+	Optional<DailyCompletion> findByUserIdAndCompletionDate(Long userId, LocalDate date);
 
-	Optional<DailyCompletion> findTopByUserIdAndCompletionDateBeforeOrderByCompletionDateDesc(String userId,
+	Optional<DailyCompletion> findTopByUserIdAndCompletionDateBeforeOrderByCompletionDateDesc(Long userId,
 			LocalDate date);
 
-	long countByUserId(String userId);
+	long countByUserId(Long userId);
 
-	/**
-	 * 경계값을 포함하는 범위 조회 ($gte, $lte 사용) Between은 $gt, $lt를 사용하여 경계값을 제외하므로 커스텀 쿼리 사용
-	 */
-	@Query("{ 'userId': ?0, 'completionDate': { $gte: ?1, $lte: ?2 } }")
-	List<DailyCompletion> findByUserIdAndCompletionDateBetween(String userId, LocalDate startDate, LocalDate endDate);
+	List<DailyCompletion> findByUserIdAndCompletionDateBetween(Long userId, LocalDate start, LocalDate end);
 
-	/**
-	 * 최근 N일간의 학습 기록 조회 (학습 시간대 분석용)
-	 */
-	@Query("{ 'userId': ?0, 'completionDate': { $gte: ?1 } }")
-	List<DailyCompletion> findByUserIdAndCompletionDateAfter(String userId, LocalDate startDate);
+	List<DailyCompletion> findByUserIdAndCompletionDateGreaterThanEqual(Long userId, LocalDate start);
 
-	/**
-	 * 특정 사용자의 모든 DailyCompletion을 날짜 오름차순으로 조회
-	 */
-	List<DailyCompletion> findByUserIdOrderByCompletionDateAsc(String userId);
+	List<DailyCompletion> findByUserIdOrderByCompletionDateAsc(Long userId);
 
-	/**
-	 * 특정 날짜 이상의 DailyCompletion을 날짜 오름차순으로 조회 (스트릭 복구용)
-	 */
-	@Query("{ 'userId': ?0, 'completionDate': { $gte: ?1 } }")
-	List<DailyCompletion> findByUserIdAndCompletionDateGreaterThanEqualOrderByCompletionDateAsc(String userId,
-			LocalDate startDate);
+	List<DailyCompletion> findByUserIdAndCompletionDateGreaterThanEqualOrderByCompletionDateAsc(Long userId,
+			LocalDate start);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select d from DailyCompletion d where d.userId = :userId and d.completionDate = :date")
+	Optional<DailyCompletion> findForUpdate(@Param("userId") Long userId, @Param("date") LocalDate date);
+
+	default Optional<DailyCompletion> findForUpdate(String userId, LocalDate date) {
+		return findForUpdate(Long.valueOf(userId), date);
+	}
+
+	default boolean existsByUserIdAndCompletionDate(String u, LocalDate d) {
+		return existsByUserIdAndCompletionDate(Long.valueOf(u), d);
+	}
+
+	default Optional<DailyCompletion> findByUserIdAndCompletionDate(String u, LocalDate d) {
+		return findByUserIdAndCompletionDate(Long.valueOf(u), d);
+	}
+
+	default Optional<DailyCompletion> findTopByUserIdAndCompletionDateBeforeOrderByCompletionDateDesc(String u,
+			LocalDate d) {
+		return findTopByUserIdAndCompletionDateBeforeOrderByCompletionDateDesc(Long.valueOf(u), d);
+	}
+
+	default long countByUserId(String u) {
+		return countByUserId(Long.valueOf(u));
+	}
+
+	default List<DailyCompletion> findByUserIdAndCompletionDateBetween(String u, LocalDate s, LocalDate e) {
+		return findByUserIdAndCompletionDateBetween(Long.valueOf(u), s, e);
+	}
+
+	default List<DailyCompletion> findByUserIdAndCompletionDateAfter(String u, LocalDate s) {
+		return findByUserIdAndCompletionDateGreaterThanEqual(Long.valueOf(u), s);
+	}
+
+	default List<DailyCompletion> findByUserIdOrderByCompletionDateAsc(String u) {
+		return findByUserIdOrderByCompletionDateAsc(Long.valueOf(u));
+	}
+
+	default List<DailyCompletion> findByUserIdAndCompletionDateGreaterThanEqualOrderByCompletionDateAsc(String u,
+			LocalDate s) {
+		return findByUserIdAndCompletionDateGreaterThanEqualOrderByCompletionDateAsc(Long.valueOf(u), s);
+	}
 
 }
