@@ -21,4 +21,5 @@
 - [Streak 도메인 미니맵](streak.md)
 - [Word 도메인 미니맵](word.md)
 - [Book 도메인 미니맵](content-book.md)
-- [MongoDB 논리 ERD (dbdiagram.io용 DBML)](mongodb-logical-erd.dbml)
+- [MySQL 재설계 문서](mysql-first-redesign.md)
+- [MongoDB 논리 ERD (dbdiagram.io용 DBML, 과거 참고용)](mongodb-logical-erd.dbml)

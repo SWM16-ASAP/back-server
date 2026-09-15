@@ -2,6 +2,12 @@
 // - Embedded arrays/objects/maps are modeled as `json`.
 // - Refs are application-level logical relations; MongoDB does not enforce foreign keys.
 // - Some polymorphic fields such as `contentId` are kept as notes instead of strict refs.
+//
+// HISTORICAL RECORD (2026-09): the project fully migrated off MongoDB to MySQL —
+// see docs/decisions/013-mongodb-to-mysql-full-migration.md and
+// docs/architecture/mysql-first-redesign.md for the current schema and reasoning.
+// No collection described below exists in the codebase anymore; this file is kept
+// only as a record of the pre-migration data model.
 
 Table users {
   id varchar [pk]

@@ -247,7 +247,7 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 - `PushLog.version`(Mongo `@Version`, `logOpened`의 동시 오픈 리포트 처리에 쓰는 낙관적 락)은 JPA `@Version`으로 그대로 옮겼다 — 애노테이션 패키지만 바뀌고(`org.springframework.data.annotation.Version` → `jakarta.persistence.Version`) 동작은 동일하다. 실제 MySQL로 낙관적 락 충돌이 발생하는지 통합 테스트로 검증했다.
 - `UserPreferenceAggregationScheduler`는 `ContentAccessLog.userId`가 Long이 되면서 `Map<String, ...>`으로 그룹화하던 코드를 `Map<Long, ...>`으로, `updateUserPreference`의 시그니처도 `String`에서 `Long`으로 바꿨다 — 이전 도메인(피드·추천)에서 넣었던 `Long.valueOf(userId)` 브리징 코드가 이제 필요 없어져 제거했다(양쪽이 모두 BIGINT이므로).
 - `ContentAccessLog`, `PushLog`를 다루는 서비스(`PushLogService`, `PushCampaignService`, `ContentAccessEventListener`)는 이번 전환 이전에 테스트가 전혀 없었다. 리포지토리 수준 영속성 테스트(FK, 유니크 제약, 낙관적 락, 두 정리 스케줄러 쿼리)만 새로 추가했고, 서비스 계층 테스트 보강은 저장소 전환 범위 밖으로 남겨둔다.
-- 이 도메인 전환으로 `docs/architecture/mysql-first-redesign.md`가 다루는 모든 도메인의 MySQL 전환이 끝났다. 남은 production 코드의 MongoDB 참조는 `MongoConfig`(`@EnableMongoAuditing`), 이번에 제거한 두 엔티티/리포지토리 외에는 없어야 하며, `build.gradle`의 Mongo 관련 의존성 제거와 `CustomContentService`에 남은 미사용 Mongo import 정리가 마지막 정리 단계의 일이다.
+- 이 도메인 전환으로 `docs/architecture/mysql-first-redesign.md`가 다루는 모든 도메인의 MySQL 전환이 끝났다. **최종 검증 결과**: `src/main/java`에 `@Document`/`extends MongoRepository`는 0건이다. 남은 MongoDB 참조는 사실상 무동작인 `MongoConfig`(`@EnableMongoAuditing`)와 `build.gradle`의 Mongo 관련 의존성뿐이며, 나중에 다시 필요해질 가능성을 남겨두기 위해 **의도적으로 제거하지 않기로** 했다 — 자세한 배경은 [013번 결정 기록](../decisions/013-mongodb-to-mysql-full-migration.md) 참고. `CustomContentService`의 미사용 Mongo import와 구독자 없는 `AbstractDatabaseTest` 테스트 베이스 클래스 같은 확실히 죽은 코드만 정리했다.
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.common.log.*' --tests 'com.linglevel.api.content.recommendation.*' --tests 'com.linglevel.api.fcm.*' --tests 'com.linglevel.api.streak.*'
@@ -257,4 +257,6 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 ## 관련 문서
 
 - [시스템 컨텍스트](overview.md)
-- [기존 MongoDB 선택 배경](../decisions/007-choose-mongodb-for-early-flexibility.md)
+- [MongoDB 중심 저장소를 MySQL 단일 축으로 완전 전환 (013번 결정 기록)](../decisions/013-mongodb-to-mysql-full-migration.md)
+- [기존 MongoDB 선택 배경 (007번, 013번으로 대체됨)](../decisions/007-choose-mongodb-for-early-flexibility.md)
+- [MongoDB 논리 ERD (과거 참고용)](mongodb-logical-erd.dbml)
