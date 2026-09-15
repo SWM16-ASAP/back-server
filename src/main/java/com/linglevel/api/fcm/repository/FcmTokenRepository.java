@@ -2,6 +2,7 @@ package com.linglevel.api.fcm.repository;
 
 import com.linglevel.api.fcm.entity.FcmToken;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +36,7 @@ public interface FcmTokenRepository extends JpaRepository<FcmToken, Long> {
 
 	List<FcmToken> findAllByFcmTokenIn(List<String> fcmTokens);
 
+	@Transactional
 	long deleteByUpdatedAtBefore(LocalDateTime cutoff);
 
 }

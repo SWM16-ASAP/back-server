@@ -3,6 +3,7 @@ package com.linglevel.api.auth.repository;
 import com.linglevel.api.auth.jwt.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -24,6 +25,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 		deleteByUserId(Long.valueOf(userId));
 	}
 
+	@Transactional
 	long deleteByExpiresAtBefore(LocalDateTime cutoff);
 
 }
