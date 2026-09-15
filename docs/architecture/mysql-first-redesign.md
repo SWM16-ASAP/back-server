@@ -1,7 +1,7 @@
 # MySQL 중심 신규 시스템 재설계 계획
 
 상태: MongoDB에 남아 있는 데이터 전체를 MySQL로 전환하는 것이 목표다. 사용자·티켓·커스텀 콘텐츠·책·아티클·학습
-이력 및 보상·독서 진행률·북마크·콘텐츠 본문·피드 및 추천 전환 구현 완료. 남은 도메인(설정, 인증·알림, 단어, 로그)은
+이력 및 보상·독서 진행률·북마크·콘텐츠 본문·피드 및 추천·설정 전환 구현 완료. 남은 도메인(인증·알림, 단어, 로그)은
 순차적으로 전환한다.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
@@ -20,6 +20,7 @@
 | 북마크 | WordBookmark | word_bookmarks | 구현 완료. 사용자·원형 문자열 유니크 제약, SQL 검색·페이지네이션, 추가·삭제·토글 잠금 처리 |
 | 콘텐츠 본문 | Chunk, ArticleChunk, CustomContentChunk | chunks, article_chunks, custom_content_chunks | 구현 완료. 책·아티클·커스텀 콘텐츠 청크를 각 콘텐츠 BIGINT FK로 연결하고, 메타데이터·본문 생성/삭제를 하나의 SQL 트랜잭션으로 통합 |
 | 피드·추천 | Feed, FeedSource, UserCategoryPreference | feeds, feed_sources, user_category_preferences | 구현 완료. `Feed`·`FeedSource`의 URL 유일성은 접두 유니크 인덱스로 유지. `UserCategoryPreference.userId`는 BIGINT로 전환하고 `users` FK를 추가. 점수·카운트 맵은 JSON 컬럼으로 보존 |
+| 설정 | CrawlingDsl, ContentBanner, AppVersion | crawling_dsl, content_banners, app_version | 구현 완료. `ContentBanner.content_id`는 Book/Article/CustomContent를 가리키는 다형적 참조라 FK 없이 BIGINT로만 전환(기존 학습 이력의 다형적 참조와 동일한 패턴). `AppVersion`은 단일 설정 로우로 `updated_at` 내림차순 첫 행 조회 방식을 그대로 유지 |
 
 ## 남은 MongoDB 데이터
 
@@ -30,7 +31,7 @@
 
 ## 나머지 모델
 
-CrawlingDsl, ContentBanner, AppVersion / RefreshToken, FcmToken / PushLog는 후속 작업에서 순서대로 MySQL 배치를 정한다.
+RefreshToken, FcmToken / PushLog는 후속 작업에서 순서대로 MySQL 배치를 정한다.
 Redis의 세션·rate limit·single-flight 역할은 변경하지 않는다.
 
 ## 변경 방법
@@ -184,6 +185,23 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.content.feed.*' --tests 'com.linglevel.api.content.recommendation.*' --tests 'com.linglevel.api.admin.*' --tests 'com.linglevel.api.content.custom.*'
+./gradlew checkFormat
+```
+
+## 설정 전환의 보장 범위
+
+- V11에서 `crawling_dsl`, `content_banners`, `app_version`을 추가한다. PK는 BIGINT 자동 증가다.
+- `crawling_dsl.domain`은 유니크 제약을 유지한다(도메인 문자열은 URL보다 훨씬 짧아 접두 인덱스 없이 전체 컬럼에 유니크 제약을 걸 수 있다). 조회는 여전히 도메인 문자열로만 하며 `id`로 조회하는 API/내부 호출은 없다.
+- `content_banners.content_id`는 Book/Article/CustomContent 중 하나를 가리키는 다형적 참조라 특정 테이블에 FK를 걸 수 없다 — 학습 이력의 다형적 콘텐츠 참조와 동일한 이유로 FK 없는 BIGINT 컬럼으로 두었다. `content_type` 컬럼으로 어느 테이블인지 구분하는 기존 방식을 그대로 유지한다.
+- 배너의 `content_title`/`content_author`/`content_cover_image_url`/`content_reading_time`은 생성 시점에 `ContentInfoProviderFactory`가 조회한 값을 저장하는 **스냅샷**이며, 이번 전환에서도 라이브 조인으로 바꾸지 않았다 — 원본 콘텐츠가 나중에 바뀌어도 배너는 갱신되지 않는 기존 동작을 그대로 유지한다.
+- `getNextDisplayOrder`는 기존에 국가별 배너를 내림차순으로 전부 불러온 뒤 첫 번째 값을 쓰는 방식이었다. `findFirstByCountryCodeOrderByDisplayOrderDesc`(LIMIT 1)로 바꿔 동일한 결과를 더 적은 데이터로 얻도록 했다 — 조회 결과 자체는 이전과 같다.
+- 배너의 `(country_code, display_order)` 중복 여부는 기존처럼 생성 시점의 `existsBy` 확인으로만 방지하며, 이번 전환에서 DB 유니크 제약을 새로 걸지는 않았다. 동시에 두 배너를 같은 순서로 생성하면 지금처럼 중복이 발생할 수 있는 기존 한계를 그대로 남겨둔다 — 조회수 증가와 달리 저빈도 관리자 작업이라 이번 범위에서 강화하지 않았다.
+- `app_version`은 여러 행이 쌓일 수 있는 단일 설정 테이블 구조를 그대로 유지한다(사실상 "가장 최근에 수정된 행"이 곧 현재 설정). `findTopByOrderByUpdatedAtDesc`는 JPA에서도 동일한 메서드명으로 동작해 리포지토리 시그니처 변경이 필요 없었다.
+- API가 이미 `id`를 노출하지 않는 `AppVersion`을 제외하고, `CrawlingDsl`/`ContentBanner`의 응답 `id`는 문자열 표현을 유지한다.
+- 실제 MySQL 컨테이너로 `crawling_dsl` 도메인 유니크 제약, 국가별 표시순서 조회, 활성 배너 정렬, `app_version` 최신 행 조회를 검증한다. 이 세 도메인은 기존에 저장소/서비스/컨트롤러 테스트가 전혀 없었으므로 이번에 리포지토리 수준 테스트를 새로 추가했다 — 서비스/컨트롤러 계층 테스트는 이번 저장소 전환 범위 밖이다.
+
+```sh
+./gradlew test --tests 'com.linglevel.api.common.config.*' --tests 'com.linglevel.api.crawling.*' --tests 'com.linglevel.api.content.feed.filter.filters.ContentCrawlabilityFilterTest'
 ./gradlew checkFormat
 ```
 

@@ -83,7 +83,7 @@ public class ContentBannerService {
 
 		ContentBanner banner = new ContentBanner();
 		banner.setCountryCode(request.getCountryCode());
-		banner.setContentId(request.getContentId());
+		banner.setContentId(Long.valueOf(request.getContentId()));
 		banner.setContentType(request.getContentType());
 		banner.setSubtitle(request.getSubtitle());
 		banner.setTitle(request.getTitle());
@@ -155,13 +155,9 @@ public class ContentBannerService {
 	 * 다음 사용 가능한 표시순서 조회
 	 */
 	private Integer getNextDisplayOrder(CountryCode countryCode) {
-		List<ContentBanner> banners = contentBannerRepository.findByCountryCodeOrderByDisplayOrderDesc(countryCode);
-
-		if (banners.isEmpty()) {
-			return 1;
-		}
-
-		return banners.get(0).getDisplayOrder() + 1;
+		return contentBannerRepository.findFirstByCountryCodeOrderByDisplayOrderDesc(countryCode)
+			.map(banner -> banner.getDisplayOrder() + 1)
+			.orElse(1);
 	}
 
 	/**
@@ -169,9 +165,9 @@ public class ContentBannerService {
 	 */
 	private ContentBannerResponse convertToResponse(ContentBanner banner) {
 		ContentBannerResponse response = new ContentBannerResponse();
-		response.setId(banner.getId());
+		response.setId(banner.getId().toString());
 		response.setCountryCode(banner.getCountryCode());
-		response.setContentId(banner.getContentId());
+		response.setContentId(banner.getContentId().toString());
 		response.setContentType(banner.getContentType());
 		response.setContentTitle(banner.getContentTitle());
 		response.setContentAuthor(banner.getContentAuthor());
