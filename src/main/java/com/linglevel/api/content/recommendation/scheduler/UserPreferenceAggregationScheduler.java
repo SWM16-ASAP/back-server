@@ -45,11 +45,11 @@ public class UserPreferenceAggregationScheduler {
 			log.info("Processing {} access logs from {} users", recentLogs.size(),
 					recentLogs.stream().map(ContentAccessLog::getUserId).distinct().count());
 
-			Map<String, List<ContentAccessLog>> logsByUser = recentLogs.stream()
+			Map<Long, List<ContentAccessLog>> logsByUser = recentLogs.stream()
 				.collect(Collectors.groupingBy(ContentAccessLog::getUserId));
 
-			for (Entry<String, List<ContentAccessLog>> entry : logsByUser.entrySet()) {
-				String userId = entry.getKey();
+			for (Entry<Long, List<ContentAccessLog>> entry : logsByUser.entrySet()) {
+				Long userId = entry.getKey();
 				List<ContentAccessLog> userLogs = entry.getValue();
 
 				try {
@@ -78,7 +78,7 @@ public class UserPreferenceAggregationScheduler {
 		}
 	}
 
-	private void updateUserPreference(String userId, List<ContentAccessLog> logs) {
+	private void updateUserPreference(Long userId, List<ContentAccessLog> logs) {
 		// 시간 감쇠 가중치 계산
 		Instant now = Instant.now();
 		Instant sevenDaysAgo = now.minus(7, java.time.temporal.ChronoUnit.DAYS);
@@ -123,7 +123,7 @@ public class UserPreferenceAggregationScheduler {
 		}
 
 		UserCategoryPreference preference = userCategoryPreferenceRepository.findByUserId(userId)
-			.orElse(UserCategoryPreference.builder().userId(Long.valueOf(userId)).build());
+			.orElse(UserCategoryPreference.builder().userId(userId).build());
 
 		preference.setPrimaryCategory(primaryCategory);
 		preference.setCategoryScores(categoryScores);

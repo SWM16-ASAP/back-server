@@ -70,7 +70,7 @@ class UserPreferenceAggregationSchedulerTest {
 						now.minus(3, ChronoUnit.DAYS)));
 
 		when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class))).thenReturn(logs);
-		when(userCategoryPreferenceRepository.findByUserId(userId)).thenReturn(Optional.empty());
+		when(userCategoryPreferenceRepository.findByUserId(Long.valueOf(userId))).thenReturn(Optional.empty());
 		when(userCategoryPreferenceRepository.save(any(UserCategoryPreference.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -95,7 +95,7 @@ class UserPreferenceAggregationSchedulerTest {
 				createLog(userId, "book2", ContentType.BOOK, null, now.minus(2, ChronoUnit.DAYS)));
 
 		when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class))).thenReturn(logs);
-		when(userCategoryPreferenceRepository.findByUserId(userId)).thenReturn(Optional.empty());
+		when(userCategoryPreferenceRepository.findByUserId(Long.valueOf(userId))).thenReturn(Optional.empty());
 		when(userCategoryPreferenceRepository.save(any(UserCategoryPreference.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -127,7 +127,7 @@ class UserPreferenceAggregationSchedulerTest {
 						now.minus(60, ChronoUnit.DAYS)));
 
 		when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class))).thenReturn(logs);
-		when(userCategoryPreferenceRepository.findByUserId(userId)).thenReturn(Optional.empty());
+		when(userCategoryPreferenceRepository.findByUserId(Long.valueOf(userId))).thenReturn(Optional.empty());
 		when(userCategoryPreferenceRepository.save(any(UserCategoryPreference.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -158,7 +158,7 @@ class UserPreferenceAggregationSchedulerTest {
 				createLog("3", "book1", ContentType.BOOK, null, now.minus(1, ChronoUnit.DAYS)));
 
 		when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class))).thenReturn(logs);
-		when(userCategoryPreferenceRepository.findByUserId(anyString())).thenReturn(Optional.empty());
+		when(userCategoryPreferenceRepository.findByUserId(any(Long.class))).thenReturn(Optional.empty());
 		when(userCategoryPreferenceRepository.save(any(UserCategoryPreference.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -182,10 +182,9 @@ class UserPreferenceAggregationSchedulerTest {
 		when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class))).thenReturn(logs);
 
 		// user2 처리 시 에러 발생
-		when(userCategoryPreferenceRepository.findByUserId("1")).thenReturn(Optional.empty());
-		when(userCategoryPreferenceRepository.findByUserId("2"))
-			.thenThrow(new RuntimeException("DB connection failed"));
-		when(userCategoryPreferenceRepository.findByUserId("3")).thenReturn(Optional.empty());
+		when(userCategoryPreferenceRepository.findByUserId(1L)).thenReturn(Optional.empty());
+		when(userCategoryPreferenceRepository.findByUserId(2L)).thenThrow(new RuntimeException("DB connection failed"));
+		when(userCategoryPreferenceRepository.findByUserId(3L)).thenReturn(Optional.empty());
 
 		when(userCategoryPreferenceRepository.save(any(UserCategoryPreference.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
@@ -213,7 +212,8 @@ class UserPreferenceAggregationSchedulerTest {
 				ContentCategory.TECH, now.minus(1, ChronoUnit.DAYS)));
 
 		when(contentAccessLogRepository.findByAccessedAtAfter(any(Instant.class))).thenReturn(newLogs);
-		when(userCategoryPreferenceRepository.findByUserId(userId)).thenReturn(Optional.of(existingPreference));
+		when(userCategoryPreferenceRepository.findByUserId(Long.valueOf(userId)))
+			.thenReturn(Optional.of(existingPreference));
 		when(userCategoryPreferenceRepository.save(any(UserCategoryPreference.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -234,8 +234,8 @@ class UserPreferenceAggregationSchedulerTest {
 	private ContentAccessLog createLog(String userId, String contentId, ContentType contentType,
 			ContentCategory category, Instant accessedAt) {
 		return ContentAccessLog.builder()
-			.userId(userId)
-			.contentId(contentId)
+			.userId(Long.valueOf(userId))
+			.contentId((long) Math.abs(contentId.hashCode()))
 			.contentType(contentType)
 			.category(category)
 			.accessedAt(accessedAt)

@@ -259,7 +259,7 @@ public class FcmMessagingService {
 			.campaignId(pushId) // 자체 UUID를 campaignId로 사용
 			.fcmMessageId(fcmMessageId) // FCM messageId (선택적)
 			.campaignGroup(campaignGroup) // 캠페인 그룹
-			.userId(userId)
+			.userId(Long.valueOf(userId))
 			.sentAt(now)
 			.sentSuccess(success)
 			.createdAt(now)

@@ -39,8 +39,8 @@ public class ContentAccessEventListener {
 
 			// 1. ContentAccessLog 저장 (readTimeSeconds 포함)
 			ContentAccessLog accessLog = ContentAccessLog.builder()
-				.userId(event.getUserId())
-				.contentId(event.getContentId())
+				.userId(Long.valueOf(event.getUserId()))
+				.contentId(Long.valueOf(event.getContentId()))
 				.contentType(event.getContentType())
 				.category(category)
 				.readTimeSeconds(event.getReadTimeSeconds())

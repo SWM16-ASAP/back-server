@@ -14,7 +14,7 @@
 
 ## 코드 작업 전 확인할 운영 포인트
 
-- 사용자·티켓·콘텐츠 메타데이터·콘텐츠 본문(청크)·학습·북마크·피드/추천·설정(크롤링 DSL/배너/앱 버전)·리프레시 토큰·FCM 토큰·단어(Word/WordVariant/InvalidWord)는 MySQL, 로그(PushLog/ContentAccessLog)는 MongoDB를 사용한다. 나머지 모델의 배치는 [MySQL 재설계 문서](docs/architecture/mysql-first-redesign.md)를 따른다.
+- 업무 데이터는 모두 MySQL을 사용한다(사용자·티켓·콘텐츠 메타데이터·본문·학습·북마크·피드/추천·설정·인증 토큰·단어·로그 포함). MongoDB 의존성·설정 자체는 아직 코드에 남아 있으며 제거는 별도 마무리 작업으로 남겨뒀다 — 자세한 배경은 [MySQL 재설계 문서](docs/architecture/mysql-first-redesign.md)를 따른다.
 - Redis는 rate limit, 짧은 상태, 분산 조정에 사용한다.
 - 단어 생성 경로는 Spring AI와 AWS Bedrock 호출 비용, 실패 재시도, 동시 요청 중복을 함께 고려해야 한다.
 - `word` 동적 생성 경로는 Redisson `RLock` 기반 single-flight 조정 흐름을 가진다.

@@ -2,11 +2,8 @@ package com.linglevel.api.content.recommendation.entity;
 
 import com.linglevel.api.content.common.ContentCategory;
 import com.linglevel.api.content.common.ContentType;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
@@ -15,25 +12,31 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "contentAccessLogs")
-@CompoundIndexes({ @CompoundIndex(name = "user_accessed_idx", def = "{'userId': 1, 'accessedAt': -1}"),
-		@CompoundIndex(name = "user_category_idx", def = "{'userId': 1, 'category': 1}"),
-		@CompoundIndex(name = "user_content_type_idx", def = "{'userId': 1, 'contentType': 1}") })
+@Entity
+@Table(name = "content_access_logs")
 public class ContentAccessLog {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
-	private String contentId;
+	@Column(nullable = false)
+	private Long contentId;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10, nullable = false)
 	private ContentType contentType;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 20)
 	private ContentCategory category;
 
 	private Integer readTimeSeconds;
 
+	@Column(nullable = false)
 	private Instant accessedAt;
 
 }

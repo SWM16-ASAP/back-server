@@ -1,11 +1,7 @@
 package com.linglevel.api.fcm.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Version;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
@@ -14,32 +10,35 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "pushLogs")
+@Entity
+@Table(name = "push_logs")
 public class PushLog {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@Indexed(unique = true)
+	@Column(nullable = false, unique = true, length = 36)
 	private String campaignId; // 각 메시지의 고유 ID (자체 UUID)
 
+	@Column(length = 255)
 	private String fcmMessageId; // FCM messageId (선택적, FCM 추적용)
 
-	@Indexed
+	@Column(length = 255)
 	private String campaignGroup; // 내부 그룹화용 (선택적)
 
-	@Indexed
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
-	@Indexed
+	@Column(nullable = false)
 	private LocalDateTime sentAt;
 
+	@Column(nullable = false)
 	private Boolean sentSuccess;
 
 	private LocalDateTime openedAt;
 
-	@CreatedDate
-	@Indexed(expireAfter = "15552000s")
+	@Column(nullable = false)
 	private LocalDateTime createdAt;
 
 	@Version

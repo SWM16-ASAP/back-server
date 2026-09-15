@@ -2,7 +2,8 @@
 
 상태: MongoDB에 남아 있는 데이터 전체를 MySQL로 전환하는 것이 목표다. 사용자·티켓·커스텀 콘텐츠·책·아티클·학습
 이력 및 보상·독서 진행률·북마크·콘텐츠 본문·피드 및 추천·설정·인증(리프레시 토큰)·FCM 토큰·단어(Word/WordVariant
-/InvalidWord) 전환 구현 완료. 남은 도메인(로그)은 순차적으로 전환한다.
+/InvalidWord)·로그(ContentAccessLog/PushLog) 전환 구현 완료. 이로써 이 문서가 다루는 모든 도메인의 저장소 전환이
+끝났다. 남은 작업은 MongoDB 의존성·설정·테스트·운영 스크립트 제거뿐이다.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
 기존 운영 환경에 적용하려면 별도 데이터 마이그레이션이 필요하다.
@@ -23,16 +24,15 @@
 | 설정 | CrawlingDsl, ContentBanner, AppVersion | crawling_dsl, content_banners, app_version | 구현 완료. `ContentBanner.content_id`는 Book/Article/CustomContent를 가리키는 다형적 참조라 FK 없이 BIGINT로만 전환(기존 학습 이력의 다형적 참조와 동일한 패턴). `AppVersion`은 단일 설정 로우로 `updated_at` 내림차순 첫 행 조회 방식을 그대로 유지 |
 | 인증·알림 | RefreshToken, FcmToken | refresh_tokens, fcm_tokens | 구현 완료. 두 Mongo TTL 인덱스(즉시 만료 삭제, 90일 미갱신 삭제)를 대체하는 일일 정리 스케줄러를 신규 추가했다. `users` FK를 걸고 `userId`는 BIGINT로 전환 |
 | 단어 | Word, WordVariant, InvalidWord | words, word_variants, invalid_words | 구현 완료. 임베딩된 AI 분석 결과(`meanings`, `relatedForms`, `summary`)는 JSON 컬럼으로 보존. `word` 관련 컬럼은 `word_bookmarks`와 동일한 `utf8mb4_0900_bin`(binary, 대소문자 구분) 컬레이션 적용. 동시 저장 경합 복구 로직을 Mongo `DuplicateKeyException`에서 JPA `DataIntegrityViolationException` + `EntityManager.clear()`로 이식 |
+| 로그 | ContentAccessLog, PushLog | content_access_logs, push_logs | 구현 완료. `PushLog`의 Mongo TTL 인덱스(180일)를 대체하는 정리 스케줄러를 신규 추가했다(`ContentAccessLog`의 120일 정리는 기존 `UserPreferenceAggregationScheduler`가 그대로 수행). `PushLog.version`(Mongo `@Version`)은 JPA `@Version`으로 그대로 이식해 오픈 리포트 동시 처리의 낙관적 락 동작을 유지 |
 
 ## 남은 MongoDB 데이터
 
-| 기존 모델 | 방향 |
-| --- | --- |
-| ContentAccessLog | 조회 인덱스·보존 정책을 검토해 전환 예정. `UserCategoryPreference` 집계의 입력 소스이므로 스케줄러의 `userId` 문자열↔BIGINT 경계에 유의 |
+이 문서가 다루는 도메인은 모두 전환을 완료했다. 남은 작업은 MongoDB 의존성·설정·테스트·운영 스크립트 제거(최종 정리
+단계)뿐이다.
 
 ## 나머지 모델
 
-PushLog는 후속 작업에서 MySQL 배치를 정한다(로그 도메인, ContentAccessLog와 함께 전환).
 Redis의 세션·rate limit·single-flight 역할은 변경하지 않는다.
 
 ## 변경 방법
@@ -234,6 +234,22 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.word.*' --tests 'com.linglevel.api.bookmark.*' --tests 'com.linglevel.api.admin.*'
+./gradlew checkFormat
+```
+
+## 로그 전환의 보장 범위
+
+- V14에서 `content_access_logs`, `push_logs`를 추가한다. PK는 BIGINT 자동 증가이며 둘 다 `users` FK를 가진다.
+- `ContentAccessLog.userId`/`contentId`는 모두 BIGINT로 전환했다. `contentId`는 Article/Book/CustomContent 중 하나를 가리키는 다형적 참조라 `ContentBanner`·학습 이력과 동일한 이유로 FK를 걸지 않았다.
+- Mongo의 `Word`/`ContentAccessLog` 문서에 있던 3개 복합 인덱스(`user_accessed_idx`, `user_category_idx`, `user_content_type_idx`) 중 실제로 사용하는 조회 메서드는 하나도 없었다(`findByAccessedAtAfter`/`deleteByAccessedAtBefore`만 존재하며 둘 다 사용자 범위가 아닌 전체 스캔). 그대로 옮기지 않고 실제 조회 패턴에 필요한 `accessed_at` 단일 인덱스만 추가했다 — 나중에 사용자별 조회 기능이 생기면 그때 맞는 인덱스를 추가한다.
+- `PushLog`는 Mongo에서 `createdAt` 기준 180일 TTL 인덱스로 자동 삭제됐다. MySQL에는 TTL 인덱스가 없으므로 `PushLogCleanupScheduler`(매일 03:00 KST)를 신규 추가해 `deleteByCreatedAtBefore`로 동일한 보존 기간을 재현했다. `ContentAccessLog`의 120일 정리는 이미 존재하는 `UserPreferenceAggregationScheduler.deleteOldLogs`가 그대로 수행하며 이번에 손대지 않았다.
+- `PushLog.version`(Mongo `@Version`, `logOpened`의 동시 오픈 리포트 처리에 쓰는 낙관적 락)은 JPA `@Version`으로 그대로 옮겼다 — 애노테이션 패키지만 바뀌고(`org.springframework.data.annotation.Version` → `jakarta.persistence.Version`) 동작은 동일하다. 실제 MySQL로 낙관적 락 충돌이 발생하는지 통합 테스트로 검증했다.
+- `UserPreferenceAggregationScheduler`는 `ContentAccessLog.userId`가 Long이 되면서 `Map<String, ...>`으로 그룹화하던 코드를 `Map<Long, ...>`으로, `updateUserPreference`의 시그니처도 `String`에서 `Long`으로 바꿨다 — 이전 도메인(피드·추천)에서 넣었던 `Long.valueOf(userId)` 브리징 코드가 이제 필요 없어져 제거했다(양쪽이 모두 BIGINT이므로).
+- `ContentAccessLog`, `PushLog`를 다루는 서비스(`PushLogService`, `PushCampaignService`, `ContentAccessEventListener`)는 이번 전환 이전에 테스트가 전혀 없었다. 리포지토리 수준 영속성 테스트(FK, 유니크 제약, 낙관적 락, 두 정리 스케줄러 쿼리)만 새로 추가했고, 서비스 계층 테스트 보강은 저장소 전환 범위 밖으로 남겨둔다.
+- 이 도메인 전환으로 `docs/architecture/mysql-first-redesign.md`가 다루는 모든 도메인의 MySQL 전환이 끝났다. 남은 production 코드의 MongoDB 참조는 `MongoConfig`(`@EnableMongoAuditing`), 이번에 제거한 두 엔티티/리포지토리 외에는 없어야 하며, `build.gradle`의 Mongo 관련 의존성 제거와 `CustomContentService`에 남은 미사용 Mongo import 정리가 마지막 정리 단계의 일이다.
+
+```sh
+./gradlew test --tests 'com.linglevel.api.common.log.*' --tests 'com.linglevel.api.content.recommendation.*' --tests 'com.linglevel.api.fcm.*' --tests 'com.linglevel.api.streak.*'
 ./gradlew checkFormat
 ```
 
