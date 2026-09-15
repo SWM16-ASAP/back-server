@@ -1,6 +1,8 @@
 # MySQL 중심 신규 시스템 재설계 계획
 
-상태: 계획한 사용자·티켓·커스텀 콘텐츠·책·아티클·학습 이력 및 보상·독서 진행률·북마크 전환 구현.
+상태: MongoDB에 남아 있는 데이터 전체를 MySQL로 전환하는 것이 목표다. 사용자·티켓·커스텀 콘텐츠·책·아티클·학습
+이력 및 보상·독서 진행률·북마크·콘텐츠 본문 전환 구현 완료. 남은 도메인(피드·추천, 설정, 인증·알림, 단어, 로그)은
+순차적으로 전환한다.
 
 새 DB로 시작한다. 기존 운영 데이터 이전·무중단 전환·운영 롤백은 범위에서 제외한다.
 기존 운영 환경에 적용하려면 별도 데이터 마이그레이션이 필요하다.
@@ -12,28 +14,23 @@
 | 사용자 | User | users | 구현 완료. `id`를 MySQL PK·FK용 순차 ID로 사용하고, JWT·API 경계에서는 문자열로 직렬화 |
 | 티켓 | UserTicket, TicketTransaction | ticket_wallets, ticket_transactions, ticket_reservations(신규) | 구현 완료. 지갑·확정 거래·예약을 분리하고 예약→확정/해제 적용 |
 | 커스텀 콘텐츠 | ContentRequest, CustomContent, UserCustomContent | content_requests, custom_contents, user_custom_contents | 내부 BIGINT ID와 외부 `request_key` 분리. 콘텐츠·소유권·요청 완료·예약 확정을 SQL 트랜잭션으로 처리 |
-| 책·아티클 | Book, Chapter, Article | books, chapters, articles | 구현 완료. BIGINT ID, 책·챕터 FK와 챕터 번호 유니크 제약. 본문은 MongoDB에 유지 |
+| 책·아티클 | Book, Chapter, Article | books, chapters, articles | 구현 완료. BIGINT ID, 책·챕터 FK와 챕터 번호 유니크 제약. 본문(청크)은 아래 콘텐츠 본문 항목으로 MySQL로 전환 |
 | 학습 이력·보상 | DailyCompletion, UserStudyReport, FreezeTransaction | daily_completions, learning_completions, user_study_reports, freeze_transactions | 구현 완료. 완료 이력 분리, 사용자별 SQL 잠금, 일별 상태·스트릭·프리즈·티켓 보상 트랜잭션 처리 |
 | 독서 진행률 | BookProgress, ArticleProgress, CustomContentProgress | book_progress, book_chapter_progress, article_progress, custom_content_progress | 사용자·콘텐츠 유니크 제약, 챕터 진행률 행 분리, 학습 보상과 SQL 트랜잭션 통합 |
 | 북마크 | WordBookmark | word_bookmarks | 구현 완료. 사용자·원형 문자열 유니크 제약, SQL 검색·페이지네이션, 추가·삭제·토글 잠금 처리 |
+| 콘텐츠 본문 | Chunk, ArticleChunk, CustomContentChunk | chunks, article_chunks, custom_content_chunks | 구현 완료. 책·아티클·커스텀 콘텐츠 청크를 각 콘텐츠 BIGINT FK로 연결하고, 메타데이터·본문 생성/삭제를 하나의 SQL 트랜잭션으로 통합 |
 
-## MongoDB에 남길 데이터
+## 남은 MongoDB 데이터
 
-| 기존 모델 | 변경 방향 |
+| 기존 모델 | 방향 |
 | --- | --- |
-| Word, WordVariant, InvalidWord | 단어 조회·생성 도메인 전체를 MongoDB에 유지 |
-| Chunk, ArticleChunk, CustomContentChunk | 본문 저장소로 유지하고 MySQL의 콘텐츠·챕터 ID로 연결 |
-| ContentAccessLog | 업무 트랜잭션과 분리된 접근·분석 로그로 유지 |
-
-본문은 먼저 저장·검증한 뒤 MySQL에서 결과 참조와 제공 상태를 확정한다.
-두 DB를 하나의 트랜잭션으로 묶지 않으며, 미사용 본문 정리와 참조된 본문의 삭제 정책은 별도로 정한다.
-티켓·프리즈 거래 내역은 분석 로그가 아니므로 MySQL에서 관리한다.
+| Word, WordVariant, InvalidWord | 단어 조회·생성 도메인 전환 예정. 원형·변형 관계와 조회 쿼리 재설계, 기존 single-flight·실패 처리 동작 유지 필요 |
+| ContentAccessLog | 조회 인덱스·보존 정책을 검토해 전환 예정 |
 
 ## 나머지 모델
 
-RefreshToken, FcmToken, PushLog, Feed, FeedSource, CrawlingDsl, ContentBanner,
-AppVersion, UserCategoryPreference는 우선 기존 저장 방식을 유지하고 후속 작업에서 배치를 정한다.
-Redis의 세션·rate limit·single-flight 역할은 변경하지 않는다.
+Feed, FeedSource, UserCategoryPreference / CrawlingDsl, ContentBanner, AppVersion / RefreshToken, FcmToken / PushLog는
+후속 작업에서 순서대로 MySQL 배치를 정한다. Redis의 세션·rate limit·single-flight 역할은 변경하지 않는다.
 
 ## 변경 방법
 
@@ -155,6 +152,21 @@ Docker 실행 후 아래 명령으로 실제 MySQL 8.4.10 및 MongoDB 컨테이�
 
 ```sh
 ./gradlew test --tests 'com.linglevel.api.bookmark.*' --tests 'com.linglevel.api.word.service.WordServiceTest'
+./gradlew checkFormat
+```
+
+## 콘텐츠 본문 전환의 보장 범위
+
+- V9에서 `chunks`, `article_chunks`, `custom_content_chunks`를 추가한다. PK는 BIGINT 자동 증가다. 세 청크 모두 부모 참조(`chapter_id`/`article_id`/`custom_id`)가 이미 MySQL BIGINT의 문자열 표현이었으므로 값 이관 없이 컬럼 타입만 BIGINT로 바꾸고 FK(`ON DELETE CASCADE`)를 추가했다.
+- 챕터·아티클 청크는 `(부모_id, difficulty_level, chunk_number)` 유니크 제약과 `chunk_number > 0` CHECK를 가진다. 커스텀 콘텐츠 청크는 `(custom_id, difficulty_level, chapter_num, chunk_num)` 유니크 제약을 가지며 기존 Mongo의 `isDeleted`/`deletedAt` 소프트 삭제 필드와 동작을 그대로 이식했다 — 다만 이를 `true`로 설정하는 코드는 이번에도 추가하지 않았다(기존에도 없던 갭이며 커스텀 콘텐츠 삭제 정책은 별도 과제로 남긴다).
+- 책·아티클 가져오기, 커스텀 콘텐츠 생성 완료 각각에서 메타데이터(책/챕터, 아티클, 커스텀 콘텐츠)와 본문 청크 저장이 이제 같은 MySQL 트랜잭션 안에서 실제로 원자적이다. 기존에는 청크가 별도 저장소(Mongo)여서 트랜잭션이 메타데이터에만 적용됐지만, 이번 전환으로 청크 저장 실패 시 메타데이터도 함께 롤백된다.
+- 같은 이유로 관리자 삭제(`AdminService.deleteBook`/`deleteArticle`)의 청크 삭제도 이제 FK `ON DELETE CASCADE`로 이중 보장되며, 존재하지 않는 부모를 가리키는 청크를 저장하는 것 자체가 DB 제약으로 차단된다 — 이전에 앱 레벨에서 방어하던 "미참조 청크가 공개 목록에 노출되지 않는지" 검증은 이제 애초에 그런 행이 생성될 수 없으므로 제약 위반 검증으로 대체했다.
+- 학습 진행률 서비스(`ProgressService`, `ArticleProgressService`, `CustomContentReadingProgressService`)의 청크당 총 개수 조회는 청크 엔티티에서 이미 얻은 BIGINT 부모 ID를 그대로 사용하도록 통일했다. 문자열 부모 ID를 받는 오버로드는 그 외 호출부(카탈로그 목록·조회수 갱신 등)에서 계속 쓰인다.
+- API 응답의 청크 ID는 계속 문자열이다(`BIGINT.toString()`). 진행률 엔티티의 `chunk_id` 컬럼은 이번에도 손대지 않았고 여전히 청크 ID의 문자열 표현을 담는 일반 VARCHAR 컬럼이다(FK 아님) — 진행률 도메인에 FK를 추가할지는 별도 논의가 필요하다.
+- 실제 MySQL 컨테이너로 FK/유니크/CHECK, 메타데이터·본문 동시 롤백(S3 실패, 챕터 수 불일치, 빈 본문), 조회수 동시 증가, 진행률·스트릭·보상과의 트랜잭션 통합을 검증한다. AI/S3/알림은 테스트 대역이다.
+
+```sh
+./gradlew test --tests 'com.linglevel.api.content.book.*' --tests 'com.linglevel.api.content.article.*' --tests 'com.linglevel.api.content.common.*' --tests 'com.linglevel.api.admin.*' --tests 'com.linglevel.api.content.custom.*' --tests 'com.linglevel.api.streak.*'
 ./gradlew checkFormat
 ```
 

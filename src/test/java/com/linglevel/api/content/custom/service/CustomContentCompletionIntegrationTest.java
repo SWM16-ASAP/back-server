@@ -135,8 +135,8 @@ class CustomContentCompletionIntegrationTest extends AbstractMysqlTest {
 			.hasSize(1);
 		verify(chunks).saveAll(argThat(values -> {
 			CustomContentChunk chunk = values.iterator().next();
-			return chunk.getCustomContentId().equals(done.getResultCustomContentId().toString())
-					&& chunk.getUserId().equals(done.getUserId().toString());
+			return chunk.getCustomContentId().equals(done.getResultCustomContentId())
+					&& chunk.getUserId().equals(done.getUserId());
 		}));
 		verify(notifications, times(1)).sendContentCompletedNotification(anyString(), anyString(), anyString(),
 				anyString());

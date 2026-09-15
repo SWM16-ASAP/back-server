@@ -65,7 +65,7 @@ class ArticleProgressServiceTest {
 		// Given: 마이그레이션되지 않은(V2 필드가 null인) ArticleProgress 설정
 		String userId = "1";
 		String articleId = "101";
-		String chunkId = "test-chunk";
+		String chunkId = "301";
 
 		// V2 필드가 null인 레거시 데이터
 		ArticleProgress legacyProgress = new ArticleProgress();
@@ -76,8 +76,8 @@ class ArticleProgressServiceTest {
 		// legacyProgress.currentDifficultyLevel is null
 
 		ArticleChunk currentChunk = new ArticleChunk();
-		currentChunk.setId(chunkId);
-		currentChunk.setArticleId(articleId);
+		currentChunk.setId(Long.valueOf(chunkId));
+		currentChunk.setArticleId(Long.valueOf(articleId));
 		currentChunk.setChunkNumber(10);
 		currentChunk.setDifficultyLevel(DifficultyLevel.B1);
 
@@ -92,7 +92,8 @@ class ArticleProgressServiceTest {
 		when(articleService.findById(articleId)).thenReturn(article);
 		when(articleProgressRepository.findForUpdate(userId, articleId)).thenReturn(Optional.of(legacyProgress));
 		when(articleChunkService.findById(chunkId)).thenReturn(currentChunk);
-		when(articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId, DifficultyLevel.B1)).thenReturn(100L);
+		when(articleChunkRepository.countByArticleIdAndDifficultyLevel(Long.valueOf(articleId), DifficultyLevel.B1))
+			.thenReturn(100L);
 		when(progressCalculationService.calculateNormalizedProgress(10, 100L)).thenReturn(10.0);
 
 		// When: 진행률 업데이트 호출

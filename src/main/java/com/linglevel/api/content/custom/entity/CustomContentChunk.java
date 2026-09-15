@@ -2,15 +2,10 @@ package com.linglevel.api.content.custom.entity;
 
 import com.linglevel.api.content.common.ChunkType;
 import com.linglevel.api.content.common.DifficultyLevel;
-import jakarta.validation.constraints.NotNull;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 
@@ -19,48 +14,48 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "customContentChunks")
-@CompoundIndexes({
-		@CompoundIndex(name = "custom_content_difficulty_chapter_chunk_idx",
-				def = "{'customContentId': 1, 'difficultyLevel': 1, 'chapterNum': 1, 'chunkNum': 1}"),
-		@CompoundIndex(name = "user_deleted_created_idx", def = "{'userId': 1, 'isDeleted': 1, 'createdAt': -1}") })
+@Entity
+@Table(name = "custom_content_chunks")
 public class CustomContentChunk {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	@NotNull
-	@Indexed
-	private String customContentId;
+	@Column(name = "custom_id", nullable = false)
+	private Long customContentId;
 
-	@NotNull
-	@Indexed
-	private String userId;
+	@Column(nullable = false)
+	private Long userId;
 
-	@NotNull
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10, nullable = false)
 	private DifficultyLevel difficultyLevel;
 
-	@NotNull
+	@Column(nullable = false)
 	private Integer chapterNum;
 
-	@NotNull
+	@Column(nullable = false)
 	private Integer chunkNum;
 
-	@NotNull
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10, nullable = false)
 	private ChunkType type;
 
-	@NotNull
+	@Column(columnDefinition = "text", nullable = false)
 	private String chunkText;
 
+	@Column(columnDefinition = "text")
 	private String description;
 
 	@Builder.Default
+	@Column(nullable = false)
 	private Boolean isDeleted = false;
 
-	@CreatedDate
+	@CreationTimestamp
 	private Instant createdAt;
 
-	@LastModifiedDate
+	@UpdateTimestamp
 	private Instant updatedAt;
 
 	private Instant deletedAt;

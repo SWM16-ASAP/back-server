@@ -223,7 +223,7 @@ class ArticleServiceTest {
 
 	private void mockArticleProgress(List<Article> articles, boolean isCompleted) {
 		com.linglevel.api.content.article.entity.ArticleChunk mockChunk = new com.linglevel.api.content.article.entity.ArticleChunk();
-		mockChunk.setId("test-chunk-id");
+		mockChunk.setId(1L);
 		mockChunk.setChunkNumber(50);
 		when(articleChunkService.findById(anyString())).thenReturn(mockChunk);
 

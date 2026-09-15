@@ -63,7 +63,7 @@ public class ArticleImportService {
 	private ArticleChunk createArticleChunk(ArticleImportData.ChunkData chunkData, String articleId,
 			DifficultyLevel difficulty, int chunkNumber) {
 		ArticleChunk chunk = new ArticleChunk();
-		chunk.setArticleId(articleId);
+		chunk.setArticleId(Long.valueOf(articleId));
 		chunk.setChunkNumber(chunkNumber);
 		chunk.setDifficultyLevel(difficulty);
 

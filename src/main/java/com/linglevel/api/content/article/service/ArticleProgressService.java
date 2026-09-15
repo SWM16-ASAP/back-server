@@ -52,7 +52,7 @@ public class ArticleProgressService {
 		ArticleChunk chunk = articleChunkService.findById(request.getChunkId());
 
 		// chunk가 해당 article에 속하는지 검증
-		if (chunk.getArticleId() == null || !chunk.getArticleId().equals(articleId)) {
+		if (chunk.getArticleId() == null || !chunk.getArticleId().toString().equals(articleId)) {
 			throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND_IN_ARTICLE);
 		}
 
@@ -72,7 +72,7 @@ public class ArticleProgressService {
 		articleProgress.setChunkId(request.getChunkId());
 
 		// [V2_CORE] V2 필드: 정규화된 진행률 계산
-		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId,
+		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(chunk.getArticleId(),
 				chunk.getDifficultyLevel());
 		double normalizedProgress = progressCalculationService.calculateNormalizedProgress(chunk.getChunkNumber(),
 				totalChunks);
@@ -168,10 +168,10 @@ public class ArticleProgressService {
 		ArticleProgress newProgress = new ArticleProgress();
 		newProgress.setUserId(Long.valueOf(userId));
 		newProgress.setArticleId(Long.valueOf(articleId));
-		newProgress.setChunkId(firstChunk.getId());
+		newProgress.setChunkId(firstChunk.getId().toString());
 
 		// [V2_CORE] V2 필드: 초기 진행률 계산
-		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(articleId,
+		long totalChunks = articleChunkRepository.countByArticleIdAndDifficultyLevel(firstChunk.getArticleId(),
 				firstChunk.getDifficultyLevel());
 		double initialProgress = progressCalculationService.calculateNormalizedProgress(firstChunk.getChunkNumber(),
 				totalChunks);

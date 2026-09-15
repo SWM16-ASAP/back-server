@@ -63,7 +63,7 @@ public class ProgressService {
 		if (chunk.getChapterId() == null) {
 			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
 		}
-		Chapter chapter = chapterService.findById(chunk.getChapterId());
+		Chapter chapter = chapterService.findById(chunk.getChapterId().toString());
 
 		if (!chapter.getBookId().toString().equals(bookId)) {
 			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND_IN_BOOK);
@@ -86,7 +86,7 @@ public class ProgressService {
 		bookProgress.setCurrentDifficultyLevel(chunk.getDifficultyLevel());
 
 		// [V3_CHAPTER_BASED] 챕터별 진행률 계산
-		long totalChunksInChapter = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId().toString(),
+		long totalChunksInChapter = chunkRepository.countByChapterIdAndDifficultyLevel(chapter.getId(),
 				chunk.getDifficultyLevel());
 		double chapterProgressPercentage = totalChunksInChapter > 0
 				? (chunk.getChunkNumber() * 100.0 / totalChunksInChapter) : 0.0;

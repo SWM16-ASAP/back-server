@@ -80,7 +80,7 @@ public class ChunkService {
 		Chunk chunk = chunkRepository.findById(chunkId)
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
 
-		if (!chapterId.equals(chunk.getChapterId())) {
+		if (!chapterId.equals(chunk.getChapterId().toString())) {
 			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
 		}
 
@@ -102,7 +102,7 @@ public class ChunkService {
 
 	private ChunkResponse convertToChunkResponse(Chunk chunk) {
 		return ChunkResponse.builder()
-			.id(chunk.getId())
+			.id(chunk.getId().toString())
 			.chunkNumber(chunk.getChunkNumber())
 			.difficultyLevel(chunk.getDifficultyLevel())
 			.type(chunk.getType())

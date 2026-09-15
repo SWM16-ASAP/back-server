@@ -2,35 +2,42 @@ package com.linglevel.api.content.book.entity;
 
 import com.linglevel.api.content.common.ChunkType;
 import com.linglevel.api.content.common.DifficultyLevel;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "chunks")
-@CompoundIndex(name = "chapter_difficulty_chunk_idx", def = "{'chapterId': 1, 'difficultyLevel': 1, 'chunkNumber': 1}")
+@Entity
+@Table(name = "chunks")
 public class Chunk {
 
 	@Id
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-	private String chapterId;
+	@Column(nullable = false)
+	private Long chapterId;
 
+	@Column(nullable = false)
 	private Integer chunkNumber;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10, nullable = false)
 	private DifficultyLevel difficultyLevel;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 10, nullable = false)
 	private ChunkType type;
 
+	@Column(columnDefinition = "text", nullable = false)
 	private String content;
 
+	@Column(columnDefinition = "text")
 	private String description;
 
 	public void updateContent(String content, String description) {

@@ -85,7 +85,7 @@ public class AdminService {
 			.orElseThrow(() -> new BooksException(BooksErrorCode.CHUNK_NOT_FOUND));
 
 		// 청크가 해당 챕터에 속하는지 확인
-		if (!chunk.getChapterId().equals(chapterId)) {
+		if (!chunk.getChapterId().toString().equals(chapterId)) {
 			throw new BooksException(BooksErrorCode.CHUNK_NOT_FOUND);
 		}
 
@@ -110,7 +110,7 @@ public class AdminService {
 			.orElseThrow(() -> new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND));
 
 		// 청크가 해당 기사에 속하는지 확인
-		if (!chunk.getArticleId().equals(articleId)) {
+		if (!chunk.getArticleId().toString().equals(articleId)) {
 			throw new ArticleException(ArticleErrorCode.CHUNK_NOT_FOUND);
 		}
 

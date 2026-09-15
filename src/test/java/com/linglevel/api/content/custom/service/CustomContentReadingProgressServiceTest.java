@@ -64,7 +64,7 @@ class CustomContentReadingProgressServiceTest {
 		// Given: 마이그레이션되지 않은(V2 필드가 null인) CustomContentProgress 설정
 		String userId = "1";
 		String customId = "101";
-		String chunkId = "test-chunk";
+		String chunkId = "301";
 
 		// V2 필드가 null인 레거시 데이터
 		CustomContentProgress legacyProgress = new CustomContentProgress();
@@ -75,8 +75,8 @@ class CustomContentReadingProgressServiceTest {
 		// legacyProgress.currentDifficultyLevel is null
 
 		CustomContentChunk currentChunk = new CustomContentChunk();
-		currentChunk.setId(chunkId);
-		currentChunk.setCustomContentId(customId);
+		currentChunk.setId(Long.valueOf(chunkId));
+		currentChunk.setCustomContentId(Long.valueOf(customId));
 		currentChunk.setChunkNum(5);
 		currentChunk.setDifficultyLevel(DifficultyLevel.A2);
 
@@ -87,8 +87,8 @@ class CustomContentReadingProgressServiceTest {
 		when(customContentService.existsById(customId)).thenReturn(true);
 		when(customContentProgressRepository.findForUpdate(userId, customId)).thenReturn(Optional.of(legacyProgress));
 		when(customContentChunkService.findById(chunkId)).thenReturn(currentChunk);
-		when(customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(customId,
-				DifficultyLevel.A2))
+		when(customContentChunkRepository
+			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(Long.valueOf(customId), DifficultyLevel.A2))
 			.thenReturn(50L);
 		when(progressCalculationService.calculateNormalizedProgress(5, 50L)).thenReturn(10.0);
 

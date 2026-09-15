@@ -132,7 +132,7 @@ class BookImportServiceTest {
 		assertEquals(2, savedChunks.size());
 
 		Chunk textChunk = savedChunks.get(0);
-		assertEquals("1", textChunk.getChapterId());
+		assertEquals(1L, textChunk.getChapterId());
 		assertEquals(1, textChunk.getChunkNumber());
 		assertEquals(DifficultyLevel.A1, textChunk.getDifficultyLevel());
 		assertEquals(ChunkType.TEXT, textChunk.getType());
@@ -140,7 +140,7 @@ class BookImportServiceTest {
 		assertNull(textChunk.getDescription());
 
 		Chunk imageChunk = savedChunks.get(1);
-		assertEquals("1", imageChunk.getChapterId());
+		assertEquals(1L, imageChunk.getChapterId());
 		assertEquals(2, imageChunk.getChunkNumber());
 		assertEquals(DifficultyLevel.A1, imageChunk.getDifficultyLevel());
 		assertEquals(ChunkType.IMAGE, imageChunk.getType());
@@ -217,11 +217,11 @@ class BookImportServiceTest {
 		List<Chunk> savedChunks = StreamSupport.stream(captor.getValue().spliterator(), false).toList();
 
 		assertEquals(3, savedChunks.size());
-		assertEquals("1", savedChunks.get(0).getChapterId());
+		assertEquals(1L, savedChunks.get(0).getChapterId());
 		assertEquals(1, savedChunks.get(0).getChunkNumber());
-		assertEquals("1", savedChunks.get(1).getChapterId());
+		assertEquals(1L, savedChunks.get(1).getChapterId());
 		assertEquals(2, savedChunks.get(1).getChunkNumber());
-		assertEquals("2", savedChunks.get(2).getChapterId());
+		assertEquals(2L, savedChunks.get(2).getChapterId());
 		assertEquals(1, savedChunks.get(2).getChunkNumber());
 	}
 

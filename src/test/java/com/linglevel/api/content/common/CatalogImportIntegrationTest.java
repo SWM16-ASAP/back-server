@@ -81,7 +81,7 @@ class CatalogImportIntegrationTest extends AbstractCatalogTest {
 	}
 
 	@Test
-	void importsBookMetadataAndReadsMongoBodyUsingSqlChapterId() {
+	void importsBookMetadataAndBodyUsingSqlChapterId() {
 		when(ai.downloadJsonFile("book-source", BookImportData.class, bookPath)).thenReturn(bookData());
 		BookImportRequest request = new BookImportRequest();
 		request.setId("book-source");
@@ -123,7 +123,7 @@ class CatalogImportIntegrationTest extends AbstractCatalogTest {
 	}
 
 	@Test
-	void importsArticleAndReadsMongoBodyUsingSqlId() {
+	void importsArticleAndBodyUsingSqlId() {
 		when(ai.downloadJsonFile("article-source", ArticleImportData.class, articlePath)).thenReturn(articleData());
 		ArticleImportRequest request = new ArticleImportRequest();
 		request.setId("article-source");
@@ -150,16 +150,15 @@ class CatalogImportIntegrationTest extends AbstractCatalogTest {
 	}
 
 	@Test
-	void unreferencedArticleChunksCannotBeReadThroughPublicList() {
+	void orphanArticleChunkIsRejectedByForeignKeyConstraint() {
 		var chunk = new com.linglevel.api.content.article.entity.ArticleChunk();
-		chunk.setArticleId("999999");
+		chunk.setArticleId(999999L);
+		chunk.setChunkNumber(1);
 		chunk.setDifficultyLevel(DifficultyLevel.A1);
+		chunk.setType(com.linglevel.api.content.common.ChunkType.TEXT);
 		chunk.setContent("orphan");
-		articleChunks.save(chunk);
-		var query = new GetArticleChunksRequest();
-		query.setDifficultyLevel(DifficultyLevel.A1);
-		assertThatThrownBy(() -> articleChunkService.getArticleChunks("999999", query, null))
-			.isInstanceOf(com.linglevel.api.content.article.exception.ArticleException.class);
+		assertThatThrownBy(() -> articleChunks.saveAndFlush(chunk))
+			.isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
 	}
 
 	@Test

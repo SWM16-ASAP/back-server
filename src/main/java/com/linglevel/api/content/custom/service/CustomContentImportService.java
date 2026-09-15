@@ -108,8 +108,8 @@ public class CustomContentImportService {
 
 				if (hasCoverImage && chapterCounter == 1) {
 					CustomContentChunk coverImageChunk = CustomContentChunk.builder()
-						.customContentId(customContent.getId().toString())
-						.userId(customContent.getUserId().toString())
+						.customContentId(customContent.getId())
+						.userId(customContent.getUserId())
 						.difficultyLevel(difficulty)
 						.chapterNum(chapterCounter)
 						.chunkNum(chunkCounter++)
@@ -140,8 +140,8 @@ public class CustomContentImportService {
 	private CustomContentChunk createCustomContentChunk(AiResultDto.Chunk chunkData, String customContentId,
 			String userId, DifficultyLevel difficulty, int chapterNum, int chunkNum) {
 		CustomContentChunk.CustomContentChunkBuilder builder = CustomContentChunk.builder()
-			.customContentId(customContentId)
-			.userId(userId)
+			.customContentId(Long.valueOf(customContentId))
+			.userId(Long.valueOf(userId))
 			.difficultyLevel(difficulty)
 			.chapterNum(chapterNum)
 			.chunkNum(chunkNum);

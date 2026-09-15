@@ -76,7 +76,7 @@ class ProgressServiceTest {
 		// Given: 마이그레이션되지 않은(V3 필드가 null인) BookProgress 설정
 		String userId = "1";
 		String bookId = "101";
-		String chunkId = "test-chunk";
+		String chunkId = "301";
 		String chapterId = "201";
 
 		// V3 필드(chapterProgresses)가 null인 레거시 데이터
@@ -87,8 +87,8 @@ class ProgressServiceTest {
 		legacyProgress.setChapterProgresses(null); // This is the legacy state
 
 		Chunk currentChunk = new Chunk();
-		currentChunk.setId(chunkId);
-		currentChunk.setChapterId(chapterId);
+		currentChunk.setId(Long.valueOf(chunkId));
+		currentChunk.setChapterId(Long.valueOf(chapterId));
 		currentChunk.setChunkNumber(1);
 
 		Chapter currentChapter = new Chapter();
@@ -107,7 +107,7 @@ class ProgressServiceTest {
 		// the chapter.
 		when(chapterService.findById(chapterId)).thenReturn(currentChapter);
 		when(chapterRepository.countByBookId(bookId)).thenReturn(10);
-		when(chunkRepository.countByChapterIdAndDifficultyLevel(any(), any())).thenReturn(100L);
+		when(chunkRepository.countByChapterIdAndDifficultyLevel(any(Long.class), any())).thenReturn(100L);
 
 		// When: 진행률 업데이트 호출
 		progressService.updateProgress(bookId, request, userId);
@@ -161,7 +161,7 @@ class ProgressServiceTest {
 		// given
 		String userId = "1";
 		String bookId = "1";
-		String chunkId = "chunk-3";
+		String chunkId = "303";
 		String chapterId = "1";
 
 		BookProgress progress = new BookProgress();
@@ -177,8 +177,8 @@ class ProgressServiceTest {
 				.build());
 
 		Chunk chunk = new Chunk();
-		chunk.setId(chunkId);
-		chunk.setChapterId(chapterId);
+		chunk.setId(Long.valueOf(chunkId));
+		chunk.setChapterId(Long.valueOf(chapterId));
 		chunk.setChunkNumber(3);
 		chunk.setDifficultyLevel(DifficultyLevel.A1);
 
@@ -194,7 +194,8 @@ class ProgressServiceTest {
 		when(chunkService.findById(chunkId)).thenReturn(chunk);
 		when(chapterService.findById(chapterId)).thenReturn(chapter);
 		when(bookProgressRepository.findForUpdate(userId, bookId)).thenReturn(Optional.of(progress));
-		when(chunkRepository.countByChapterIdAndDifficultyLevel(chapterId, DifficultyLevel.A1)).thenReturn(5L);
+		when(chunkRepository.countByChapterIdAndDifficultyLevel(Long.valueOf(chapterId), DifficultyLevel.A1))
+			.thenReturn(5L);
 		when(chapterRepository.countByBookId(bookId)).thenReturn(10);
 		when(readingCompletionService.processReadingCompletion(userId,
 				com.linglevel.api.content.common.ContentType.BOOK, chapterId, null))
@@ -225,7 +226,7 @@ class ProgressServiceTest {
 		// given
 		String userId = "1";
 		String bookId = "1";
-		String chunkId = "chunk-4";
+		String chunkId = "304";
 		String chapterId = "2";
 
 		BookProgress progress = new BookProgress();
@@ -242,8 +243,8 @@ class ProgressServiceTest {
 				.build());
 
 		Chunk chunk = new Chunk();
-		chunk.setId(chunkId);
-		chunk.setChapterId(chapterId);
+		chunk.setId(Long.valueOf(chunkId));
+		chunk.setChapterId(Long.valueOf(chapterId));
 		chunk.setChunkNumber(4);
 		chunk.setDifficultyLevel(DifficultyLevel.A1);
 
@@ -259,7 +260,8 @@ class ProgressServiceTest {
 		when(chunkService.findById(chunkId)).thenReturn(chunk);
 		when(chapterService.findById(chapterId)).thenReturn(chapter);
 		when(bookProgressRepository.findForUpdate(userId, bookId)).thenReturn(Optional.of(progress));
-		when(chunkRepository.countByChapterIdAndDifficultyLevel(chapterId, DifficultyLevel.A1)).thenReturn(4L);
+		when(chunkRepository.countByChapterIdAndDifficultyLevel(Long.valueOf(chapterId), DifficultyLevel.A1))
+			.thenReturn(4L);
 		when(chapterRepository.countByBookId(bookId)).thenReturn(2);
 		when(readingCompletionService.processReadingCompletion(userId,
 				com.linglevel.api.content.common.ContentType.BOOK, chapterId, null))
@@ -292,7 +294,7 @@ class ProgressServiceTest {
 		// given
 		String userId = "1";
 		String bookId = "1";
-		String chunkId = "chunk-1";
+		String chunkId = "305";
 		String chapterId = "2";
 
 		BookProgress progress = new BookProgress();
@@ -303,8 +305,8 @@ class ProgressServiceTest {
 		progress.setChapterProgresses(new ArrayList<>());
 
 		Chunk chunk = new Chunk();
-		chunk.setId(chunkId);
-		chunk.setChapterId(chapterId);
+		chunk.setId(Long.valueOf(chunkId));
+		chunk.setChapterId(Long.valueOf(chapterId));
 		chunk.setChunkNumber(1);
 		chunk.setDifficultyLevel(DifficultyLevel.A1);
 
@@ -320,7 +322,8 @@ class ProgressServiceTest {
 		when(chunkService.findById(chunkId)).thenReturn(chunk);
 		when(chapterService.findById(chapterId)).thenReturn(chapter);
 		when(bookProgressRepository.findForUpdate(userId, bookId)).thenReturn(Optional.of(progress));
-		when(chunkRepository.countByChapterIdAndDifficultyLevel(chapterId, DifficultyLevel.A1)).thenReturn(10L);
+		when(chunkRepository.countByChapterIdAndDifficultyLevel(Long.valueOf(chapterId), DifficultyLevel.A1))
+			.thenReturn(10L);
 		when(chapterRepository.countByBookId(bookId)).thenReturn(5);
 		when(readingCompletionService.processReadingCompletion(userId,
 				com.linglevel.api.content.common.ContentType.BOOK, chapterId, null))

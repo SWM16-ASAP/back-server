@@ -172,7 +172,7 @@ class ReadingProgressPersistenceIntegrationTest extends AbstractMysqlTest {
 		bookChunk(first, "first-start", 1);
 		bookChunk(first, "first-end", 2);
 		bookChunk(second, "second-end", 2);
-		when(chunks.countByChapterIdAndDifficultyLevel(anyString(), eq(DifficultyLevel.A1))).thenReturn(2L);
+		when(chunks.countByChapterIdAndDifficultyLevel(any(Long.class), eq(DifficultyLevel.A1))).thenReturn(2L);
 
 		article = new Article();
 		article.setTitle("Article");
@@ -182,7 +182,7 @@ class ReadingProgressPersistenceIntegrationTest extends AbstractMysqlTest {
 		when(articleService.findById(articleId())).thenReturn(article);
 		articleChunk("article-start", 1);
 		articleChunk("article-end", 2);
-		when(articleChunks.countByArticleIdAndDifficultyLevel(articleId(), DifficultyLevel.A1)).thenReturn(2L);
+		when(articleChunks.countByArticleIdAndDifficultyLevel(article.getId(), DifficultyLevel.A1)).thenReturn(2L);
 
 		var reservation = reservations.saveAndFlush(TicketReservation.builder()
 			.userId(Long.valueOf(userId))
@@ -206,7 +206,7 @@ class ReadingProgressPersistenceIntegrationTest extends AbstractMysqlTest {
 		when(customService.existsById(customId())).thenReturn(true);
 		customChunk("custom-start", 1);
 		customChunk("custom-end", 2);
-		when(customChunks.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(customId(), DifficultyLevel.A1))
+		when(customChunks.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(custom.getId(), DifficultyLevel.A1))
 			.thenReturn(2L);
 	}
 
@@ -376,31 +376,34 @@ class ReadingProgressPersistenceIntegrationTest extends AbstractMysqlTest {
 
 	private void bookChunk(Chapter chapter, String id, int number) {
 		Chunk c = new Chunk();
-		c.setId(id);
-		c.setChapterId(chapter.getId().toString());
+		c.setId((long) Math.abs(id.hashCode()));
+		c.setChapterId(chapter.getId());
 		c.setChunkNumber(number);
 		c.setDifficultyLevel(DifficultyLevel.A1);
 		when(chunkService.findById(id)).thenReturn(c);
+		when(chunkService.findById(c.getId().toString())).thenReturn(c);
 	}
 
 	private void articleChunk(String id, int number) {
 		ArticleChunk c = new ArticleChunk();
-		c.setId(id);
-		c.setArticleId(articleId());
+		c.setId((long) Math.abs(id.hashCode()));
+		c.setArticleId(article.getId());
 		c.setChunkNumber(number);
 		c.setDifficultyLevel(DifficultyLevel.A1);
 		when(articleChunkService.findById(id)).thenReturn(c);
+		when(articleChunkService.findById(c.getId().toString())).thenReturn(c);
 		if (number == 1)
 			when(articleChunkService.findFirstByArticleId(articleId())).thenReturn(c);
 	}
 
 	private void customChunk(String id, int number) {
 		CustomContentChunk c = new CustomContentChunk();
-		c.setId(id);
-		c.setCustomContentId(customId());
+		c.setId((long) Math.abs(id.hashCode()));
+		c.setCustomContentId(custom.getId());
 		c.setChunkNum(number);
 		c.setDifficultyLevel(DifficultyLevel.A1);
 		when(customChunkService.findById(id)).thenReturn(c);
+		when(customChunkService.findById(c.getId().toString())).thenReturn(c);
 		if (number == 1)
 			when(customChunkService.findFirstByCustomContentId(customId())).thenReturn(c);
 	}

@@ -4,39 +4,85 @@ import com.linglevel.api.content.custom.entity.CustomContentChunk;
 import com.linglevel.api.content.common.DifficultyLevel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
-import org.springframework.data.mongodb.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface CustomContentChunkRepository extends MongoRepository<CustomContentChunk, String> {
+public interface CustomContentChunkRepository extends JpaRepository<CustomContentChunk, Long> {
 
 	List<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
-			String customContentId);
+			Long customContentId);
+
+	default List<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId) {
+		return findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(Long.valueOf(customContentId));
+	}
 
 	List<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
-			String customContentId, DifficultyLevel difficultyLevel);
+			Long customContentId, DifficultyLevel difficultyLevel);
 
-	@Query("{ 'customContentId': ?0, 'difficultyLevel': ?1, 'isDeleted': false }")
+	default List<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId, DifficultyLevel difficultyLevel) {
+		return findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+				Long.valueOf(customContentId), difficultyLevel);
+	}
+
 	Page<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
-			String customContentId, DifficultyLevel difficultyLevel, Pageable pageable);
+			Long customContentId, DifficultyLevel difficultyLevel, Pageable pageable);
 
-	List<CustomContentChunk> findByUserIdAndIsDeletedFalse(String userId);
+	default Page<CustomContentChunk> findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId, DifficultyLevel difficultyLevel, Pageable pageable) {
+		return findByCustomContentIdAndDifficultyLevelAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+				Long.valueOf(customContentId), difficultyLevel, pageable);
+	}
 
-	Page<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
-			String customContentId, Pageable pageable);
+	List<CustomContentChunk> findByUserIdAndIsDeletedFalse(Long userId);
 
-	Optional<CustomContentChunk> findByIdAndCustomContentIdAndIsDeletedFalse(String id, String customContentId);
+	default List<CustomContentChunk> findByUserIdAndIsDeletedFalse(String userId) {
+		return findByUserIdAndIsDeletedFalse(Long.valueOf(userId));
+	}
+
+	Page<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(Long customContentId,
+			Pageable pageable);
+
+	default Page<CustomContentChunk> findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId, Pageable pageable) {
+		return findByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(Long.valueOf(customContentId),
+				pageable);
+	}
+
+	Optional<CustomContentChunk> findByIdAndCustomContentIdAndIsDeletedFalse(Long id, Long customContentId);
+
+	default Optional<CustomContentChunk> findByIdAndCustomContentIdAndIsDeletedFalse(String id,
+			String customContentId) {
+		return findByIdAndCustomContentIdAndIsDeletedFalse(Long.valueOf(id), Long.valueOf(customContentId));
+	}
 
 	Optional<CustomContentChunk> findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
-			String customContentId);
+			Long customContentId);
 
-	// V2 Progress: Count chunks by difficulty level
-	long countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(String customContentId,
+	default Optional<CustomContentChunk> findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+			String customContentId) {
+		return findFirstByCustomContentIdAndIsDeletedFalseOrderByChapterNumAscChunkNumAsc(
+				Long.valueOf(customContentId));
+	}
+
+	Optional<CustomContentChunk> findById(Long id);
+
+	default Optional<CustomContentChunk> findById(String id) {
+		return findById(Long.valueOf(id));
+	}
+
+	long countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(Long customContentId,
 			DifficultyLevel difficultyLevel);
+
+	default long countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(String customContentId,
+			DifficultyLevel difficultyLevel) {
+		return countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(Long.valueOf(customContentId),
+				difficultyLevel);
+	}
 
 }

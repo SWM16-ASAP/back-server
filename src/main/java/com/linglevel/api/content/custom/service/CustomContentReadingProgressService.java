@@ -57,7 +57,7 @@ public class CustomContentReadingProgressService {
 		CustomContentChunk chunk = customContentChunkService.findById(request.getChunkId());
 
 		// chunk가 해당 custom content에 속하는지 검증
-		if (chunk.getCustomContentId() == null || !chunk.getCustomContentId().equals(customId)) {
+		if (chunk.getCustomContentId() == null || !chunk.getCustomContentId().toString().equals(customId)) {
 			throw new CustomContentException(CustomContentErrorCode.CHUNK_NOT_FOUND_IN_CUSTOM_CONTENT);
 		}
 
@@ -76,8 +76,8 @@ public class CustomContentReadingProgressService {
 		customProgress.setChunkId(request.getChunkId());
 
 		// [V2_CORE] V2 필드: 정규화된 진행률 계산
-		long totalChunks = customContentChunkRepository
-			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(customId, chunk.getDifficultyLevel());
+		long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+				chunk.getCustomContentId(), chunk.getDifficultyLevel());
 		double normalizedProgress = progressCalculationService.calculateNormalizedProgress(chunk.getChunkNum(),
 				totalChunks);
 
@@ -168,11 +168,11 @@ public class CustomContentReadingProgressService {
 		CustomContentProgress newProgress = new CustomContentProgress();
 		newProgress.setUserId(Long.valueOf(userId));
 		newProgress.setCustomId(Long.valueOf(customId));
-		newProgress.setChunkId(firstChunk.getId());
+		newProgress.setChunkId(firstChunk.getId().toString());
 
 		// [V2_CORE] V2 필드: 초기 진행률 계산
-		long totalChunks = customContentChunkRepository
-			.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(customId, firstChunk.getDifficultyLevel());
+		long totalChunks = customContentChunkRepository.countByCustomContentIdAndDifficultyLevelAndIsDeletedFalse(
+				firstChunk.getCustomContentId(), firstChunk.getDifficultyLevel());
 		double initialProgress = progressCalculationService.calculateNormalizedProgress(firstChunk.getChunkNum(),
 				totalChunks);
 

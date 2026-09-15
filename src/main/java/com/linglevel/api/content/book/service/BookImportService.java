@@ -82,7 +82,7 @@ public class BookImportService {
 	private Chunk createChunk(BookImportData.ChunkData chunkData, Chapter chapter, DifficultyLevel difficulty,
 			String bookId, int chunkNumber) {
 		Chunk chunk = new Chunk();
-		chunk.setChapterId(chapter.getId().toString());
+		chunk.setChapterId(chapter.getId());
 		chunk.setChunkNumber(chunkNumber);
 		chunk.setDifficultyLevel(difficulty);
 
